@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Postes, Spans y Midspans</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">GitHub Pages · HTML/CSS/JS puro</p>
+        <h1>Calculadora Web de Postes</h1>
+        <p class="subtitle">Postes, spans, comms, low power, proposed por span, movimientos de HOA, midspan calculado, MR único y warnings.</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="btn btn-primary file-btn">
+          Importar datos
+          <input id="excelFileInput" type="file" accept=".json,.xlsx,.xls,.csv,application/json" hidden />
+        </label>
+        <button id="exportExcelBtn" class="btn btn-success" type="button">Exportar datos</button>
+        <button id="saveLocalBtn" class="btn" type="button">Guardar local</button>
+        <button id="loadLocalBtn" class="btn" type="button">Cargar local</button>
+        <button id="resetSampleBtn" class="btn btn-danger-outline" type="button">Datos demo</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel sticky-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Proyecto</h2>
+              <p id="projectMeta" class="muted">Sin archivo importado</p>
+            </div>
+          </div>
+          <div class="toolbar vertical">
+            <input id="poleSearchInput" class="input" type="search" placeholder="Buscar poste u owner..." />
+            <select id="warningFilterSelect" class="input">
+              <option value="all">Todos los postes editables</option>
+              <option value="warnings">Solo con warnings</option>
+              <option value="changed">Solo con cambios/proposed</option>
+            </select>
+            <button id="autoCalculateBtn" class="btn btn-disabled" type="button" disabled>Autocalcular movimientos · pendiente</button>
+          </div>
+          <div id="polesList" class="pole-list"></div>
+        </section>
+      </aside>
+
+      <section class="content">
+        <section class="panel hero-panel">
+          <div class="panel-header split">
+            <div>
+              <p class="eyebrow">Vista general</p>
+              <h2>Todos los postes editables</h2>
+            </div>
+            <div class="summary-grid" id="summaryGrid"></div>
+          </div>
+          <div id="polesOverview" class="cards-grid"></div>
+        </section>
+
+        <section class="panel graph-panel">
+          <div class="panel-header split">
+            <div>
+              <p class="eyebrow">Relaciones</p>
+              <h2>Gráfica de postes y spans</h2>
+            </div>
+            <p class="muted">Selecciona un poste o span para ver su detalle.</p>
+          </div>
+          <div id="graphCanvas" class="graph-canvas"></div>
+        </section>
+
+        <section class="panel detail-panel">
+          <div id="selectedPoleDetail" class="detail-placeholder">
+            La vista principal muestra todos los postes. Selecciona uno para enfocarlo aquí.
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastHost" class="toast-host"></div>
+
+  <button id="openCalculatorBtn" class="floating-open-btn" type="button">ft/in</button>
+  <section id="floatingCalculator" class="floating-calculator hidden" aria-label="Calculadora de pies y pulgadas">
+    <div class="floating-header">
+      <div>
+        <p class="eyebrow">Calculadora</p>
+        <h3>Pies / pulgadas</h3>
+      </div>
+      <button id="closeCalculatorBtn" class="icon-btn" type="button" aria-label="Cerrar calculadora">×</button>
+    </div>
+    <div class="calc-grid">
+      <label>Valor A<input id="calcA" class="input" placeholder="24'6&quot;" /></label>
+      <label>Operación
+        <select id="calcOperation" class="input">
+          <option value="add">A + B</option>
+          <option value="subtract">A - B</option>
+          <option value="toDecimal">A a ft decimal</option>
+          <option value="fromDecimal">A ft decimal a ft/in</option>
+          <option value="inchesToHeight">A pulgadas a ft/in</option>
+        </select>
+      </label>
+      <label>Valor B<input id="calcB" class="input" placeholder="1'8&quot;" /></label>
+      <button id="runCalculatorBtn" class="btn btn-primary" type="button">Calcular</button>
+      <div class="calc-result" id="calcResult">Resultado</div>
+    </div>
+  </section>
+
+  <script src="libs/xlsx.full.min.js"></script>
+  <script src="js/height-utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/calculations.js"></script>
+  <script src="js/midspan.js"></script>
+  <script src="js/mr-logic.js"></script>
+  <script src="js/validations.js"></script>
+  <script src="js/excel-import.js"></script>
+  <script src="js/excel-export.js"></script>
+  <script src="js/graph.js"></script>
+  <script src="js/floating-calculator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
