@@ -16,10 +16,14 @@
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
-          Importar datos
-          <input id="excelFileInput" type="file" accept=".json,.xlsx,.xls,.csv,application/json" hidden />
+          Importar Excel crudo
+          <input id="excelFileInput" type="file" accept=".xlsx,.csv" hidden />
         </label>
-        <button id="exportExcelBtn" class="btn btn-success" type="button">Exportar datos</button>
+        <label class="btn btn-primary file-btn">
+          Importar JSON
+          <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
+        </label>
+        <button id="exportExcelBtn" class="btn btn-success" type="button">Exportar JSON</button>
         <button id="saveLocalBtn" class="btn" type="button">Guardar local</button>
         <button id="loadLocalBtn" class="btn" type="button">Cargar local</button>
         <button id="resetSampleBtn" class="btn btn-danger-outline" type="button">Datos demo</button>

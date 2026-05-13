@@ -359,23 +359,37 @@
     renderSelectedPoleDetail();
   }
 
-  async function handleImport(file) {
+  async function handleExcelImport(file) {
     if (!file) return;
     try {
-      await global.ExcelImport.importDataFile(file);
+      await global.ExcelImport.importExcelFile(file);
       render();
-      const isJson = file.name.toLowerCase().endsWith(".json") || file.type === "application/json";
-      toast(isJson ? "Datos JSON importados y cargados." : "Archivo importado. Se leyeron los datos disponibles.", "success");
+      toast("Excel crudo importado. Se cargaron las hojas disponibles.", "success");
     } catch (error) {
       console.error(error);
-      toast(`Error importando datos: ${error.message}`, "error");
+      toast(`Error importando Excel: ${error.message}`, "error");
     } finally {
       els.excelFileInput.value = "";
     }
   }
 
+  async function handleJsonImport(file) {
+    if (!file) return;
+    try {
+      await global.ExcelImport.importJsonFile(file);
+      render();
+      toast("JSON importado. El trabajo guardado quedo cargado.", "success");
+    } catch (error) {
+      console.error(error);
+      toast(`Error importando JSON: ${error.message}`, "error");
+    } finally {
+      els.jsonFileInput.value = "";
+    }
+  }
+
   function bindEvents() {
-    els.excelFileInput.addEventListener("change", event => handleImport(event.target.files[0]));
+    els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
+    els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
     els.exportExcelBtn.addEventListener("click", () => global.ExcelExport.exportData());
     els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Guardado local en este navegador.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
@@ -392,6 +406,7 @@
   function init() {
     Object.assign(els, {
       excelFileInput: qs("excelFileInput"),
+      jsonFileInput: qs("jsonFileInput"),
       exportExcelBtn: qs("exportExcelBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),

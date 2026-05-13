@@ -478,6 +478,10 @@
     const spanRows = rowsToObjects(findSheet(workbook, ["Span", "Spans"]) || []);
     const wireRows = rowsToObjects(findSheet(workbook, ["Span.Wire", "Span Wire", "Wires", "Comms"]) || []);
 
+    if (!collectionRows.length && !spanRows.length && !wireRows.length) {
+      throw new Error("No encontre hojas Collection, Span o Span.Wire con encabezados legibles.");
+    }
+
     const collectionIndex = buildCollectionIndex(collectionRows);
     importPolesFromCollection(collectionRows);
 
@@ -487,6 +491,11 @@
 
     S().normalizeState(state);
     global.Calculations.recalculateAll();
+
+    if (!Object.keys(S().getState().poles).length) {
+      throw new Error("No se pudo cargar ningun poste desde el archivo.");
+    }
+
     return S().getState();
   }
 
@@ -507,7 +516,6 @@
 
   async function importExcelFile(file) {
     const ext = file.name.split(".").pop().toLowerCase();
-    if (ext === "json" || file.type === "application/json") return importJsonFile(file);
     if (ext === "csv") {
       const text = await file.text();
       const rows = text.split(/\r?\n/).filter(Boolean).map(line => line.split(",").map(v => v.replace(/^"|"$/g, "")));
@@ -521,7 +529,10 @@
   global.ExcelImport = {
     importExcelFile,
     importJsonFile,
-    importDataFile: importExcelFile,
+    importDataFile: file => {
+      const ext = file.name.split(".").pop().toLowerCase();
+      return ext === "json" || file.type === "application/json" ? importJsonFile(file) : importExcelFile(file);
+    },
     rowsToObjects,
     pick,
     findSheet,
