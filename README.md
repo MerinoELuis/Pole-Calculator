@@ -59,7 +59,8 @@ La app lee principalmente:
 - La Altura Max se calcula como `Low Power - clearanceToPower`.
 - El MR no se importa desde `Make Ready`; se genera dentro de la app.
 - Las notas importadas no se usan como notas principales; las notas son editables dentro de la app.
-- `Exportar JSON` descarga el estado completo de la calculadora para poder continuar el trabajo después.
+- `Exportar Excel` descarga un `.xlsx` reimportable con hojas de tablas y una hoja `AppState` con el JSON completo.
+- `Exportar JSON` descarga solo el estado completo de la calculadora para poder continuar el trabajo después.
 - `Importar JSON` carga un archivo `.json` exportado por la app y restaura postes, spans, movimientos, MR, notas y warnings guardados.
 
 ## Botones de importación/exportación
@@ -77,7 +78,12 @@ La app lee principalmente:
 
 - `Exportar JSON`
   - Descarga un `.json` con todo el estado actual.
-  - Este es el formato recomendado para guardar avances y reimportarlos después.
+  - Sirve como guardado ligero del avance.
+
+- `Exportar Excel`
+  - Descarga un `.xlsx` reimportable.
+  - Incluye la hoja `AppState` para restaurar exactamente el avance.
+  - También incluye hojas legibles como `Poles`, `Spans`, `SpanComms`, `SpanSides`, `MR` y `Warnings`.
 
 ## Archivos principales
 

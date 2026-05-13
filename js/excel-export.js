@@ -63,7 +63,7 @@
       side.notes || ""
     ]));
 
-    const comms = [["poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "rawOwner", "size", "wireId", "notes"]];
+    const comms = [["poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "rawOwner", "unknownOwner", "size", "wireId", "notes"]];
     Object.values(state.poles).forEach(pole => pole.comms.forEach(comm => comms.push([
       pole.poleId,
       comm.owner,
@@ -71,12 +71,13 @@
       comm.existingHOA,
       comm.existingHOAChange || "",
       comm.rawOwner || "",
+      comm.unknownOwner ? "Yes" : "No",
       comm.size || "",
       comm.wireId || "",
       comm.notes || ""
     ])));
 
-    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
+    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
     Object.values(state.spanComms).forEach(sc => spanComms.push([
       sc.spanId,
       sc.poleId,
@@ -93,6 +94,7 @@
       sc.mr,
       sc.notes,
       sc.rawOwner || "",
+      sc.unknownOwner ? "Yes" : "No",
       sc.size || "",
       sc.construction || "",
       sc.insulator || "",
@@ -212,7 +214,7 @@
     stateToSheets,
     exportExcel,
     exportJson,
-    exportData: exportJson,
+    exportData: exportExcel,
     exportCsv,
     downloadJson,
     downloadCsv

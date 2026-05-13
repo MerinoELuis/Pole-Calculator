@@ -33,7 +33,7 @@
 
   function poleSummary(poleId) {
     const state = S.getState();
-    const pole = S.getPole(poleId);
+    const pole = S.getPole(poleId) || S.createPole({ poleId, isGenerated: /^Unknown-/i.test(poleId) });
     const spans = S.getConnectedSpans(poleId);
     const warnings = state.warnings.filter(w => w.poleId === poleId);
     const midspanCount = S.getSpanCommsForPole(poleId).filter(sc => sc.calculatedMidspan || sc.midspan || sc.ocalcMS).length;
@@ -69,7 +69,8 @@
     return Object.keys(state.poles).filter(poleId => {
       const summary = poleSummary(poleId);
       const pole = summary.pole;
-      const text = `${poleId} ${pole.sequence || ""} ${pole.poleHeight} ${pole.lowPower || ""} ${pole.maxCommHeight || ""} ${pole.comms.map(c => `${c.owner} ${c.existingHOA}`).join(" ")}`.toLowerCase();
+      const comms = Array.isArray(pole.comms) ? pole.comms : [];
+      const text = `${poleId} ${pole.sequence || ""} ${pole.poleHeight || ""} ${pole.lowPower || ""} ${pole.maxCommHeight || ""} ${comms.map(c => `${c.owner || ""} ${c.existingHOA || ""}`).join(" ")}`.toLowerCase();
       if (search && !text.includes(search)) return false;
       if (filter === "warnings" && summary.warnings.length === 0) return false;
       if (filter === "changed" && !summary.hasChanges) return false;
@@ -254,7 +255,22 @@
 
   function renderAllPolesWorkspace() {
     const poleIds = filteredPoles();
-    els.polesOverview.innerHTML = poleIds.map(id => renderPoleWorkspace(id)).join("") || `<div class="detail-placeholder">No hay postes para mostrar.</div>`;
+    els.polesOverview.innerHTML = poleIds.map(id => {
+      try {
+        return renderPoleWorkspace(id);
+      } catch (error) {
+        console.error(`Error renderizando poste ${id}`, error);
+        return `<article class="pole-workspace-card warning-row" data-pole-card="${escapeHtml(id)}">
+          <div class="pole-workspace-header">
+            <div>
+              <h3>${escapeHtml(id)}</h3>
+              <span class="badge danger">Error de datos</span>
+            </div>
+          </div>
+          <p class="muted">Este poste se importo, pero tiene datos incompletos o inesperados. Revisa el Excel o vuelve a importar.</p>
+        </article>`;
+      }
+    }).join("") || `<div class="detail-placeholder">No hay postes para mostrar.</div>`;
     wireEditableEvents(els.polesOverview);
   }
 
@@ -390,7 +406,8 @@
   function bindEvents() {
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
     els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
-    els.exportExcelBtn.addEventListener("click", () => global.ExcelExport.exportData());
+    els.exportExcelBtn.addEventListener("click", () => global.ExcelExport.exportExcel());
+    els.exportJsonBtn.addEventListener("click", () => global.ExcelExport.exportJson());
     els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Guardado local en este navegador.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
       const loaded = S.loadFromLocal();
@@ -408,6 +425,7 @@
       excelFileInput: qs("excelFileInput"),
       jsonFileInput: qs("jsonFileInput"),
       exportExcelBtn: qs("exportExcelBtn"),
+      exportJsonBtn: qs("exportJsonBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
       resetSampleBtn: qs("resetSampleBtn"),

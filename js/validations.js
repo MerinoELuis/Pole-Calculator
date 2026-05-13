@@ -62,6 +62,7 @@
 
     pole.comms.forEach(comm => {
       if (!comm.owner) addWarning(warnings, poleId, "", "", "UNKNOWN_OWNER", "Hay un comm sin owner.");
+      if (comm.unknownOwner) addWarning(warnings, poleId, "", comm.owner, "UNKNOWN_OWNER", `Owner no normalizado: ${comm.rawOwner || comm.owner}.`);
       if (comm.existingHOA && !H().isValidHeight(comm.existingHOA)) addWarning(warnings, poleId, "", comm.owner, "INVALID_EXISTING_HOA", `Existing HOA inválido para ${comm.owner}.`, "danger");
     });
 
@@ -69,6 +70,7 @@
     if (!connected.length) addWarning(warnings, poleId, "", "", "DISCONNECTED_POLE", "El poste no tiene spans conectados.");
 
     S().getSpanCommsForPole(poleId).forEach(sc => {
+      if (sc.unknownOwner) addWarning(warnings, poleId, sc.spanId, sc.owner, "UNKNOWN_OWNER", `Owner no normalizado en Span.Wire: ${sc.rawOwner || sc.owner}.`);
       ["existingHOA", "existingHOAChange", "ocalcMS", "midspan", "calculatedMidspan"].forEach(field => {
         if (sc[field] && !H().isValidHeight(sc[field])) addWarning(warnings, poleId, sc.spanId, sc.owner, `INVALID_${field.toUpperCase()}`, `${field} inválido para ${sc.owner}.`, "danger");
       });

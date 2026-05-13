@@ -133,6 +133,14 @@
     return "";
   }
 
+  function fallbackOwner(rawOwner, size, wireId) {
+    const raw = String(rawOwner || "").replace(/^COMMUNICATION\s*>\s*/i, "").trim();
+    if (raw) return raw;
+    const text = String(size || "").trim();
+    if (text) return text.split(">")[0].trim() || text;
+    return wireId ? `UNKNOWN-${wireId}` : "UNKNOWN_COMM";
+  }
+
   function isCommunicationWire(row) {
     const rawOwner = String(pick(row, ["Owner", "owner"])).trim();
     const size = String(pick(row, ["Size", "Size.display", "Wire Size"])).trim();
@@ -155,9 +163,9 @@
     const n = Number(text.replace(/°/g, "").trim());
     if (!Number.isFinite(n)) return { direction: text, degrees: "" };
     const normalized = (((n % 360) + 360) % 360);
-    const dirs16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-    const index = Math.round(normalized / 22.5) % 16;
-    return { direction: dirs16[index], degrees: Number(normalized.toFixed(2)) };
+    const dirs8 = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const index = Math.round(normalized / 45) % 8;
+    return { direction: dirs8[index], degrees: Number(normalized.toFixed(2)) };
   }
 
   function importAppStateSheet(workbook) {
@@ -242,6 +250,7 @@
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
         rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
+        unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
         size: pick(row, ["size", "Size"]),
         wireId: pick(row, ["wireId", "Wire ID"])
       });
@@ -264,6 +273,7 @@
         mr: pick(row, ["mr", "MR", "Make Ready"]),
         notes: pick(row, ["notes", "Notas"]),
         rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
+        unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
         size: pick(row, ["size", "Size"]),
         construction: pick(row, ["construction", "Construction"]),
         insulator: pick(row, ["insulator", "Insulator"]),
@@ -298,8 +308,8 @@
       const poleType = String(pick(row, ["Type", "Pole Type"])).trim();
       const lowPower = heightFromRow(
         row,
-        ["Low Power Attachment.display", "Low Power Attachment Display", "Low Power Attachment"],
-        ["Low Power Attachment"]
+        ["Low Power Attachment.display", "Low Power Attachment Display", "Low Power Attachment", "Lowest Power.display", "Low Power.display"],
+        ["Low Power Attachment", "Lowest Power", "Low Power"]
       );
       const tipHeight = heightFromRow(row, ["Tip.display", "Tip Display"], ["Tip"]);
       const poleHeight = parsePoleHeightFromType(poleType) || heightFromRow(row, ["Pole Height.display", "Height.display", "Length.display"], ["Pole Height", "Height", "Length"]);
@@ -432,19 +442,21 @@
         return;
       }
 
-      if (!isCommunicationWire(row)) return;
-      const ownerBase = normalizeOwner(rawOwner, size);
-      if (!ownerBase) return;
-      const owner = ownerBase;
+      if (!isCommunicationWire(row) && !rawOwner && !size) return;
+      const normalizedOwner = normalizeOwner(rawOwner, size);
+      const owner = normalizedOwner || fallbackOwner(rawOwner, size, wireId);
+      const ownerBase = normalizedOwner || owner;
+      const unknownOwner = !normalizedOwner;
       const notes = [
         size ? `Size: ${size}` : "",
         rawOwner ? `Raw owner: ${rawOwner}` : "",
+        unknownOwner ? "Owner no normalizado" : "",
         construction ? `Construction: ${construction}` : "",
         insulator ? `Insulator: ${insulator}` : "",
         wireId ? `WireId: ${wireId}` : ""
       ].filter(Boolean).join(" | ");
 
-      S().upsertComm(poleId, owner, attachmentHeight, "", { rawOwner, size, wireId, ownerBase });
+      S().upsertComm(poleId, owner, attachmentHeight, "", { rawOwner, size, wireId, ownerBase, unknownOwner });
       S().upsertSpanComm({
         spanId,
         poleId,
@@ -459,6 +471,7 @@
         mr: "",
         notes,
         rawOwner,
+        unknownOwner,
         size,
         construction,
         insulator,

@@ -98,6 +98,7 @@
       existingHOAChange: trim(extra.existingHOAChange || ""),
       notes: trim(notes),
       rawOwner: trim(extra.rawOwner || ""),
+      unknownOwner: Boolean(extra.unknownOwner),
       size: trim(extra.size || ""),
       wireId: trim(extra.wireId || "")
     };
@@ -159,6 +160,7 @@
       mr: trim(data.mr || ""),
       notes: trim(data.notes || ""),
       rawOwner: trim(data.rawOwner || ""),
+      unknownOwner: Boolean(data.unknownOwner),
       size: trim(data.size || ""),
       construction: trim(data.construction || ""),
       insulator: trim(data.insulator || ""),
@@ -243,6 +245,7 @@
         existingHOAChange: trim(extra.existingHOAChange || pole.comms[idx].existingHOAChange || ""),
         notes: trim(notes) || pole.comms[idx].notes,
         rawOwner: trim(extra.rawOwner || pole.comms[idx].rawOwner || ""),
+        unknownOwner: Boolean(extra.unknownOwner || pole.comms[idx].unknownOwner),
         size: trim(extra.size || pole.comms[idx].size || ""),
         wireId: trim(extra.wireId || pole.comms[idx].wireId || "")
       };
@@ -359,6 +362,7 @@
               existingHOA: comm.existingHOA,
               existingHOAChange: comm.existingHOAChange || "",
               rawOwner: comm.rawOwner || "",
+              unknownOwner: Boolean(comm.unknownOwner),
               size: comm.size || "",
               wireId: comm.wireId || ""
             });
