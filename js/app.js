@@ -59,7 +59,9 @@
       [warnings, "Warnings"],
       [changed, "Con cambios"]
     ].map(([value, label]) => `<div class="summary-card"><strong>${value}</strong><span>${label}</span></div>`).join("");
-    els.projectMeta.textContent = `${state.importedFileName || "Proyecto"} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`;
+    if (els.projectMeta) {
+      els.projectMeta.textContent = `${state.importedFileName || "Proyecto"} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`;
+    }
   }
 
   function filteredPoles() {
@@ -429,6 +431,7 @@
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
       resetSampleBtn: qs("resetSampleBtn"),
+      projectMeta: qs("projectMeta"),
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),
       summaryGrid: qs("summaryGrid"),
