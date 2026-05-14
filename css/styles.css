@@ -287,6 +287,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   display: grid;
   grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: 10px;
+  align-items: end;
 }
 
 .pole-kpis label,
@@ -296,10 +297,12 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  text-align: center;
 }
 
 .pole-kpis .input {
   margin-top: 5px;
+  text-align: center;
 }
 
 .workspace-grid {

@@ -340,8 +340,8 @@
     }
 
     return {
-      flaggingStatus: issues.length ? "PROBLEM" : (midspan === null ? "MISSING" : "OK"),
-      flaggingMessage: issues.length ? Array.from(new Set(issues)).join(" ") : (midspan === null ? "Sin midspan para validar Environment/Power MS." : "OK")
+      flaggingStatus: issues.length ? "PROBLEM" : "OK",
+      flaggingMessage: issues.length ? Array.from(new Set(issues)).join(" ") : "OK"
     };
   }
 
@@ -470,11 +470,8 @@
       const localAdjustment = localExisting !== null && local !== null ? (localExisting - local) / 2 : 0;
       const remoteAdjustment = remoteExisting !== null && remoteInches !== null ? (remoteExisting - remoteInches) / 2 : 0;
       calculated = format(Math.round(importedMidspan - localAdjustment - remoteAdjustment));
-    } else if (local !== null && remoteInches !== null) {
-      const sag = getEstimatedSagInches(span);
-      calculated = format(Math.round((local + remoteInches) / 2) - sag);
     } else {
-      calculated = spanComm.ocalcMS || spanComm.midspan || "";
+      calculated = "";
     }
 
     const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);

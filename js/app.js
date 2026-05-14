@@ -107,9 +107,20 @@
   }
 
   function proposedSpansForPole(poleId) {
+    const seen = new Set();
     return connectedSpansSorted(poleId)
       .filter(span => span.fromPole === poleId)
-      .filter(span => spanHasRealMidspan(span.spanId));
+      .filter(span => spanHasRealMidspan(span.spanId))
+      .filter(span => {
+        const key = `${span.fromPole || ""}->${span.toPole || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function commHasImportedMidspan(sc) {
+    return H.parseHeight(sc?.ocalcMS || sc?.midspan || "") !== null;
   }
 
   function groupedCommsForPole(poleId) {
@@ -140,7 +151,7 @@
     const rows = [...group.rows].sort((a, b) =>
       `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
     );
-    rows.forEach(sc => {
+    rows.filter(commHasImportedMidspan).forEach(sc => {
       const span = S.getSpan(sc.spanId);
       const midspan = displayMidspan(sc);
       const key = `${sc.spanId}|${midspan || ""}`;
@@ -161,12 +172,12 @@
 
   function renderCommSpanRefs(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
-    return `<div class="comm-span-list">${entries.map(entry => entry.spanHtml).join("") || `<span class="muted">Sin span.</span>`}</div>`;
+    return `<div class="comm-span-list">${entries.map(entry => entry.spanHtml).join("")}</div>`;
   }
 
   function renderCommMidspanValues(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
-    return `<div class="comm-midspan-list">${entries.map(entry => entry.midspanHtml).join("") || `<span class="muted">Sin midspan.</span>`}</div>`;
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.midspanHtml).join("")}</div>`;
   }
 
   function renderCommFlagging(group) {
@@ -513,7 +524,7 @@
     const rows = S.getSpanPowerForPole(poleId);
     if (!rows.length) return `<p class="muted">No se importaron wires de power para este poste.</p>`;
     return `<div class="table-wrap"><table class="power-table">
-      <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th><th>Size</th></tr></thead>
+      <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th></tr></thead>
       <tbody>${rows.map(row => {
         const span = S.getSpan(row.spanId);
         return `<tr>
@@ -521,7 +532,6 @@
           <td><span class="badge warning">${escapeHtml(row.label)}</span></td>
           <td>${escapeHtml(row.attachmentHeight)}</td>
           <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(row.midspan || "")}"></td>
-          <td>${escapeHtml(row.size)}</td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
