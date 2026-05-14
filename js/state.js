@@ -166,6 +166,7 @@
       finalMidspan: trim(data.finalMidspan || ""),
       clearanceMSStatus: trim(data.clearanceMSStatus || ""),
       clearanceMSMessage: trim(data.clearanceMSMessage || ""),
+      clearanceMSReason: trim(data.clearanceMSReason || ""),
       clearanceMSIssue: Boolean(data.clearanceMSIssue),
       pendingMidspanFinal: trim(data.pendingMidspanFinal || ""),
       clearanceFixReadyAt: Number(data.clearanceFixReadyAt || 0),

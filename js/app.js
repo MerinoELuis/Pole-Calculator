@@ -291,6 +291,7 @@
 
   function spanSideClearanceNote(side) {
     if (!side.ocalcMS && !side.proposedMidspan) return "Falta O-CALC MS.";
+    if (side.clearanceMSReason === "LOW_POWER" && side.clearanceMSIssue) return `Ensure min 30" to low power at midspan.`;
     if (side.clearanceMSStatus === "PENDING") {
       return `${side.clearanceMSMessage || "Clearance issue."} Corrigiendo a ${side.pendingMidspanFinal || ""}...`;
     }

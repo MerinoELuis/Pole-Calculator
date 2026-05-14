@@ -49,8 +49,18 @@
     return H().parseHeight(settings.commClearance || "12\"") ?? 12;
   }
 
+  function getPoleBoltBoltClearance() {
+    const settings = S().getState().settings || {};
+    return H().parseHeight(settings.boltClearance || "4\"") ?? 4;
+  }
+
   function commOwnerLabel(sc) {
     return String(sc?.rawOwner || sc?.owner || "").trim();
+  }
+
+  function normalizedHeightLabelForCalc(value) {
+    const parsed = H().parseHeight(value || "");
+    return parsed === null ? String(value || "").trim() : format(parsed);
   }
 
   function parseMidspanValue(value) {
@@ -122,6 +132,7 @@
     let issue = false;
     let impossible = false;
     let needsAdjustment = false;
+    let clearanceMSReason = "";
 
     if (references.length) {
       messages.push(`Referencia tomada contra ${references.length} comm(s)/span(s) conectados al poste.`);
@@ -157,6 +168,7 @@
       issue = true;
       needsAdjustment = true;
       target = maxMS;
+      clearanceMSReason = "LOW_POWER";
       messages.push(`Se ajusta a la altura máxima en midspan ${format(maxMS)}.`);
     }
 
@@ -193,6 +205,7 @@
       issue,
       impossible,
       needsAdjustment,
+      clearanceMSReason,
       message: messages.join(" ") || `OK con Midspan Comm-Comm ${format(commClearance)}.`,
       position
     };
@@ -228,6 +241,7 @@
       clearanceFixReadyAt,
       clearanceMSStatus: status,
       clearanceMSMessage: evaluation.message,
+      clearanceMSReason: evaluation.clearanceMSReason || "",
       clearanceMSIssue: Boolean(evaluation.issue)
     };
   }
@@ -323,12 +337,17 @@
       const poleClearance = getPoleCommCommClearance();
       S().getSpanCommsForPole(sc.poleId).forEach(other => {
         if (spanCommKey(other) === spanCommKey(sc)) return;
-        if (commOwnerLabel(other) && commOwnerLabel(other) === owner) return;
+        const otherOwner = commOwnerLabel(other);
+        const sameOwner = otherOwner && otherOwner === owner;
+        const otherEffective = getEffectiveCommHOA(other);
+        if (sameOwner && normalizedHeightLabelForCalc(otherEffective) === normalizedHeightLabelForCalc(getEffectiveCommHOA(sc))) return;
         const otherHeight = H().parseHeight(getEffectiveCommHOA(other));
         if (otherHeight === null) return;
         const diff = Math.abs(poleHeight - otherHeight);
-        if (diff < poleClearance) {
-          issues.push(`Comm-comm poste: ${format(diff)} con ${commOwnerLabel(other) || "sin owner"}; mínimo ${format(poleClearance)}.`);
+        const required = sameOwner ? getPoleBoltBoltClearance() : poleClearance;
+        const label = sameOwner ? "Bolt-bolt poste" : "Comm-comm poste";
+        if (diff < required) {
+          issues.push(`${label}: ${format(diff)} con ${otherOwner || "sin owner"}; mínimo ${format(required)}.`);
         }
       });
     }
@@ -497,7 +516,9 @@
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
     S().upsertSpanComm({ ...sc, existingHOAChange: newHeight || "" });
     recalculateSpan(spanId);
-    recalculateSpansForPole(poleId);
+    const span = S().getSpan(spanId);
+    const affectedPoles = span ? [span.fromPole, span.toPole].filter(Boolean) : [poleId];
+    affectedPoles.forEach(recalculateSpansForPole);
     S().getState().selectedPoleId = poleId;
     return S().getSpanComm(spanId, poleId, owner, wireId);
   }
@@ -542,7 +563,9 @@
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
     S().upsertSpanComm({ ...sc, [field]: value || "" });
     recalculateSpan(spanId);
-    recalculateSpansForPole(poleId);
+    const span = S().getSpan(spanId);
+    const affectedPoles = span ? [span.fromPole, span.toPole].filter(Boolean) : [poleId];
+    affectedPoles.forEach(recalculateSpansForPole);
     return S().getSpanComm(spanId, poleId, owner, wireId);
   }
 

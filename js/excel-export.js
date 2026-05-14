@@ -53,13 +53,17 @@
       span.notes || ""
     ]));
 
-    const spanSides = [["spanId", "poleId", "proposedHOA", "proposedHOAChange", "proposedMidspan", "endDrop", "clearanceReference", "maxCommHeight", "topComm", "lowComm", "notes"]];
+    const spanSides = [["spanId", "poleId", "proposedHOA", "proposedHOAChange", "proposedMidspan", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSReason", "endDrop", "clearanceReference", "maxCommHeight", "topComm", "lowComm", "notes"]];
     Object.values(state.spanSides).forEach(side => spanSides.push([
       side.spanId,
       side.poleId,
       side.proposedHOA,
       side.proposedHOAChange || "",
       side.proposedMidspan,
+      side.ocalcMS || "",
+      side.msProposed || "",
+      side.finalMidspan || "",
+      side.clearanceMSReason || "",
       side.endDrop,
       side.clearanceReference,
       side.maxCommHeight,

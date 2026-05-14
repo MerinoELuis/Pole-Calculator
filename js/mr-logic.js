@@ -46,6 +46,9 @@
     const span = S().getSpan(spanSide.spanId);
     const dir = span && span.direction ? ` ${span.direction}` : "";
     const items = [`Attach proposed at HOA ${spanSide.proposedHOA}${dir}.`];
+    if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue) {
+      items.push(`Ensure min 30" to low power at midspan.`);
+    }
     if (detectSlack(spanSide)) items.push(`Proposed slack span${dir}.`.replace("  ", " "));
     if (detectAnchor(spanSide)) items.push(`PL NEW ANC${dir}.`.replace("  ", " "));
     if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));

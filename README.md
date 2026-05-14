@@ -2,7 +2,7 @@
 
 Aplicación estática para GitHub Pages hecha con HTML, CSS y JavaScript puro. No requiere Node.js, backend ni servidor propio.
 
-## Cambio v1.2
+## Cambio v1.3
 
 Esta versión corrige la importación y separa dos conceptos que no deben mezclarse:
 
@@ -59,7 +59,6 @@ La app lee principalmente:
 - La Altura Max se calcula como `Low Power - clearanceToPower`.
 - El MR no se importa desde `Make Ready`; se genera dentro de la app.
 - Las notas importadas no se usan como notas principales; las notas son editables dentro de la app.
-- `Exportar Excel` descarga un `.xlsx` reimportable con hojas de tablas y una hoja `AppState` con el JSON completo.
 - `Exportar JSON` descarga solo el estado completo de la calculadora para poder continuar el trabajo después.
 - `Importar JSON` carga un archivo `.json` exportado por la app y restaura postes, spans, movimientos, MR, notas y warnings guardados.
 
@@ -80,10 +79,6 @@ La app lee principalmente:
   - Descarga un `.json` con todo el estado actual.
   - Sirve como guardado ligero del avance.
 
-- `Exportar Excel`
-  - Descarga un `.xlsx` reimportable.
-  - Incluye la hoja `AppState` para restaurar exactamente el avance.
-  - También incluye hojas legibles como `Poles`, `Spans`, `SpanComms`, `SpanSides`, `MR` y `Warnings`.
 
 ## Archivos principales
 
@@ -93,7 +88,7 @@ La app lee principalmente:
 - `js/state.js`
 - `js/height-utils.js`
 - `js/excel-import.js`
-- `js/excel-export.js`
+- `js/json-export.js`
 - `js/calculations.js`
 - `js/graph.js`
 - `js/midspan.js`
@@ -102,7 +97,7 @@ La app lee principalmente:
 - `js/floating-calculator.js`
 - `libs/xlsx.full.min.js`
 
-> Nota: `libs/xlsx.full.min.js` no es SheetJS completo. Es un lector/exportador XLSX mínimo creado para esta app. Permite exportar un Excel reimportable y leer hojas simples de Excel desde el navegador. Para workbooks muy complejos, fórmulas, estilos avanzados o formatos especiales, conviene reemplazarlo por SheetJS real.
+> Nota: `libs/xlsx.full.min.js` no es SheetJS completo. En esta versión se usa como lector XLSX mínimo para importar hojas simples de Excel desde el navegador. Para workbooks muy complejos, fórmulas, estilos avanzados o formatos especiales, conviene reemplazarlo por SheetJS real.
 
 ## Cómo usar en local
 

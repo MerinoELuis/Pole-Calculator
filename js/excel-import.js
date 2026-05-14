@@ -291,6 +291,7 @@
         ocalcMS: pick(row, ["ocalcMS", "O-CALC MS", "O-Calc MS"]),
         msProposed: pick(row, ["msProposed", "MS Proposed"]),
         finalMidspan: pick(row, ["finalMidspan", "Midspan final ajustado", "Final Midspan"]),
+        clearanceMSReason: pick(row, ["clearanceMSReason", "Clearance MS Reason"]),
         endDrop: pick(row, ["endDrop", "End Drop"]),
         clearanceReference: pick(row, ["clearanceReference", "Clearance Reference"]),
         maxCommHeight: pick(row, ["maxCommHeight", "Max Height"]),
