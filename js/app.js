@@ -137,21 +137,26 @@
   function renderCommMidspanRefs(group, poleId) {
     const seen = new Set();
     const refs = [];
-    group.rows.forEach(sc => {
+    const rows = [...group.rows].sort((a, b) =>
+      `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
+    );
+    rows.forEach(sc => {
       const span = S.getSpan(sc.spanId);
       const midspan = displayMidspan(sc);
       const key = `${sc.spanId}|${midspan || ""}`;
       if (seen.has(key)) return;
       seen.add(key);
       const isBackspan = span && span.fromPole !== poleId;
-      refs.push(`<span class="midspan-pill">
-        ${span ? spanColorDot(poleId, span.spanId) : ""}
-        <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
-        <strong>${escapeHtml(midspan || "Sin MS")}</strong>
-        ${isBackspan ? `<em>ref</em>` : ""}
-      </span>`);
+      refs.push(`<div class="comm-midspan-row">
+        <div class="comm-midspan-span">
+          ${span ? spanColorDot(poleId, span.spanId) : ""}
+          <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
+          ${isBackspan ? `<em>ref</em>` : ""}
+        </div>
+        <strong>${escapeHtml(midspan || "Sin midspan")}</strong>
+      </div>`);
     });
-    return `<div class="comm-midspan-list">${refs.join("") || `<span class="muted">Sin midspan relacionado.</span>`}</div>`;
+    return `<div class="comm-midspan-list">${refs.join("") || `<span class="muted">Sin midspan.</span>`}</div>`;
   }
 
   function renderCommFlagging(group) {
@@ -469,7 +474,7 @@
     if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Midspans relacionados</th><th>Flagging</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Midspan</th><th>Flagging</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);

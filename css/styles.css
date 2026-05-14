@@ -396,32 +396,44 @@ tr.danger-row {
 }
 
 .comm-midspan-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 6px;
-  min-width: 260px;
+  min-width: 300px;
 }
 
-.midspan-pill {
-  display: inline-flex;
+.comm-midspan-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(72px, auto);
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   max-width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 10px;
   background: #fff;
   color: #334155;
   font-size: .78rem;
   line-height: 1.15;
 }
 
-.midspan-pill strong {
+.comm-midspan-span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.comm-midspan-span span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.comm-midspan-row strong {
   color: var(--text);
   white-space: nowrap;
 }
 
-.midspan-pill em {
+.comm-midspan-row em {
   color: var(--muted);
   font-style: normal;
   font-weight: 800;
