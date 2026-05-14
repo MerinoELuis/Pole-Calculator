@@ -114,11 +114,3 @@ Abre `index.html` directamente en el navegador.
 - Si un Excel crudo cambia nombres de hojas o encabezados, hay que agregar esos alias en `js/excel-import.js`.
 - Si se quiere volver a exportar reportes tipo tabla, puede agregarse otro botón para CSV/XLSX sin cambiar el flujo de guardado JSON.
 
-## Cómo subir a GitHub Pages
-
-1. Crea un repositorio en GitHub.
-2. Sube todos los archivos y carpetas del proyecto.
-3. En GitHub: Settings → Pages.
-4. Source: Deploy from a branch.
-5. Branch: `main` / root.
-6. Abre el link que genera GitHub Pages.
