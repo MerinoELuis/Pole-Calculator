@@ -134,9 +134,9 @@
     );
   }
 
-  function renderCommMidspanRefs(group, poleId) {
+  function commMidspanEntries(group, poleId) {
     const seen = new Set();
-    const refs = [];
+    const entries = [];
     const rows = [...group.rows].sort((a, b) =>
       `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
     );
@@ -147,16 +147,26 @@
       if (seen.has(key)) return;
       seen.add(key);
       const isBackspan = span && span.fromPole !== poleId;
-      refs.push(`<div class="comm-midspan-row">
-        <div class="comm-midspan-span">
+      entries.push({
+        spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
           ${isBackspan ? `<em>ref</em>` : ""}
-        </div>
-        <strong>${escapeHtml(midspan || "Sin midspan")}</strong>
-      </div>`);
+        </div>`,
+        midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan || "Sin midspan")}</strong></div>`
+      });
     });
-    return `<div class="comm-midspan-list">${refs.join("") || `<span class="muted">Sin midspan.</span>`}</div>`;
+    return entries;
+  }
+
+  function renderCommSpanRefs(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-span-list">${entries.map(entry => entry.spanHtml).join("") || `<span class="muted">Sin span.</span>`}</div>`;
+  }
+
+  function renderCommMidspanValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.midspanHtml).join("") || `<span class="muted">Sin midspan.</span>`}</div>`;
   }
 
   function renderCommFlagging(group) {
@@ -474,7 +484,7 @@
     if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Midspan</th><th>Flagging</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>Midspan</th><th>Flagging</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -491,7 +501,8 @@
           <td><span class="badge owner">${escapeHtml(group.owner)}</span></td>
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
-          <td>${renderCommMidspanRefs(group, poleId)}</td>
+          <td>${renderCommSpanRefs(group, poleId)}</td>
+          <td>${renderCommMidspanValues(group, poleId)}</td>
           <td>${renderCommFlagging(group)}</td>
         </tr>`;
       }).join("")}</tbody>

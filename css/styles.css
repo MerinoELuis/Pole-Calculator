@@ -395,17 +395,25 @@ tr.danger-row {
   min-width: 1780px;
 }
 
+.comm-span-list,
 .comm-midspan-list {
   display: grid;
   gap: 6px;
-  min-width: 300px;
 }
 
-.comm-midspan-row {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(72px, auto);
+.comm-span-list {
+  min-width: 260px;
+}
+
+.comm-midspan-list {
+  min-width: 110px;
+}
+
+.comm-span-row,
+.comm-midspan-value {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  min-height: 34px;
   max-width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--line);
@@ -416,24 +424,26 @@ tr.danger-row {
   line-height: 1.15;
 }
 
-.comm-midspan-span {
-  display: inline-flex;
-  align-items: center;
+.comm-span-row {
   gap: 6px;
   min-width: 0;
 }
 
-.comm-midspan-span span {
+.comm-span-row span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.comm-midspan-row strong {
+.comm-midspan-value {
+  justify-content: flex-end;
+}
+
+.comm-midspan-value strong {
   color: var(--text);
   white-space: nowrap;
 }
 
-.comm-midspan-row em {
+.comm-span-row em {
   color: var(--muted);
   font-style: normal;
   font-weight: 800;
