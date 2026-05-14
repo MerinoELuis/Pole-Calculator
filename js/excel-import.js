@@ -235,6 +235,7 @@
         spanId: String(pick(row, ["spanId", "Span ID"])).trim(),
         poleId: String(pick(row, ["poleId", "Pole ID"])).trim(),
         proposedHOA: pick(row, ["proposedHOA", "Proposed HOA", "Proposed"]),
+        proposedHOAChange: pick(row, ["proposedHOAChange", "Cambio Proposed", "Proposed Change"]),
         proposedMidspan: pick(row, ["proposedMidspan", "Proposed Midspan", "O-Calc MS"]),
         endDrop: pick(row, ["endDrop", "End Drop"]),
         clearanceReference: pick(row, ["clearanceReference", "Clearance Reference"]),

@@ -4,9 +4,9 @@
   const CURRENT_VERSION = "1.2.0";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
-  const DEFAULT_CLEARANCE_TO_POWER = "4'";
-  const DEFAULT_COMM_CLEARANCE = "1'";
-  const DEFAULT_BOLT_CLEARANCE = "6\"";
+  const DEFAULT_CLEARANCE_TO_POWER = "40\"";
+  const DEFAULT_COMM_CLEARANCE = "12\"";
+  const DEFAULT_BOLT_CLEARANCE = "4\"";
 
   const emptyState = () => ({
     version: CURRENT_VERSION,
@@ -17,8 +17,12 @@
     autoCreateSpanComms: false,
     settings: {
       clearanceToPower: DEFAULT_CLEARANCE_TO_POWER,
+      polePowerCommsClearance: "40\"",
       commClearance: DEFAULT_COMM_CLEARANCE,
       boltClearance: DEFAULT_BOLT_CLEARANCE,
+      midspanPowerCommClearance: "30\"",
+      midspanCommCommClearance: "4'",
+      environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
     },
     poles: {},
@@ -131,6 +135,7 @@
       spanId: trim(data.spanId || ""),
       poleId: trim(data.poleId || ""),
       proposedHOA: trim(data.proposedHOA || ""),
+      proposedHOAChange: trim(data.proposedHOAChange || ""),
       proposedMidspan: trim(data.proposedMidspan || ""),
       endDrop: trim(data.endDrop || ""),
       clearanceReference: trim(data.clearanceReference || "LOW_POWER"),
@@ -227,6 +232,14 @@
     if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
     return pole;
+  }
+
+  function updateSetting(field, value) {
+    if (!state.settings || !Object.prototype.hasOwnProperty.call(emptyState().settings, field)) return null;
+    state.settings[field] = trim(value);
+    if (field === "polePowerCommsClearance") state.settings.clearanceToPower = trim(value);
+    if (field === "clearanceToPower") state.settings.polePowerCommsClearance = trim(value);
+    return state.settings;
   }
 
   function upsertComm(poleId, owner, existingHOA = "", notes = "", extra = {}) {
@@ -513,6 +526,7 @@
     getSpanComm,
     upsertPole,
     updatePoleField,
+    updateSetting,
     upsertComm,
     upsertSpan,
     upsertSpanSide,

@@ -30,9 +30,10 @@
 
     S().getSpanSidesForSpan(spanId).forEach(side => {
       if (side.proposedHOA && !H().isValidHeight(side.proposedHOA)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED", "Proposed HOA inválido.", "danger");
+      if (side.proposedHOAChange && !H().isValidHeight(side.proposedHOAChange)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED_CHANGE", "Cambio Proposed inválido.", "danger");
       if (side.proposedMidspan && !H().isValidHeight(side.proposedMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED_MIDSPAN", "Proposed Midspan inválido.", "danger");
       if (side.endDrop && !H().isValidHeight(side.endDrop)) addWarning(warnings, side.poleId, spanId, "", "INVALID_END_DROP", "End Drop inválido.", "danger");
-      if (side.proposedHOA && !side.proposedMidspan) addWarning(warnings, side.poleId, spanId, "", "MISSING_PROPOSED_MIDSPAN", "Hay Proposed HOA pero falta Proposed Midspan / O-Calc MS para calcular End Drop.");
+      if (side.proposedHOA && !side.proposedHOAChange && !side.proposedMidspan) addWarning(warnings, side.poleId, spanId, "", "MISSING_PROPOSED_TARGET", "Hay Proposed HOA pero falta Cambio Proposed u O-Calc Midspan para calcular End Drop.");
       if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed HOA ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
     });
 

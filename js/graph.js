@@ -44,7 +44,7 @@
     const state = S().getState();
     if (!container) return;
     const width = Math.max(container.clientWidth || 1100, 760);
-    const height = 420;
+    const height = 360;
     const nodes = buildLayout(width, height);
     const selectedPole = state.selectedPoleId;
     const selectedSpan = state.selectedSpanId;
@@ -56,19 +56,19 @@
       const active = span.spanId === selectedSpan ? " active" : "";
       const mx = (a.x + b.x) / 2;
       const my = (a.y + b.y) / 2 - 8;
-      const label = [span.direction || "", span.lengthDisplay || ""].filter(Boolean).join(" · ");
+      const label = span.direction || "";
       return `<g data-span-id="${escapeHtml(span.spanId)}">
         <line class="graph-edge${active}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />
-        <text class="graph-label" x="${mx}" y="${my}" text-anchor="middle">${escapeHtml(label || span.spanId)}</text>
+        ${label ? `<text class="graph-label" x="${mx}" y="${my}" text-anchor="middle">${escapeHtml(label)}</text>` : ""}
       </g>`;
     }).join("");
 
     const nodeItems = Object.entries(nodes).map(([poleId, pos]) => {
       const active = poleId === selectedPole ? " active" : "";
       const unknown = /^Unknown-/i.test(poleId) ? " unknown" : "";
-      const label = poleId.length > 14 ? poleId.slice(0, 12) + "…" : poleId;
+      const label = poleId.length > 16 ? poleId.slice(0, 14) + "..." : poleId;
       return `<g class="graph-node${active}${unknown}" data-pole-id="${escapeHtml(poleId)}" transform="translate(${pos.x}, ${pos.y})">
-        <circle r="31"></circle>
+        <circle r="27"></circle>
         <text y="5" text-anchor="middle">${escapeHtml(label)}</text>
       </g>`;
     }).join("");

@@ -36,6 +36,11 @@
     return `${span.fromPole || "?"} → ${span.toPole || "Unknown"}`;
   }
 
+  function poleLink(poleId) {
+    if (!poleId) return "";
+    return `<button class="link-button" type="button" data-scroll-to-pole="${escapeHtml(poleId)}">${escapeHtml(poleId)}</button>`;
+  }
+
   function displayMidspan(sc) {
     return sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
   }
@@ -47,6 +52,26 @@
     const aboveMax = max && H.compareHeights(height, max) === 1;
     if (aboveMax) return `<span class="badge danger">Clearance Issue</span><div class="cell-hint">Max ${escapeHtml(max)} · Low Power ${escapeHtml(pole.lowPower)}</div>`;
     return `<span class="badge changed">OK</span><div class="cell-hint">Max ${escapeHtml(max)} · Low Power ${escapeHtml(pole.lowPower)}</div>`;
+  }
+
+  function renderClearanceSettings() {
+    if (!els.clearanceSettings) return;
+    const settings = S.getState().settings || {};
+    const rows = [
+      ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
+      ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
+      ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
+      ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
+      ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4'"],
+      ["environmentClearance", "Midspan · Environment", settings.environmentClearance || "15'6\""]
+    ];
+    els.clearanceSettings.innerHTML = rows.map(([field, label, value]) => `
+      <label class="clearance-row">
+        <span>${escapeHtml(label)}</span>
+        <input class="input height-input" data-scope="settings" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
+      </label>
+    `).join("");
+    wireEditableEvents(els.clearanceSettings);
   }
 
   function poleSummary(poleId) {
@@ -129,6 +154,9 @@
     document.querySelectorAll("[data-pole-select]").forEach(btn => {
       btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
     });
+    document.querySelectorAll("[data-scroll-to-pole]").forEach(btn => {
+      btn.addEventListener("click", () => selectPole(btn.dataset.scrollToPole));
+    });
   }
 
   function renderWarningsList(poleId) {
@@ -171,23 +199,21 @@
     if (!spans.length) return `<p class="muted">No hay spans conectados.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table">
       <thead><tr>
-        <th>Span</th><th>Dir</th><th>Length</th><th>Other Pole</th><th>Low Power</th><th>Max Comm</th><th>Proposed HOA</th><th>Proposed Midspan</th><th>End Drop</th><th>Clearance</th><th>Notas</th>
+        <th>Span</th><th>Length</th><th>Low Power</th><th>Max Comm</th><th>Proposed HOA</th><th>Cambio Proposed</th><th>End Drop</th><th>O-Calc Midspan</th><th>Clearance</th><th>Notas</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
-        const other = S.getOtherPoleId(span, poleId);
         const pole = S.getPole(poleId);
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         return `<tr class="${side.proposedHOA || side.proposedMidspan || side.endDrop ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
-          <td class="span-cell"><strong>${escapeHtml(shortSpanLabel(span))}</strong></td>
-          <td><span class="badge">${escapeHtml(span.direction || "-")}</span></td>
+          <td class="span-cell"><strong>${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
           <td>${escapeHtml(span.lengthDisplay || "")}</td>
-          <td>${escapeHtml(other || "")}</td>
           <td>${escapeHtml(pole?.lowPower || "")}</td>
           <td>${escapeHtml(side.maxCommHeight || pole?.maxCommHeight || "")}</td>
-          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}" placeholder="24'1&quot;"></td>
-          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedMidspan" value="${escapeHtml(side.proposedMidspan || "")}" placeholder="23'7&quot;"></td>
-          <td><input class="input height-input muted-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="endDrop" value="${escapeHtml(side.endDrop || "")}" placeholder="auto"></td>
+          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
+          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
+          <td><input class="input height-input muted-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="endDrop" value="${escapeHtml(side.endDrop || "")}" readonly></td>
+          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedMidspan" value="${escapeHtml(side.proposedMidspan || "")}"></td>
           <td>${renderClearanceStatus(side.proposedHOA, pole)}</td>
           <td><textarea class="input text-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="notes" placeholder="Notas propias...">${escapeHtml(side.notes || "")}</textarea></td>
         </tr>`;
@@ -200,7 +226,7 @@
     if (!rows.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Existing HOA Change</th><th>Diferencia</th><th>Span</th><th>Dir</th><th>Other Pole</th><th>HOA otro poste</th><th>Midspan</th><th>Clearance</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Existing HOA Change</th><th>Span</th><th>HOA otro poste</th><th>Midspan</th><th>Clearance</th>
       </tr></thead>
       <tbody>${rows.map(sc => {
         const span = S.getSpan(sc.spanId);
@@ -209,13 +235,10 @@
         const aboveMax = effective && H.compareHeights(effective, pole?.maxCommHeight) === 1;
         const changed = Boolean(sc.existingHOAChange || sc.notes || sc.mr);
         return `<tr class="${changed ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
-          <td><span class="badge owner">${escapeHtml(sc.owner)}</span><div class="muted">${escapeHtml(sc.size || sc.wireId || "")}</div></td>
+          <td><span class="badge owner">${escapeHtml(sc.owner)}</span></td>
           <td>${escapeHtml(sc.existingHOA || "")}</td>
-          <td><input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(sc.existingHOAChange || "")}" placeholder="nueva altura"></td>
-          <td>${escapeHtml(sc.difference || "")}</td>
-          <td class="span-cell">${escapeHtml(shortSpanLabel(span))}</td>
-          <td><span class="badge">${escapeHtml(span?.direction || "-")}</span></td>
-          <td>${escapeHtml(sc.remotePoleId || (span ? S.getOtherPoleId(span, poleId) : ""))}</td>
+          <td><input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(sc.existingHOAChange || "")}"></td>
+          <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
           <td>${escapeHtml(sc.remoteHOA || "")}</td>
           <td>${escapeHtml(displayMidspan(sc))}</td>
           <td>${renderClearanceStatus(effective, pole)}</td>
@@ -231,7 +254,7 @@
       <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th><th>Size</th></tr></thead>
       <tbody>${rows.map(row => {
         const span = S.getSpan(row.spanId);
-        return `<tr><td class="span-cell">${escapeHtml(shortSpanLabel(span))}</td><td><span class="badge warning">${escapeHtml(row.label)}</span></td><td>${escapeHtml(row.attachmentHeight)}</td><td>${escapeHtml(row.midspan)}</td><td>${escapeHtml(row.size)}</td></tr>`;
+        return `<tr><td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td><td><span class="badge warning">${escapeHtml(row.label)}</span></td><td>${escapeHtml(row.attachmentHeight)}</td><td>${escapeHtml(row.midspan)}</td><td>${escapeHtml(row.size)}</td></tr>`;
       }).join("")}</tbody>
     </table></div>`;
   }
@@ -250,7 +273,7 @@
           <p class="muted">Aquí se mueve cada comm existente con nueva altura. Si cambia el otro poste del mismo span, el Midspan calculado se actualiza.</p>
           ${renderCommMovementTable(poleId)}
         </section>
-        <section class="subsection">
+        <section class="subsection wide">
           <h4>Power / clearance importado</h4>
           ${renderPowerTable(poleId)}
         </section>
@@ -285,6 +308,9 @@
       }
     }).join("") || `<div class="detail-placeholder">No hay postes para mostrar.</div>`;
     wireEditableEvents(els.polesOverview);
+    els.polesOverview.querySelectorAll("[data-scroll-to-pole]").forEach(btn => {
+      btn.addEventListener("click", () => selectPole(btn.dataset.scrollToPole));
+    });
   }
 
   function renderSelectedPoleDetail() {
@@ -351,6 +377,11 @@
       global.Calculations.updateSpanCommField(el.dataset.span, el.dataset.pole, el.dataset.owner, el.dataset.wireId || "", field, value);
     }
 
+    if (scope === "settings") {
+      S.updateSetting(field, value);
+      global.Calculations.recalculateAll();
+    }
+
     render();
   }
 
@@ -383,6 +414,7 @@
   function render() {
     global.Calculations.recalculateAll();
     renderSummary();
+    renderClearanceSettings();
     renderPoleLists();
     renderAllPolesWorkspace();
     renderGraph();
@@ -434,8 +466,15 @@
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
     els.toggleSidebarBtn.addEventListener("click", () => {
       const collapsed = els.appLayout.classList.toggle("sidebar-collapsed");
-      els.toggleSidebarBtn.textContent = collapsed ? "Mostrar índice" : "Ocultar índice";
+      els.toggleSidebarBtn.textContent = collapsed ? "Índice" : "Ocultar";
       els.toggleSidebarBtn.setAttribute("aria-expanded", String(!collapsed));
+    });
+    document.querySelectorAll("[data-sidebar-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-sidebar-tab]").forEach(item => item.classList.toggle("active", item === btn));
+        els.sidebarIndexTab.classList.toggle("hidden", btn.dataset.sidebarTab !== "index");
+        els.sidebarClearancesTab.classList.toggle("hidden", btn.dataset.sidebarTab !== "clearances");
+      });
     });
   }
 
@@ -458,6 +497,9 @@
       selectedPoleDetail: qs("selectedPoleDetail"),
       appLayout: qs("appLayout"),
       toggleSidebarBtn: qs("toggleSidebarBtn"),
+      clearanceSettings: qs("clearanceSettings"),
+      sidebarIndexTab: qs("sidebarIndexTab"),
+      sidebarClearancesTab: qs("sidebarClearancesTab"),
       toastHost: qs("toastHost")
     });
 

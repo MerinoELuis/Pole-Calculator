@@ -38,7 +38,12 @@
     if (!span) return null;
     const otherPole = S().getOtherPoleId(span, poleId);
     if (!otherPole) return null;
-    return S().getSpanCommsForSpan(spanId).find(row => row.poleId === otherPole && (row.ownerBase || row.owner) === ownerBase) || null;
+    const target = String(ownerBase || "").toLowerCase();
+    const candidates = S().getSpanCommsForSpan(spanId).filter(row => row.poleId === otherPole);
+    return candidates.find(row => {
+      const values = [row.ownerBase, row.owner, row.rawOwner].map(value => String(value || "").toLowerCase());
+      return values.includes(target) || values.some(value => target && value.includes(target));
+    }) || candidates[0] || null;
   }
 
   function calculatePoleDerived(poleId) {
@@ -53,7 +58,8 @@
     const topComm = heights.length ? format(Math.max(...heights)) : "";
     const lowComm = heights.length ? format(Math.min(...heights)) : "";
     const lowPower = H().parseHeight(pole.lowPower);
-    const clearance = H().parseHeight(S().getState().settings.clearanceToPower || "4'");
+    const settings = S().getState().settings || {};
+    const clearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
     const maxCommHeight = lowPower !== null && clearance !== null ? format(lowPower - clearance) : "";
 
     S().updatePoleField(poleId, "topComm", topComm);
@@ -76,12 +82,14 @@
     const side = S().getSpanSide(spanId, poleId);
     if (!side) return "";
     const proposed = H().parseHeight(side.proposedHOA);
-    const midspan = H().parseHeight(side.proposedMidspan);
-    if (proposed === null || midspan === null) {
+    const changed = H().parseHeight(side.proposedHOAChange);
+    const ocalcMidspan = H().parseHeight(side.proposedMidspan);
+    const target = changed !== null ? changed : ocalcMidspan;
+    if (proposed === null || target === null) {
       if (!side.lockedEndDrop) S().upsertSpanSide({ ...side, endDrop: "" });
       return side.endDrop || "";
     }
-    const calculated = format(midspan - proposed);
+    const calculated = format(target - proposed);
     S().upsertSpanSide({ ...side, endDrop: calculated, lockedEndDrop: false });
     return calculated;
   }
@@ -137,13 +145,13 @@
   }
 
   function updateSpanSideField(spanId, poleId, field, value) {
-    const allowed = ["proposedHOA", "proposedMidspan", "endDrop", "clearanceReference", "notes"];
+    const allowed = ["proposedHOA", "proposedHOAChange", "proposedMidspan", "endDrop", "clearanceReference", "notes"];
     if (!allowed.includes(field)) return null;
     const side = S().getSpanSide(spanId, poleId) || S().upsertSpanSide({ spanId, poleId });
     const data = { ...side, [field]: value || "" };
     if (field === "endDrop") data.lockedEndDrop = Boolean(value);
     S().upsertSpanSide(data);
-    if (["proposedHOA", "proposedMidspan"].includes(field)) calculateEndDropForSpanSide(spanId, poleId);
+    if (["proposedHOA", "proposedHOAChange", "proposedMidspan"].includes(field)) calculateEndDropForSpanSide(spanId, poleId);
     recalculateSpansForPole(poleId);
     return S().getSpanSide(spanId, poleId);
   }

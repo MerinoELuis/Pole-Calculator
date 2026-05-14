@@ -49,11 +49,12 @@
       span.notes || ""
     ]));
 
-    const spanSides = [["spanId", "poleId", "proposedHOA", "proposedMidspan", "endDrop", "clearanceReference", "maxCommHeight", "topComm", "lowComm", "notes"]];
+    const spanSides = [["spanId", "poleId", "proposedHOA", "proposedHOAChange", "proposedMidspan", "endDrop", "clearanceReference", "maxCommHeight", "topComm", "lowComm", "notes"]];
     Object.values(state.spanSides).forEach(side => spanSides.push([
       side.spanId,
       side.poleId,
       side.proposedHOA,
+      side.proposedHOAChange || "",
       side.proposedMidspan,
       side.endDrop,
       side.clearanceReference,

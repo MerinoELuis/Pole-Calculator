@@ -30,9 +30,9 @@
       </div>
     </header>
 
-    <main class="layout" id="appLayout">
+    <main class="layout sidebar-collapsed" id="appLayout">
       <aside class="sidebar">
-        <button id="toggleSidebarBtn" class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="sidebarPanel">Ocultar índice</button>
+        <button id="toggleSidebarBtn" class="sidebar-toggle" type="button" aria-expanded="false" aria-controls="sidebarPanel">Índice</button>
         <section class="panel sticky-panel">
           <div class="panel-header" id="sidebarPanel">
             <div>
@@ -41,6 +41,10 @@
             </div>
           </div>
           <div class="toolbar vertical">
+            <div class="sidebar-tabs" role="tablist" aria-label="Pestañas de visualización">
+              <button class="mini-btn active" type="button" data-sidebar-tab="index">Índice</button>
+              <button class="mini-btn" type="button" data-sidebar-tab="clearances">Clearances</button>
+            </div>
             <input id="poleSearchInput" class="input" type="search" placeholder="Buscar poste u owner..." />
             <select id="warningFilterSelect" class="input">
               <option value="all">Todos los postes editables</option>
@@ -49,7 +53,12 @@
             </select>
             <button id="autoCalculateBtn" class="btn btn-disabled" type="button" disabled>Autocalcular movimientos · pendiente</button>
           </div>
-          <div id="polesList" class="pole-list"></div>
+          <div id="sidebarIndexTab" class="sidebar-tab-panel">
+            <div id="polesList" class="pole-list"></div>
+          </div>
+          <div id="sidebarClearancesTab" class="sidebar-tab-panel hidden">
+            <div id="clearanceSettings" class="clearance-settings"></div>
+          </div>
         </section>
       </aside>
 
