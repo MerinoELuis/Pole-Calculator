@@ -30,10 +30,11 @@
       </div>
     </header>
 
-    <main class="layout">
+    <main class="layout" id="appLayout">
       <aside class="sidebar">
+        <button id="toggleSidebarBtn" class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="sidebarPanel">Ocultar índice</button>
         <section class="panel sticky-panel">
-          <div class="panel-header">
+          <div class="panel-header" id="sidebarPanel">
             <div>
               <h2>Proyecto</h2>
               <p id="projectMeta" class="muted">Sin archivo importado</p>
@@ -53,6 +54,17 @@
       </aside>
 
       <section class="content">
+        <section class="panel graph-panel">
+          <div class="panel-header split">
+            <div>
+              <p class="eyebrow">Relaciones</p>
+              <h2>Índice de postes y spans</h2>
+            </div>
+            <p class="muted">Selecciona un poste o span para saltar a su bloque.</p>
+          </div>
+          <div id="graphCanvas" class="graph-canvas"></div>
+        </section>
+
         <section class="panel hero-panel">
           <div class="panel-header split">
             <div>
@@ -62,17 +74,6 @@
             <div class="summary-grid" id="summaryGrid"></div>
           </div>
           <div id="polesOverview" class="cards-grid"></div>
-        </section>
-
-        <section class="panel graph-panel">
-          <div class="panel-header split">
-            <div>
-              <p class="eyebrow">Relaciones</p>
-              <h2>Gráfica de postes y spans</h2>
-            </div>
-            <p class="muted">Selecciona un poste o span para ver su detalle.</p>
-          </div>
-          <div id="graphCanvas" class="graph-canvas"></div>
         </section>
 
         <section class="panel detail-panel">

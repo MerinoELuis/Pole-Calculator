@@ -31,6 +31,24 @@
     return `${span.fromPole} → ${span.toPole || "Unknown"}`;
   }
 
+  function shortSpanLabel(span) {
+    if (!span) return "";
+    return `${span.fromPole || "?"} → ${span.toPole || "Unknown"}`;
+  }
+
+  function displayMidspan(sc) {
+    return sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
+  }
+
+  function renderClearanceStatus(height, pole, missingLabel = "Missing Data") {
+    if (!pole || !pole.lowPower) return `<span class="badge warning">${missingLabel}</span>`;
+    const max = pole.maxCommHeight || "";
+    if (!height) return `<span class="badge warning">Missing Data</span>${max ? `<div class="cell-hint">Max ${escapeHtml(max)}</div>` : ""}`;
+    const aboveMax = max && H.compareHeights(height, max) === 1;
+    if (aboveMax) return `<span class="badge danger">Clearance Issue</span><div class="cell-hint">Max ${escapeHtml(max)} · Low Power ${escapeHtml(pole.lowPower)}</div>`;
+    return `<span class="badge changed">OK</span><div class="cell-hint">Max ${escapeHtml(max)} · Low Power ${escapeHtml(pole.lowPower)}</div>`;
+  }
+
   function poleSummary(poleId) {
     const state = S.getState();
     const pole = S.getPole(poleId) || S.createPole({ poleId, isGenerated: /^Unknown-/i.test(poleId) });
@@ -153,28 +171,24 @@
     if (!spans.length) return `<p class="muted">No hay spans conectados.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table">
       <thead><tr>
-        <th>Span</th><th>Dir</th><th>Length</th><th>Other Pole</th><th>Low Power</th><th>Altura Max</th><th>Proposed HOA</th><th>Proposed Midspan / O-Calc MS</th><th>End Drop</th><th>Referencia clearance</th><th>Notas</th>
+        <th>Span</th><th>Dir</th><th>Length</th><th>Other Pole</th><th>Low Power</th><th>Max Comm</th><th>Proposed HOA</th><th>Proposed Midspan</th><th>End Drop</th><th>Clearance</th><th>Notas</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
         const other = S.getOtherPoleId(span, poleId);
         const pole = S.getPole(poleId);
-        const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole.maxCommHeight) === 1;
+        const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         return `<tr class="${side.proposedHOA || side.proposedMidspan || side.endDrop ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
-          <td><strong>${escapeHtml(spanLabel(span))}</strong><div class="muted">${escapeHtml(span.spanId)} · ${escapeHtml(span.type || "")}</div></td>
-          <td><span class="badge">${escapeHtml(span.direction || "-")}</span>${span.bearingDegrees !== "" ? `<div class="muted">${escapeHtml(span.bearingDegrees)}°</div>` : ""}</td>
+          <td class="span-cell"><strong>${escapeHtml(shortSpanLabel(span))}</strong></td>
+          <td><span class="badge">${escapeHtml(span.direction || "-")}</span></td>
           <td>${escapeHtml(span.lengthDisplay || "")}</td>
           <td>${escapeHtml(other || "")}</td>
-          <td>${escapeHtml(pole.lowPower || "")}</td>
-          <td>${escapeHtml(side.maxCommHeight || pole.maxCommHeight || "")}</td>
+          <td>${escapeHtml(pole?.lowPower || "")}</td>
+          <td>${escapeHtml(side.maxCommHeight || pole?.maxCommHeight || "")}</td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}" placeholder="24'1&quot;"></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedMidspan" value="${escapeHtml(side.proposedMidspan || "")}" placeholder="23'7&quot;"></td>
           <td><input class="input height-input muted-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="endDrop" value="${escapeHtml(side.endDrop || "")}" placeholder="auto"></td>
-          <td><select class="input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="clearanceReference">
-            <option value="LOW_POWER" ${side.clearanceReference === "LOW_POWER" ? "selected" : ""}>Low Power</option>
-            <option value="TOP_COMM" ${side.clearanceReference === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
-            <option value="MANUAL" ${side.clearanceReference === "MANUAL" ? "selected" : ""}>Manual</option>
-          </select></td>
+          <td>${renderClearanceStatus(side.proposedHOA, pole)}</td>
           <td><textarea class="input text-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="notes" placeholder="Notas propias...">${escapeHtml(side.notes || "")}</textarea></td>
         </tr>`;
       }).join("")}</tbody>
@@ -186,7 +200,7 @@
     if (!rows.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Existing HOA Change</th><th>Diferencia</th><th>Span</th><th>Dir</th><th>Other Pole</th><th>HOA otro poste</th><th>Midspan importado</th><th>O-Calc MS</th><th>Midspan calculado</th><th>Clearance</th><th>Notas</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Existing HOA Change</th><th>Diferencia</th><th>Span</th><th>Dir</th><th>Other Pole</th><th>HOA otro poste</th><th>Midspan</th><th>Clearance</th>
       </tr></thead>
       <tbody>${rows.map(sc => {
         const span = S.getSpan(sc.spanId);
@@ -199,15 +213,12 @@
           <td>${escapeHtml(sc.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(sc.existingHOAChange || "")}" placeholder="nueva altura"></td>
           <td>${escapeHtml(sc.difference || "")}</td>
-          <td>${escapeHtml(spanLabel(span))}<div class="muted">${escapeHtml(sc.spanId)}</div></td>
+          <td class="span-cell">${escapeHtml(shortSpanLabel(span))}</td>
           <td><span class="badge">${escapeHtml(span?.direction || "-")}</span></td>
           <td>${escapeHtml(sc.remotePoleId || (span ? S.getOtherPoleId(span, poleId) : ""))}</td>
           <td>${escapeHtml(sc.remoteHOA || "")}</td>
-          <td>${escapeHtml(sc.midspan || "")}</td>
-          <td><input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="ocalcMS" value="${escapeHtml(sc.ocalcMS || "")}" placeholder="21'8&quot;"></td>
-          <td>${escapeHtml(sc.calculatedMidspan || "")}</td>
-          <td>${aboveMax ? `<span class="badge danger">Sobre Max</span>` : `<span class="badge changed">OK</span>`}</td>
-          <td><textarea class="input text-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="notes" placeholder="Notas propias...">${escapeHtml(sc.notes || "")}</textarea></td>
+          <td>${escapeHtml(displayMidspan(sc))}</td>
+          <td>${renderClearanceStatus(effective, pole)}</td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -220,7 +231,7 @@
       <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th><th>Size</th></tr></thead>
       <tbody>${rows.map(row => {
         const span = S.getSpan(row.spanId);
-        return `<tr><td>${escapeHtml(spanLabel(span))}</td><td><span class="badge warning">${escapeHtml(row.label)}</span></td><td>${escapeHtml(row.attachmentHeight)}</td><td>${escapeHtml(row.midspan)}</td><td>${escapeHtml(row.size)}</td></tr>`;
+        return `<tr><td class="span-cell">${escapeHtml(shortSpanLabel(span))}</td><td><span class="badge warning">${escapeHtml(row.label)}</span></td><td>${escapeHtml(row.attachmentHeight)}</td><td>${escapeHtml(row.midspan)}</td><td>${escapeHtml(row.size)}</td></tr>`;
       }).join("")}</tbody>
     </table></div>`;
   }
@@ -362,6 +373,7 @@
     const span = S.getSpan(spanId);
     if (span) state.selectedPoleId = span.fromPole;
     render();
+    if (span) scrollToPole(span.fromPole);
   }
 
   function renderGraph() {
@@ -420,6 +432,11 @@
     els.resetSampleBtn.addEventListener("click", () => { S.loadSampleData(); render(); toast("Datos demo cargados.", "info"); });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
+    els.toggleSidebarBtn.addEventListener("click", () => {
+      const collapsed = els.appLayout.classList.toggle("sidebar-collapsed");
+      els.toggleSidebarBtn.textContent = collapsed ? "Mostrar índice" : "Ocultar índice";
+      els.toggleSidebarBtn.setAttribute("aria-expanded", String(!collapsed));
+    });
   }
 
   function init() {
@@ -439,6 +456,8 @@
       polesOverview: qs("polesOverview"),
       graphCanvas: qs("graphCanvas"),
       selectedPoleDetail: qs("selectedPoleDetail"),
+      appLayout: qs("appLayout"),
+      toggleSidebarBtn: qs("toggleSidebarBtn"),
       toastHost: qs("toastHost")
     });
 

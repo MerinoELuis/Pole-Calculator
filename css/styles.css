@@ -46,8 +46,11 @@ button:disabled { cursor: not-allowed; }
 .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 0.76rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
 .topbar-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 
-.layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: start; }
-.sidebar { min-width: 0; }
+.layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: start; transition: grid-template-columns .18s ease; }
+.layout.sidebar-collapsed { grid-template-columns: 58px minmax(0, 1fr); }
+.sidebar { min-width: 0; position: relative; }
+.layout.sidebar-collapsed .sticky-panel { display: none; }
+.layout.sidebar-collapsed .sidebar { min-height: 72px; }
 .content { display: grid; gap: 18px; min-width: 0; }
 .panel {
   background: rgba(255,255,255,0.92);
@@ -58,6 +61,26 @@ button:disabled { cursor: not-allowed; }
   backdrop-filter: blur(8px);
 }
 .sticky-panel { position: sticky; top: 18px; max-height: calc(100vh - 36px); overflow: auto; }
+.sidebar-toggle {
+  position: sticky;
+  top: 18px;
+  z-index: 5;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--primary);
+  font-weight: 900;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+.layout.sidebar-collapsed .sidebar-toggle {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  min-height: 150px;
+  padding: 12px 8px;
+}
 .panel-header { display: flex; gap: 14px; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
 .panel-header h2, .panel-header h3 { margin: 0; }
 .panel-header.split { align-items: center; }
@@ -133,8 +156,8 @@ button:disabled { cursor: not-allowed; }
 .pole-list { display: grid; gap: 10px; }
 .pole-list-item { text-align: left; width: 100%; }
 
-.graph-canvas { min-height: 360px; border: 1px dashed #c8d4e5; border-radius: 16px; background: linear-gradient(135deg, #f8fbff, #ffffff); overflow: hidden; }
-.graph-svg { width: 100%; min-height: 360px; display: block; }
+.graph-canvas { min-height: 280px; border: 1px dashed #c8d4e5; border-radius: 16px; background: linear-gradient(135deg, #f8fbff, #ffffff); overflow: hidden; }
+.graph-svg { width: 100%; min-height: 280px; display: block; }
 .graph-edge { stroke: #94a3b8; stroke-width: 3; cursor: pointer; }
 .graph-edge.active { stroke: var(--primary); stroke-width: 5; }
 .graph-node circle { fill: #fff; stroke: var(--primary); stroke-width: 3; filter: drop-shadow(0 8px 12px rgba(15,23,42,.12)); }
@@ -147,12 +170,12 @@ button:disabled { cursor: not-allowed; }
 .detail-title { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
 .detail-title h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.4rem); }
 .detail-grid { display: grid; gap: 16px; }
-.subsection { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #fff; }
+.subsection { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #fff; }
 .subsection h3 { margin: 0 0 12px; }
 .table-wrap { width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 14px; }
 table { width: 100%; border-collapse: collapse; min-width: 980px; background: #fff; }
-th, td { border-bottom: 1px solid var(--line); padding: 9px 10px; text-align: left; vertical-align: middle; }
-th { background: #f8fafc; color: #475569; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: middle; font-size: .88rem; }
+th { background: #f8fafc; color: #475569; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
 tr:last-child td { border-bottom: 0; }
 tr.changed-row { background: #f0fdf4; }
 tr.warning-row { background: #fffbeb; }
@@ -186,6 +209,9 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 1fr; }
+  .layout.sidebar-collapsed { grid-template-columns: 1fr; }
+  .layout.sidebar-collapsed .sticky-panel { display: block; }
+  .layout.sidebar-collapsed .sidebar-toggle { writing-mode: initial; min-height: 0; }
   .sticky-panel { position: static; max-height: none; }
   .summary-grid { grid-template-columns: repeat(2, 1fr); min-width: 0; }
   .topbar { flex-direction: column; }
@@ -208,9 +234,9 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .pole-workspace-card {
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 14px;
   background: #fff;
-  padding: 16px;
+  padding: 12px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
   scroll-margin-top: 18px;
 }
@@ -221,8 +247,8 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   gap: 16px;
   align-items: start;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 14px;
-  margin-bottom: 14px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .pole-workspace-header h3 {
@@ -253,7 +279,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 .subsection.wide {
@@ -261,7 +287,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 }
 
 .subsection h4 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 1rem;
 }
 
@@ -282,16 +308,33 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   font-weight: 700;
 }
 
+.span-cell {
+  min-width: 220px;
+  white-space: nowrap;
+  font-size: .84rem;
+}
+
+.span-cell strong {
+  white-space: nowrap;
+}
+
+.cell-hint {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
 .span-proposed-table {
-  min-width: 1400px;
+  min-width: 1260px;
 }
 
 .comm-movement-table {
-  min-width: 1650px;
+  min-width: 1180px;
 }
 
 .power-table {
-  min-width: 760px;
+  min-width: 880px;
 }
 
 .danger-row,
