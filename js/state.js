@@ -7,6 +7,25 @@
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
   const DEFAULT_COMM_CLEARANCE = "12\"";
   const DEFAULT_BOLT_CLEARANCE = "4\"";
+  const ENVIRONMENT_OPTIONS = [
+    { value: "NONE", label: "None", clearance: "" },
+    { value: "STREET", label: "Street", clearance: "15'6\"" },
+    { value: "HIGHWAY", label: "Highway", clearance: "18'" },
+    { value: "PEDESTRIAN", label: "Pedestrian", clearance: "10'" },
+    { value: "PARALLEL_TO_STREET", label: "Parallel to street", clearance: "15'6\"" },
+    { value: "OBSTRUCTED_PARALLEL_TO_STREET", label: "Obstructed parallel to street", clearance: "15'6\"" },
+    { value: "UNLIKELY_PARALLEL_TO_STREET", label: "Unlikely parallel to street", clearance: "15'6\"" },
+    { value: "RESIDENTIAL_DRIVEWAY", label: "Residential driveway", clearance: "15'6\"" },
+    { value: "COMMERCIAL_DRIVEWAY", label: "Commercial driveway", clearance: "15'6\"" },
+    { value: "PARKING_LOT", label: "Parking lot", clearance: "15'6\"" },
+    { value: "ALLEY", label: "Alley", clearance: "15'6\"" },
+    { value: "RAILROAD", label: "Railroad", clearance: "25'" },
+    { value: "RURAL", label: "Rural", clearance: "10'" },
+    { value: "FARM", label: "Farm", clearance: "15'6\"" },
+    { value: "WATER_WITH_SAILBOATS", label: "Water with sailboats", clearance: "Variable" },
+    { value: "WATER_WITHOUT_SAILBOATS", label: "Water without sailboats", clearance: "15'" },
+    { value: "TROLLEY", label: "Trolley", clearance: "25'" }
+  ];
 
   const emptyState = () => ({
     version: CURRENT_VERSION,
@@ -122,6 +141,8 @@
       spanIndex: trim(extra.spanIndex || ""),
       length: trim(extra.length || ""),
       lengthDisplay: trim(extra.lengthDisplay || ""),
+      environment: trim(extra.environment || "NONE"),
+      environmentClearance: trim(extra.environmentClearance || ""),
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
       rawType: trim(extra.rawType || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
@@ -240,6 +261,14 @@
     if (field === "polePowerCommsClearance") state.settings.clearanceToPower = trim(value);
     if (field === "clearanceToPower") state.settings.polePowerCommsClearance = trim(value);
     return state.settings;
+  }
+
+  function updateSpanField(spanId, field, value) {
+    const span = state.spans[spanId];
+    if (!span) return null;
+    if (!["environment", "environmentClearance", "notes"].includes(field)) return span;
+    span[field] = trim(value);
+    return span;
   }
 
   function upsertComm(poleId, owner, existingHOA = "", notes = "", extra = {}) {
@@ -537,6 +566,7 @@
     upsertPole,
     updatePoleField,
     updateSetting,
+    updateSpanField,
     updateSpanPowerField,
     upsertComm,
     upsertSpan,
@@ -556,4 +586,5 @@
     ensureSpanComms,
     normalizeState
   };
+  global.AppStore.ENVIRONMENT_OPTIONS = ENVIRONMENT_OPTIONS;
 })(window);

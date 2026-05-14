@@ -81,10 +81,15 @@
   function calculateEndDropForSpanSide(spanId, poleId) {
     const side = S().getSpanSide(spanId, poleId);
     if (!side) return "";
+    const span = S().getSpan(spanId);
     const proposed = H().parseHeight(side.proposedHOA);
     const changed = H().parseHeight(side.proposedHOAChange);
-    const ocalcMidspan = H().parseHeight(side.proposedMidspan);
-    const target = changed !== null ? changed : ocalcMidspan;
+    let target = changed;
+    if (target === null && span) {
+      const otherPoleId = S().getOtherPoleId(span, poleId);
+      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
+      target = H().parseHeight(otherSide?.proposedHOAChange || otherSide?.proposedHOA || "");
+    }
     if (proposed === null || target === null) {
       if (!side.lockedEndDrop) S().upsertSpanSide({ ...side, endDrop: "" });
       return side.endDrop || "";
@@ -156,6 +161,13 @@
     return S().getSpanSide(spanId, poleId);
   }
 
+  function updateSpanField(spanId, field, value) {
+    const span = S().updateSpanField(spanId, field, value);
+    if (!span) return null;
+    recalculateSpan(spanId);
+    return span;
+  }
+
   function updateSpanCommField(spanId, poleId, owner, wireId, field, value) {
     const allowed = ["existingHOA", "existingHOAChange", "ocalcMS", "midspan", "notes", "mr"];
     if (!allowed.includes(field)) return null;
@@ -220,6 +232,7 @@
     updateProposedForSpan,
     updateCambioProposed,
     updateSpanSideField,
+    updateSpanField,
     updateSpanCommField,
     updateOcalcValue,
     calculateEndDrop,

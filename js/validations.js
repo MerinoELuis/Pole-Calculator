@@ -27,14 +27,24 @@
 
     const spanRows = S().getSpanCommsForSpan(spanId);
     if (!spanRows.length) addWarning(warnings, span.fromPole, span.spanId, "", "EMPTY_SPAN", "El span no tiene comms importados desde Span.Wire.");
+    if (span.environment && span.environment !== "NONE") {
+      if (!span.environmentClearance) addWarning(warnings, span.fromPole, span.spanId, "", "MISSING_ENV_CLEARANCE", "El span tiene environment pero falta clearance editable.");
+      if (span.environmentClearance && span.environmentClearance !== "Variable" && !H().isValidHeight(span.environmentClearance)) {
+        addWarning(warnings, span.fromPole, span.spanId, "", "INVALID_ENV_CLEARANCE", "Environment clearance inválido.", "danger");
+      }
+    }
 
     S().getSpanSidesForSpan(spanId).forEach(side => {
-      if (side.proposedHOA && !H().isValidHeight(side.proposedHOA)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED", "Proposed HOA inválido.", "danger");
+      if (side.proposedHOA && !H().isValidHeight(side.proposedHOA)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED", "Proposed inválido.", "danger");
       if (side.proposedHOAChange && !H().isValidHeight(side.proposedHOAChange)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED_CHANGE", "Cambio Proposed inválido.", "danger");
-      if (side.proposedMidspan && !H().isValidHeight(side.proposedMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED_MIDSPAN", "Proposed Midspan inválido.", "danger");
+      if (side.proposedMidspan && !H().isValidHeight(side.proposedMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED_MIDSPAN", "O-Calc Midspan inválido.", "danger");
       if (side.endDrop && !H().isValidHeight(side.endDrop)) addWarning(warnings, side.poleId, spanId, "", "INVALID_END_DROP", "End Drop inválido.", "danger");
-      if (side.proposedHOA && !side.proposedHOAChange && !side.proposedMidspan) addWarning(warnings, side.poleId, spanId, "", "MISSING_PROPOSED_TARGET", "Hay Proposed HOA pero falta Cambio Proposed u O-Calc Midspan para calcular End Drop.");
-      if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed HOA ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
+      const otherPoleId = S().getOtherPoleId(span, side.poleId);
+      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
+      if (side.proposedHOA && !side.proposedHOAChange && !(otherSide?.proposedHOAChange || otherSide?.proposedHOA)) {
+        addWarning(warnings, side.poleId, spanId, "", "MISSING_PROPOSED_TARGET", "Hay Proposed pero falta Cambio Proposed o Proposed del otro poste para calcular End Drop.");
+      }
+      if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
     });
 
     spanRows.forEach(sc => {
@@ -57,7 +67,6 @@
     const warnings = [];
     if (!pole) return warnings;
 
-    if (!H().isValidHeight(pole.poleHeight)) addWarning(warnings, poleId, "", "", "INVALID_POLE_HEIGHT", "Altura existente del poste inválida.", "danger");
     if (pole.lowPower && !H().isValidHeight(pole.lowPower)) addWarning(warnings, poleId, "", "", "INVALID_LOW_POWER", "Low Power inválido.", "danger");
     if (!pole.lowPower && !pole.isGenerated) addWarning(warnings, poleId, "", "", "MISSING_LOW_POWER", "Falta Low Power del poste.");
 

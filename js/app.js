@@ -74,6 +74,13 @@
     wireEditableEvents(els.clearanceSettings);
   }
 
+  function renderEnvironmentOptions(selected) {
+    const current = selected || "NONE";
+    return (S.ENVIRONMENT_OPTIONS || []).map(option => (
+      `<option value="${escapeHtml(option.value)}" ${option.value === current ? "selected" : ""}>${escapeHtml(option.label)}</option>`
+    )).join("");
+  }
+
   function poleSummary(poleId) {
     const state = S.getState();
     const pole = S.getPole(poleId) || S.createPole({ poleId, isGenerated: /^Unknown-/i.test(poleId) });
@@ -161,7 +168,6 @@
         </div>
       </div>
       <div class="pole-kpis">
-        <label>Altura poste<input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleHeight" value="${escapeHtml(pole.poleHeight || "")}" placeholder="35'"></label>
         <label>Low Power<input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="lowPower" value="${escapeHtml(pole.lowPower || "")}" placeholder="30'8&quot;"></label>
         <label>Altura Max<input class="input height-input muted-input" value="${escapeHtml(pole.maxCommHeight || "")}" readonly></label>
         <label>Top Comm<input class="input height-input muted-input" value="${escapeHtml(pole.topComm || "")}" readonly></label>
@@ -175,7 +181,7 @@
     if (!spans.length) return `<p class="muted">No hay spans conectados.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table">
       <thead><tr>
-        <th>Span</th><th>Low Power</th><th>Max Comm</th><th>Proposed HOA</th><th>Cambio Proposed</th><th>End Drop</th><th>O-Calc Midspan</th><th>Clearance</th><th>Notas</th>
+        <th>Span</th><th>Environment</th><th>Env Clearance</th><th>Low Power</th><th>Max Comm</th><th>Proposed</th><th>End Drop</th><th>Cambio Proposed</th><th>O-Calc Midspan</th><th>Clearance</th><th>Notas</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -183,11 +189,13 @@
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         return `<tr class="${side.proposedHOA || side.proposedMidspan || side.endDrop ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
           <td class="span-cell"><strong>${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
+          <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>
+          <td><input class="input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environmentClearance" value="${escapeHtml(span.environmentClearance || "")}"></td>
           <td>${escapeHtml(pole?.lowPower || "")}</td>
           <td>${escapeHtml(side.maxCommHeight || pole?.maxCommHeight || "")}</td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
-          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
           <td><input class="input height-input muted-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="endDrop" value="${escapeHtml(side.endDrop || "")}" readonly></td>
+          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedMidspan" value="${escapeHtml(side.proposedMidspan || "")}"></td>
           <td>${renderClearanceStatus(side.proposedHOA, pole)}</td>
           <td><textarea class="input text-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="notes" placeholder="Notas propias...">${escapeHtml(side.notes || "")}</textarea></td>
@@ -246,7 +254,7 @@
       <div class="workspace-grid">
         <section class="subsection wide">
           <h4>Proposed por span</h4>
-          <p class="muted">Este Proposed es por span/lado del poste, no por comm. End Drop se calcula con Proposed HOA y Proposed Midspan.</p>
+          <p class="muted">Este Proposed es por span/lado del poste. End Drop se calcula contra Cambio Proposed o contra el Proposed del otro poste.</p>
           ${renderSpanProposedTable(poleId)}
         </section>
         <section class="subsection wide">
@@ -352,6 +360,16 @@
 
     if (scope === "spanSide") {
       global.Calculations.updateSpanSideField(el.dataset.span, el.dataset.pole, field, value);
+    }
+
+    if (scope === "span") {
+      if (field === "environment") {
+        const option = (S.ENVIRONMENT_OPTIONS || []).find(item => item.value === value);
+        global.Calculations.updateSpanField(el.dataset.span, "environment", value);
+        global.Calculations.updateSpanField(el.dataset.span, "environmentClearance", option?.clearance || "");
+      } else {
+        global.Calculations.updateSpanField(el.dataset.span, field, value);
+      }
     }
 
     if (scope === "spanComm") {

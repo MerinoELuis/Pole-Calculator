@@ -267,7 +267,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .pole-kpis {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -334,7 +334,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 }
 
 .span-proposed-table {
-  min-width: 1080px;
+  min-width: 1320px;
 }
 
 .comm-movement-table {
