@@ -413,12 +413,12 @@ tr.danger-row {
 .comm-midspan-value {
   display: flex;
   align-items: center;
-  min-height: 34px;
+  min-height: 28px;
   max-width: 100%;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #334155;
   font-size: .78rem;
   line-height: 1.15;
