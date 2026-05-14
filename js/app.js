@@ -62,8 +62,7 @@
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
       ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
       ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
-      ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4'"],
-      ["environmentClearance", "Midspan · Environment", settings.environmentClearance || "15'6\""]
+      ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4'"]
     ];
     els.clearanceSettings.innerHTML = rows.map(([field, label, value]) => `
       <label class="clearance-row">

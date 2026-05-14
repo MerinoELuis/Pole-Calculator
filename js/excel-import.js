@@ -168,6 +168,52 @@
     return { direction: dirs8[index], degrees: Number(normalized.toFixed(2)) };
   }
 
+  function normalizeEnvironment(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "NONE";
+    const normalized = raw
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const aliases = {
+      NONE: "NONE",
+      NO_DATA: "NONE",
+      STREET: "STREET",
+      VEHICULAR_TRAFFIC_STREET_ALONG_STREET_DRIVEWAY_ALLEY: "STREET",
+      ALONG_STREET: "STREET",
+      DRIVEWAY: "RESIDENTIAL_DRIVEWAY",
+      HIGHWAY: "HIGHWAY",
+      STATE_HIGHWAYS_AND_INTERSTATES: "HIGHWAY",
+      PEDESTRIAN: "PEDESTRIAN",
+      NO_VEHICULAR_TRAFFIC_PEDESTRIAN_ONLY_BACKYARD: "PEDESTRIAN",
+      BACKYARD: "PEDESTRIAN",
+      PARALLEL_TO_STREET: "PARALLEL_TO_STREET",
+      OBSTRUCTED_PARALLEL_TO_STREET: "OBSTRUCTED_PARALLEL_TO_STREET",
+      UNLIKELY_PARALLEL_TO_STREET: "UNLIKELY_PARALLEL_TO_STREET",
+      RESIDENTIAL_DRIVEWAY: "RESIDENTIAL_DRIVEWAY",
+      COMMERCIAL_DRIVEWAY: "COMMERCIAL_DRIVEWAY",
+      PARKING_LOT: "PARKING_LOT",
+      ALLEY: "ALLEY",
+      RAILROAD: "RAILROAD",
+      RURAL: "RURAL",
+      FARM: "FARM",
+      CULTIVATED_FARM_FIELDS_FOREST_INDUSTRIAL_SITES: "FARM",
+      WATER_WITH_SAILBOATS: "WATER_WITH_SAILBOATS",
+      WATER_SAILBOATS: "WATER_WITH_SAILBOATS",
+      WATER_WITHOUT_SAILBOATS: "WATER_WITHOUT_SAILBOATS",
+      WATER_NO_SAILBOATS: "WATER_WITHOUT_SAILBOATS",
+      TROLLEY: "TROLLEY"
+    };
+    return aliases[normalized] || normalized;
+  }
+
+  function clearanceForEnvironment(environment) {
+    const option = (S().ENVIRONMENT_OPTIONS || []).find(item => item.value === environment);
+    return option ? option.clearance : "";
+  }
+
   function importAppStateSheet(workbook) {
     const sheet = findSheet(workbook, ["AppState"]);
     if (!sheet) return null;
@@ -350,6 +396,7 @@
       const length = pick(row, ["Span Length"]);
       const lengthDisplay = heightFromRow(row, ["Span Length.display", "Span Length Display"], ["Span Length"]);
       const dir = directionFromBearingDisplay(pick(row, ["Span Length.bearing.display", "bearing.display"], { contains: true }));
+      const environment = normalizeEnvironment(pick(row, ["Environment"]));
 
       return {
         row,
@@ -361,8 +408,8 @@
         type,
         length,
         lengthDisplay,
-        environment: "NONE",
-        environmentClearance: "",
+        environment,
+        environmentClearance: clearanceForEnvironment(environment),
         direction: dir.direction || String(pick(row, ["Direction", "Dir", "Bearing"])).trim(),
         bearingDegrees: dir.degrees,
         spanIndex: pick(row, ["Span Index"]),
