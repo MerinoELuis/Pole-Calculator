@@ -146,6 +146,8 @@
   }
 
   function commMidspanEntries(group, poleId) {
+    // One comm can touch more than one span. Keep span and midspan in separate
+    // columns, but build both columns from the same compact list so they stay aligned.
     const seen = new Set();
     const entries = [];
     const rows = [...group.rows].sort((a, b) =>
@@ -183,6 +185,8 @@
   }
 
   function renderCommRemoteValues(group) {
+    // This column exposes the height at the connected pole. Editing it updates
+    // that pole and triggers the shared span-midspan recalculation.
     const rows = [...group.rows].sort((a, b) =>
       `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
     );
@@ -343,7 +347,7 @@
   function renderClearanceSettings() {
     if (!els.clearanceSettings) return;
     const settings = S.getState().settings || {};
-    const rows = [
+    const clearanceRows = [
       ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
       ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
@@ -351,26 +355,46 @@
       ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
     ];
     const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
-    els.clearanceSettings.innerHTML = rows.map(([field, label, value]) => `
-      <label class="clearance-row">
-        <span>${escapeHtml(label)}</span>
-        <input class="input height-input" data-scope="settings" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
-      </label>
-    `).join("") + `
-      <label class="clearance-row position-row">
-        <span>Posición</span>
-        <select class="input position-select" data-scope="settings" data-field="position">
-          <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
-          <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
-        </select>
-      </label>
-      <label class="clearance-row position-row">
-        <span>Make Ready</span>
-        <select class="input position-select" data-scope="settings" data-field="mrCase">
-          <option value="UPPER" ${(settings.mrCase || "UPPER") === "UPPER" ? "selected" : ""}>MAYÚSCULAS</option>
-          <option value="TITLE" ${settings.mrCase === "TITLE" ? "selected" : ""}>Normal</option>
-        </select>
-      </label>
+    const proposedOwner = settings.proposedOwner || "Wecom";
+    const ownerOptions = ["Wecom", "Vexus", "CTL", "CATV", "FIBER", "Cable One"].map(owner =>
+      `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
+    ).join("");
+    const renderRow = ([field, label, value]) => `
+        <label class="clearance-row">
+          <span>${escapeHtml(label)}</span>
+          <input class="input height-input" data-scope="settings" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
+        </label>
+      `;
+    els.clearanceSettings.innerHTML = `
+      <div class="settings-section">
+        <h3>Clearance</h3>
+        <div class="settings-grid clearance-grid">${clearanceRows.map(renderRow).join("")}</div>
+      </div>
+      <div class="settings-section settings-section-adjustments">
+        <h3>Ajustes</h3>
+        <div class="settings-grid adjustments-grid">
+          <label class="clearance-row position-row">
+            <span>Posición</span>
+            <select class="input position-select" data-scope="settings" data-field="position">
+              <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
+              <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
+            </select>
+          </label>
+          <label class="clearance-row position-row">
+            <span>Make Ready</span>
+            <select class="input position-select" data-scope="settings" data-field="mrCase">
+              <option value="LOWER" ${(settings.mrCase || "LOWER") === "LOWER" ? "selected" : ""}>Minúsculas</option>
+              <option value="UPPER" ${settings.mrCase === "UPPER" ? "selected" : ""}>Mayúsculas</option>
+            </select>
+          </label>
+          <label class="clearance-row position-row">
+            <span>Owner del Proposed</span>
+            <select class="input position-select" data-scope="settings" data-field="proposedOwner">
+              ${ownerOptions}
+            </select>
+          </label>
+        </div>
+      </div>
     `;
     wireEditableEvents(els.clearanceSettings);
   }
@@ -545,7 +569,7 @@
   }
 
   function renderPowerTable(poleId) {
-    const rows = S.getSpanPowerForPole(poleId);
+    const rows = S.getSpanPowerForPole(poleId).filter(row => H.parseHeight(row.midspan) !== null);
     if (!rows.length) return `<p class="muted">No se importaron wires de power para este poste.</p>`;
     return `<div class="table-wrap"><table class="power-table">
       <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th></tr></thead>
@@ -659,7 +683,8 @@
       "commClearance",
       "boltClearance",
       "position",
-      "mrCase"
+      "mrCase",
+      "proposedOwner"
     ].includes(field);
   }
 
@@ -788,7 +813,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "position"].includes(field)) {
+    if (["lowPower", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }

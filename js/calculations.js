@@ -55,7 +55,9 @@
   }
 
   function commOwnerLabel(sc) {
-    return String(sc?.rawOwner || sc?.owner || "").trim();
+    return String(sc?.rawOwner || sc?.owner || "")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .trim();
   }
 
   function normalizedHeightLabelForCalc(value) {
@@ -382,6 +384,9 @@
   }
 
   function findMidspanSourceComm(spanComm) {
+    // Some exports only place the imported midspan on one side of the span.
+    // The opposite pole still needs to reference that same physical cable so
+    // movements on either end update the single shared midspan calculation.
     const ownMidspan = getImportedMidspanInchesForComm(spanComm);
     if (ownMidspan !== null) return spanComm;
     const target = String(spanComm.ownerBase || spanComm.owner || "").toLowerCase();
@@ -429,6 +434,16 @@
     return S().getSpan(spanId);
   }
 
+  function nextPoleProposedValue(side) {
+    if (!side) return "";
+    return side.proposedHOA || "";
+  }
+
+  function clearAutoNextPoleProposed(side) {
+    if (!side || !side.nextPoleProposedAuto) return side;
+    return S().upsertSpanSide({ ...side, proposedHOAChange: "", nextPoleProposedAuto: false });
+  }
+
   function calculatePoleDerived(poleId) {
     const pole = S().getPole(poleId);
     if (!pole) return null;
@@ -466,19 +481,26 @@
     if (!side) return "";
     const span = S().getSpan(spanId);
     const proposed = H().parseHeight(side.proposedHOA);
-    const changed = H().parseHeight(side.proposedHOAChange);
-    let target = changed;
+    const userValue = side.nextPoleProposedAuto ? "" : side.proposedHOAChange;
+    let target = H().parseHeight(userValue);
+    let targetText = userValue;
+
+    // Next Pole Proposed is a helper value, not local data. Only copy it from
+    // the connected side when that connected pole has a real Proposed value.
     if (target === null && span) {
       const otherPoleId = S().getOtherPoleId(span, poleId);
       const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
-      const otherProposed = otherSide?.proposedHOAChange || otherSide?.proposedHOA || "";
+      const otherProposed = nextPoleProposedValue(otherSide);
       target = H().parseHeight(otherProposed);
-      if (target !== null && otherProposed && !side.proposedHOAChange) {
-        side = S().upsertSpanSide({ ...side, proposedHOAChange: H().formatHeight(target) });
+      targetText = otherProposed;
+      if (target !== null && targetText) {
+        side = S().upsertSpanSide({ ...side, proposedHOAChange: H().formatHeight(target), nextPoleProposedAuto: true });
+      } else {
+        side = clearAutoNextPoleProposed(side);
       }
     }
     if (proposed === null || target === null) {
-      if (!side.lockedEndDrop) S().upsertSpanSide({ ...side, endDrop: "" });
+      if (!side.lockedEndDrop) S().upsertSpanSide({ ...side, endDrop: "", ...(target === null ? { proposedHOAChange: side.nextPoleProposedAuto ? "" : side.proposedHOAChange, nextPoleProposedAuto: false } : {}) });
       return side.endDrop || "";
     }
     const calculated = format(target - proposed);
@@ -492,7 +514,7 @@
     if (importedMidspan === null) return null;
 
     const localBase = H().parseHeight(side.proposedHOA);
-    const localNew = H().parseHeight(side.proposedHOAChange || side.proposedHOA || "");
+    const localNew = H().parseHeight(side.proposedHOA || "");
     let localAdjustment = 0;
     if (localBase !== null && localNew !== null) {
       localAdjustment = localNew - localBase;
@@ -503,7 +525,7 @@
       const otherPoleId = S().getOtherPoleId(span, side.poleId);
       const otherSide = otherPoleId ? S().getSpanSide(span.spanId, otherPoleId) : null;
       const remoteBase = H().parseHeight(otherSide?.proposedHOA || "");
-      const remoteNew = H().parseHeight(otherSide?.proposedHOAChange || otherSide?.proposedHOA || "");
+      const remoteNew = H().parseHeight((side.proposedHOAChange && !side.nextPoleProposedAuto ? side.proposedHOAChange : "") || otherSide?.proposedHOA || "");
       if (remoteBase !== null && remoteNew !== null) {
         remoteAdjustment = remoteNew - remoteBase;
       }
@@ -528,6 +550,9 @@
 
     let calculated = "";
     if (importedMidspan !== null) {
+      // A comm midspan is affected by both ends of the same span. Each pole
+      // movement contributes half of its height delta to the midspan; this is
+      // why recalculating one pole also refreshes its connected/reference pole.
       const sourceIsRemote = spanCommKey(midspanSource) !== spanCommKey(spanComm);
       const sourceExisting = sourceIsRemote ? remoteExisting : localExisting;
       const sourceCurrent = sourceIsRemote ? remoteInches : local;
@@ -583,6 +608,13 @@
     if (!allowed.includes(field)) return null;
     const side = S().getSpanSide(spanId, poleId) || S().upsertSpanSide({ spanId, poleId });
     const data = { ...side, [field]: value || "" };
+    if (field === "proposedHOAChange") data.nextPoleProposedAuto = false;
+    if (field === "proposedHOA") {
+      const span = S().getSpan(spanId);
+      const otherPoleId = span ? S().getOtherPoleId(span, poleId) : "";
+      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
+      if (otherSide?.nextPoleProposedAuto) S().upsertSpanSide({ ...otherSide, proposedHOAChange: value || "", nextPoleProposedAuto: Boolean(value) });
+    }
     if (field === "endDrop") data.lockedEndDrop = Boolean(value);
     if (field === "ocalcMS" || field === "proposedMidspan") {
       data.clearanceFixReadyAt = 0;
@@ -634,6 +666,8 @@
   }
 
   function recalculateSpan(spanId) {
+    // Recalculate the span as a graph edge: power limits first, then both pole
+    // derivations, then every comm/proposed calculation tied to the two ends.
     const span = S().getSpan(spanId);
     calculateSpanPowerDerived(spanId);
     if (span) {
@@ -648,6 +682,8 @@
   }
 
   function recalculateSpansForPole(poleId) {
+    // A pole edit can affect forespans and backspans. This walks every
+    // connected span so reference rows on the previous/next pole are refreshed.
     const spans = S().getConnectedSpans(poleId);
     spans.forEach(span => calculateSpanPowerDerived(span.spanId));
 

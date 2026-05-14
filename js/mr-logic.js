@@ -37,9 +37,18 @@
     return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
   }
 
+  function proposedOwnerForMR() {
+    const settings = S().getState().settings || {};
+    return String(settings.proposedOwner || "Wecom").trim() || "Wecom";
+  }
+
+  function mrHeight(value) {
+    return String(value || "").replace(/'(?=\d)/, "' ");
+  }
+
   function applyCase(text) {
     const settings = S().getState().settings || {};
-    return (settings.mrCase || "UPPER") === "UPPER" ? text.toUpperCase() : text;
+    return (settings.mrCase || "LOWER") === "UPPER" ? text.toUpperCase() : text;
   }
 
   function generateMRForComm(spanComm) {
@@ -48,16 +57,18 @@
     const action = detectRaiseLower(spanComm);
     if (!action) return "";
     const owner = ownerForMR(spanComm);
-    if (spanComm.serviceDrop) return `Relocate ${owner} drop at HOA ${spanComm.existingHOA} to HOA ${spanComm.existingHOAChange}.`;
+    // Service drops use different MR wording than regular comm movement.
+    if (spanComm.serviceDrop) return `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
     const verb = action === "Lower" ? "Lower" : "Raise";
-    return `${verb} ${owner} from HOA ${spanComm.existingHOA} to HOA ${spanComm.existingHOAChange}.`;
+    return `${verb} ${owner} from HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
   }
 
   function generateMRForSpanSide(spanSide) {
     if (!spanSide || !spanSide.proposedHOA) return "";
     const span = S().getSpan(spanSide.spanId);
     const dir = span && span.direction ? ` ${span.direction}` : "";
-    const items = [`Attach proposed at HOA ${spanSide.proposedHOA}${dir}.`];
+    // Proposed attach owner is configurable because it is project/customer specific.
+    const items = [`Attach ${proposedOwnerForMR()} at HOA ${mrHeight(spanSide.proposedHOA)}${dir}.`];
     if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue) {
       items.push(`Ensure min 30" to low power at midspan.`);
     }

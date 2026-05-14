@@ -42,7 +42,8 @@
       midspanPowerCommClearance: "30\"",
       midspanCommCommClearance: "4\"",
       position: "TOP_COMM",
-      mrCase: "UPPER",
+      mrCase: "LOWER",
+      proposedOwner: "Wecom",
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
     },
@@ -161,6 +162,7 @@
       poleId: trim(data.poleId || ""),
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
+      nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),
       proposedMidspan: trim(data.proposedMidspan || ""),
       ocalcMS: trim(data.ocalcMS || data["O-CALC MS"] || ""),
       msProposed: trim(data.msProposed || data.proposedMidspan || ""),

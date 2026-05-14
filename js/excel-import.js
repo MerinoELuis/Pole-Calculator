@@ -287,6 +287,7 @@
         poleId: String(pick(row, ["poleId", "Pole ID"])).trim(),
         proposedHOA: pick(row, ["proposedHOA", "Proposed HOA", "Proposed"]),
         proposedHOAChange: pick(row, ["proposedHOAChange", "Cambio Proposed", "Proposed Change"]),
+        nextPoleProposedAuto: /^(true|yes|1|si|sí)$/i.test(String(pick(row, ["nextPoleProposedAuto", "Next Pole Proposed Auto"]))),
         proposedMidspan: pick(row, ["proposedMidspan", "Proposed Midspan"]),
         ocalcMS: pick(row, ["ocalcMS", "O-CALC MS", "O-Calc MS"]),
         msProposed: pick(row, ["msProposed", "MS Proposed"]),
