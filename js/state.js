@@ -302,6 +302,14 @@
     return clean;
   }
 
+  function updateSpanPowerField(powerKey, field, value) {
+    if (!["attachmentHeight", "midspan", "size", "label"].includes(field)) return null;
+    const row = state.spanPower[trim(powerKey)];
+    if (!row) return null;
+    row[field] = trim(value);
+    return row;
+  }
+
   function getConnectedSpans(poleId) {
     return Object.values(state.spans).filter(span => span.fromPole === poleId || span.toPole === poleId);
   }
@@ -330,7 +338,9 @@
   }
 
   function getSpanPowerForPole(poleId) {
-    return Object.values(state.spanPower).filter(row => row.poleId === poleId);
+    return Object.entries(state.spanPower)
+      .filter(([, row]) => row.poleId === poleId)
+      .map(([key, row]) => ({ ...row, key }));
   }
 
   function getSpanPowerForSpan(spanId) {
@@ -527,6 +537,7 @@
     upsertPole,
     updatePoleField,
     updateSetting,
+    updateSpanPowerField,
     upsertComm,
     upsertSpan,
     upsertSpanSide,

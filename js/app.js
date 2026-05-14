@@ -125,26 +125,13 @@
 
   function renderPoleListItem(poleId) {
     const state = S.getState();
-    const { pole, spans, warnings, midspanCount, hasChanges } = poleSummary(poleId);
+    const { pole, warnings, hasChanges } = poleSummary(poleId);
     const active = state.selectedPoleId === poleId ? " active" : "";
-    const generated = pole.isGenerated ? `<span class="badge warning">Editable generado</span>` : "";
-    const badges = [
-      generated,
-      `<span class="badge">Height ${escapeHtml(pole.poleHeight || "-")}</span>`,
-      pole.lowPower ? `<span class="badge">Low Power ${escapeHtml(pole.lowPower)}</span>` : `<span class="badge warning">Sin Low Power</span>`,
-      pole.maxCommHeight ? `<span class="badge">Max ${escapeHtml(pole.maxCommHeight)}</span>` : "",
-      `<span class="badge">Spans ${spans.length}</span>`,
-      `<span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>`,
-      `<span class="badge">MS ${midspanCount}</span>`,
-      warnings.length ? `<span class="badge warning">Warnings ${warnings.length}</span>` : `<span class="badge">Warnings 0</span>`,
-      hasChanges ? `<span class="badge changed">Cambios</span>` : ""
-    ].join("");
-    return `<button class="pole-list-item${active}" data-pole-select="${escapeHtml(poleId)}" type="button">
-      <div class="pole-list-header">
-        <h3>${escapeHtml(poleId)}</h3>
-        ${warnings.length ? `<span class="badge warning">${warnings.length}</span>` : ""}
-      </div>
-      <div class="pole-meta">${badges}</div>
+    return `<button class="pole-index-link${active}" data-pole-select="${escapeHtml(poleId)}" type="button">
+      <span>${escapeHtml(poleId)}</span>
+      ${pole.isGenerated ? `<span class="mini-dot warning">Gen</span>` : ""}
+      ${warnings.length ? `<span class="mini-dot danger">${warnings.length}</span>` : ""}
+      ${hasChanges ? `<span class="mini-dot changed">Cambio</span>` : ""}
     </button>`;
   }
 
@@ -199,7 +186,7 @@
     if (!spans.length) return `<p class="muted">No hay spans conectados.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table">
       <thead><tr>
-        <th>Span</th><th>Length</th><th>Low Power</th><th>Max Comm</th><th>Proposed HOA</th><th>Cambio Proposed</th><th>End Drop</th><th>O-Calc Midspan</th><th>Clearance</th><th>Notas</th>
+        <th>Span</th><th>Low Power</th><th>Max Comm</th><th>Proposed HOA</th><th>Cambio Proposed</th><th>End Drop</th><th>O-Calc Midspan</th><th>Clearance</th><th>Notas</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -207,7 +194,6 @@
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         return `<tr class="${side.proposedHOA || side.proposedMidspan || side.endDrop ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
           <td class="span-cell"><strong>${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
-          <td>${escapeHtml(span.lengthDisplay || "")}</td>
           <td>${escapeHtml(pole?.lowPower || "")}</td>
           <td>${escapeHtml(side.maxCommHeight || pole?.maxCommHeight || "")}</td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
@@ -254,7 +240,13 @@
       <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th><th>Size</th></tr></thead>
       <tbody>${rows.map(row => {
         const span = S.getSpan(row.spanId);
-        return `<tr><td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td><td><span class="badge warning">${escapeHtml(row.label)}</span></td><td>${escapeHtml(row.attachmentHeight)}</td><td>${escapeHtml(row.midspan)}</td><td>${escapeHtml(row.size)}</td></tr>`;
+        return `<tr>
+          <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
+          <td><span class="badge warning">${escapeHtml(row.label)}</span></td>
+          <td>${escapeHtml(row.attachmentHeight)}</td>
+          <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(row.midspan || "")}"></td>
+          <td>${escapeHtml(row.size)}</td>
+        </tr>`;
       }).join("")}</tbody>
     </table></div>`;
   }
@@ -377,6 +369,11 @@
       global.Calculations.updateSpanCommField(el.dataset.span, el.dataset.pole, el.dataset.owner, el.dataset.wireId || "", field, value);
     }
 
+    if (scope === "spanPower") {
+      S.updateSpanPowerField(el.dataset.powerKey || "", field, value);
+      global.Calculations.recalculateSpan(el.dataset.span);
+    }
+
     if (scope === "settings") {
       S.updateSetting(field, value);
       global.Calculations.recalculateAll();
@@ -398,26 +395,12 @@
     scrollToPole(poleId);
   }
 
-  function selectSpan(spanId) {
-    const state = S.getState();
-    state.selectedSpanId = spanId;
-    const span = S.getSpan(spanId);
-    if (span) state.selectedPoleId = span.fromPole;
-    render();
-    if (span) scrollToPole(span.fromPole);
-  }
-
-  function renderGraph() {
-    global.GraphView.renderGraph(els.graphCanvas, selectPole, selectSpan);
-  }
-
   function render() {
     global.Calculations.recalculateAll();
     renderSummary();
     renderClearanceSettings();
     renderPoleLists();
     renderAllPolesWorkspace();
-    renderGraph();
     renderSelectedPoleDetail();
   }
 
@@ -464,18 +447,6 @@
     els.resetSampleBtn.addEventListener("click", () => { S.loadSampleData(); render(); toast("Datos demo cargados.", "info"); });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
-    els.toggleSidebarBtn.addEventListener("click", () => {
-      const collapsed = els.appLayout.classList.toggle("sidebar-collapsed");
-      els.toggleSidebarBtn.textContent = collapsed ? "Índice" : "Ocultar";
-      els.toggleSidebarBtn.setAttribute("aria-expanded", String(!collapsed));
-    });
-    document.querySelectorAll("[data-sidebar-tab]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll("[data-sidebar-tab]").forEach(item => item.classList.toggle("active", item === btn));
-        els.sidebarIndexTab.classList.toggle("hidden", btn.dataset.sidebarTab !== "index");
-        els.sidebarClearancesTab.classList.toggle("hidden", btn.dataset.sidebarTab !== "clearances");
-      });
-    });
   }
 
   function init() {
@@ -493,13 +464,9 @@
       summaryGrid: qs("summaryGrid"),
       polesList: qs("polesList"),
       polesOverview: qs("polesOverview"),
-      graphCanvas: qs("graphCanvas"),
       selectedPoleDetail: qs("selectedPoleDetail"),
       appLayout: qs("appLayout"),
-      toggleSidebarBtn: qs("toggleSidebarBtn"),
       clearanceSettings: qs("clearanceSettings"),
-      sidebarIndexTab: qs("sidebarIndexTab"),
-      sidebarClearancesTab: qs("sidebarClearancesTab"),
       toastHost: qs("toastHost")
     });
 
