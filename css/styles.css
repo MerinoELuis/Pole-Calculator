@@ -115,11 +115,6 @@ button:disabled { cursor: not-allowed; }
 .input:focus, textarea:focus { border-color: rgba(37,99,235,.65); box-shadow: 0 0 0 4px rgba(37,99,235,.1); }
 .input.invalid { border-color: var(--danger); background: #fff7f7; }
 
-.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(100px, 1fr)); gap: 10px; min-width: min(600px, 100%); }
-.summary-card { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--panel-2); }
-.summary-card strong { display: block; font-size: 1.35rem; }
-.summary-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .pole-card, .pole-list-item {
   border: 1px solid var(--line);
@@ -228,14 +223,12 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .calc-result { border: 1px dashed var(--line); border-radius: 14px; padding: 12px; background: #f8fafc; font-weight: 900; min-height: 44px; }
 
 @media (max-width: 1100px) {
-  .summary-grid { grid-template-columns: repeat(2, 1fr); min-width: 0; }
   .topbar { flex-direction: column; }
   .topbar-actions { justify-content: flex-start; }
 }
 
 @media (max-width: 640px) {
   .app-shell { padding: 14px; }
-  .summary-grid { grid-template-columns: 1fr; }
   .panel { padding: 14px; border-radius: 16px; }
   .detail-title { flex-direction: column; }
 }

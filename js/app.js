@@ -91,17 +91,6 @@
 
   function renderSummary() {
     const state = S.getState();
-    const poles = Object.keys(state.poles);
-    const warnings = state.warnings.length;
-    const changed = poles.filter(S.poleHasChanges).length;
-    const midspans = Object.values(state.spanComms).filter(sc => sc.calculatedMidspan || sc.midspan || sc.ocalcMS).length;
-    els.summaryGrid.innerHTML = [
-      [poles.length, "Postes"],
-      [Object.keys(state.spans).length, "Spans"],
-      [midspans, "Midspans"],
-      [warnings, "Warnings"],
-      [changed, "Con cambios"]
-    ].map(([value, label]) => `<div class="summary-card"><strong>${value}</strong><span>${label}</span></div>`).join("");
     if (els.projectMeta) {
       els.projectMeta.textContent = `${state.importedFileName || "Proyecto"} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`;
     }
@@ -461,7 +450,6 @@
       projectMeta: qs("projectMeta"),
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),
-      summaryGrid: qs("summaryGrid"),
       polesList: qs("polesList"),
       polesOverview: qs("polesOverview"),
       selectedPoleDetail: qs("selectedPoleDetail"),
