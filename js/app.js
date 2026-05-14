@@ -123,12 +123,6 @@
     return H.parseHeight(sc?.ocalcMS || sc?.midspan || "") !== null;
   }
 
-  function commReferenceTarget(sc) {
-    const span = S.getSpan(sc?.spanId || "");
-    if (!span) return "";
-    return S.getOtherPoleId(span, sc.poleId) || "";
-  }
-
   function groupedCommsForPole(poleId) {
     const groups = new Map();
     S.getSpanCommsForPole(poleId).forEach(sc => {
@@ -165,13 +159,12 @@
       if (seen.has(key)) return;
       seen.add(key);
       const isBackspan = span && span.fromPole !== poleId;
-      const referencePole = hasMidspan ? "" : commReferenceTarget(sc);
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
           ${hasMidspan && isBackspan ? `<em>ref</em>` : ""}
-          ${!hasMidspan ? `<em>solo referencia${referencePole ? ` · actualiza ${escapeHtml(referencePole)}` : ""}</em>` : ""}
+          ${!hasMidspan ? `<em>REF</em>` : ""}
         </div>`,
         midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan)}</strong></div>`
       });
@@ -475,12 +468,13 @@
         const pole = S.getPole(poleId);
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
+        const boltIssue = global.Calculations.evaluateProposedBoltClearance(side);
         const rowClasses = [
           spanRowClasses(poleId, span.spanId),
           side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop ? "changed-row" : "",
-          aboveMax || midspanIssue ? "warning-row" : ""
+          aboveMax || midspanIssue || !boltIssue.ok ? "warning-row" : ""
         ].filter(Boolean).join(" ");
-        const autoNotes = [spanSideClearanceNote(side)];
+        const autoNotes = [spanSideClearanceNote(side), boltIssue.message];
         return `<tr class="${rowClasses}">
           <td class="span-cell"><strong>${spanChip(poleId, span.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>

@@ -50,6 +50,8 @@
         addWarning(warnings, side.poleId, spanId, "", "MISSING_PROPOSED_TARGET", "Hay Proposed pero falta Cambio Proposed o Proposed del otro poste para calcular End Drop.");
       }
       if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
+      const boltClearance = global.Calculations.evaluateProposedBoltClearance(side);
+      if (!boltClearance.ok) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_BOLT_CLEARANCE", boltClearance.message, "danger");
       if (side.clearanceMSIssue) {
         addWarning(warnings, side.poleId, spanId, "", "MS_PROPOSED_CLEARANCE", side.clearanceMSMessage || "MS Proposed tiene problema de clearance.", side.clearanceMSStatus === "PROBLEM" ? "danger" : "warning");
       }

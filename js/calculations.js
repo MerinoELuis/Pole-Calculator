@@ -84,6 +84,10 @@
     return parseMidspanValue(sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
   }
 
+  function getImportedMidspanInchesForComm(sc) {
+    return parseMidspanValue(sc?.ocalcMS || sc?.midspan || "");
+  }
+
   function spanCommKey(sc) {
     return S().keyForSpanComm(sc.spanId, sc.poleId, sc.owner, sc.wireId || "");
   }
@@ -377,6 +381,39 @@
     }) || candidates[0] || null;
   }
 
+  function findMidspanSourceComm(spanComm) {
+    const ownMidspan = getImportedMidspanInchesForComm(spanComm);
+    if (ownMidspan !== null) return spanComm;
+    const target = String(spanComm.ownerBase || spanComm.owner || "").toLowerCase();
+    return S().getSpanCommsForSpan(spanComm.spanId).find(row => {
+      if (spanCommKey(row) === spanCommKey(spanComm)) return false;
+      if (getImportedMidspanInchesForComm(row) === null) return false;
+      const values = [row.ownerBase, row.owner, row.rawOwner].map(value => String(value || "").toLowerCase());
+      return values.includes(target) || values.some(value => target && value.includes(target));
+    }) || null;
+  }
+
+  function evaluateProposedBoltClearance(spanSide) {
+    const proposed = H().parseHeight(spanSide?.proposedHOA || "");
+    if (proposed === null) return { ok: true, message: "" };
+    const required = getPoleBoltBoltClearance();
+    const conflicts = S().getSpanCommsForPole(spanSide.poleId)
+      .map(sc => ({ owner: commOwnerLabel(sc) || "sin owner", height: H().parseHeight(getEffectiveCommHOA(sc)) }))
+      .filter(item => item.height !== null)
+      .filter(item => {
+        const diff = Math.abs(proposed - item.height);
+        return diff < required;
+      });
+    if (!conflicts.length) return { ok: true, message: "" };
+    const detail = conflicts
+      .map(item => `${item.owner} ${format(item.height)}`)
+      .join(", ");
+    return {
+      ok: false,
+      message: `Proposed ${format(proposed)} no respeta Pole · Bolt-bolt ${format(required)} contra ${detail}.`
+    };
+  }
+
   function calculateSpanPowerDerived(spanId) {
     const span = S().getSpan(spanId);
     if (!span) return null;
@@ -482,13 +519,19 @@
     const remoteHOA = remote ? getEffectiveCommHOA(remote) : "";
     const remoteInches = H().parseHeight(remoteHOA);
     const remoteExisting = H().parseHeight(remote?.existingHOA || "");
-    const importedMidspan = parseMidspanValue(spanComm.ocalcMS || spanComm.midspan);
+    const midspanSource = findMidspanSourceComm(spanComm) || spanComm;
+    const importedMidspan = getImportedMidspanInchesForComm(midspanSource);
 
     let calculated = "";
     if (importedMidspan !== null) {
-      const localAdjustment = localExisting !== null && local !== null ? (localExisting - local) / 2 : 0;
-      const remoteAdjustment = remoteExisting !== null && remoteInches !== null ? (remoteExisting - remoteInches) / 2 : 0;
-      calculated = format(Math.round(importedMidspan - localAdjustment - remoteAdjustment));
+      const sourceIsRemote = spanCommKey(midspanSource) !== spanCommKey(spanComm);
+      const sourceExisting = sourceIsRemote ? remoteExisting : localExisting;
+      const sourceCurrent = sourceIsRemote ? remoteInches : local;
+      const otherExisting = sourceIsRemote ? localExisting : remoteExisting;
+      const otherCurrent = sourceIsRemote ? local : remoteInches;
+      const sourceAdjustment = sourceExisting !== null && sourceCurrent !== null ? (sourceExisting - sourceCurrent) / 2 : 0;
+      const otherAdjustment = otherExisting !== null && otherCurrent !== null ? (otherExisting - otherCurrent) / 2 : 0;
+      calculated = format(Math.round(importedMidspan - sourceAdjustment - otherAdjustment));
     } else {
       calculated = "";
     }
@@ -669,6 +712,7 @@
     evaluateSpanSideMidspan,
     evaluateCommMidspanClearance,
     evaluateCommFlagging,
+    evaluateProposedBoltClearance,
     commOwnerLabel,
     displayMidspanForComm,
     getConnectedSpans,
