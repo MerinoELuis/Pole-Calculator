@@ -123,6 +123,12 @@
     return H.parseHeight(sc?.ocalcMS || sc?.midspan || "") !== null;
   }
 
+  function commReferenceTarget(sc) {
+    const span = S.getSpan(sc?.spanId || "");
+    if (!span) return "";
+    return S.getOtherPoleId(span, sc.poleId) || "";
+  }
+
   function groupedCommsForPole(poleId) {
     const groups = new Map();
     S.getSpanCommsForPole(poleId).forEach(sc => {
@@ -151,20 +157,23 @@
     const rows = [...group.rows].sort((a, b) =>
       `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
     );
-    rows.filter(commHasImportedMidspan).forEach(sc => {
+    rows.forEach(sc => {
       const span = S.getSpan(sc.spanId);
-      const midspan = displayMidspan(sc);
-      const key = `${sc.spanId}|${midspan || ""}`;
+      const hasMidspan = commHasImportedMidspan(sc);
+      const midspan = hasMidspan ? displayMidspan(sc) : "";
+      const key = `${sc.spanId}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
       if (seen.has(key)) return;
       seen.add(key);
       const isBackspan = span && span.fromPole !== poleId;
+      const referencePole = hasMidspan ? "" : commReferenceTarget(sc);
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
-          ${isBackspan ? `<em>ref</em>` : ""}
+          ${hasMidspan && isBackspan ? `<em>ref</em>` : ""}
+          ${!hasMidspan ? `<em>solo referencia${referencePole ? ` · actualiza ${escapeHtml(referencePole)}` : ""}</em>` : ""}
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan || "Sin midspan")}</strong></div>`
+        midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan)}</strong></div>`
       });
     });
     return entries;
