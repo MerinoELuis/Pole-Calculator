@@ -46,6 +46,21 @@
     }) || candidates[0] || null;
   }
 
+  function calculateSpanPowerDerived(spanId) {
+    const span = S().getSpan(spanId);
+    if (!span) return null;
+    const settings = S().getState().settings || {};
+    const clearance = H().parseHeight(settings.midspanPowerCommClearance || "30\"");
+    const powerHeights = S().getSpanPowerForSpan(spanId)
+      .map(row => H().parseHeight(row.midspan))
+      .filter(value => value !== null);
+    const midspanLowPower = powerHeights.length ? Math.min(...powerHeights) : null;
+    const midspanMaxCommHeight = midspanLowPower !== null && clearance !== null ? midspanLowPower - clearance : null;
+    S().updateSpanField(spanId, "midspanLowPower", midspanLowPower !== null ? format(midspanLowPower) : "");
+    S().updateSpanField(spanId, "midspanMaxCommHeight", midspanMaxCommHeight !== null ? format(midspanMaxCommHeight) : "");
+    return S().getSpan(spanId);
+  }
+
   function calculatePoleDerived(poleId) {
     const pole = S().getPole(poleId);
     if (!pole) return null;
@@ -203,6 +218,7 @@
   }
 
   function recalculateSpan(spanId) {
+    calculateSpanPowerDerived(spanId);
     S().getSpanCommsForSpan(spanId).forEach(sc => calculateMidspanForComm(sc));
     S().getSpanSidesForSpan(spanId).forEach(side => calculateEndDropForSpanSide(side.spanId, side.poleId));
   }
@@ -245,6 +261,7 @@
     calculateEndDrop,
     calculateEndDropForSpanSide,
     calculateMidspanForComm,
+    calculateSpanPowerDerived,
     getConnectedSpans,
     getBackspanForPole,
     recalculateSpan,

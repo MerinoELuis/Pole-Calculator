@@ -27,6 +27,9 @@
 
     const spanRows = S().getSpanCommsForSpan(spanId);
     if (!spanRows.length) addWarning(warnings, span.fromPole, span.spanId, "", "EMPTY_SPAN", "El span no tiene comms importados desde Span.Wire.");
+    if (spanRows.length && !span.midspanLowPower) {
+      addWarning(warnings, span.fromPole, span.spanId, "", "MISSING_MIDSPAN_POWER", "Falta midspan de power para calcular altura máxima en midspan.");
+    }
     if (span.environment && span.environment !== "NONE") {
       if (!span.environmentClearance) addWarning(warnings, span.fromPole, span.spanId, "", "MISSING_ENV_CLEARANCE", "El span tiene environment pero falta clearance editable.");
       if (span.environmentClearance && span.environmentClearance !== "Variable" && !H().isValidHeight(span.environmentClearance)) {
@@ -49,6 +52,9 @@
 
     spanRows.forEach(sc => {
       if (!sc.midspan && !sc.ocalcMS && !sc.calculatedMidspan) addWarning(warnings, sc.poleId, spanId, sc.owner, "MISSING_MIDSPAN", "Falta midspan / O-Calc MS para este comm.");
+      if (sc.calculatedMidspan && span.midspanMaxCommHeight && exceedsMax(sc.calculatedMidspan, span.midspanMaxCommHeight)) {
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "MIDSPAN_ABOVE_POWER_CLEARANCE", `Midspan ${sc.calculatedMidspan} supera la altura máxima en midspan ${span.midspanMaxCommHeight}.`, "danger");
+      }
       if (sc.existingHOAChange && exceedsMax(sc.existingHOAChange, S().getPole(sc.poleId)?.maxCommHeight)) {
         addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_CHANGE_ABOVE_MAX", `Cambio de HOA ${sc.existingHOAChange} supera la altura máxima del poste.`, "danger");
       }

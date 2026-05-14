@@ -45,6 +45,14 @@
     return sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
   }
 
+  function renderMidspanClearanceStatus(midspan, span) {
+    if (!span || !span.midspanLowPower) return `<span class="badge warning">Missing Power MS</span>`;
+    if (!midspan) return `<span class="badge warning">Missing Data</span>${span.midspanMaxCommHeight ? `<div class="cell-hint">Max ${escapeHtml(span.midspanMaxCommHeight)}</div>` : ""}`;
+    const aboveMax = span.midspanMaxCommHeight && H.compareHeights(midspan, span.midspanMaxCommHeight) === 1;
+    if (aboveMax) return `<span class="badge danger">Clearance Issue</span><div class="cell-hint">Max ${escapeHtml(span.midspanMaxCommHeight)} · Power MS ${escapeHtml(span.midspanLowPower)}</div>`;
+    return `<span class="badge changed">OK</span><div class="cell-hint">Max ${escapeHtml(span.midspanMaxCommHeight)} · Power MS ${escapeHtml(span.midspanLowPower)}</div>`;
+  }
+
   function renderClearanceStatus(height, pole, missingLabel = "Missing Data") {
     if (!pole || !pole.lowPower) return `<span class="badge warning">${missingLabel}</span>`;
     const max = pole.maxCommHeight || "";
@@ -208,7 +216,7 @@
     if (!rows.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>HOA otro poste</th><th>Midspan</th><th>Clearance</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>HOA otro poste</th><th>Midspan</th><th>Max MS Comm</th><th>MS Clearance</th><th>Pole Clearance</th>
       </tr></thead>
       <tbody>${rows.map(sc => {
         const span = S.getSpan(sc.spanId);
@@ -216,13 +224,17 @@
         const effective = sc.existingHOAChange || sc.existingHOA;
         const aboveMax = effective && H.compareHeights(effective, pole?.maxCommHeight) === 1;
         const changed = Boolean(sc.existingHOAChange || sc.notes || sc.mr);
+        const midspanValue = displayMidspan(sc);
+        const midspanEditable = !sc.existingHOAChange;
         return `<tr class="${changed ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
           <td><span class="badge owner">${escapeHtml(sc.owner)}</span></td>
           <td>${escapeHtml(sc.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(sc.existingHOAChange || "")}"></td>
           <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
           <td>${escapeHtml(sc.remoteHOA || "")}</td>
-          <td>${escapeHtml(displayMidspan(sc))}</td>
+          <td>${midspanEditable ? `<input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(sc.midspan || sc.ocalcMS || "")}">` : `<span class="calculated-value">${escapeHtml(midspanValue)}</span>`}</td>
+          <td>${escapeHtml(span?.midspanMaxCommHeight || "")}</td>
+          <td>${renderMidspanClearanceStatus(midspanValue, span)}</td>
           <td>${renderClearanceStatus(effective, pole)}</td>
         </tr>`;
       }).join("")}</tbody>

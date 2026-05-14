@@ -30,7 +30,7 @@
       ]);
     });
 
-    const spans = [["spanId", "fromPole", "toPole", "direction", "bearingDegrees", "type", "spanIndex", "length", "lengthDisplay", "environment", "environmentClearance", "rawType", "rawSpanIds", "sourceCollectionId", "linkedCollectionId", "isGeneratedOtherPole", "notes"]];
+    const spans = [["spanId", "fromPole", "toPole", "direction", "bearingDegrees", "type", "spanIndex", "length", "lengthDisplay", "environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "rawType", "rawSpanIds", "sourceCollectionId", "linkedCollectionId", "isGeneratedOtherPole", "notes"]];
     Object.values(state.spans).forEach(span => spans.push([
       span.spanId,
       span.fromPole,
@@ -43,6 +43,8 @@
       span.lengthDisplay || "",
       span.environment || "NONE",
       span.environmentClearance || "",
+      span.midspanLowPower || "",
+      span.midspanMaxCommHeight || "",
       span.rawType || "",
       Array.isArray(span.rawSpanIds) ? span.rawSpanIds.join(" | ") : "",
       span.sourceCollectionId || "",

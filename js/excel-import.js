@@ -227,7 +227,8 @@
     const spansSheet = findSheet(workbook, ["Spans"]);
     const spanCommsSheet = findSheet(workbook, ["SpanComms"]);
     const spanSidesSheet = findSheet(workbook, ["SpanSides"]);
-    if (!polesSheet && !spansSheet && !spanCommsSheet && !spanSidesSheet) return null;
+    const spanPowerSheet = findSheet(workbook, ["SpanPower"]);
+    if (!polesSheet && !spansSheet && !spanCommsSheet && !spanSidesSheet && !spanPowerSheet) return null;
 
     const state = S().resetState();
     state.importedFileName = "Excel exportado reimportado";
@@ -269,6 +270,8 @@
           lengthDisplay: pick(row, ["lengthDisplay", "Span Length.display"], { contains: true }),
           environment: pick(row, ["environment", "Environment"]) || "NONE",
           environmentClearance: pick(row, ["environmentClearance", "Environment Clearance", "Env Clearance"]),
+          midspanLowPower: pick(row, ["midspanLowPower", "Midspan Low Power"]),
+          midspanMaxCommHeight: pick(row, ["midspanMaxCommHeight", "Max Midspan Comm", "Midspan Max Comm"]),
           bearingDegrees: pick(row, ["bearingDegrees", "Bearing Degrees"]),
           rawType: pick(row, ["rawType", "Raw Type"]),
           sourceCollectionId: pick(row, ["sourceCollectionId"]),
@@ -328,6 +331,19 @@
         insulator: pick(row, ["insulator", "Insulator"]),
         wireId: pick(row, ["wireId", "Wire ID"]),
         wireIndex: pick(row, ["wireIndex", "Wire Index"])
+      });
+    });
+
+    rowsToObjects(spanPowerSheet || []).forEach(row => {
+      S().addSpanPower({
+        spanId: String(pick(row, ["spanId", "Span ID"])).trim(),
+        poleId: String(pick(row, ["poleId", "Pole ID"])).trim(),
+        label: pick(row, ["label", "Type", "Tipo"]),
+        attachmentHeight: pick(row, ["attachmentHeight", "Attachment Height"]),
+        midspan: pick(row, ["midspan", "Midspan"]),
+        size: pick(row, ["size", "Size"]),
+        owner: pick(row, ["owner", "Owner"]),
+        wireId: pick(row, ["wireId", "Wire ID"])
       });
     });
 

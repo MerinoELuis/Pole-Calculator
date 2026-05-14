@@ -143,6 +143,8 @@
       lengthDisplay: trim(extra.lengthDisplay || ""),
       environment: trim(extra.environment || "NONE"),
       environmentClearance: trim(extra.environmentClearance || ""),
+      midspanLowPower: trim(extra.midspanLowPower || ""),
+      midspanMaxCommHeight: trim(extra.midspanMaxCommHeight || ""),
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
       rawType: trim(extra.rawType || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
@@ -266,7 +268,7 @@
   function updateSpanField(spanId, field, value) {
     const span = state.spans[spanId];
     if (!span) return null;
-    if (!["environment", "environmentClearance", "notes"].includes(field)) return span;
+    if (!["environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "notes"].includes(field)) return span;
     span[field] = trim(value);
     return span;
   }
@@ -524,6 +526,15 @@
       { spanId: "S-P79-UNKNOWN", poleId: "Unknown-S-P79", owner: "CTL", ownerBase: "CTL", existingHOA: "23'8\"", ocalcMS: "22'2\"", midspan: "22'2\"" }
     ];
     sampleSpanComms.forEach(data => upsertSpanComm(data));
+
+    [
+      { spanId: "S-P72-P73", poleId: "P72", label: "Neutral", attachmentHeight: "30'8\"", midspan: "26'8\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-1" },
+      { spanId: "S-P72-P73", poleId: "P73", label: "Neutral", attachmentHeight: "22'5\"", midspan: "26'8\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-2" },
+      { spanId: "S-P73-P74", poleId: "P73", label: "Neutral", attachmentHeight: "22'5\"", midspan: "24'6\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-3" },
+      { spanId: "S-P73-P74", poleId: "P74", label: "Neutral", attachmentHeight: "23'", midspan: "24'6\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-4" },
+      { spanId: "S-P73-P81", poleId: "P73", label: "Neutral", attachmentHeight: "22'5\"", midspan: "24'", size: "Neutral", owner: "UTILITY", wireId: "PWR-5" },
+      { spanId: "S-P79-UNKNOWN", poleId: "P79", label: "Neutral", attachmentHeight: "25'", midspan: "24'8\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-6" }
+    ].forEach(addSpanPower);
 
     upsertSpanSide({ spanId: "S-P72-P73", poleId: "P72", proposedHOA: "24'1\"", proposedMidspan: "23'7\"" });
     upsertSpanSide({ spanId: "S-P72-P73", poleId: "P73", proposedHOA: "24'1\"", proposedMidspan: "23'7\"" });
