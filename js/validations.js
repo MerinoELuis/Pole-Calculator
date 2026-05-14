@@ -50,10 +50,10 @@
     spanRows.forEach(sc => {
       if (!sc.midspan && !sc.ocalcMS && !sc.calculatedMidspan) addWarning(warnings, sc.poleId, spanId, sc.owner, "MISSING_MIDSPAN", "Falta midspan / O-Calc MS para este comm.");
       if (sc.existingHOAChange && exceedsMax(sc.existingHOAChange, S().getPole(sc.poleId)?.maxCommHeight)) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_CHANGE_ABOVE_MAX", `Existing HOA Change ${sc.existingHOAChange} supera la altura máxima del poste.`, "danger");
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_CHANGE_ABOVE_MAX", `Cambio de HOA ${sc.existingHOAChange} supera la altura máxima del poste.`, "danger");
       }
       if (sc.existingHOAChange && !global.MRLogic.generateMRForComm(sc)) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "CHANGE_WITHOUT_MR", "Hay Existing HOA Change pero no se generó MR.");
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "CHANGE_WITHOUT_MR", "Hay Cambio de HOA pero no se generó MR.");
       }
     });
 

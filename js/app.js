@@ -193,7 +193,7 @@
           <td>${escapeHtml(pole?.lowPower || "")}</td>
           <td>${escapeHtml(side.maxCommHeight || pole?.maxCommHeight || "")}</td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
-          <td><input class="input height-input muted-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="endDrop" value="${escapeHtml(side.endDrop || "")}" readonly></td>
+          <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedMidspan" value="${escapeHtml(side.proposedMidspan || "")}"></td>
           <td>${renderClearanceStatus(side.proposedHOA, pole)}</td>
@@ -208,7 +208,7 @@
     if (!rows.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Existing HOA Change</th><th>Span</th><th>HOA otro poste</th><th>Midspan</th><th>Clearance</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>HOA otro poste</th><th>Midspan</th><th>Clearance</th>
       </tr></thead>
       <tbody>${rows.map(sc => {
         const span = S.getSpan(sc.spanId);

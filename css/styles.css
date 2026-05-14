@@ -333,6 +333,15 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   white-space: nowrap;
 }
 
+.calculated-value {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  min-width: 84px;
+  color: #475569;
+  font-weight: 800;
+}
+
 .span-proposed-table {
   min-width: 1320px;
 }

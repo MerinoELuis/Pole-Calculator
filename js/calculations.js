@@ -105,12 +105,19 @@
     if (!span) return spanComm.midspan || spanComm.ocalcMS || "";
 
     const local = H().parseHeight(getEffectiveCommHOA(spanComm));
+    const localExisting = H().parseHeight(spanComm.existingHOA);
     const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, spanComm.ownerBase || spanComm.owner);
     const remoteHOA = remote ? getEffectiveCommHOA(remote) : "";
     const remoteInches = H().parseHeight(remoteHOA);
+    const remoteExisting = H().parseHeight(remote?.existingHOA || "");
+    const importedMidspan = H().parseHeight(spanComm.midspan || spanComm.ocalcMS);
 
     let calculated = "";
-    if (local !== null && remoteInches !== null) {
+    if (importedMidspan !== null) {
+      const localAdjustment = localExisting !== null && local !== null ? (localExisting - local) / 2 : 0;
+      const remoteAdjustment = remoteExisting !== null && remoteInches !== null ? (remoteExisting - remoteInches) / 2 : 0;
+      calculated = format(Math.round(importedMidspan - localAdjustment - remoteAdjustment));
+    } else if (local !== null && remoteInches !== null) {
       const sag = getEstimatedSagInches(span);
       calculated = format(Math.round((local + remoteInches) / 2) - sag);
     } else {
