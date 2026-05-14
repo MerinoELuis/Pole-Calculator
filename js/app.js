@@ -5,6 +5,11 @@
   const H = global.HeightUtils;
 
   const els = {};
+  let delayedMidspanRenderTimer = null;
+  const delayedMidspanRenderPoleIds = new Set();
+  const editableInputTimers = new Map();
+  const SPAN_COLOR_CLASS_COUNT = 5;
+
 
   function qs(id) { return document.getElementById(id); }
 
@@ -42,24 +47,257 @@
   }
 
   function displayMidspan(sc) {
-    return sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
+    return global.Calculations.displayMidspanForComm(sc);
   }
 
-  function renderMidspanClearanceStatus(midspan, span) {
+  function displayDecimalFeetInput(primary, fallback = "") {
+    if (primary) return primary;
+    const parsed = H.parseHeight(fallback);
+    if (parsed === null) return fallback || "";
+    return String(Number((parsed / 12).toFixed(3)));
+  }
+
+  function connectedSpansSorted(poleId) {
+    return S.getConnectedSpans(poleId).sort((a, b) =>
+      String(a.spanIndex || a.spanId).localeCompare(String(b.spanIndex || b.spanId), undefined, { numeric: true })
+    );
+  }
+
+  function spanColorClass(poleId, spanId) {
+    const spans = connectedSpansSorted(poleId);
+    const index = Math.max(0, spans.findIndex(span => span.spanId === spanId));
+    return `span-color-${index % SPAN_COLOR_CLASS_COUNT}`;
+  }
+
+  function spanRowClasses(poleId, spanId) {
+    return `span-color-row ${spanColorClass(poleId, spanId)}`;
+  }
+
+  function spanChip(poleId, spanId) {
+    return `<span class="span-color-chip ${spanColorClass(poleId, spanId)}" aria-hidden="true"></span>`;
+  }
+
+  function spanColorDot(poleId, spanId) {
+    return `<span class="span-color-dot ${spanColorClass(poleId, spanId)}" aria-hidden="true"></span>`;
+  }
+
+  function commOwnerLabel(sc) {
+    const label = global.Calculations.commOwnerLabel
+      ? global.Calculations.commOwnerLabel(sc)
+      : String(sc?.rawOwner || sc?.owner || "").trim();
+    return label || "Sin owner";
+  }
+
+  function normalizedHeightLabel(value) {
+    const parsed = H.parseHeight(value || "");
+    return parsed === null ? String(value || "").trim() : H.formatHeight(parsed);
+  }
+
+  function commGroupKey(sc) {
+    return [
+      commOwnerLabel(sc).toLowerCase(),
+      normalizedHeightLabel(sc?.existingHOA || "").toLowerCase()
+    ].join("|");
+  }
+
+  function spanHasRealMidspan(spanId) {
+    const hasCommMidspan = S.getSpanCommsForSpan(spanId).some(sc => H.parseHeight(sc.ocalcMS || sc.midspan || "") !== null);
+    const hasProposedMidspan = S.getSpanSidesForSpan(spanId).some(side => H.parseHeight(side.ocalcMS || side.proposedMidspan || side.msProposed || "") !== null);
+    return hasCommMidspan || hasProposedMidspan;
+  }
+
+  function proposedSpansForPole(poleId) {
+    return connectedSpansSorted(poleId)
+      .filter(span => span.fromPole === poleId)
+      .filter(span => spanHasRealMidspan(span.spanId));
+  }
+
+  function groupedCommsForPole(poleId) {
+    const groups = new Map();
+    S.getSpanCommsForPole(poleId).forEach(sc => {
+      const key = commGroupKey(sc);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          owner: commOwnerLabel(sc),
+          existingHOA: normalizedHeightLabel(sc.existingHOA || ""),
+          existingHOAChange: sc.existingHOAChange || "",
+          rows: []
+        });
+      }
+      const group = groups.get(key);
+      if (!group.existingHOAChange && sc.existingHOAChange) group.existingHOAChange = sc.existingHOAChange;
+      group.rows.push(sc);
+    });
+    return Array.from(groups.values()).sort((a, b) =>
+      `${a.owner}${a.existingHOA}`.localeCompare(`${b.owner}${b.existingHOA}`, undefined, { numeric: true })
+    );
+  }
+
+  function renderCommMidspanRefs(group, poleId) {
+    const seen = new Set();
+    const refs = [];
+    group.rows.forEach(sc => {
+      const span = S.getSpan(sc.spanId);
+      const midspan = displayMidspan(sc);
+      const key = `${sc.spanId}|${midspan || ""}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const isBackspan = span && span.fromPole !== poleId;
+      refs.push(`<span class="midspan-pill">
+        ${span ? spanColorDot(poleId, span.spanId) : ""}
+        <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
+        <strong>${escapeHtml(midspan || "Sin MS")}</strong>
+        ${isBackspan ? `<em>ref</em>` : ""}
+      </span>`);
+    });
+    return `<div class="comm-midspan-list">${refs.join("") || `<span class="muted">Sin midspan relacionado.</span>`}</div>`;
+  }
+
+  function renderCommFlagging(group) {
+    const messages = Array.from(new Set(group.rows
+      .map(row => String(row.flaggingMessage || "").trim())
+      .filter(message => message && message !== "OK")));
+    const hasProblem = group.rows.some(row => row.flaggingStatus === "PROBLEM");
+    const hasMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
+    if (!messages.length && !hasProblem && !hasMissing) return `<span class="badge changed">OK</span>`;
+    const badgeClass = hasProblem ? "danger" : "warning";
+    const label = hasProblem ? "Clearance Issue" : "Missing Data";
+    return `<div class="flagging-cell">
+      <span class="badge ${badgeClass}">${label}</span>
+      <div class="flagging-message">${messages.map(escapeHtml).join(" ")}</div>
+    </div>`;
+  }
+
+  function poleIdsForSpan(spanId) {
+    const span = S.getSpan(spanId);
+    return span ? [span.fromPole, span.toPole].filter(Boolean) : [];
+  }
+
+  function affectedPoleIdsForElement(el, scope) {
+    const ids = new Set();
+    if (el?.dataset?.pole) ids.add(el.dataset.pole);
+    if (el?.dataset?.span) poleIdsForSpan(el.dataset.span).forEach(id => ids.add(id));
+    if (scope === "pole" && el?.dataset?.pole) {
+      S.getConnectedSpans(el.dataset.pole).forEach(span => {
+        if (span.fromPole) ids.add(span.fromPole);
+        if (span.toPole) ids.add(span.toPole);
+      });
+    }
+    return Array.from(ids).filter(Boolean);
+  }
+
+  function bindScrollLinks(root) {
+    if (!root) return;
+    root.querySelectorAll("[data-scroll-to-pole]").forEach(btn => {
+      btn.addEventListener("click", () => selectPole(btn.dataset.scrollToPole));
+    });
+  }
+
+  function replacePoleCard(poleId) {
+    if (!els.polesOverview || !poleId || !S.getPole(poleId)) return false;
+    const oldCard = els.polesOverview.querySelector(`[data-pole-card="${CSS.escape(poleId)}"]`);
+    if (!oldCard) return false;
+    const template = document.createElement("template");
+    template.innerHTML = renderPoleWorkspace(poleId).trim();
+    const nextCard = template.content.firstElementChild;
+    if (!nextCard) return false;
+    oldCard.replaceWith(nextCard);
+    wireEditableEvents(nextCard);
+    bindScrollLinks(nextCard);
+    return true;
+  }
+
+  function renderAffectedPoles(poleIds) {
+    const ids = Array.from(new Set((poleIds || []).filter(Boolean)));
+    if (!ids.length || (S.getState().ui.filter || "all") !== "all") {
+      render();
+      return;
+    }
+
+    global.Calculations.recalculateAll();
+    renderSummary();
+    renderPoleLists();
+
+    let replacedAny = false;
+    ids.forEach(id => {
+      replacedAny = replacePoleCard(id) || replacedAny;
+    });
+
+    const selected = S.getState().selectedPoleId;
+    if (selected && ids.includes(selected)) renderSelectedPoleDetail();
+    if (!replacedAny) renderAllPolesWorkspace();
+  }
+
+  function noteList(lines) {
+    const clean = (Array.isArray(lines) ? lines : [lines])
+      .map(line => String(line || "").trim())
+      .filter(Boolean);
+    if (!clean.length) return "";
+    return `<div class="auto-notes">${clean.map(line => `<div>${escapeHtml(line)}</div>`).join("")}</div>`;
+  }
+
+  function renderEditableNotes(scope, attrs, value, autoNotes, placeholder = "Notas...") {
+    const attrText = Object.entries(attrs || {})
+      .map(([name, attrValue]) => `data-${name}="${escapeHtml(attrValue)}"`)
+      .join(" ");
+    return `<div class="notes-cell">
+      <textarea class="input text-input" data-scope="${escapeHtml(scope)}" ${attrText} data-field="notes" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || "")}</textarea>
+    </div>`;
+  }
+
+  function commMidspanNote(row, span) {
+    if (!span || !span.midspanLowPower) return "Falta Power MS para calcular Max MS Comm.";
+    const midspan = typeof row === "string" ? row : displayMidspan(row);
+    if (!midspan) return span.midspanMaxCommHeight ? `Falta midspan. Max ${span.midspanMaxCommHeight}.` : "Falta midspan.";
+    return row?.clearanceMSMessage || `Max ${span.midspanMaxCommHeight} · Low Power MS ${span.midspanLowPower}.`;
+  }
+
+  function poleClearanceNote(height, pole, missingLabel = "Missing Data") {
+    if (!pole || !pole.lowPower) return missingLabel;
+    const max = pole.maxCommHeight || "";
+    if (!height) return max ? `Falta dato. Max ${max}.` : "Falta dato.";
+    const aboveMax = max && H.compareHeights(height, max) === 1;
+    return aboveMax
+      ? `Clearance issue. Max ${max} · Low Power ${pole.lowPower}.`
+      : `OK. Max ${max} · Low Power ${pole.lowPower}.`;
+  }
+
+  function spanSideClearanceNote(side) {
+    if (!side.ocalcMS && !side.proposedMidspan) return "Falta O-CALC MS.";
+    if (side.clearanceMSStatus === "PENDING") {
+      return `${side.clearanceMSMessage || "Clearance issue."} Corrigiendo a ${side.pendingMidspanFinal || ""}...`;
+    }
+    return side.clearanceMSMessage || "";
+  }
+
+  function renderMidspanClearanceStatus(row, span) {
+    const status = typeof row === "string" ? "" : row?.clearanceMSStatus || "";
+    const midspan = typeof row === "string" ? row : displayMidspan(row);
     if (!span || !span.midspanLowPower) return `<span class="badge warning">Missing Power MS</span>`;
-    if (!midspan) return `<span class="badge warning">Missing Data</span>${span.midspanMaxCommHeight ? `<div class="cell-hint">Max ${escapeHtml(span.midspanMaxCommHeight)}</div>` : ""}`;
-    const aboveMax = span.midspanMaxCommHeight && H.compareHeights(midspan, span.midspanMaxCommHeight) === 1;
-    if (aboveMax) return `<span class="badge danger">Clearance Issue</span><div class="cell-hint">Max ${escapeHtml(span.midspanMaxCommHeight)} · Power MS ${escapeHtml(span.midspanLowPower)}</div>`;
-    return `<span class="badge changed">OK</span><div class="cell-hint">Max ${escapeHtml(span.midspanMaxCommHeight)} · Power MS ${escapeHtml(span.midspanLowPower)}</div>`;
+    if (!midspan) return `<span class="badge warning">Missing Data</span>`;
+    if (status === "PROBLEM") return `<span class="badge danger">Clearance Issue</span>`;
+    if (status === "MISSING_POWER") return `<span class="badge warning">Missing Power MS</span>`;
+    return `<span class="badge changed">OK</span>`;
+  }
+
+  function renderSpanSideMidspanStatus(side) {
+    const status = side.clearanceMSStatus || "";
+    if (!side.ocalcMS && !side.proposedMidspan) return `<span class="badge warning">Missing Data</span>`;
+    if (status === "PENDING") return `<span class="badge danger pulse-badge">Clearance Issue</span>`;
+    if (status === "PROBLEM") return `<span class="badge danger">Clearance Issue</span>`;
+    if (status === "ADJUSTED") return `<span class="badge warning">Ajustado</span>`;
+    if (status === "ADJUSTMENT_NEEDED") return `<span class="badge warning">Ajuste requerido</span>`;
+    return `<span class="badge changed">OK</span>`;
   }
 
   function renderClearanceStatus(height, pole, missingLabel = "Missing Data") {
     if (!pole || !pole.lowPower) return `<span class="badge warning">${missingLabel}</span>`;
     const max = pole.maxCommHeight || "";
-    if (!height) return `<span class="badge warning">Missing Data</span>${max ? `<div class="cell-hint">Max ${escapeHtml(max)}</div>` : ""}`;
+    if (!height) return `<span class="badge warning">Missing Data</span>`;
     const aboveMax = max && H.compareHeights(height, max) === 1;
-    if (aboveMax) return `<span class="badge danger">Clearance Issue</span><div class="cell-hint">Max ${escapeHtml(max)} · Low Power ${escapeHtml(pole.lowPower)}</div>`;
-    return `<span class="badge changed">OK</span><div class="cell-hint">Max ${escapeHtml(max)} · Low Power ${escapeHtml(pole.lowPower)}</div>`;
+    if (aboveMax) return `<span class="badge danger">Clearance Issue</span>`;
+    return `<span class="badge changed">OK</span>`;
   }
 
   function renderClearanceSettings() {
@@ -70,14 +308,23 @@
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
       ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
       ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
-      ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4'"]
+      ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
     ];
+    const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
     els.clearanceSettings.innerHTML = rows.map(([field, label, value]) => `
       <label class="clearance-row">
         <span>${escapeHtml(label)}</span>
         <input class="input height-input" data-scope="settings" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
       </label>
-    `).join("");
+    `).join("") + `
+      <label class="clearance-row position-row">
+        <span>Posición</span>
+        <select class="input position-select" data-scope="settings" data-field="position">
+          <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
+          <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
+        </select>
+      </label>
+    `;
     wireEditableEvents(els.clearanceSettings);
   }
 
@@ -141,11 +388,8 @@
   function renderPoleLists() {
     const poleIds = filteredPoles();
     els.polesList.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No hay postes con ese filtro.</div>`;
-    document.querySelectorAll("[data-pole-select]").forEach(btn => {
+    els.polesList.querySelectorAll("[data-pole-select]").forEach(btn => {
       btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
-    });
-    document.querySelectorAll("[data-scroll-to-pole]").forEach(btn => {
-      btn.addEventListener("click", () => selectPole(btn.dataset.scrollToPole));
     });
   }
 
@@ -184,18 +428,25 @@
   }
 
   function renderSpanProposedTable(poleId) {
-    const spans = S.getConnectedSpans(poleId).sort((a, b) => String(a.spanIndex || a.spanId).localeCompare(String(b.spanIndex || b.spanId), undefined, { numeric: true }));
-    if (!spans.length) return `<p class="muted">No hay spans conectados.</p>`;
-    return `<div class="table-wrap"><table class="span-proposed-table">
+    const spans = proposedSpansForPole(poleId);
+    if (!spans.length) return `<p class="muted">No hay spans con midspan para proponer desde este poste.</p>`;
+    return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Environment</th><th>Env Clearance</th><th>Low Power</th><th>Max Comm</th><th>Proposed</th><th>End Drop</th><th>Cambio Proposed</th><th>O-Calc Midspan</th><th>Clearance</th><th>Notas</th>
+        <th>Span</th><th>Environment</th><th>Env Clearance</th><th>Low Power</th><th>Max Comm</th><th>Proposed</th><th>End Drop</th><th>Cambio Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Clearance MS Proposed</th><th>Midspan final ajustado</th><th>Notas</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
         const pole = S.getPole(poleId);
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
-        return `<tr class="${side.proposedHOA || side.proposedMidspan || side.endDrop ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
-          <td class="span-cell"><strong>${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
+        const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
+        const rowClasses = [
+          spanRowClasses(poleId, span.spanId),
+          side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop ? "changed-row" : "",
+          aboveMax || midspanIssue ? "warning-row" : ""
+        ].filter(Boolean).join(" ");
+        const autoNotes = [spanSideClearanceNote(side)];
+        return `<tr class="${rowClasses}">
+          <td class="span-cell"><strong>${spanChip(poleId, span.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environmentClearance" value="${escapeHtml(span.environmentClearance || "")}"></td>
           <td>${escapeHtml(pole?.lowPower || "")}</td>
@@ -203,39 +454,40 @@
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
           <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
-          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedMidspan" value="${escapeHtml(side.proposedMidspan || "")}"></td>
-          <td>${renderClearanceStatus(side.proposedHOA, pole)}</td>
-          <td><textarea class="input text-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="notes" placeholder="Notas propias...">${escapeHtml(side.notes || "")}</textarea></td>
+          <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}" placeholder="XX.XX"></td>
+          <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
+          <td>${renderSpanSideMidspanStatus(side)}</td>
+          <td><span class="calculated-value">${escapeHtml(side.finalMidspan || "")}</span></td>
+          <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Notas propias...")}</td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
   }
 
   function renderCommMovementTable(poleId) {
-    const rows = S.getSpanCommsForPole(poleId).sort((a, b) => `${a.spanId}${a.owner}${a.wireIndex}`.localeCompare(`${b.spanId}${b.owner}${b.wireIndex}`, undefined, { numeric: true }));
-    if (!rows.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
+    const groups = groupedCommsForPole(poleId);
+    if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>HOA otro poste</th><th>Midspan</th><th>Max MS Comm</th><th>MS Clearance</th><th>Pole Clearance</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Midspans relacionados</th><th>Flagging</th>
       </tr></thead>
-      <tbody>${rows.map(sc => {
-        const span = S.getSpan(sc.spanId);
+      <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
-        const effective = sc.existingHOAChange || sc.existingHOA;
+        const effective = group.existingHOAChange || group.existingHOA;
         const aboveMax = effective && H.compareHeights(effective, pole?.maxCommHeight) === 1;
-        const changed = Boolean(sc.existingHOAChange || sc.notes || sc.mr);
-        const midspanValue = displayMidspan(sc);
-        const midspanEditable = !sc.existingHOAChange;
-        return `<tr class="${changed ? "changed-row" : ""} ${aboveMax ? "warning-row" : ""}">
-          <td><span class="badge owner">${escapeHtml(sc.owner)}</span></td>
-          <td>${escapeHtml(sc.existingHOA || "")}</td>
-          <td><input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(sc.existingHOAChange || "")}"></td>
-          <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
-          <td>${escapeHtml(sc.remoteHOA || "")}</td>
-          <td>${midspanEditable ? `<input class="input height-input" data-scope="spanComm" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(sc.midspan || sc.ocalcMS || "")}">` : `<span class="calculated-value">${escapeHtml(midspanValue)}</span>`}</td>
-          <td>${escapeHtml(span?.midspanMaxCommHeight || "")}</td>
-          <td>${renderMidspanClearanceStatus(midspanValue, span)}</td>
-          <td>${renderClearanceStatus(effective, pole)}</td>
+        const changed = Boolean(group.existingHOAChange || group.rows.some(row => row.mr));
+        const flaggingIssue = group.rows.some(row => row.flaggingStatus === "PROBLEM");
+        const flaggingMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
+        const rowClasses = [
+          changed ? "changed-row" : "",
+          aboveMax || flaggingIssue || flaggingMissing ? "warning-row" : ""
+        ].filter(Boolean).join(" ");
+        return `<tr class="${rowClasses}">
+          <td><span class="badge owner">${escapeHtml(group.owner)}</span></td>
+          <td>${escapeHtml(group.existingHOA || "")}</td>
+          <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
+          <td>${renderCommMidspanRefs(group, poleId)}</td>
+          <td>${renderCommFlagging(group)}</td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -308,9 +560,7 @@
       }
     }).join("") || `<div class="detail-placeholder">No hay postes para mostrar.</div>`;
     wireEditableEvents(els.polesOverview);
-    els.polesOverview.querySelectorAll("[data-scroll-to-pole]").forEach(btn => {
-      btn.addEventListener("click", () => selectPole(btn.dataset.scrollToPole));
-    });
+    bindScrollLinks(els.polesOverview);
   }
 
   function renderSelectedPoleDetail() {
@@ -328,6 +578,7 @@
 
   function wireEditableEvents(root) {
     root.querySelectorAll("input[data-scope], textarea[data-scope], select[data-scope]").forEach(input => {
+      input.addEventListener("input", handleEditableInput);
       input.addEventListener("change", handleEditableChange);
       input.addEventListener("blur", handleEditableBlur);
       if (input.tagName !== "TEXTAREA") {
@@ -342,8 +593,82 @@
     });
   }
 
+  function isLiveRecalcField(field) {
+    return [
+      "lowPower",
+      "proposedHOA",
+      "proposedHOAChange",
+      "ocalcMS",
+      "existingHOA",
+      "existingHOAChange",
+      "midspan",
+      "environmentClearance",
+      "midspanCommCommClearance",
+      "midspanPowerCommClearance",
+      "polePowerCommsClearance",
+      "clearanceToPower",
+      "commClearance",
+      "boltClearance",
+      "position"
+    ].includes(field);
+  }
+
+  function updateCommGroupField(poleId, groupKey, field, value) {
+    if (field !== "existingHOAChange") return [poleId].filter(Boolean);
+    const affected = new Set([poleId].filter(Boolean));
+    S.getSpanCommsForPole(poleId)
+      .filter(sc => commGroupKey(sc) === groupKey)
+      .forEach(sc => {
+        global.Calculations.updateSpanCommField(sc.spanId, sc.poleId, sc.owner, sc.wireId || "", field, value);
+        poleIdsForSpan(sc.spanId).forEach(id => affected.add(id));
+      });
+    return Array.from(affected);
+  }
+
+  function editableInputKey(el) {
+    return [
+      el.dataset.scope || "",
+      el.dataset.field || "",
+      el.dataset.pole || "",
+      el.dataset.span || "",
+      el.dataset.owner || "",
+      el.dataset.groupKey || "",
+      el.dataset.wireId || "",
+      el.dataset.powerKey || ""
+    ].join("|");
+  }
+
+  function handleEditableInput(event) {
+    const el = event.currentTarget;
+    if (!el || el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
+    const field = el.dataset.field || "";
+    if (!isLiveRecalcField(field)) return;
+    const key = editableInputKey(el);
+    clearTimeout(editableInputTimers.get(key));
+    editableInputTimers.set(key, setTimeout(() => {
+      editableInputTimers.delete(key);
+      if (!document.body.contains(el)) return;
+      handleEditableBlur({ currentTarget: el });
+      handleEditableChange({ currentTarget: el });
+    }, 650));
+  }
+
   function handleEditableBlur(event) {
     const el = event.currentTarget;
+    if (el.classList.contains("decimal-height-input")) {
+      if (!el.value) {
+        el.classList.remove("invalid");
+        return;
+      }
+      const parsedDecimal = H.parseHeight(el.value);
+      if (parsedDecimal === null) {
+        el.classList.add("invalid");
+        return;
+      }
+      el.classList.remove("invalid");
+      return;
+    }
+
     if (!el.classList.contains("height-input")) return;
     if (!el.value) {
       el.classList.remove("invalid");
@@ -356,6 +681,18 @@
     }
     el.classList.remove("invalid");
     el.value = H.formatHeight(parsed);
+  }
+
+  function scheduleDelayedMidspanRender(poleIds = []) {
+    (poleIds || []).forEach(id => { if (id) delayedMidspanRenderPoleIds.add(id); });
+    clearTimeout(delayedMidspanRenderTimer);
+    delayedMidspanRenderTimer = setTimeout(() => {
+      delayedMidspanRenderTimer = null;
+      const ids = Array.from(delayedMidspanRenderPoleIds);
+      delayedMidspanRenderPoleIds.clear();
+      if (ids.length && (S.getState().ui.filter || "all") === "all") renderAffectedPoles(ids);
+      else render();
+    }, global.Calculations.CLEARANCE_FIX_DELAY_MS + 80);
   }
 
   function handleEditableChange(event) {
@@ -387,6 +724,13 @@
       global.Calculations.updateSpanCommField(el.dataset.span, el.dataset.pole, el.dataset.owner, el.dataset.wireId || "", field, value);
     }
 
+    if (scope === "commGroup") {
+      const affected = updateCommGroupField(el.dataset.pole, el.dataset.groupKey || "", field, value);
+      renderAffectedPoles(affected);
+      if (isLiveRecalcField(field)) scheduleDelayedMidspanRender(affected);
+      return;
+    }
+
     if (scope === "spanPower") {
       S.updateSpanPowerField(el.dataset.powerKey || "", field, value);
       global.Calculations.recalculateSpan(el.dataset.span);
@@ -397,7 +741,16 @@
       global.Calculations.recalculateAll();
     }
 
-    render();
+    const affectedPoleIds = affectedPoleIdsForElement(el, scope);
+    if (scope !== "settings" && isLiveRecalcField(field)) {
+      affectedPoleIds.forEach(id => global.Calculations.recalculateSpansForPole(id));
+    }
+    if (scope === "settings") render();
+    else renderAffectedPoles(affectedPoleIds);
+
+    if (["lowPower", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "position"].includes(field)) {
+      scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
+    }
   }
 
   function scrollToPole(poleId) {
@@ -453,8 +806,7 @@
   function bindEvents() {
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
     els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
-    els.exportExcelBtn.addEventListener("click", () => global.ExcelExport.exportExcel());
-    els.exportJsonBtn.addEventListener("click", () => global.ExcelExport.exportJson());
+    els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
     els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Guardado local en este navegador.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
       const loaded = S.loadFromLocal();
@@ -471,7 +823,6 @@
     Object.assign(els, {
       excelFileInput: qs("excelFileInput"),
       jsonFileInput: qs("jsonFileInput"),
-      exportExcelBtn: qs("exportExcelBtn"),
       exportJsonBtn: qs("exportJsonBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),

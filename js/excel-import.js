@@ -287,7 +287,10 @@
         poleId: String(pick(row, ["poleId", "Pole ID"])).trim(),
         proposedHOA: pick(row, ["proposedHOA", "Proposed HOA", "Proposed"]),
         proposedHOAChange: pick(row, ["proposedHOAChange", "Cambio Proposed", "Proposed Change"]),
-        proposedMidspan: pick(row, ["proposedMidspan", "Proposed Midspan", "O-Calc MS"]),
+        proposedMidspan: pick(row, ["proposedMidspan", "Proposed Midspan"]),
+        ocalcMS: pick(row, ["ocalcMS", "O-CALC MS", "O-Calc MS"]),
+        msProposed: pick(row, ["msProposed", "MS Proposed"]),
+        finalMidspan: pick(row, ["finalMidspan", "Midspan final ajustado", "Final Midspan"]),
         endDrop: pick(row, ["endDrop", "End Drop"]),
         clearanceReference: pick(row, ["clearanceReference", "Clearance Reference"]),
         maxCommHeight: pick(row, ["maxCommHeight", "Max Height"]),
@@ -322,6 +325,8 @@
         ocalcMS: pick(row, ["ocalcMS", "O-Calc MS"]),
         midspan: pick(row, ["midspan", "Imported Midspan", "Midspan"]),
         calculatedMidspan: pick(row, ["calculatedMidspan", "Calculated Midspan"]),
+        msProposed: pick(row, ["msProposed", "MS Proposed"]),
+        finalMidspan: pick(row, ["finalMidspan", "Final Midspan", "Midspan final ajustado"]),
         mr: pick(row, ["mr", "MR", "Make Ready"]),
         notes: pick(row, ["notes", "Notas"]),
         rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
@@ -489,7 +494,7 @@
       }
       if (!S().getPole(poleId)) S().upsertPole(S().createPole(poleId));
 
-      const rawOwner = String(pick(row, ["Owner", "owner", "Company", "Communication Owner"])).trim();
+      const rawOwner = String(pick(row, ["Owner", "owner"])).trim();
       const size = String(pick(row, ["Size", "Size.display", "Wire Size"])).trim();
       const construction = String(pick(row, ["Construction"])).trim();
       const insulator = String(pick(row, ["Insulator"])).trim();
@@ -512,20 +517,10 @@
         return;
       }
 
-      if (!isCommunicationWire(row) && !rawOwner && !size) return;
-      const normalizedOwner = normalizeOwner(rawOwner, size);
-      const owner = normalizedOwner || fallbackOwner(rawOwner, size, wireId);
-      const ownerBase = normalizedOwner || owner;
-      const unknownOwner = !normalizedOwner;
-      const notes = [
-        size ? `Size: ${size}` : "",
-        rawOwner ? `Raw owner: ${rawOwner}` : "",
-        unknownOwner ? "Owner no normalizado" : "",
-        construction ? `Construction: ${construction}` : "",
-        insulator ? `Insulator: ${insulator}` : "",
-        wireId ? `WireId: ${wireId}` : ""
-      ].filter(Boolean).join(" | ");
-
+      if (!isCommunicationWire(row) && !rawOwner) return;
+      const owner = rawOwner || (wireId ? `UNKNOWN-${wireId}` : `UNKNOWN-${spanId}-${poleId}`);
+      const ownerBase = owner;
+      const unknownOwner = !rawOwner;
       S().upsertComm(poleId, owner, attachmentHeight, "", { rawOwner, size, wireId, ownerBase, unknownOwner });
       S().upsertSpanComm({
         spanId,
@@ -539,7 +534,7 @@
         midspan,
         calculatedMidspan: "",
         mr: "",
-        notes,
+        notes: "",
         rawOwner,
         unknownOwner,
         size,

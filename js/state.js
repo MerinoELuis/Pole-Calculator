@@ -1,7 +1,7 @@
 (function (global) {
   "use strict";
 
-  const CURRENT_VERSION = "1.2.0";
+  const CURRENT_VERSION = "1.3.0";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -40,7 +40,8 @@
       commClearance: DEFAULT_COMM_CLEARANCE,
       boltClearance: DEFAULT_BOLT_CLEARANCE,
       midspanPowerCommClearance: "30\"",
-      midspanCommCommClearance: "4'",
+      midspanCommCommClearance: "4\"",
+      position: "TOP_COMM",
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
     },
@@ -160,6 +161,14 @@
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       proposedMidspan: trim(data.proposedMidspan || ""),
+      ocalcMS: trim(data.ocalcMS || data["O-CALC MS"] || ""),
+      msProposed: trim(data.msProposed || data.proposedMidspan || ""),
+      finalMidspan: trim(data.finalMidspan || ""),
+      clearanceMSStatus: trim(data.clearanceMSStatus || ""),
+      clearanceMSMessage: trim(data.clearanceMSMessage || ""),
+      clearanceMSIssue: Boolean(data.clearanceMSIssue),
+      pendingMidspanFinal: trim(data.pendingMidspanFinal || ""),
+      clearanceFixReadyAt: Number(data.clearanceFixReadyAt || 0),
       endDrop: trim(data.endDrop || ""),
       clearanceReference: trim(data.clearanceReference || "LOW_POWER"),
       maxCommHeight: trim(data.maxCommHeight || ""),
@@ -185,6 +194,15 @@
       ocalcMS: trim(data.ocalcMS || ""),
       midspan: trim(data.midspan || ""),
       calculatedMidspan: trim(data.calculatedMidspan || ""),
+      msProposed: trim(data.msProposed || data.calculatedMidspan || data.midspan || ""),
+      finalMidspan: trim(data.finalMidspan || ""),
+      clearanceMSStatus: trim(data.clearanceMSStatus || ""),
+      clearanceMSMessage: trim(data.clearanceMSMessage || ""),
+      clearanceMSIssue: Boolean(data.clearanceMSIssue),
+      pendingMidspanFinal: trim(data.pendingMidspanFinal || ""),
+      clearanceFixReadyAt: Number(data.clearanceFixReadyAt || 0),
+      flaggingStatus: trim(data.flaggingStatus || ""),
+      flaggingMessage: trim(data.flaggingMessage || ""),
       mr: trim(data.mr || ""),
       notes: trim(data.notes || ""),
       rawOwner: trim(data.rawOwner || ""),
@@ -379,7 +397,7 @@
   }
 
   function poleHasChanges(poleId) {
-    const sideChange = getSpanSidesForPole(poleId).some(side => side.proposedHOA || side.proposedMidspan || side.endDrop || side.notes);
+    const sideChange = getSpanSidesForPole(poleId).some(side => side.proposedHOA || side.proposedMidspan || side.ocalcMS || side.msProposed || side.finalMidspan || side.endDrop || side.notes);
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
     return sideChange || commChange;
   }

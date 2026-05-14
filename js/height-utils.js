@@ -31,6 +31,9 @@
     const onlyDecimal = text.match(/^\d+\.\d+$/);
     if (onlyDecimal) return sign * Math.round(Number(text) * 12);
 
+    const onlyInteger = text.match(/^\d+$/);
+    if (onlyInteger) return sign * Math.round(Number(text) * 12);
+
     const ftInMatch = text.match(/^(?:(\d+)\s*')?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/i);
     if (ftInMatch && (ftInMatch[1] !== undefined || ftInMatch[2] !== undefined)) {
       const feet = Number(ftInMatch[1] || 0);
