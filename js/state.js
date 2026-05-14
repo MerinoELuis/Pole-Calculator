@@ -42,6 +42,7 @@
       midspanPowerCommClearance: "30\"",
       midspanCommCommClearance: "4\"",
       position: "TOP_COMM",
+      mrCase: "UPPER",
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
     },
@@ -189,6 +190,7 @@
       ownerBase: trim(data.ownerBase || data.owner || ""),
       existingHOA: trim(data.existingHOA || ""),
       existingHOAChange: trim(data.existingHOAChange || ""),
+      serviceDrop: Boolean(data.serviceDrop),
       difference: trim(data.difference || ""),
       remotePoleId: trim(data.remotePoleId || ""),
       remoteHOA: trim(data.remoteHOA || ""),

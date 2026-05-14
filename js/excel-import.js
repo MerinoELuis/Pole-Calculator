@@ -305,6 +305,7 @@
       if (poleId && owner) S().upsertComm(poleId, owner, pick(row, ["existingHOA", "Existing HOA", "Altura actual"]), pick(row, ["notes", "Notas"]), {
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
+        serviceDrop: /^(true|yes|1|si|sí)$/i.test(String(pick(row, ["serviceDrop", "Service Drop"]))),
         rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
         unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
         size: pick(row, ["size", "Size"]),
@@ -320,6 +321,7 @@
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOA: pick(row, ["existingHOA", "Existing HOA"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
+        serviceDrop: /^(true|yes|1|si|sí)$/i.test(String(pick(row, ["serviceDrop", "Service Drop"]))),
         difference: pick(row, ["difference", "Difference"]),
         remotePoleId: pick(row, ["remotePoleId", "Remote Pole"]),
         remoteHOA: pick(row, ["remoteHOA", "Remote HOA"]),
@@ -522,6 +524,7 @@
       const owner = rawOwner || (wireId ? `UNKNOWN-${wireId}` : `UNKNOWN-${spanId}-${poleId}`);
       const ownerBase = owner;
       const unknownOwner = !rawOwner;
+      const serviceDrop = /communication\s*drops?|service\s*drop|\bdrop\b/i.test(size);
       S().upsertComm(poleId, owner, attachmentHeight, "", { rawOwner, size, wireId, ownerBase, unknownOwner });
       S().upsertSpanComm({
         spanId,
@@ -530,6 +533,7 @@
         ownerBase,
         existingHOA: attachmentHeight,
         existingHOAChange: "",
+        serviceDrop,
         remotePoleId: span ? S().getOtherPoleId(span, poleId) : "",
         ocalcMS: midspan,
         midspan,

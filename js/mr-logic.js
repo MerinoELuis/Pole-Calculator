@@ -31,12 +31,24 @@
     return /riser/i.test(`${spanSide.notes || ""}`);
   }
 
+  function ownerForMR(spanComm) {
+    const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
+    if (/century\s*link/i.test(raw)) return "CTL";
+    return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
+  }
+
+  function applyCase(text) {
+    const settings = S().getState().settings || {};
+    return (settings.mrCase || "UPPER") === "UPPER" ? text.toUpperCase() : text;
+  }
+
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
     if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
     const action = detectRaiseLower(spanComm);
     if (!action) return "";
-    const owner = spanComm.ownerBase || spanComm.owner || "COMM";
+    const owner = ownerForMR(spanComm);
+    if (spanComm.serviceDrop) return `Relocate ${owner} drop at HOA ${spanComm.existingHOA} to HOA ${spanComm.existingHOAChange}.`;
     const verb = action === "Lower" ? "Lower" : "Raise";
     return `${verb} ${owner} from HOA ${spanComm.existingHOA} to HOA ${spanComm.existingHOAChange}.`;
   }
@@ -65,16 +77,24 @@
     const state = S().getState();
     state.mr = state.mr.filter(item => item.poleId !== poleId);
 
-    const lines = [];
+    const ug = [];
+    const power = [];
+    const commMoves = [];
+    const proposed = [];
+    const ensure = [];
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
-      if (text) lines.push(...text.split(/\n+/).filter(Boolean));
+      if (text) text.split(/\n+/).filter(Boolean).forEach(line => {
+        if (/ensure min 30/i.test(line)) ensure.push(line);
+        else proposed.push(line);
+      });
     });
     S().getSpanCommsForPole(poleId).forEach(sc => {
       const text = generateMRForComm(sc);
-      if (text) lines.push(text);
+      if (text) commMoves.push(text);
     });
 
+    const lines = [...ug, ...power, ...commMoves, ...proposed, ...ensure].map(applyCase);
     const unique = Array.from(new Set(lines.map(line => line.trim()).filter(Boolean)));
     if (unique.length) state.mr.push({ poleId, spanId: "", owner: "MR", text: unique.join("\n"), imported: false });
     return state.mr.filter(item => item.poleId === poleId);

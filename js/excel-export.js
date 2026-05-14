@@ -86,7 +86,7 @@
       comm.notes || ""
     ])));
 
-    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
+    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "serviceDrop", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
     Object.values(state.spanComms).forEach(sc => spanComms.push([
       sc.spanId,
       sc.poleId,
@@ -94,6 +94,7 @@
       sc.ownerBase || sc.owner,
       sc.existingHOA,
       sc.existingHOAChange,
+      sc.serviceDrop ? "Yes" : "",
       sc.difference,
       sc.remotePoleId,
       sc.remoteHOA,

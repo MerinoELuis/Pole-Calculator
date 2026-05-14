@@ -490,6 +490,12 @@ tr.danger-row {
   min-width: 96px;
 }
 
+.remote-height-input {
+  min-width: 82px;
+  max-width: 110px;
+  padding: 5px 7px;
+}
+
 .pulse-badge {
   animation: clearancePulse 0.7s ease-in-out infinite alternate;
 }

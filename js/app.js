@@ -182,6 +182,17 @@
     return `<div class="comm-midspan-list">${entries.map(entry => entry.midspanHtml).join("")}</div>`;
   }
 
+  function renderCommRemoteValues(group) {
+    const rows = [...group.rows].sort((a, b) =>
+      `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
+    );
+    return `<div class="comm-midspan-list">${rows.map(sc => {
+      const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner);
+      if (!remote) return `<div class="comm-midspan-value"><strong></strong></div>`;
+      return `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`;
+    }).join("")}</div>`;
+  }
+
   function renderCommFlagging(group) {
     const messages = Array.from(new Set(group.rows
       .map(row => String(row.flaggingMessage || "").trim())
@@ -353,6 +364,13 @@
           <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
         </select>
       </label>
+      <label class="clearance-row position-row">
+        <span>Make Ready</span>
+        <select class="input position-select" data-scope="settings" data-field="mrCase">
+          <option value="UPPER" ${(settings.mrCase || "UPPER") === "UPPER" ? "selected" : ""}>MAYÚSCULAS</option>
+          <option value="TITLE" ${settings.mrCase === "TITLE" ? "selected" : ""}>Normal</option>
+        </select>
+      </label>
     `;
     wireEditableEvents(els.clearanceSettings);
   }
@@ -461,7 +479,7 @@
     if (!spans.length) return `<p class="muted">No hay spans con midspan para proponer desde este poste.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Environment</th><th>Env Clearance</th><th>Low Power</th><th>Max Comm</th><th>Proposed</th><th>End Drop</th><th>Cambio Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Clearance MS Proposed</th><th>Midspan final ajustado</th><th>Notas</th>
+        <th>Span</th><th>Environment</th><th>Env Clearance</th><th>Low Power</th><th>Max Comm</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Clearance MS Proposed</th><th>Midspan final ajustado</th><th>Notas</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -499,7 +517,7 @@
     if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>Midspan</th><th>Flagging</th>
+        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>Midspan</th><th>Otro poste HOA</th><th>Flagging</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -514,10 +532,12 @@
         ].filter(Boolean).join(" ");
         return `<tr class="${rowClasses}">
           <td><span class="badge owner">${escapeHtml(group.owner)}</span></td>
+          <td><input type="checkbox" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="serviceDrop" ${group.rows.some(row => row.serviceDrop) ? "checked" : ""}></td>
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
           <td>${renderCommMidspanValues(group, poleId)}</td>
+          <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
         </tr>`;
       }).join("")}</tbody>
@@ -547,7 +567,6 @@
       <div class="workspace-grid">
         <section class="subsection wide">
           <h4>Proposed por span</h4>
-          <p class="muted">Este Proposed es por span/lado del poste. End Drop se calcula contra Cambio Proposed o contra el Proposed del otro poste.</p>
           ${renderSpanProposedTable(poleId)}
         </section>
         <section class="subsection wide">
@@ -560,7 +579,7 @@
           ${renderPowerTable(poleId)}
         </section>
         <section class="subsection">
-          <h4>MR único del poste</h4>
+          <h4>Make Ready</h4>
           ${renderMRText(poleId)}
         </section>
         <section class="subsection">
@@ -639,12 +658,13 @@
       "clearanceToPower",
       "commClearance",
       "boltClearance",
-      "position"
+      "position",
+      "mrCase"
     ].includes(field);
   }
 
   function updateCommGroupField(poleId, groupKey, field, value) {
-    if (field !== "existingHOAChange") return [poleId].filter(Boolean);
+    if (!["existingHOAChange", "serviceDrop"].includes(field)) return [poleId].filter(Boolean);
     const affected = new Set([poleId].filter(Boolean));
     S.getSpanCommsForPole(poleId)
       .filter(sc => commGroupKey(sc) === groupKey)
@@ -671,16 +691,6 @@
   function handleEditableInput(event) {
     const el = event.currentTarget;
     if (!el || el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
-    const field = el.dataset.field || "";
-    if (!isLiveRecalcField(field)) return;
-    const key = editableInputKey(el);
-    clearTimeout(editableInputTimers.get(key));
-    editableInputTimers.set(key, setTimeout(() => {
-      editableInputTimers.delete(key);
-      if (!document.body.contains(el)) return;
-      handleEditableBlur({ currentTarget: el });
-      handleEditableChange({ currentTarget: el });
-    }, 650));
   }
 
   function handleEditableBlur(event) {
@@ -729,7 +739,7 @@
     const el = event.currentTarget;
     const scope = el.dataset.scope;
     const field = el.dataset.field;
-    const value = el.value;
+    const value = el.type === "checkbox" ? el.checked : el.value;
 
     if (scope === "pole") {
       S.updatePoleField(el.dataset.pole, field, value);
