@@ -36,6 +36,82 @@
     setTimeout(() => div.remove(), 4200);
   }
 
+  // Native prompt/confirm dialogs ignore the app theme. These small helpers
+  // build one reusable in-page dialog so data-entry actions keep the same look
+  // and keyboard behavior as the rest of the calculator.
+  function closeAppDialog(result = null) {
+    const dialog = document.querySelector("[data-app-dialog]");
+    if (!dialog) return;
+    const resolve = dialog._resolveDialog;
+    dialog.remove();
+    if (resolve) resolve(result);
+  }
+
+  function openAppDialog({ title, description = "", fields = [], confirmLabel = "Accept", danger = false }) {
+    closeAppDialog(null);
+    return new Promise(resolve => {
+      const dialog = document.createElement("div");
+      dialog.className = "app-dialog-backdrop";
+      dialog.dataset.appDialog = "true";
+      dialog._resolveDialog = resolve;
+      dialog.innerHTML = `<section class="app-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+        <div class="app-dialog-header">
+          <h3>${escapeHtml(title)}</h3>
+          ${description ? `<p>${escapeHtml(description)}</p>` : ""}
+        </div>
+        <form class="app-dialog-form">
+          ${fields.map(field => {
+            if (field.type === "checkbox-list") {
+              return `<fieldset class="dialog-checkbox-list">
+                <legend>${escapeHtml(field.label)}</legend>
+                ${field.options.map(option => `<label>
+                  <input type="checkbox" name="${escapeHtml(field.name)}" value="${escapeHtml(option.value)}" ${option.checked ? "checked" : ""}>
+                  <span>${escapeHtml(option.label)}</span>
+                </label>`).join("")}
+              </fieldset>`;
+            }
+            return `<label class="dialog-field">
+              <span>${escapeHtml(field.label)}</span>
+              <input class="input" name="${escapeHtml(field.name)}" value="${escapeHtml(field.value || "")}" placeholder="${escapeHtml(field.placeholder || "")}">
+            </label>`;
+          }).join("")}
+          <div class="app-dialog-actions">
+            <button class="btn" type="button" data-dialog-cancel>Cancel</button>
+            <button class="btn ${danger ? "btn-danger-solid" : "btn-primary"}" type="submit">${escapeHtml(confirmLabel)}</button>
+          </div>
+        </form>
+      </section>`;
+      document.body.appendChild(dialog);
+      const form = dialog.querySelector("form");
+      dialog.querySelector("[data-dialog-cancel]").addEventListener("click", () => closeAppDialog(null));
+      dialog.addEventListener("click", event => {
+        if (event.target === dialog) closeAppDialog(null);
+      });
+      dialog.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeAppDialog(null);
+      });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const result = {};
+        fields.forEach(field => {
+          if (field.type === "checkbox-list") {
+            result[field.name] = Array.from(form.querySelectorAll(`[name="${CSS.escape(field.name)}"]:checked`)).map(input => input.value);
+            return;
+          }
+          result[field.name] = form.elements[field.name]?.value || "";
+        });
+        closeAppDialog(result);
+      });
+      const firstInput = dialog.querySelector("input");
+      if (firstInput) firstInput.focus();
+    });
+  }
+
+  async function confirmInApp(title, description, confirmLabel = "Delete") {
+    const result = await openAppDialog({ title, description, confirmLabel, danger: true });
+    return Boolean(result);
+  }
+
   function cloneCurrentState() {
     return JSON.parse(JSON.stringify(S.getState()));
   }
@@ -908,10 +984,18 @@
     return connectedSpansSorted(poleId)[0] || null;
   }
 
-  function addCommToPole(poleId) {
-    const owner = prompt("Owner/Comm");
+  async function addCommToPole(poleId) {
+    const values = await openAppDialog({
+      title: "Add Comm",
+      fields: [
+        { name: "owner", label: "Owner / Comm" },
+        { name: "existingHOA", label: "Existing HOA", placeholder: "20'" }
+      ],
+      confirmLabel: "Add Comm"
+    });
+    const owner = values?.owner?.trim();
     if (!owner) return;
-    const existingHOA = prompt("Existing HOA", "") || "";
+    const existingHOA = values.existingHOA || "";
     const span = defaultSpanForNewComm(poleId);
     if (!span) return toast("Ese poste no tiene spans para asociar el comm.", "warning");
     recordUndoSnapshot();
@@ -922,12 +1006,20 @@
     renderAffectedPoles([poleId, S.getOtherPoleId(span, poleId)]);
   }
 
-  function editCommGroup(poleId, groupKey) {
+  async function editCommGroup(poleId, groupKey) {
     const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
     if (!group) return;
-    const nextOwner = prompt("Owner/Comm", group.owner);
+    const values = await openAppDialog({
+      title: "Edit Comm",
+      fields: [
+        { name: "owner", label: "Owner / Comm", value: group.owner },
+        { name: "existingHOA", label: "Existing HOA", value: group.existingHOA || "", placeholder: "20'" }
+      ],
+      confirmLabel: "Save"
+    });
+    const nextOwner = values?.owner?.trim();
     if (!nextOwner) return;
-    const nextHOA = prompt("Existing HOA", group.existingHOA || "") || "";
+    const nextHOA = values.existingHOA || "";
     recordUndoSnapshot();
     group.rows.forEach(row => {
       S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
@@ -938,23 +1030,28 @@
     renderAffectedPoles([poleId]);
   }
 
-  function editCommSpans(poleId, groupKey) {
+  async function editCommSpans(poleId, groupKey) {
     const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
     if (!group) return;
     const spans = connectedSpansSorted(poleId);
     if (!spans.length) return toast("Ese poste no tiene spans disponibles.", "warning");
-    const menu = spans.map((span, index) => `${index + 1}: ${shortSpanLabel(span)}`).join("\n");
-    const currentIndexes = group.rows
-      .map(row => spans.findIndex(span => span.spanId === row.spanId))
-      .filter(index => index >= 0)
-      .map(index => index + 1)
-      .join(",");
-    const answer = prompt(`Elige spans para ${group.owner} (separa con comas):\n${menu}`, currentIndexes);
-    if (answer === null) return;
-    const selected = new Set(answer.split(",")
-      .map(value => Number(value.trim()) - 1)
-      .filter(index => Number.isInteger(index) && spans[index])
-      .map(index => spans[index].spanId));
+    const spanValues = await openAppDialog({
+      title: "Edit Comm Spans",
+      description: group.owner,
+      fields: [{
+        name: "spanIds",
+        label: "Spans",
+        type: "checkbox-list",
+        options: spans.map(span => ({
+          value: span.spanId,
+          label: shortSpanLabel(span),
+          checked: group.rows.some(row => row.spanId === span.spanId)
+        }))
+      }],
+      confirmLabel: "Continue"
+    });
+    if (!spanValues) return;
+    const selected = new Set(spanValues.spanIds || []);
     if (!selected.size) return;
     recordUndoSnapshot();
 
@@ -962,9 +1059,15 @@
       if (!selected.has(row.spanId)) S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
     });
 
-    spans.filter(span => selected.has(span.spanId)).forEach(span => {
+    for (const span of spans.filter(item => selected.has(item.spanId))) {
       const existing = group.rows.find(row => row.spanId === span.spanId);
-      const midspan = prompt(`Midspan para ${shortSpanLabel(span)} (deja vacío si solo es REF)`, existing?.midspan || "") ?? (existing?.midspan || "");
+      const midspanValues = await openAppDialog({
+        title: "Midspan",
+        description: shortSpanLabel(span),
+        fields: [{ name: "midspan", label: "Midspan", value: existing?.midspan || "", placeholder: "Leave empty for REF" }],
+        confirmLabel: "Save"
+      });
+      const midspan = midspanValues ? midspanValues.midspan : (existing?.midspan || "");
       if (existing) {
         global.Calculations.updateSpanCommField(existing.spanId, existing.poleId, existing.owner, existing.wireId || "", "midspan", midspan);
         return;
@@ -982,23 +1085,23 @@
         midspan,
         wireId
       });
-    });
+    }
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
   }
 
-  function deleteCommGroup(poleId, groupKey) {
+  async function deleteCommGroup(poleId, groupKey) {
     const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
-    if (!group || !confirm(`Borrar ${group.owner}?`)) return;
+    if (!group || !(await confirmInApp("Delete Comm", `Delete ${group.owner}?`))) return;
     recordUndoSnapshot();
     group.rows.forEach(row => S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
   }
 
-  function deleteCommSpan(spanId, poleId, owner, wireId = "") {
+  async function deleteCommSpan(spanId, poleId, owner, wireId = "") {
     if (!spanId || !poleId || !owner) return;
-    if (!confirm("Borrar solo este span del comm?")) return;
+    if (!(await confirmInApp("Delete Span", "Delete only this span from the comm?"))) return;
     recordUndoSnapshot();
     S.removeSpanComm(spanId, poleId, owner, wireId || "");
     global.Calculations.recalculateSpansForPole(poleId);
