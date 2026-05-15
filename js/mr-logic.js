@@ -43,7 +43,7 @@
   }
 
   function mrHeight(value) {
-    return String(value || "").replace(/'(?=\d)/, "' ");
+    return String(value || "");
   }
 
   function applyCase(text) {

@@ -314,7 +314,11 @@
     const position = getSettingPosition();
     const topComm = H().parseHeight(pole?.topComm || "");
     const lowComm = H().parseHeight(pole?.lowComm || "");
+    const maxPole = H().parseHeight(pole?.maxCommHeight || spanSide.maxCommHeight || "");
     const issues = [];
+    if (maxPole !== null && proposed > maxPole) {
+      issues.push(`Proposed ${format(proposed)} exceeds Max Height on Pole ${format(maxPole)}.`);
+    }
     if (position === "TOP_COMM" && topComm !== null && proposed < topComm) {
       issues.push("Proposed below top comm.");
     }
