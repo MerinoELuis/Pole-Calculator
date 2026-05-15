@@ -28,7 +28,7 @@
       }
     }
 
-    openBtn?.addEventListener("click", () => panel.classList.remove("hidden"));
+    openBtn?.addEventListener("click", () => panel.classList.toggle("hidden"));
     closeBtn?.addEventListener("click", () => panel.classList.add("hidden"));
     runBtn?.addEventListener("click", runCalculation);
     [a, b].forEach(input => {
