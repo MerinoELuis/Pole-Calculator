@@ -46,7 +46,14 @@ button:disabled { cursor: not-allowed; }
 .topbar h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1; letter-spacing: -0.06em; }
 .subtitle { margin: 10px 0 0; color: var(--muted); max-width: 760px; }
 .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 0.76rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
-.topbar-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.topbar-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  white-space: nowrap;
+}
 
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; min-width: 0; max-width: 100%; }
 .content { display: grid; gap: 18px; min-width: 0; max-width: 100%; }
@@ -69,7 +76,7 @@ button:disabled { cursor: not-allowed; }
   border: 1px solid var(--line);
   background: #fff;
   color: var(--text);
-  padding: 10px 14px;
+  padding: 9px 12px;
   border-radius: 12px;
   font-weight: 800;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
@@ -262,6 +269,9 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   justify-content: space-between;
   gap: 12px;
 }
+.topbar-actions .btn {
+  font-size: .88rem;
+}
 .subsection-title-row h4 { margin-bottom: 0; }
 .row-actions {
   display: inline-flex;
@@ -315,7 +325,12 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 @media (max-width: 1100px) {
   .topbar { flex-direction: column; }
-  .topbar-actions { justify-content: flex-start; }
+  .topbar-actions {
+    justify-content: flex-start;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
 }
 
 @media (max-width: 640px) {
