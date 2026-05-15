@@ -140,9 +140,16 @@
       if (!group.existingHOAChange && sc.existingHOAChange) group.existingHOAChange = sc.existingHOAChange;
       group.rows.push(sc);
     });
-    return Array.from(groups.values()).sort((a, b) =>
-      `${a.owner}${a.existingHOA}`.localeCompare(`${b.owner}${b.existingHOA}`, undefined, { numeric: true })
-    );
+    return Array.from(groups.values()).sort((a, b) => {
+      // La tabla representa el acomodo físico original del poste, por eso el
+      // orden siempre depende de Existing HOA y no de Cambio de HOA.
+      const aHeight = H.parseHeight(a.existingHOA || "");
+      const bHeight = H.parseHeight(b.existingHOA || "");
+      if (aHeight !== null && bHeight !== null && aHeight !== bHeight) return bHeight - aHeight;
+      if (aHeight !== null && bHeight === null) return -1;
+      if (aHeight === null && bHeight !== null) return 1;
+      return `${a.owner}${a.existingHOA}`.localeCompare(`${b.owner}${b.existingHOA}`, undefined, { numeric: true });
+    });
   }
 
   function commMidspanEntries(group, poleId) {
