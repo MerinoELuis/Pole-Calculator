@@ -217,6 +217,16 @@
             title="Borrar solo este span"
             aria-label="Borrar solo este span">&#10005;</button>
         </div>`,
+        serviceDropHtml: `<div class="comm-midspan-value">
+          <input type="checkbox"
+            data-scope="spanComm"
+            data-pole="${escapeHtml(sc.poleId)}"
+            data-span="${escapeHtml(sc.spanId)}"
+            data-owner="${escapeHtml(sc.owner)}"
+            data-wire-id="${escapeHtml(sc.wireId || "")}"
+            data-field="serviceDrop"
+            ${sc.serviceDrop ? "checked" : ""}>
+        </div>`,
         midspanHtml: `<div class="comm-midspan-value">${hasMidspan && !midspanLocked
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}">`
           : `<strong>${escapeHtml(midspan)}</strong>`}</div>`,
@@ -232,6 +242,11 @@
   function renderCommSpanRefs(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
     return `<div class="comm-span-list">${entries.map(entry => entry.spanHtml).join("")}</div>`;
+  }
+
+  function renderCommServiceDropValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.serviceDropHtml).join("")}</div>`;
   }
 
   function renderCommMidspanValues(group, poleId) {
@@ -644,7 +659,7 @@
         ].filter(Boolean).join(" ");
         return `<tr class="${rowClasses}">
           <td><span class="badge owner">${escapeHtml(group.owner)}</span></td>
-          <td><input type="checkbox" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="serviceDrop" ${group.rows.some(row => row.serviceDrop) ? "checked" : ""}></td>
+          <td>${renderCommServiceDropValues(group, poleId)}</td>
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
