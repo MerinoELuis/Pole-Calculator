@@ -553,7 +553,7 @@ tr.danger-row {
 }
 
 .comm-span-list {
-  min-width: 260px;
+  min-width: 340px;
 }
 
 .comm-midspan-list {
@@ -578,13 +578,15 @@ tr.danger-row {
 
 .comm-span-row {
   gap: 6px;
-  min-width: 0;
+  min-width: max-content;
   text-align: center;
+  white-space: nowrap;
+  font-size: .72rem;
 }
 
 .comm-span-row span {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  min-width: max-content;
+  overflow-wrap: normal;
 }
 
 .comm-midspan-value {
