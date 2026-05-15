@@ -174,7 +174,7 @@
         midspanHtml: `<div class="comm-midspan-value">${hasMidspan && !midspanLocked
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}">`
           : `<strong>${escapeHtml(midspan)}</strong>`}</div>`,
-        remoteHtml: !remote
+        remoteHtml: !hasMidspan || !remote
           ? `<div class="comm-midspan-value"><strong></strong></div>`
           : `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`
       });
@@ -486,9 +486,9 @@
         <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
         <div class="pole-meta">
           ${pole.isGenerated ? `<span class="badge warning">Other pole generado editable</span>` : ""}
-          <button class="badge meta-link" type="button" data-scroll-target="spans-${escapeHtml(poleId)}">Spans ${spans.length}</button>
-          <button class="badge owner meta-link" type="button" data-scroll-target="comms-${escapeHtml(poleId)}">Comms ${S.getSpanCommsForPole(poleId).length}</button>
-          ${warnings.length ? `<button class="badge warning meta-link" type="button" data-scroll-target="warnings-${escapeHtml(poleId)}">Warnings ${warnings.length}</button>` : `<button class="badge meta-link" type="button" data-scroll-target="warnings-${escapeHtml(poleId)}">Warnings 0</button>`}
+          <span class="badge">Spans ${spans.length}</span>
+          <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
+          ${warnings.length ? `<span class="badge warning">Warnings ${warnings.length}</span>` : `<span class="badge">Warnings 0</span>`}
           ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
         </div>
       </div>
@@ -567,8 +567,9 @@
           <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
           <td><div class="row-actions">
-            <button class="mini-btn" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}">Editar</button>
-            <button class="mini-btn danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}">Borrar</button>
+            <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Editar comm" aria-label="Editar comm">&#9998;</button>
+            <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Editar spans del comm" aria-label="Editar spans del comm">&#8644;</button>
+            <button class="icon-action danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Borrar comm" aria-label="Borrar comm">&#128465;</button>
           </div></td>
         </tr>`;
       }).join("")}</tbody>
@@ -680,11 +681,9 @@
 
   function bindLocalActions(root) {
     if (!root) return;
-    root.querySelectorAll("[data-scroll-target]").forEach(btn => {
-      btn.addEventListener("click", () => document.getElementById(btn.dataset.scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    });
     root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
     root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
+    root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
   }
 
@@ -749,6 +748,54 @@
       S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
       S.upsertComm(poleId, nextOwner, nextHOA, "", { ownerBase: nextOwner, rawOwner: nextOwner, wireId: row.wireId || "" });
       S.upsertSpanComm({ ...row, owner: nextOwner, ownerBase: nextOwner, rawOwner: nextOwner, existingHOA: nextHOA });
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+  }
+
+  function editCommSpans(poleId, groupKey) {
+    const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
+    if (!group) return;
+    const spans = connectedSpansSorted(poleId);
+    if (!spans.length) return toast("Ese poste no tiene spans disponibles.", "warning");
+    const menu = spans.map((span, index) => `${index + 1}: ${shortSpanLabel(span)}`).join("\n");
+    const currentIndexes = group.rows
+      .map(row => spans.findIndex(span => span.spanId === row.spanId))
+      .filter(index => index >= 0)
+      .map(index => index + 1)
+      .join(",");
+    const answer = prompt(`Elige spans para ${group.owner} (separa con comas):\n${menu}`, currentIndexes);
+    if (answer === null) return;
+    const selected = new Set(answer.split(",")
+      .map(value => Number(value.trim()) - 1)
+      .filter(index => Number.isInteger(index) && spans[index])
+      .map(index => spans[index].spanId));
+    if (!selected.size) return;
+
+    group.rows.forEach(row => {
+      if (!selected.has(row.spanId)) S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
+    });
+
+    spans.filter(span => selected.has(span.spanId)).forEach(span => {
+      const existing = group.rows.find(row => row.spanId === span.spanId);
+      const midspan = prompt(`Midspan para ${shortSpanLabel(span)} (deja vacío si solo es REF)`, existing?.midspan || "") ?? (existing?.midspan || "");
+      if (existing) {
+        global.Calculations.updateSpanCommField(existing.spanId, existing.poleId, existing.owner, existing.wireId || "", "midspan", midspan);
+        return;
+      }
+      const wireId = `manual-${Date.now()}-${span.spanId}`;
+      S.upsertSpanComm({
+        spanId: span.spanId,
+        poleId,
+        owner: group.rows[0].owner,
+        ownerBase: group.rows[0].ownerBase || group.rows[0].owner,
+        rawOwner: group.rows[0].rawOwner || group.rows[0].owner,
+        existingHOA: group.existingHOA,
+        existingHOAChange: group.existingHOAChange || "",
+        serviceDrop: Boolean(group.rows[0].serviceDrop),
+        midspan,
+        wireId
+      });
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);

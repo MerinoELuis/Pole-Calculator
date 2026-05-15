@@ -352,7 +352,10 @@
     const key = keyForSpanComm(spanId, poleId, owner, wireId || "");
     delete state.spanComms[key];
     const pole = state.poles[poleId];
-    if (pole) {
+    const stillUsed = Object.values(state.spanComms).some(sc =>
+      sc.poleId === poleId && sc.owner === owner && (!wireId || sc.wireId === wireId)
+    );
+    if (pole && !stillUsed) {
       pole.comms = (pole.comms || []).filter(comm => !(comm.owner === owner && (!wireId || comm.wireId === wireId)));
     }
   }

@@ -252,6 +252,38 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .cell-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .mini-btn { border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 6px 8px; font-weight: 800; font-size: .78rem; }
 .mini-btn:hover { border-color: var(--primary); color: var(--primary); }
+.subsection-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.subsection-title-row h4 { margin-bottom: 0; }
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.icon-action {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: .92rem;
+}
+.icon-action:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.icon-action.danger-action:hover {
+  border-color: rgba(220, 38, 38, .4);
+  color: var(--danger);
+}
 .link-button { border: 0; background: transparent; color: var(--text); padding: 0; font: inherit; font-weight: 800; text-decoration: none; }
 .link-button:hover { color: var(--primary); text-decoration: underline; }
 .warning-list, .mr-list, .span-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
