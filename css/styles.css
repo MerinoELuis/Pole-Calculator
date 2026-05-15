@@ -411,8 +411,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   gap: 12px;
 }
 
-.make-ready-section,
-.warnings-section {
+.make-ready-section {
   grid-column: 1;
 }
 

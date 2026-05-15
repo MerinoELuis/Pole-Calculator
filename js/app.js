@@ -494,12 +494,6 @@
     });
   }
 
-  function renderWarningsList(poleId) {
-    const warnings = S.getState().warnings.filter(w => w.poleId === poleId);
-    if (!warnings.length) return `<p class="muted">Sin warnings.</p>`;
-    return `<ul class="warning-list">${warnings.map(w => `<li class="warning-item"><strong>${escapeHtml(w.code)}</strong><br><span>${escapeHtml(w.message)}</span><div class="muted">${escapeHtml(w.spanId || "Sin span")} ${w.owner ? "· " + escapeHtml(w.owner) : ""}</div></li>`).join("")}</ul>`;
-  }
-
   function renderMRText(poleId) {
     const item = S.getState().mr.find(mr => mr.poleId === poleId);
     if (!item) return `<p class="muted">Sin MR generado todavía.</p>`;
@@ -515,7 +509,7 @@
   }
 
   function renderPoleEditableHeader(poleId) {
-    const { pole, spans, warnings, hasChanges } = poleSummary(poleId);
+    const { pole, spans, hasChanges } = poleSummary(poleId);
     return `<div class="pole-workspace-header">
       <div>
         <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
@@ -523,7 +517,6 @@
           ${pole.isGenerated ? `<span class="badge warning">Other pole generado editable</span>` : ""}
           <span class="badge">Spans ${spans.length}</span>
           <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
-          ${warnings.length ? `<span class="badge warning">Warnings ${warnings.length}</span>` : `<span class="badge">Warnings 0</span>`}
           ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
         </div>
       </div>
@@ -658,10 +651,6 @@
         <section class="subsection">
           <h4>Pole Actions</h4>
           ${renderPoleActions(poleId)}
-        </section>
-        <section class="subsection warnings-section">
-          <h4>Warnings</h4>
-          ${renderWarningsList(poleId)}
         </section>
       </div>
     </article>`;

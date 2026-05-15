@@ -106,17 +106,48 @@
     ];
   }
 
+  function oppositeDirection(direction) {
+    return {
+      N: "S",
+      NE: "SW",
+      E: "W",
+      SE: "NW",
+      S: "N",
+      SW: "NE",
+      W: "E",
+      NW: "SE"
+    }[direction] || direction || "";
+  }
+
   function connectedUGInstructions(poleId) {
-    return S().getConnectedSpans(poleId)
-      .map(span => {
-        const otherPoleId = S().getOtherPoleId(span, poleId);
-        const otherPole = S().getPole(otherPoleId);
-        if (!otherPole?.ugActive) return "";
-        const relation = span.fromPole === poleId ? "Forespan" : "Backspan";
-        const direction = span.direction ? ` ${span.direction}` : "";
-        return `${relation} to go UG${direction} due to (Red tag / TDU Replace required / PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9" / inability to place ANC).`;
-      })
-      .filter(Boolean);
+    const spans = S().getConnectedSpans(poleId);
+    const outgoing = spans
+      .filter(span => span.fromPole === poleId)
+      .sort((a, b) => String(a.spanIndex || a.spanId).localeCompare(String(b.spanIndex || b.spanId), undefined, { numeric: true }));
+    const byOtherPole = new Map();
+
+    spans.forEach(span => {
+      const otherPoleId = S().getOtherPoleId(span, poleId);
+      const otherPole = S().getPole(otherPoleId);
+      if (!otherPole?.ugActive || !otherPoleId) return;
+      const current = byOtherPole.get(otherPoleId);
+      const outgoingIndex = outgoing.findIndex(item => item.spanId === span.spanId);
+      const relation = span.fromPole === poleId
+        ? (outgoingIndex <= 0 ? "Forespan" : "Otherspan")
+        : "Backspan";
+      const directionFromThisPole = span.fromPole === poleId
+        ? span.direction
+        : oppositeDirection(span.direction);
+      const candidate = { relation, direction: directionFromThisPole || "" };
+      if (!current || (current.relation === "Backspan" && relation !== "Backspan")) {
+        byOtherPole.set(otherPoleId, candidate);
+      }
+    });
+
+    return Array.from(byOtherPole.values()).map(item => {
+      const direction = item.direction ? ` ${item.direction}` : "";
+      return `${item.relation} to go UG${direction} due to (Red tag / TDU Replace required / PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9" / inability to place ANC).`;
+    });
   }
 
   function generateMRForSpan(spanId) {
