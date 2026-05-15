@@ -50,6 +50,9 @@
       if (side.clearanceMSIssue) {
         addWarning(warnings, side.poleId, spanId, "", "MS_PROPOSED_CLEARANCE", side.clearanceMSMessage || "MS Proposed tiene problema de clearance.", side.clearanceMSStatus === "PROBLEM" ? "danger" : "warning");
       }
+      if (side.proposedFlaggingStatus === "PROBLEM") {
+        addWarning(warnings, side.poleId, spanId, "", "PROPOSED_POSITION", side.proposedFlaggingMessage || "Proposed no respeta la posición configurada.", "danger");
+      }
     });
 
     spanRows.forEach(sc => {

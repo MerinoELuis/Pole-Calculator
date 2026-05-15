@@ -106,6 +106,19 @@
     ];
   }
 
+  function connectedUGInstructions(poleId) {
+    return S().getConnectedSpans(poleId)
+      .map(span => {
+        const otherPoleId = S().getOtherPoleId(span, poleId);
+        const otherPole = S().getPole(otherPoleId);
+        if (!otherPole?.ugActive) return "";
+        const relation = span.fromPole === poleId ? "Forespan" : "Backspan";
+        const direction = span.direction ? ` ${span.direction}` : "";
+        return `${relation} to go UG${direction} due to (Red tag / TDU Replace required / PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9" / inability to place ANC).`;
+      })
+      .filter(Boolean);
+  }
+
   function generateMRForSpan(spanId) {
     const sideItems = S().getSpanSidesForSpan(spanId).map(generateMRForSpanSide).filter(Boolean);
     const commItems = S().getSpanCommsForSpan(spanId).map(generateMRForComm).filter(Boolean);
@@ -128,6 +141,7 @@
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
+    ug.push(...connectedUGInstructions(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
       if (text) text.split(/\n+/).filter(Boolean).forEach(line => {
@@ -135,7 +149,10 @@
         else proposed.push(line);
       });
     });
-    S().getSpanCommsForPole(poleId).forEach(sc => {
+    S().getSpanCommsForPole(poleId)
+      .slice()
+      .sort((a, b) => (H().parseHeight(getEffectiveCommHOAForMR(b)) ?? -Infinity) - (H().parseHeight(getEffectiveCommHOAForMR(a)) ?? -Infinity))
+      .forEach(sc => {
       const text = generateMRForComm(sc);
       if (text) commMoves.push(text);
     });
@@ -153,6 +170,10 @@
     state.mr = [];
     Object.keys(state.poles).forEach(generateMRForPole);
     return state.mr;
+  }
+
+  function getEffectiveCommHOAForMR(spanComm) {
+    return spanComm?.existingHOAChange || spanComm?.existingHOA || "";
   }
 
   global.MRLogic = {

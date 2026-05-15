@@ -183,6 +183,8 @@
       clearanceMSMessage: trim(data.clearanceMSMessage || ""),
       clearanceMSReason: trim(data.clearanceMSReason || ""),
       clearanceMSIssue: Boolean(data.clearanceMSIssue),
+      proposedFlaggingStatus: trim(data.proposedFlaggingStatus || ""),
+      proposedFlaggingMessage: trim(data.proposedFlaggingMessage || ""),
       pendingMidspanFinal: trim(data.pendingMidspanFinal || ""),
       clearanceFixReadyAt: Number(data.clearanceFixReadyAt || 0),
       endDrop: trim(data.endDrop || ""),

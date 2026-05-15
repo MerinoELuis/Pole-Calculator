@@ -351,6 +351,14 @@
     return `<span class="badge changed">OK</span>`;
   }
 
+  function renderSpanSideFlagging(side) {
+    if (!side.proposedFlaggingMessage || side.proposedFlaggingStatus === "OK") return `<span class="badge changed">OK</span>`;
+    return `<div class="flagging-cell">
+      <span class="badge danger">Clearance Issue</span>
+      <div class="flagging-message">${escapeHtml(side.proposedFlaggingMessage)}</div>
+    </div>`;
+  }
+
   function renderClearanceStatus(height, pole, missingLabel = "Missing Data") {
     if (!pole || !pole.lowPower) return `<span class="badge warning">${missingLabel}</span>`;
     const max = pole.maxCommHeight || "";
@@ -525,7 +533,7 @@
     if (!spans.length) return `<p class="muted">No hay spans con midspan para proponer desde este poste.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Environment</th><th>Environment Clearance</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Notes</th>
+        <th>Span</th><th>Environment</th><th>Environment Clearance</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Flagging</th><th>Notes</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -551,6 +559,7 @@
           <td>${escapeHtml(span.midspanMaxCommHeight || "")}</td>
           <td>${renderSpanSideMidspanStatus(side)}</td>
           <td><span class="calculated-value">${escapeHtml(side.finalMidspan || "")}</span></td>
+          <td>${renderSpanSideFlagging(side)}</td>
           <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Notas propias...")}</td>
         </tr>`;
       }).join("")}</tbody>

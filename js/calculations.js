@@ -167,12 +167,15 @@
 
   function candidateRank(candidate, context) {
     const candidateSpan = S().getSpan(candidate.spanId);
+    const exactWire = Boolean(context.local?.wireId && candidate.wireId && candidate.wireId === context.local.wireId);
+    const sameOwner = ownersMatch(candidate, context.local || context.ownerBase);
+    if (!exactWire && !sameOwner) return 0;
     let score = 0;
 
-    if (context.local?.wireId && candidate.wireId && candidate.wireId === context.local.wireId) score += 100;
+    if (exactWire) score += 100;
     if (candidate.spanId === context.spanId) score += 45;
     if (samePhysicalSpan(candidateSpan, context.span)) score += 35;
-    if (ownersMatch(candidate, context.local || context.ownerBase)) score += 20;
+    if (sameOwner) score += 20;
     if (getImportedMidspanInchesForComm(candidate) !== null) score += 5;
 
     return score;
@@ -294,6 +297,32 @@
     };
   }
 
+  function getOrderedReferenceMidspans(spanId) {
+    return S().getSpanCommsForSpan(spanId)
+      .map(sc => ({
+        owner: commOwnerLabel(sc),
+        poleHeight: H().parseHeight(getEffectiveCommHOA(sc)),
+        midspan: getMidspanInchesForComm(sc)
+      }))
+      .filter(item => item.poleHeight !== null && item.midspan !== null);
+  }
+
+  function evaluateSpanSideFlagging(spanSide) {
+    const pole = S().getPole(spanSide?.poleId);
+    const proposed = H().parseHeight(spanSide?.proposedHOA || "");
+    if (!spanSide || proposed === null) return { status: "OK", message: "" };
+    const position = getSettingPosition();
+    const topComm = H().parseHeight(pole?.topComm || "");
+    const lowComm = H().parseHeight(pole?.lowComm || "");
+    if (position === "TOP_COMM" && topComm !== null && proposed < topComm) {
+      return { status: "PROBLEM", message: "Proposed below top comm." };
+    }
+    if (position === "LOW_COMM" && lowComm !== null && proposed > lowComm) {
+      return { status: "PROBLEM", message: "Proposed above low comm." };
+    }
+    return { status: "OK", message: "OK" };
+  }
+
   function applyDelayedMidspanResult(existing, evaluation) {
     return {
       msProposed: evaluation.baseFormatted,
@@ -313,9 +342,12 @@
     if (!side || !span) return null;
     const baseInches = calculateProposedMidspanBase(side, span);
     const evaluation = evaluateSpanSideMidspan(baseInches, span, poleId);
+    const proposedFlagging = evaluateSpanSideFlagging(side);
     S().upsertSpanSide({
       ...side,
-      ...applyDelayedMidspanResult(side, evaluation)
+      ...applyDelayedMidspanResult(side, evaluation),
+      proposedFlaggingStatus: proposedFlagging.status,
+      proposedFlaggingMessage: proposedFlagging.message
     });
     return S().getSpanSide(spanId, poleId);
   }
@@ -389,6 +421,32 @@
           issues.push(`Comm-comm MS: ${format(diff)} con ${commOwnerLabel(other) || "sin owner"}; mínimo ${format(midspanClearance)}.`);
         }
       });
+    }
+
+    if (midspan !== null && poleHeight !== null) {
+      const ordered = getOrderedReferenceMidspans(sc.spanId);
+      ordered.forEach(other => {
+        if (!other.owner || other.owner === owner) return;
+        const samePoleRows = S().getSpanCommsForSpan(sc.spanId).filter(row => commOwnerLabel(row) === other.owner);
+        const otherAtPole = samePoleRows.find(row => row.poleId === sc.poleId);
+        const otherPoleHeight = H().parseHeight(getEffectiveCommHOA(otherAtPole));
+        if (otherPoleHeight === null) return;
+        const poleRelation = Math.sign(poleHeight - otherPoleHeight);
+        const midspanRelation = Math.sign(midspan - other.midspan);
+        if (poleRelation && midspanRelation && poleRelation !== midspanRelation) {
+          issues.push(`Midspan order crosses ${other.owner}.`);
+        }
+      });
+    }
+
+    if (midspan !== null && maxMS !== null && getSettingPosition() === "TOP_COMM") {
+      const spanMidspans = S().getSpanCommsForSpan(sc.spanId)
+        .map(getMidspanInchesForComm)
+        .filter(value => value !== null);
+      const isTopCommAtMidspan = spanMidspans.length && midspan === Math.max(...spanMidspans);
+      if (isTopCommAtMidspan && midspan + midspanClearance > maxMS) {
+        issues.push("No room for proposed above top comm.");
+      }
     }
 
     if (poleHeight !== null) {
@@ -528,6 +586,7 @@
         nextPoleProposedAuto: nextPoleProposed !== null
       });
     }
+
     const endDrop = proposed !== null && nextPoleProposed !== null ? format(nextPoleProposed - proposed) : "";
     S().upsertSpanSide({ ...side, endDrop });
     if (side.proposedHOA) {
@@ -778,6 +837,7 @@
     evaluateSpanSideMidspan,
     evaluateCommMidspanClearance,
     evaluateCommFlagging,
+    evaluateSpanSideFlagging,
     evaluateProposedBoltClearance,
     commOwnerLabel,
     displayMidspanForComm,
