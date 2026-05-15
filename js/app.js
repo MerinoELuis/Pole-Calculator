@@ -484,6 +484,14 @@
     return `<pre class="mr-output">${escapeHtml(item.text)}</pre>`;
   }
 
+  function renderPoleActions(poleId) {
+    const pole = S.getPole(poleId);
+    return `<div class="pole-action-buttons">
+      <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
+      <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
+    </div>`;
+  }
+
   function renderPoleEditableHeader(poleId) {
     const { pole, spans, warnings, hasChanges } = poleSummary(poleId);
     return `<div class="pole-workspace-header">
@@ -596,7 +604,8 @@
   }
 
   function renderPoleWorkspace(poleId) {
-    return `<article class="pole-workspace-card" data-pole-card="${escapeHtml(poleId)}">
+    const pole = S.getPole(poleId);
+    return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
         <section class="subsection wide" id="spans-${escapeHtml(poleId)}">
@@ -615,11 +624,18 @@
           <h4>Imported Power / Clearance</h4>
           ${renderPowerTable(poleId)}
         </section>
-        <section class="subsection" id="warnings-${escapeHtml(poleId)}">
-          <h4>Make Ready</h4>
+        <section class="subsection make-ready-section" id="warnings-${escapeHtml(poleId)}">
+          <div class="subsection-title-row">
+            <h4>Make Ready</h4>
+            <button class="mini-btn" type="button" data-copy-mr data-pole="${escapeHtml(poleId)}">Copy</button>
+          </div>
           ${renderMRText(poleId)}
         </section>
         <section class="subsection">
+          <h4>Pole Actions</h4>
+          ${renderPoleActions(poleId)}
+        </section>
+        <section class="subsection warnings-section">
           <h4>Warnings</h4>
           ${renderWarningsList(poleId)}
         </section>
@@ -673,6 +689,72 @@
     root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
+    root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
+    root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
+  }
+
+  function toggleUG(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole) return;
+    if (pole.ugActive) {
+      S.upsertPole({ ...pole, ugActive: false, ugReason: "" });
+    } else {
+      const options = [
+        "Red tag",
+        "Inability to place ANC",
+        "TDU replace required",
+        "Existing neutral / multiplex above 26'9\"",
+        "PCO neutral / multiplex exceeds 26'9\""
+      ];
+      const answer = prompt(`UG reason:\n${options.map((item, index) => `${index + 1}. ${item}`).join("\n")}`, "1");
+      if (answer === null) return;
+      const reason = options[Number(answer) - 1] || answer.trim();
+      if (!reason) return;
+      S.upsertPole({ ...pole, ugActive: true, ugReason: reason });
+    }
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+  }
+
+  function togglePCO(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole) return;
+    if (pole.pcoActive) {
+      S.upsertPole({ ...pole, pcoActive: false, pcoScope: "", pcoType: "", pcoDetail: "" });
+      global.Calculations.recalculateSpansForPole(poleId);
+      renderAffectedPoles([poleId]);
+      return;
+    }
+    const scope = prompt("PCO scope: Existing or proposed", pole.pcoScope || "Existing");
+    if (scope === null) return;
+    const typeAnswer = prompt("PCO type:\n1. Clearance violations\n2. Pole overloaded", pole.pcoType === "OVERLOAD" ? "2" : "1");
+    if (typeAnswer === null) return;
+    const pcoType = String(typeAnswer).trim() === "2" ? "OVERLOAD" : "CLEARANCE";
+    const detail = prompt(pcoType === "OVERLOAD" ? "Who is causing overload?" : "Specify violation", pole.pcoDetail || "");
+    if (detail === null || !detail.trim()) return;
+    S.upsertPole({
+      ...pole,
+      pcoActive: true,
+      pcoScope: scope.trim() || "Existing",
+      pcoType,
+      pcoDetail: detail.trim()
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+  }
+
+  async function copyMR(poleId) {
+    const item = S.getState().mr.find(mr => mr.poleId === poleId);
+    const text = item?.text || "";
+    if (!text) return toast("No hay Make Ready para copiar.", "warning");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Make Ready copiado.", "success");
+    } catch (error) {
+      console.error(error);
+      toast("No se pudo copiar el Make Ready.", "error");
+    }
   }
 
   function isLiveRecalcField(field) {

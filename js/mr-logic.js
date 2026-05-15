@@ -42,6 +42,13 @@
     return String(settings.proposedOwner || "Wecom").trim() || "Wecom";
   }
 
+  function transferOwnersForPole(poleId) {
+    const owners = S().getSpanCommsForPole(poleId)
+      .map(ownerForMR)
+      .filter(Boolean);
+    return Array.from(new Set(owners)).join(" & ");
+  }
+
   function mrHeight(value) {
     return String(value || "").replace(/'(?=\d)/, "' ");
   }
@@ -93,6 +100,19 @@
     const commMoves = [];
     const proposed = [];
     const ensure = [];
+    const pole = S().getPole(poleId);
+    if (pole?.ugActive && pole.ugReason) {
+      ug.push(`Unable to attach due to ${pole.ugReason}.`);
+    }
+    if (pole?.pcoActive && pole.pcoScope && pole.pcoType && pole.pcoDetail) {
+      const transfers = transferOwnersForPole(poleId);
+      const transferText = transfers ? ` Transfer ${transfers} to new pole.` : "";
+      if (pole.pcoType === "OVERLOAD") {
+        power.push(`${pole.pcoScope} pole overloaded by ${pole.pcoDetail}, replace pole.${transferText}`);
+      } else {
+        power.push(`${pole.pcoScope} clearance violations (${pole.pcoDetail}), replace pole.${transferText}`);
+      }
+    }
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
       if (text) text.split(/\n+/).filter(Boolean).forEach(line => {

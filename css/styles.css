@@ -354,6 +354,15 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   scroll-margin-top: 18px;
 }
 
+.pole-workspace-card.ug-active {
+  background: #fff8db;
+  border-color: rgba(217, 119, 6, .45);
+}
+
+.pole-workspace-card.ug-active .subsection {
+  background: rgba(255, 255, 255, .82);
+}
+
 .pole-workspace-header {
   display: grid;
   min-width: 0;
@@ -400,6 +409,24 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   min-width: 0;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
   gap: 12px;
+}
+
+.make-ready-section,
+.warnings-section {
+  grid-column: 1;
+}
+
+.pole-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.mini-btn.active-action {
+  border-color: var(--primary);
+  background: #eff6ff;
+  color: var(--primary);
 }
 
 .subsection.wide {

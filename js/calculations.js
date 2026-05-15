@@ -499,8 +499,16 @@
     let nextPoleProposed = H().parseHeight(manualNext || "");
     if (nextPoleProposed === null) {
       const otherPoleId = S().getOtherPoleId(span, poleId);
-      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
-      nextPoleProposed = H().parseHeight(otherSide?.proposedHOA || "");
+      // El proposed del poste siguiente no siempre vive en el mismo spanId.
+      // Para este flujo se toma el primer proposed que el poste siguiente
+      // realmente propone hacia adelante; si no existe, se deja vacío.
+      const otherSides = otherPoleId ? S().getSpanSidesForPole(otherPoleId) : [];
+      const forwardProposedSide = otherSides.find(otherSide => {
+        const candidateSpan = S().getSpan(otherSide.spanId);
+        return Boolean(otherSide.proposedHOA && candidateSpan?.fromPole === otherPoleId);
+      });
+      const sourceSide = forwardProposedSide || null;
+      nextPoleProposed = H().parseHeight(sourceSide?.proposedHOA || "");
       side = S().upsertSpanSide({
         ...side,
         proposedHOAChange: nextPoleProposed !== null ? format(nextPoleProposed) : "",
