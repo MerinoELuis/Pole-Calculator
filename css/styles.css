@@ -473,7 +473,7 @@ tr.danger-row {
   display: grid;
   gap: 6px;
   justify-items: center;
-  align-content: start;
+  align-content: center;
   grid-auto-rows: minmax(38px, auto);
 }
 
@@ -560,10 +560,6 @@ tr.danger-row {
   min-width: 82px;
   max-width: 110px;
   padding: 5px 7px;
-}
-
-.comm-movement-table td {
-  vertical-align: top;
 }
 
 .pulse-badge {

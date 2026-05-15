@@ -348,6 +348,15 @@
     return state.spanComms[key];
   }
 
+  function removeSpanComm(spanId, poleId, owner, wireId = "") {
+    const key = keyForSpanComm(spanId, poleId, owner, wireId || "");
+    delete state.spanComms[key];
+    const pole = state.poles[poleId];
+    if (pole) {
+      pole.comms = (pole.comms || []).filter(comm => !(comm.owner === owner && (!wireId || comm.wireId === wireId)));
+    }
+  }
+
   function addSpanPower(data) {
     const clean = createSpanPower(data);
     if (!clean.spanId || !clean.poleId) return null;
@@ -451,6 +460,41 @@
     });
   }
 
+  function ensureEndpointComms() {
+    // Si un extremo del span no trae filas propias, se crean comms placeholder
+    // con los mismos owners/wireIds que llegan desde el otro extremo. El usuario
+    // completará las alturas; así el poste nunca queda visualmente vacío.
+    Object.values(state.spans).forEach(span => {
+      [span.fromPole, span.toPole].filter(Boolean).forEach(poleId => {
+        const rowsAtPole = getSpanCommsForPole(poleId);
+        if (rowsAtPole.length) return;
+        const otherPoleId = getOtherPoleId(span, poleId);
+        getSpanCommsForPole(otherPoleId)
+          .filter(row => row.spanId === span.spanId)
+          .forEach(row => {
+            upsertComm(poleId, row.owner, "", "", {
+              ownerBase: row.ownerBase || row.owner,
+              rawOwner: row.rawOwner || row.owner,
+              wireId: row.wireId || "",
+              size: row.size || ""
+            });
+            upsertSpanComm({
+              spanId: span.spanId,
+              poleId,
+              owner: row.owner,
+              ownerBase: row.ownerBase || row.owner,
+              existingHOA: "",
+              existingHOAChange: "",
+              serviceDrop: Boolean(row.serviceDrop),
+              rawOwner: row.rawOwner || row.owner,
+              size: row.size || "",
+              wireId: row.wireId || ""
+            });
+          });
+      });
+    });
+  }
+
   function normalizeState(raw) {
     const next = { ...emptyState(), ...raw };
     next.settings = { ...emptyState().settings, ...(raw && raw.settings ? raw.settings : {}) };
@@ -504,6 +548,7 @@
     ensureUnknownPoles();
     ensureSpanSides();
     if (state.autoCreateSpanComms) ensureSpanComms();
+    ensureEndpointComms();
     return state;
   }
 
@@ -606,6 +651,7 @@
     upsertSpan,
     upsertSpanSide,
     upsertSpanComm,
+    removeSpanComm,
     addSpanPower,
     getConnectedSpans,
     getOtherPoleId,
@@ -618,6 +664,7 @@
     poleHasChanges,
     ensureSpanSides,
     ensureSpanComms,
+    ensureEndpointComms,
     normalizeState
   };
   global.AppStore.ENVIRONMENT_OPTIONS = ENVIRONMENT_OPTIONS;

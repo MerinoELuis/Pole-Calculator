@@ -163,6 +163,7 @@
       seen.add(key);
       const isBackspan = span && span.fromPole !== poleId;
       const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner, sc.wireId || "");
+      const midspanLocked = Boolean(sc.existingHOAChange || remote?.existingHOAChange);
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
@@ -170,7 +171,9 @@
           ${hasMidspan && isBackspan ? `<em>ref</em>` : ""}
           ${!hasMidspan ? `<em>REF</em>` : ""}
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan)}</strong></div>`,
+        midspanHtml: `<div class="comm-midspan-value">${hasMidspan && !midspanLocked
+          ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}">`
+          : `<strong>${escapeHtml(midspan)}</strong>`}</div>`,
         remoteHtml: !remote
           ? `<div class="comm-midspan-value"><strong></strong></div>`
           : `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`
@@ -237,14 +240,17 @@
   function replacePoleCard(poleId) {
     if (!els.polesOverview || !poleId || !S.getPole(poleId)) return false;
     const oldCard = els.polesOverview.querySelector(`[data-pole-card="${CSS.escape(poleId)}"]`);
-    if (!oldCard) return false;
+    if (!oldCard || !oldCard.isConnected || !oldCard.parentNode) return false;
     const template = document.createElement("template");
     template.innerHTML = renderPoleWorkspace(poleId).trim();
     const nextCard = template.content.firstElementChild;
     if (!nextCard) return false;
-    oldCard.replaceWith(nextCard);
+    const parent = oldCard.parentNode;
+    if (!parent || !parent.contains(oldCard)) return false;
+    parent.replaceChild(nextCard, oldCard);
     wireEditableEvents(nextCard);
     bindScrollLinks(nextCard);
+    bindLocalActions(nextCard);
     return true;
   }
 
@@ -353,7 +359,7 @@
     ];
     const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
     const proposedOwner = settings.proposedOwner || "Wecom";
-    const ownerOptions = ["Wecom", "Vexus", "CTL", "CATV", "FIBER", "Cable One"].map(owner =>
+    const ownerOptions = ["Wecom", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"].map(owner =>
       `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
     ).join("");
     const renderRow = ([field, label, value]) => `
@@ -480,9 +486,9 @@
         <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
         <div class="pole-meta">
           ${pole.isGenerated ? `<span class="badge warning">Other pole generado editable</span>` : ""}
-          <span class="badge">Spans ${spans.length}</span>
-          <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
-          ${warnings.length ? `<span class="badge warning">Warnings ${warnings.length}</span>` : `<span class="badge">Warnings 0</span>`}
+          <button class="badge meta-link" type="button" data-scroll-target="spans-${escapeHtml(poleId)}">Spans ${spans.length}</button>
+          <button class="badge owner meta-link" type="button" data-scroll-target="comms-${escapeHtml(poleId)}">Comms ${S.getSpanCommsForPole(poleId).length}</button>
+          ${warnings.length ? `<button class="badge warning meta-link" type="button" data-scroll-target="warnings-${escapeHtml(poleId)}">Warnings ${warnings.length}</button>` : `<button class="badge meta-link" type="button" data-scroll-target="warnings-${escapeHtml(poleId)}">Warnings 0</button>`}
           ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
         </div>
       </div>
@@ -538,7 +544,7 @@
     if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>Midspan</th><th>Otro poste HOA</th><th>Flagging</th>
+        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>Midspan</th><th>Otro poste HOA</th><th>Flagging</th><th>Acciones</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -560,6 +566,10 @@
           <td>${renderCommMidspanValues(group, poleId)}</td>
           <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
+          <td><div class="row-actions">
+            <button class="mini-btn" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}">Editar</button>
+            <button class="mini-btn danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}">Borrar</button>
+          </div></td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -586,12 +596,15 @@
     return `<article class="pole-workspace-card" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
-        <section class="subsection wide">
+        <section class="subsection wide" id="spans-${escapeHtml(poleId)}">
           <h4>Proposed por span</h4>
           ${renderSpanProposedTable(poleId)}
         </section>
-        <section class="subsection wide">
-          <h4>Movimientos de comms existentes</h4>
+        <section class="subsection wide" id="comms-${escapeHtml(poleId)}">
+          <div class="subsection-title-row">
+            <h4>Movimientos de comms existentes</h4>
+            <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Agregar comm</button>
+          </div>
           <p class="muted">Aquí se mueve cada comm existente con nueva altura. Si cambia el otro poste del mismo span, el Midspan calculado se actualiza.</p>
           ${renderCommMovementTable(poleId)}
         </section>
@@ -599,7 +612,7 @@
           <h4>Power / clearance importado</h4>
           ${renderPowerTable(poleId)}
         </section>
-        <section class="subsection">
+        <section class="subsection" id="warnings-${escapeHtml(poleId)}">
           <h4>Make Ready</h4>
           ${renderMRText(poleId)}
         </section>
@@ -631,6 +644,7 @@
     }).join("") || `<div class="detail-placeholder">No hay postes para mostrar.</div>`;
     wireEditableEvents(els.polesOverview);
     bindScrollLinks(els.polesOverview);
+    bindLocalActions(els.polesOverview);
   }
 
   function renderSelectedPoleDetail() {
@@ -642,6 +656,7 @@
     }
     els.selectedPoleDetail.innerHTML = `<div class="detail-title"><div><p class="eyebrow">Detalle enfocado</p><h2>${escapeHtml(poleId)}</h2></div><button class="btn" type="button" data-scroll-to-pole="${escapeHtml(poleId)}">Ir al poste en la vista general</button></div>${renderPoleWorkspace(poleId)}`;
     wireEditableEvents(els.selectedPoleDetail);
+    bindLocalActions(els.selectedPoleDetail);
     const btn = els.selectedPoleDetail.querySelector("[data-scroll-to-pole]");
     if (btn) btn.addEventListener("click", () => scrollToPole(btn.dataset.scrollToPole));
   }
@@ -661,6 +676,16 @@
         });
       }
     });
+  }
+
+  function bindLocalActions(root) {
+    if (!root) return;
+    root.querySelectorAll("[data-scroll-target]").forEach(btn => {
+      btn.addEventListener("click", () => document.getElementById(btn.dataset.scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    });
+    root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
+    root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
+    root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
   }
 
   function isLiveRecalcField(field) {
@@ -695,6 +720,46 @@
         poleIdsForSpan(sc.spanId).forEach(id => affected.add(id));
       });
     return Array.from(affected);
+  }
+
+  function defaultSpanForNewComm(poleId) {
+    return connectedSpansSorted(poleId)[0] || null;
+  }
+
+  function addCommToPole(poleId) {
+    const owner = prompt("Owner/Comm");
+    if (!owner) return;
+    const existingHOA = prompt("Existing HOA", "") || "";
+    const span = defaultSpanForNewComm(poleId);
+    if (!span) return toast("Ese poste no tiene spans para asociar el comm.", "warning");
+    const wireId = `manual-${Date.now()}`;
+    S.upsertComm(poleId, owner, existingHOA, "", { ownerBase: owner, rawOwner: owner, wireId });
+    S.upsertSpanComm({ spanId: span.spanId, poleId, owner, ownerBase: owner, rawOwner: owner, existingHOA, wireId });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, S.getOtherPoleId(span, poleId)]);
+  }
+
+  function editCommGroup(poleId, groupKey) {
+    const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
+    if (!group) return;
+    const nextOwner = prompt("Owner/Comm", group.owner);
+    if (!nextOwner) return;
+    const nextHOA = prompt("Existing HOA", group.existingHOA || "") || "";
+    group.rows.forEach(row => {
+      S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
+      S.upsertComm(poleId, nextOwner, nextHOA, "", { ownerBase: nextOwner, rawOwner: nextOwner, wireId: row.wireId || "" });
+      S.upsertSpanComm({ ...row, owner: nextOwner, ownerBase: nextOwner, rawOwner: nextOwner, existingHOA: nextHOA });
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+  }
+
+  function deleteCommGroup(poleId, groupKey) {
+    const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
+    if (!group || !confirm(`Borrar ${group.owner}?`)) return;
+    group.rows.forEach(row => S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
   }
 
   function editableInputKey(el) {
