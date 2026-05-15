@@ -18,9 +18,11 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; max-width: 100%; overflow-x: hidden; }
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   min-height: 100vh;
   font-family: var(--font);
   background:
@@ -33,7 +35,7 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 
-.app-shell { width: min(1900px, calc(100% - 24px)); margin: 0 auto; padding: 18px 0 24px; }
+.app-shell { width: min(1900px, calc(100% - 24px)); min-width: 0; max-width: 100%; margin: 0 auto; padding: 18px 0 24px; }
 .topbar {
   display: flex;
   gap: 18px;
@@ -46,9 +48,11 @@ button:disabled { cursor: not-allowed; }
 .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 0.76rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
 .topbar-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 
-.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
-.content { display: grid; gap: 18px; min-width: 0; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; min-width: 0; max-width: 100%; }
+.content { display: grid; gap: 18px; min-width: 0; max-width: 100%; }
 .panel {
+  min-width: 0;
+  max-width: 100%;
   background: rgba(255,255,255,0.92);
   border: 1px solid rgba(203, 213, 225, 0.76);
   border-radius: var(--radius);
@@ -56,7 +60,7 @@ button:disabled { cursor: not-allowed; }
   padding: 18px;
   backdrop-filter: blur(8px);
 }
-.panel-header { display: flex; gap: 14px; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.panel-header { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; min-width: 0; }
 .panel-header h2, .panel-header h3 { margin: 0; }
 .panel-header.split { align-items: center; }
 .muted { color: var(--muted); font-size: 0.9rem; }
@@ -220,7 +224,19 @@ button:disabled { cursor: not-allowed; }
 .detail-grid { display: grid; gap: 16px; }
 .subsection { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #fff; }
 .subsection h3 { margin: 0 0 12px; }
-.table-wrap { width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 14px; }
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  overscroll-behavior-x: contain;
+}
+.table-wrap table { margin: 0; }
 table { width: 100%; border-collapse: collapse; min-width: 980px; background: #fff; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: center; vertical-align: middle; font-size: .88rem; }
 th { background: #f8fafc; color: #475569; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
@@ -272,6 +288,21 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   .detail-title { flex-direction: column; }
 }
 
+@media (max-width: 640px) {
+  .topbar-actions,
+  .toolbar.compact-toolbar,
+  .pole-index-links {
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .table-wrap {
+    width: 100%;
+    max-width: calc(100vw - 54px);
+  }
+}
+
 /* === v1.2 workspace edits === */
 #polesOverview.cards-grid {
   display: grid;
@@ -280,6 +311,9 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 }
 
 .pole-workspace-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
@@ -290,6 +324,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .pole-workspace-header {
   display: grid;
+  min-width: 0;
   grid-template-columns: minmax(240px, 1fr) minmax(520px, 1.6fr);
   gap: 16px;
   align-items: start;
@@ -306,6 +341,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .pole-kpis {
   display: grid;
+  min-width: 0;
   grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: 10px;
   align-items: end;
@@ -313,6 +349,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .pole-kpis label,
 .calc-grid label {
+  min-width: 0;
   color: #475569;
   font-size: 0.78rem;
   font-weight: 800;
@@ -328,12 +365,18 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .workspace-grid {
   display: grid;
+  min-width: 0;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
   gap: 12px;
 }
 
 .subsection.wide {
   grid-column: 1 / -1;
+}
+
+.subsection {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .subsection h4 {
