@@ -497,17 +497,30 @@
     const proposed = H().parseHeight(side.proposedHOA || "");
     const manualNext = side.nextPoleProposedAuto ? "" : side.proposedHOAChange;
     let nextPoleProposed = H().parseHeight(manualNext || "");
+    let debugOtherPoleId = "";
+    let debugCandidates = [];
+    let debugSelected = null;
     if (nextPoleProposed === null) {
       const otherPoleId = S().getOtherPoleId(span, poleId);
       // El proposed del poste siguiente no siempre vive en el mismo spanId.
       // Para este flujo se toma el primer proposed que el poste siguiente
       // realmente propone hacia adelante; si no existe, se deja vacío.
       const otherSides = otherPoleId ? S().getSpanSidesForPole(otherPoleId) : [];
+      debugOtherPoleId = otherPoleId || "";
+      debugCandidates = otherSides.map(otherSide => {
+        const candidateSpan = S().getSpan(otherSide.spanId);
+        return {
+          spanId: otherSide.spanId,
+          fromPole: candidateSpan?.fromPole || "",
+          proposedHOA: otherSide.proposedHOA || ""
+        };
+      });
       const forwardProposedSide = otherSides.find(otherSide => {
         const candidateSpan = S().getSpan(otherSide.spanId);
         return Boolean(otherSide.proposedHOA && candidateSpan?.fromPole === otherPoleId);
       });
       const sourceSide = forwardProposedSide || null;
+      debugSelected = sourceSide ? { spanId: sourceSide.spanId, proposedHOA: sourceSide.proposedHOA } : null;
       nextPoleProposed = H().parseHeight(sourceSide?.proposedHOA || "");
       side = S().upsertSpanSide({
         ...side,
@@ -517,6 +530,19 @@
     }
     const endDrop = proposed !== null && nextPoleProposed !== null ? format(nextPoleProposed - proposed) : "";
     S().upsertSpanSide({ ...side, endDrop });
+    if (side.proposedHOA) {
+      console.debug("[PoleCalc next proposed]", {
+        spanId,
+        poleId,
+        proposed: side.proposedHOA || "",
+        manualNext: manualNext || "",
+        otherPoleId: debugOtherPoleId,
+        candidates: debugCandidates,
+        selected: debugSelected,
+        nextPoleProposed: nextPoleProposed !== null ? format(nextPoleProposed) : "",
+        endDrop
+      });
+    }
     return endDrop;
   }
 
@@ -551,28 +577,6 @@
       localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
       remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
       calculated = format(Math.round(importedMidspan + localAdjustment + remoteAdjustment));
-    }
-
-    // Depuración visible en consola. Se puede apagar con:
-    // window.POLE_CALC_DEBUG_MIDSPAN = false
-    if (global.POLE_CALC_DEBUG_MIDSPAN !== false) {
-      console.debug("[PoleCalc midspan]", {
-        spanId: spanComm.spanId,
-        poleId: spanComm.poleId,
-        owner: commOwnerLabel(spanComm),
-        wireId: spanComm.wireId || "",
-        sourceSpanId: midspanSource?.spanId || "",
-        importedMidspan: importedMidspan !== null ? format(importedMidspan) : "",
-        localExisting: spanComm.existingHOA || "",
-        localEffective: getEffectiveCommHOA(spanComm),
-        localAdjustment: format(Math.round(localAdjustment)),
-        remotePoleId: remote?.poleId || "",
-        remoteSpanId: remote?.spanId || "",
-        remoteExisting: remote?.existingHOA || "",
-        remoteEffective: remoteHOA,
-        remoteAdjustment: format(Math.round(remoteAdjustment)),
-        calculatedMidspan: calculated
-      });
     }
 
     const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);
@@ -633,6 +637,9 @@
 
     if (field === "proposedHOAChange") data.nextPoleProposedAuto = false;
     S().upsertSpanSide(data);
+    if (field === "proposedHOA") {
+      console.debug("[PoleCalc proposed]", { spanId, poleId, proposedHOA: value || "" });
+    }
     if (["proposedHOA", "proposedHOAChange"].includes(field)) calculateEndDropForSpanSide(spanId, poleId);
     recalculateSpansForPole(poleId);
     return S().getSpanSide(spanId, poleId);

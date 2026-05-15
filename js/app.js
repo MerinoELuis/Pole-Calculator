@@ -697,22 +697,11 @@
   function toggleUG(poleId) {
     const pole = S.getPole(poleId);
     if (!pole) return;
-    if (pole.ugActive) {
-      S.upsertPole({ ...pole, ugActive: false, ugReason: "" });
-    } else {
-      const options = [
-        "Red tag",
-        "Inability to place ANC",
-        "TDU replace required",
-        "Existing neutral / multiplex above 26'9\"",
-        "PCO neutral / multiplex exceeds 26'9\""
-      ];
-      const answer = prompt(`UG reason:\n${options.map((item, index) => `${index + 1}. ${item}`).join("\n")}`, "1");
-      if (answer === null) return;
-      const reason = options[Number(answer) - 1] || answer.trim();
-      if (!reason) return;
-      S.upsertPole({ ...pole, ugActive: true, ugReason: reason });
-    }
+    S.upsertPole({
+      ...pole,
+      ugActive: !pole.ugActive,
+      pcoActive: pole.ugActive ? pole.pcoActive : false
+    });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
   }
@@ -720,25 +709,10 @@
   function togglePCO(poleId) {
     const pole = S.getPole(poleId);
     if (!pole) return;
-    if (pole.pcoActive) {
-      S.upsertPole({ ...pole, pcoActive: false, pcoScope: "", pcoType: "", pcoDetail: "" });
-      global.Calculations.recalculateSpansForPole(poleId);
-      renderAffectedPoles([poleId]);
-      return;
-    }
-    const scope = prompt("PCO scope: Existing or proposed", pole.pcoScope || "Existing");
-    if (scope === null) return;
-    const typeAnswer = prompt("PCO type:\n1. Clearance violations\n2. Pole overloaded", pole.pcoType === "OVERLOAD" ? "2" : "1");
-    if (typeAnswer === null) return;
-    const pcoType = String(typeAnswer).trim() === "2" ? "OVERLOAD" : "CLEARANCE";
-    const detail = prompt(pcoType === "OVERLOAD" ? "Who is causing overload?" : "Specify violation", pole.pcoDetail || "");
-    if (detail === null || !detail.trim()) return;
     S.upsertPole({
       ...pole,
-      pcoActive: true,
-      pcoScope: scope.trim() || "Existing",
-      pcoType,
-      pcoDetail: detail.trim()
+      pcoActive: !pole.pcoActive,
+      ugActive: pole.pcoActive ? pole.ugActive : false
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);

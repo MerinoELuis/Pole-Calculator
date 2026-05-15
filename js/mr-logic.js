@@ -42,13 +42,6 @@
     return String(settings.proposedOwner || "Wecom").trim() || "Wecom";
   }
 
-  function transferOwnersForPole(poleId) {
-    const owners = S().getSpanCommsForPole(poleId)
-      .map(ownerForMR)
-      .filter(Boolean);
-    return Array.from(new Set(owners)).join(" & ");
-  }
-
   function mrHeight(value) {
     return String(value || "").replace(/'(?=\d)/, "' ");
   }
@@ -74,8 +67,7 @@
     if (!spanSide || !spanSide.proposedHOA) return "";
     const span = S().getSpan(spanSide.spanId);
     const dir = span && span.direction ? ` ${span.direction}` : "";
-    // Proposed attach owner is configurable because it is project/customer specific.
-    const items = [`Attach ${proposedOwnerForMR()} at HOA ${mrHeight(spanSide.proposedHOA)}${dir}.`];
+    const items = [];
     if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue) {
       items.push(`Ensure min 30" to low power at midspan.`);
     }
@@ -83,6 +75,28 @@
     if (detectAnchor(spanSide)) items.push(`PL NEW ANC${dir}.`.replace("  ", " "));
     if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));
     return items.join("\n");
+  }
+
+  function generateAttachMRForPole(poleId) {
+    const heights = S().getSpanSidesForPole(poleId)
+      .map(side => H().parseHeight(side.proposedHOA || ""))
+      .filter(value => value !== null)
+      .sort((a, b) => a - b);
+    const uniqueHeights = Array.from(new Set(heights)).map(value => mrHeight(H().formatHeight(value)));
+    if (!uniqueHeights.length) return "";
+    const joinedHeights = uniqueHeights.join(" and ");
+    return `Attach ${proposedOwnerForMR()} at HOA ${joinedHeights}.`;
+  }
+
+  function replacementOnlyMR() {
+    return [
+      "Unable to attach due to (reasoning).",
+      "Red tag",
+      "Inability to place ANC",
+      "TDU replace required",
+      "Existing neutral / multiplex above 26'9\"",
+      "PCO neutral / multiplex exceeds 26'9\""
+    ];
   }
 
   function generateMRForSpan(spanId) {
@@ -101,17 +115,10 @@
     const proposed = [];
     const ensure = [];
     const pole = S().getPole(poleId);
-    if (pole?.ugActive && pole.ugReason) {
-      ug.push(`Unable to attach due to ${pole.ugReason}.`);
-    }
-    if (pole?.pcoActive && pole.pcoScope && pole.pcoType && pole.pcoDetail) {
-      const transfers = transferOwnersForPole(poleId);
-      const transferText = transfers ? ` Transfer ${transfers} to new pole.` : "";
-      if (pole.pcoType === "OVERLOAD") {
-        power.push(`${pole.pcoScope} pole overloaded by ${pole.pcoDetail}, replace pole.${transferText}`);
-      } else {
-        power.push(`${pole.pcoScope} clearance violations (${pole.pcoDetail}), replace pole.${transferText}`);
-      }
+    if (pole?.ugActive || pole?.pcoActive) {
+      const text = replacementOnlyMR().map(applyCase).join("\n");
+      state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
+      return state.mr.filter(item => item.poleId === poleId);
     }
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
@@ -124,6 +131,8 @@
       const text = generateMRForComm(sc);
       if (text) commMoves.push(text);
     });
+    const attach = generateAttachMRForPole(poleId);
+    if (attach) proposed.unshift(attach);
 
     const lines = [...ug, ...power, ...commMoves, ...proposed, ...ensure].map(applyCase);
     const unique = Array.from(new Set(lines.map(line => line.trim()).filter(Boolean)));
