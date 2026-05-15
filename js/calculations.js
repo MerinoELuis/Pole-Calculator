@@ -60,6 +60,40 @@
       .trim();
   }
 
+  function normalizeOwnerForMatch(value) {
+    const text = String(value || "")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/,\s*.*$/, "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+    if (/century\s*link|centurylink|\bctl\b|telco/.test(text)) return "ctl";
+    if (/cable\s*one|cox|catv/.test(text)) return "catv";
+    if (/vexus/.test(text)) return "vexus";
+    if (/wecom/.test(text)) return "wecom";
+    if (/fiber/.test(text)) return "fiber";
+    return text;
+  }
+
+  function ownerTokens(scOrValue) {
+    if (typeof scOrValue === "string") return new Set([normalizeOwnerForMatch(scOrValue)].filter(Boolean));
+    return new Set([
+      normalizeOwnerForMatch(scOrValue?.ownerBase),
+      normalizeOwnerForMatch(scOrValue?.owner),
+      normalizeOwnerForMatch(scOrValue?.rawOwner),
+      normalizeOwnerForMatch(commOwnerLabel(scOrValue))
+    ].filter(Boolean));
+  }
+
+  function ownersMatch(a, b) {
+    const left = ownerTokens(a);
+    const right = ownerTokens(b);
+    return Array.from(left).some(token => right.has(token));
+  }
+
   function normalizedHeightLabelForCalc(value) {
     const parsed = H().parseHeight(value || "");
     return parsed === null ? String(value || "").trim() : format(parsed);
@@ -87,7 +121,9 @@
   }
 
   function getImportedMidspanInchesForComm(sc) {
-    return parseMidspanValue(sc?.ocalcMS || sc?.midspan || "");
+    // El midspan base viene de la columna Midspan de Span.Wire. O-CALC MS queda
+    // solo como respaldo para archivos guardados viejos que ya traían ese campo.
+    return parseMidspanValue(sc?.midspan || sc?.ocalcMS || "");
   }
 
   function spanCommKey(sc) {
@@ -114,156 +150,126 @@
     return H().parseHeight(span.environmentClearance);
   }
 
+  function samePhysicalSpan(a, b) {
+    if (!a || !b) return false;
+    const aPoles = [a.fromPole, a.toPole].filter(Boolean).sort().join("|");
+    const bPoles = [b.fromPole, b.toPole].filter(Boolean).sort().join("|");
+    return Boolean(aPoles && bPoles && aPoles === bPoles);
+  }
+
+  function getLocalCommCandidate(spanId, poleId, ownerBase = "") {
+    const target = normalizeOwnerForMatch(ownerBase);
+    const candidates = S().getSpanCommsForSpan(spanId).filter(row => row.poleId === poleId);
+    return candidates.find(row => target && ownerTokens(row).has(target)) || candidates[0] || null;
+  }
+
+  function candidateRank(candidate, context) {
+    const candidateSpan = S().getSpan(candidate.spanId);
+    let score = 0;
+
+    if (context.local?.wireId && candidate.wireId && candidate.wireId === context.local.wireId) score += 100;
+    if (candidate.spanId === context.spanId) score += 45;
+    if (samePhysicalSpan(candidateSpan, context.span)) score += 35;
+    if (ownersMatch(candidate, context.local || context.ownerBase)) score += 20;
+    if (getImportedMidspanInchesForComm(candidate) !== null) score += 5;
+
+    return score;
+  }
+
+  function findRemoteComm(spanId, poleId, ownerBase = "", preferredWireId = "") {
+    const span = S().getSpan(spanId);
+    if (!span) return null;
+
+    const otherPole = S().getOtherPoleId(span, poleId);
+    if (!otherPole) return null;
+
+    const local = getLocalCommCandidate(spanId, poleId, ownerBase) || {
+      spanId,
+      poleId,
+      owner: ownerBase,
+      ownerBase,
+      wireId: preferredWireId
+    };
+    if (preferredWireId && !local.wireId) local.wireId = preferredWireId;
+
+    const candidates = S().getSpanCommsForPole(otherPole);
+    if (!candidates.length) return null;
+
+    const context = { spanId, poleId, ownerBase, span, local };
+    const ranked = candidates
+      .map(row => ({ row, score: candidateRank(row, context) }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    return ranked[0]?.row || null;
+  }
+
+  function findMidspanSourceComm(spanComm) {
+    if (!spanComm) return null;
+    const ownMidspan = getImportedMidspanInchesForComm(spanComm);
+    if (ownMidspan !== null) return spanComm;
+
+    const span = S().getSpan(spanComm.spanId);
+    const rows = Object.values(S().getState().spanComms || {})
+      .filter(row => spanCommKey(row) !== spanCommKey(spanComm))
+      .filter(row => getImportedMidspanInchesForComm(row) !== null);
+
+    const exactWire = rows.find(row => spanComm.wireId && row.wireId === spanComm.wireId);
+    if (exactWire) return exactWire;
+
+    const physicalOwnerMatch = rows.find(row => {
+      const rowSpan = S().getSpan(row.spanId);
+      return samePhysicalSpan(span, rowSpan) && ownersMatch(row, spanComm);
+    });
+    if (physicalOwnerMatch) return physicalOwnerMatch;
+
+    const ownerMatch = rows.find(row => ownersMatch(row, spanComm));
+    return ownerMatch || null;
+  }
+
   function evaluateSpanSideMidspan(baseInches, span, poleId = "") {
-    if (baseInches === null || !span) {
-      return {
-        baseFormatted: "",
-        finalFormatted: "",
-        status: "MISSING",
-        issue: false,
-        impossible: false,
-        needsAdjustment: false,
-        message: "Falta O-CALC MS."
-      };
-    }
-
-    const settings = S().getState().settings || {};
-    const position = getSettingPosition();
-    const commClearance = getMidspanCommCommClearance();
-    const references = getReferenceMidspansForSpanSide(span.spanId, poleId);
-    const maxMS = H().parseHeight(span.midspanMaxCommHeight);
-    const envMin = getEnvironmentMinimum(span);
-    const messages = [];
-    let target = baseInches;
-    let issue = false;
-    let impossible = false;
-    let needsAdjustment = false;
-    let clearanceMSReason = "";
-
-    if (references.length) {
-      messages.push(`Referencia tomada contra ${references.length} comm(s)/span(s) conectados al poste.`);
-      if (position === "TOP_COMM") {
-        const reference = Math.max(...references);
-        const required = reference + commClearance;
-        if (target < required) {
-          issue = true;
-          needsAdjustment = true;
-          target = required;
-          messages.push(`Requiere ${format(required)} para quedar ${format(commClearance)} arriba de ${format(reference)}.`);
-        }
-      } else {
-        const reference = Math.min(...references);
-        const required = reference - commClearance;
-        if (target > required) {
-          issue = true;
-          needsAdjustment = true;
-          target = required;
-          messages.push(`Requiere ${format(required)} para quedar ${format(commClearance)} abajo de ${format(reference)}.`);
-        }
-      }
-    }
-
-    if (envMin !== null && target < envMin) {
-      issue = true;
-      needsAdjustment = true;
-      target = envMin;
-      messages.push(`Se ajusta al clearance de environment ${format(envMin)}.`);
-    }
-
-    if (maxMS !== null && target > maxMS) {
-      issue = true;
-      needsAdjustment = true;
-      target = maxMS;
-      clearanceMSReason = "LOW_POWER";
-      messages.push(`Se ajusta a la altura máxima en midspan ${format(maxMS)}.`);
-    }
-
-    if (references.length) {
-      if (position === "TOP_COMM") {
-        const reference = Math.max(...references);
-        const required = reference + commClearance;
-        if (target < required) {
-          impossible = true;
-          issue = true;
-          messages.push(`No hay espacio suficiente: para Top Comm necesita ${format(required)} y el máximo disponible es ${maxMS !== null ? format(maxMS) : "sin dato"}.`);
-        }
-      } else {
-        const reference = Math.min(...references);
-        const required = reference - commClearance;
-        if (target > required) {
-          impossible = true;
-          issue = true;
-          messages.push(`No hay espacio suficiente: para Low Comm necesita ${format(required)} o menos.`);
-        }
-      }
-    }
-
-    if (maxMS !== null && target > maxMS) {
-      impossible = true;
-      issue = true;
-      messages.push(`El midspan final supera Max MS ${format(maxMS)}.`);
-    }
-
     return {
-      baseFormatted: format(baseInches),
-      finalFormatted: format(target),
-      status: issue ? (impossible ? "PROBLEM" : "ADJUSTMENT_NEEDED") : "OK",
-      issue,
-      impossible,
-      needsAdjustment,
-      clearanceMSReason,
-      message: messages.join(" ") || `OK con Midspan Comm-Comm ${format(commClearance)}.`,
-      position
+      baseFormatted: "",
+      finalFormatted: "",
+      status: "",
+      issue: false,
+      impossible: false,
+      needsAdjustment: false,
+      clearanceMSReason: "",
+      message: "",
+      position: getSettingPosition()
     };
   }
 
   function applyDelayedMidspanResult(existing, evaluation) {
-    const now = Date.now();
-    let msProposed = evaluation.baseFormatted;
-    let finalMidspan = evaluation.finalFormatted;
-    let pendingMidspanFinal = "";
-    let clearanceFixReadyAt = 0;
-    let status = evaluation.status;
-
-    if (evaluation.needsAdjustment) {
-      const previousReadyAt = Number(existing.clearanceFixReadyAt || 0);
-      if (previousReadyAt && now >= previousReadyAt) {
-        msProposed = evaluation.finalFormatted;
-        finalMidspan = evaluation.finalFormatted;
-        status = evaluation.impossible ? "PROBLEM" : "ADJUSTED";
-      } else {
-        msProposed = evaluation.baseFormatted;
-        finalMidspan = evaluation.baseFormatted;
-        pendingMidspanFinal = evaluation.finalFormatted;
-        clearanceFixReadyAt = previousReadyAt || now + CLEARANCE_FIX_DELAY_MS;
-        status = "PENDING";
-      }
-    }
-
     return {
-      msProposed,
-      finalMidspan,
-      pendingMidspanFinal,
-      clearanceFixReadyAt,
-      clearanceMSStatus: status,
-      clearanceMSMessage: evaluation.message,
-      clearanceMSReason: evaluation.clearanceMSReason || "",
-      clearanceMSIssue: Boolean(evaluation.issue)
+      msProposed: "",
+      finalMidspan: "",
+      pendingMidspanFinal: "",
+      clearanceFixReadyAt: 0,
+      clearanceMSStatus: "",
+      clearanceMSMessage: "",
+      clearanceMSReason: "",
+      clearanceMSIssue: false
     };
   }
 
   function calculateSpanSideMidspan(spanId, poleId) {
     const side = S().getSpanSide(spanId, poleId);
-    const span = S().getSpan(spanId);
-    if (!side || !span) return null;
+    if (!side) return null;
 
-    const baseInches = calculateProposedMidspanBase(side, span);
-    const evaluation = evaluateSpanSideMidspan(baseInches, span, poleId);
-    const delayed = applyDelayedMidspanResult(side, evaluation);
-
+    // El midspan ya no se calcula desde Proposed/End Drop/O-CALC MS en esta tabla.
+    // El midspan que se mueve vive en cada comm importado desde Span.Wire.
     S().upsertSpanSide({
       ...side,
-      ...delayed
+      msProposed: "",
+      finalMidspan: "",
+      pendingMidspanFinal: "",
+      clearanceFixReadyAt: 0,
+      clearanceMSStatus: "",
+      clearanceMSMessage: "",
+      clearanceMSReason: "",
+      clearanceMSIssue: false
     });
     return S().getSpanSide(spanId, poleId);
   }
@@ -370,34 +376,6 @@
     };
   }
 
-  function findRemoteComm(spanId, poleId, ownerBase) {
-    const span = S().getSpan(spanId);
-    if (!span) return null;
-    const otherPole = S().getOtherPoleId(span, poleId);
-    if (!otherPole) return null;
-    const target = String(ownerBase || "").toLowerCase();
-    const candidates = S().getSpanCommsForSpan(spanId).filter(row => row.poleId === otherPole);
-    return candidates.find(row => {
-      const values = [row.ownerBase, row.owner, row.rawOwner].map(value => String(value || "").toLowerCase());
-      return values.includes(target) || values.some(value => target && value.includes(target));
-    }) || candidates[0] || null;
-  }
-
-  function findMidspanSourceComm(spanComm) {
-    // Some exports only place the imported midspan on one side of the span.
-    // The opposite pole still needs to reference that same physical cable so
-    // movements on either end update the single shared midspan calculation.
-    const ownMidspan = getImportedMidspanInchesForComm(spanComm);
-    if (ownMidspan !== null) return spanComm;
-    const target = String(spanComm.ownerBase || spanComm.owner || "").toLowerCase();
-    return S().getSpanCommsForSpan(spanComm.spanId).find(row => {
-      if (spanCommKey(row) === spanCommKey(spanComm)) return false;
-      if (getImportedMidspanInchesForComm(row) === null) return false;
-      const values = [row.ownerBase, row.owner, row.rawOwner].map(value => String(value || "").toLowerCase());
-      return values.includes(target) || values.some(value => target && value.includes(target));
-    }) || null;
-  }
-
   function evaluateProposedBoltClearance(spanSide) {
     const proposed = H().parseHeight(spanSide?.proposedHOA || "");
     if (proposed === null) return { ok: true, message: "" };
@@ -434,16 +412,6 @@
     return S().getSpan(spanId);
   }
 
-  function nextPoleProposedValue(side) {
-    if (!side) return "";
-    return side.proposedHOA || "";
-  }
-
-  function clearAutoNextPoleProposed(side) {
-    if (!side || !side.nextPoleProposedAuto) return side;
-    return S().upsertSpanSide({ ...side, proposedHOAChange: "", nextPoleProposedAuto: false });
-  }
-
   function calculatePoleDerived(poleId) {
     const pole = S().getPole(poleId);
     if (!pole) return null;
@@ -477,92 +445,36 @@
   }
 
   function calculateEndDropForSpanSide(spanId, poleId) {
-    let side = S().getSpanSide(spanId, poleId);
-    if (!side) return "";
-    const span = S().getSpan(spanId);
-    const proposed = H().parseHeight(side.proposedHOA);
-    const userValue = side.nextPoleProposedAuto ? "" : side.proposedHOAChange;
-    let target = H().parseHeight(userValue);
-    let targetText = userValue;
-
-    // Next Pole Proposed is a helper value, not local data. Only copy it from
-    // the connected side when that connected pole has a real Proposed value.
-    if (target === null && span) {
-      const otherPoleId = S().getOtherPoleId(span, poleId);
-      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
-      const otherProposed = nextPoleProposedValue(otherSide);
-      target = H().parseHeight(otherProposed);
-      targetText = otherProposed;
-      if (target !== null && targetText) {
-        side = S().upsertSpanSide({ ...side, proposedHOAChange: H().formatHeight(target), nextPoleProposedAuto: true });
-      } else {
-        side = clearAutoNextPoleProposed(side);
-      }
-    }
-    if (proposed === null || target === null) {
-      if (!side.lockedEndDrop) S().upsertSpanSide({ ...side, endDrop: "", ...(target === null ? { proposedHOAChange: side.nextPoleProposedAuto ? "" : side.proposedHOAChange, nextPoleProposedAuto: false } : {}) });
-      return side.endDrop || "";
-    }
-    const calculated = format(target - proposed);
-    S().upsertSpanSide({ ...side, endDrop: calculated, lockedEndDrop: false });
-    return calculated;
+    const side = S().getSpanSide(spanId, poleId);
+    return side?.endDrop || "";
   }
 
   function calculateProposedMidspanBase(side, span) {
-    if (!side) return null;
-    const importedMidspan = parseMidspanValue(side.ocalcMS || side.proposedMidspan || "");
-    if (importedMidspan === null) return null;
-
-    const localBase = H().parseHeight(side.proposedHOA);
-    const localNew = H().parseHeight(side.proposedHOA || "");
-    let localAdjustment = 0;
-    if (localBase !== null && localNew !== null) {
-      localAdjustment = localNew - localBase;
-    }
-
-    let remoteAdjustment = 0;
-    if (span) {
-      const otherPoleId = S().getOtherPoleId(span, side.poleId);
-      const otherSide = otherPoleId ? S().getSpanSide(span.spanId, otherPoleId) : null;
-      const remoteBase = H().parseHeight(otherSide?.proposedHOA || "");
-      const remoteNew = H().parseHeight((side.proposedHOAChange && !side.nextPoleProposedAuto ? side.proposedHOAChange : "") || otherSide?.proposedHOA || "");
-      if (remoteBase !== null && remoteNew !== null) {
-        remoteAdjustment = remoteNew - remoteBase;
-      }
-    }
-
-    return Math.round(importedMidspan + ((localAdjustment + remoteAdjustment) / 2));
+    return null;
   }
 
   function calculateMidspanForComm(spanComm) {
     if (!spanComm) return "";
     const span = S().getSpan(spanComm.spanId);
-    if (!span) return spanComm.midspan || spanComm.ocalcMS || "";
+    if (!span) return spanComm.midspan || "";
 
-    const local = H().parseHeight(getEffectiveCommHOA(spanComm));
     const localExisting = H().parseHeight(spanComm.existingHOA);
-    const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, spanComm.ownerBase || spanComm.owner);
+    const localCurrent = H().parseHeight(getEffectiveCommHOA(spanComm));
+    const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, spanComm.ownerBase || spanComm.owner, spanComm.wireId || "");
     const remoteHOA = remote ? getEffectiveCommHOA(remote) : "";
-    const remoteInches = H().parseHeight(remoteHOA);
     const remoteExisting = H().parseHeight(remote?.existingHOA || "");
+    const remoteCurrent = H().parseHeight(remoteHOA);
     const midspanSource = findMidspanSourceComm(spanComm) || spanComm;
     const importedMidspan = getImportedMidspanInchesForComm(midspanSource);
 
     let calculated = "";
     if (importedMidspan !== null) {
-      // A comm midspan is affected by both ends of the same span. Each pole
-      // movement contributes half of its height delta to the midspan; this is
-      // why recalculating one pole also refreshes its connected/reference pole.
-      const sourceIsRemote = spanCommKey(midspanSource) !== spanCommKey(spanComm);
-      const sourceExisting = sourceIsRemote ? remoteExisting : localExisting;
-      const sourceCurrent = sourceIsRemote ? remoteInches : local;
-      const otherExisting = sourceIsRemote ? localExisting : remoteExisting;
-      const otherCurrent = sourceIsRemote ? local : remoteInches;
-      const sourceAdjustment = sourceExisting !== null && sourceCurrent !== null ? (sourceExisting - sourceCurrent) / 2 : 0;
-      const otherAdjustment = otherExisting !== null && otherCurrent !== null ? (otherExisting - otherCurrent) / 2 : 0;
-      calculated = format(Math.round(importedMidspan - sourceAdjustment - otherAdjustment));
-    } else {
-      calculated = "";
+      // Formula actual:
+      // Midspan nuevo = Midspan importado + mitad del movimiento local + mitad del movimiento remoto.
+      // Movimiento = Cambio de HOA - Existing HOA. Si no hay Cambio de HOA, se usa Existing HOA.
+      const localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
+      const remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
+      calculated = format(Math.round(importedMidspan + localAdjustment + remoteAdjustment));
     }
 
     const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);
@@ -608,20 +520,20 @@
     if (!allowed.includes(field)) return null;
     const side = S().getSpanSide(spanId, poleId) || S().upsertSpanSide({ spanId, poleId });
     const data = { ...side, [field]: value || "" };
-    if (field === "proposedHOAChange") data.nextPoleProposedAuto = false;
-    if (field === "proposedHOA") {
-      const span = S().getSpan(spanId);
-      const otherPoleId = span ? S().getOtherPoleId(span, poleId) : "";
-      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
-      if (otherSide?.nextPoleProposedAuto) S().upsertSpanSide({ ...otherSide, proposedHOAChange: value || "", nextPoleProposedAuto: Boolean(value) });
-    }
+
     if (field === "endDrop") data.lockedEndDrop = Boolean(value);
-    if (field === "ocalcMS" || field === "proposedMidspan") {
+    if (["ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange"].includes(field)) {
       data.clearanceFixReadyAt = 0;
       data.pendingMidspanFinal = "";
+      data.msProposed = "";
+      data.finalMidspan = "";
+      data.clearanceMSStatus = "";
+      data.clearanceMSMessage = "";
+      data.clearanceMSReason = "";
+      data.clearanceMSIssue = false;
     }
+
     S().upsertSpanSide(data);
-    if (["proposedHOA", "proposedHOAChange", "proposedMidspan", "ocalcMS"].includes(field)) calculateEndDropForSpanSide(spanId, poleId);
     recalculateSpansForPole(poleId);
     return S().getSpanSide(spanId, poleId);
   }
@@ -666,8 +578,6 @@
   }
 
   function recalculateSpan(spanId) {
-    // Recalculate the span as a graph edge: power limits first, then both pole
-    // derivations, then every comm/proposed calculation tied to the two ends.
     const span = S().getSpan(spanId);
     calculateSpanPowerDerived(spanId);
     if (span) {
@@ -675,15 +585,10 @@
       if (span.toPole) calculatePoleDerived(span.toPole);
     }
     S().getSpanCommsForSpan(spanId).forEach(sc => calculateMidspanForComm(sc));
-    S().getSpanSidesForSpan(spanId).forEach(side => {
-      calculateEndDropForSpanSide(side.spanId, side.poleId);
-      calculateSpanSideMidspan(side.spanId, side.poleId);
-    });
+    S().getSpanSidesForSpan(spanId).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
   }
 
   function recalculateSpansForPole(poleId) {
-    // A pole edit can affect forespans and backspans. This walks every
-    // connected span so reference rows on the previous/next pole are refreshed.
     const spans = S().getConnectedSpans(poleId);
     spans.forEach(span => calculateSpanPowerDerived(span.spanId));
 
@@ -697,11 +602,19 @@
       S().getSpanCommsForSpan(span.spanId).forEach(sc => calculateMidspanForComm(sc));
     });
 
+    // Recalcula también comms de spans recíprocos por Wire Id. Esto cubre casos
+    // Fore/Back importados con distinto Span Id, pero pertenecientes al mismo cable.
+    const affectedWireIds = new Set(
+      S().getSpanCommsForPole(poleId)
+        .map(sc => sc.wireId)
+        .filter(Boolean)
+    );
+    Object.values(S().getState().spanComms || {}).forEach(sc => {
+      if (affectedWireIds.has(sc.wireId)) calculateMidspanForComm(sc);
+    });
+
     spans.forEach(span => {
-      S().getSpanSidesForSpan(span.spanId).forEach(side => {
-        calculateEndDropForSpanSide(side.spanId, side.poleId);
-        calculateSpanSideMidspan(side.spanId, side.poleId);
-      });
+      S().getSpanSidesForSpan(span.spanId).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
     });
 
     global.MRLogic.generateMRForPole(poleId);
@@ -714,10 +627,7 @@
     Object.keys(state.spans).forEach(calculateSpanPowerDerived);
     Object.keys(state.poles).forEach(calculatePoleDerived);
     Object.values(state.spanComms).forEach(sc => calculateMidspanForComm(sc));
-    Object.values(state.spanSides).forEach(side => {
-      calculateEndDropForSpanSide(side.spanId, side.poleId);
-      calculateSpanSideMidspan(side.spanId, side.poleId);
-    });
+    Object.values(state.spanSides).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
   }
 
   function recalculateAll() {
@@ -725,10 +635,7 @@
     Object.keys(state.spans).forEach(calculateSpanPowerDerived);
     Object.keys(state.poles).forEach(calculatePoleDerived);
     Object.values(state.spanComms).forEach(sc => calculateMidspanForComm(sc));
-    Object.values(state.spanSides).forEach(side => {
-      calculateEndDropForSpanSide(side.spanId, side.poleId);
-      calculateSpanSideMidspan(side.spanId, side.poleId);
-    });
+    Object.values(state.spanSides).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
     global.MRLogic.generateAllMR();
     global.Validations.validateAll();
   }
