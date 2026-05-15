@@ -270,8 +270,6 @@
       replacedAny = replacePoleCard(id) || replacedAny;
     });
 
-    const selected = S.getState().selectedPoleId;
-    if (selected && ids.includes(selected)) renderSelectedPoleDetail();
     if (!replacedAny) renderAllPolesWorkspace();
   }
 
@@ -648,20 +646,6 @@
     bindLocalActions(els.polesOverview);
   }
 
-  function renderSelectedPoleDetail() {
-    const state = S.getState();
-    const poleId = state.selectedPoleId;
-    if (!poleId || !S.getPole(poleId)) {
-      els.selectedPoleDetail.innerHTML = `<div class="detail-placeholder">Selecciona un poste para enfocarlo.</div>`;
-      return;
-    }
-    els.selectedPoleDetail.innerHTML = `<div class="detail-title"><div><p class="eyebrow">Detalle enfocado</p><h2>${escapeHtml(poleId)}</h2></div><button class="btn" type="button" data-scroll-to-pole="${escapeHtml(poleId)}">Ir al poste en la vista general</button></div>${renderPoleWorkspace(poleId)}`;
-    wireEditableEvents(els.selectedPoleDetail);
-    bindLocalActions(els.selectedPoleDetail);
-    const btn = els.selectedPoleDetail.querySelector("[data-scroll-to-pole]");
-    if (btn) btn.addEventListener("click", () => scrollToPole(btn.dataset.scrollToPole));
-  }
-
   function wireEditableEvents(root) {
     root.querySelectorAll("input[data-scope], textarea[data-scope], select[data-scope]").forEach(input => {
       input.addEventListener("input", handleEditableInput);
@@ -946,7 +930,6 @@
     renderClearanceSettings();
     renderPoleLists();
     renderAllPolesWorkspace();
-    renderSelectedPoleDetail();
   }
 
   async function handleExcelImport(file) {
@@ -1006,7 +989,6 @@
       warningFilterSelect: qs("warningFilterSelect"),
       polesList: qs("polesList"),
       polesOverview: qs("polesOverview"),
-      selectedPoleDetail: qs("selectedPoleDetail"),
       appLayout: qs("appLayout"),
       clearanceSettings: qs("clearanceSettings"),
       toastHost: qs("toastHost")
