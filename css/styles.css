@@ -415,6 +415,10 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   grid-column: 1;
 }
 
+.make-ready-section .subsection-title-row {
+  margin-bottom: 8px;
+}
+
 .pole-action-buttons {
   display: flex;
   flex-wrap: wrap;
