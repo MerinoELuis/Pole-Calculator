@@ -119,12 +119,18 @@ Si el ajuste ya no es necesario, o si el ajuste fue por comm-comm y no por Low P
 | --- | --- | --- | --- |
 | `Pole · Power-comms` | `40"` | comms y proposed en el poste | Define `Max Height on Pole`. |
 | `Pole · Comm-comm` | `12"` | comms de owners diferentes en el poste | Evita comms demasiado juntos en el poste. |
-| `Pole · Bolt-bolt` | `4"` | comms del mismo owner y proposed en el poste | Evita bolts demasiado cercanos. |
+| `Pole · Bolt-bolt` | `4"` | comms del mismo owner y proposed entre sí en el poste | Evita bolts demasiado cercanos. |
 | `Midspan · Power-comm` | `30"` | comms y proposed en midspan | Define `Max Height at MS`. |
 | `Midspan · Comm-comm` | `4"` | comms y proposed en midspan | Mantiene separación vertical entre cables. |
 | `Environment` | según span | comms y proposed en midspan | Evita quedar por debajo del mínimo del entorno. |
 | Orden de comms | según alturas | comms existentes del mismo span | Evita que dos comms se crucen entre poste y midspan. |
 | Posición `Top Comm` / `Low Comm` | configurable | proposed en poste y midspan | Obliga al proposed a quedar del lado configurado de los comms existentes. |
+
+Para `Proposed` en el poste:
+
+- Siempre debe conservar `Pole · Comm-comm` frente a comms existentes.
+- Puede compartir exactamente la misma altura con un attachment existente.
+- Entre proposeds distintos del mismo poste se aplica `Pole · Bolt-bolt`.
 
 ## Archivos principales
 

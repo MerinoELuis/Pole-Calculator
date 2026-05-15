@@ -480,24 +480,39 @@
     };
   }
 
-  function evaluateProposedBoltClearance(spanSide) {
+  function evaluateProposedPoleClearance(spanSide) {
     const proposed = H().parseHeight(spanSide?.proposedHOA || "");
     if (proposed === null) return { ok: true, message: "" };
-    const required = getPoleBoltBoltClearance();
-    const conflicts = S().getSpanCommsForPole(spanSide.poleId)
+    const boltRequired = getPoleBoltBoltClearance();
+    const commRequired = getPoleCommCommClearance();
+    const issues = [];
+
+    S().getSpanCommsForPole(spanSide.poleId)
       .map(sc => ({ owner: commOwnerLabel(sc) || "sin owner", height: H().parseHeight(getEffectiveCommHOA(sc)) }))
       .filter(item => item.height !== null)
-      .filter(item => {
+      .forEach(item => {
         const diff = Math.abs(proposed - item.height);
-        return diff < required;
+        if (diff === 0) return;
+        if (diff < commRequired) {
+          issues.push(`Proposed ${format(proposed)} no respeta Pole · Comm-comm ${format(commRequired)} contra ${item.owner} ${format(item.height)}.`);
+        }
       });
-    if (!conflicts.length) return { ok: true, message: "" };
-    const detail = conflicts
-      .map(item => `${item.owner} ${format(item.height)}`)
-      .join(", ");
+
+    S().getSpanSidesForPole(spanSide.poleId)
+      .filter(otherSide => otherSide.spanId !== spanSide.spanId || otherSide.poleId !== spanSide.poleId)
+      .map(otherSide => ({ spanId: otherSide.spanId, height: H().parseHeight(otherSide.proposedHOA || "") }))
+      .filter(item => item.height !== null)
+      .forEach(item => {
+        const diff = Math.abs(proposed - item.height);
+        if (diff > 0 && diff < boltRequired) {
+          issues.push(`Proposed ${format(proposed)} no respeta Pole · Bolt-bolt ${format(boltRequired)} contra otro proposed ${format(item.height)}.`);
+        }
+      });
+
+    if (!issues.length) return { ok: true, message: "" };
     return {
       ok: false,
-      message: `Proposed ${format(proposed)} no respeta Pole · Bolt-bolt ${format(required)} contra ${detail}.`
+      message: Array.from(new Set(issues)).join(" ")
     };
   }
 
@@ -838,7 +853,7 @@
     evaluateCommMidspanClearance,
     evaluateCommFlagging,
     evaluateSpanSideFlagging,
-    evaluateProposedBoltClearance,
+    evaluateProposedPoleClearance,
     commOwnerLabel,
     displayMidspanForComm,
     getConnectedSpans,

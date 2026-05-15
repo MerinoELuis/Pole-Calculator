@@ -539,7 +539,7 @@
         const pole = S.getPole(poleId);
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
-        const boltIssue = global.Calculations.evaluateProposedBoltClearance(side);
+        const boltIssue = global.Calculations.evaluateProposedPoleClearance(side);
         const rowClasses = [
           spanRowClasses(poleId, span.spanId),
           side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop ? "changed-row" : "",

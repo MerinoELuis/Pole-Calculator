@@ -45,7 +45,7 @@
       if (side.finalMidspan && !H().isValidHeight(side.finalMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_FINAL_MIDSPAN", "Midspan final ajustado inválido.", "danger");
       if (side.endDrop && !H().isValidHeight(side.endDrop)) addWarning(warnings, side.poleId, spanId, "", "INVALID_END_DROP", "End Drop inválido.", "danger");
       if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
-      const boltClearance = global.Calculations.evaluateProposedBoltClearance(side);
+      const boltClearance = global.Calculations.evaluateProposedPoleClearance(side);
       if (!boltClearance.ok) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_BOLT_CLEARANCE", boltClearance.message, "danger");
       if (side.clearanceMSIssue) {
         addWarning(warnings, side.poleId, spanId, "", "MS_PROPOSED_CLEARANCE", side.clearanceMSMessage || "MS Proposed tiene problema de clearance.", side.clearanceMSStatus === "PROBLEM" ? "danger" : "warning");
