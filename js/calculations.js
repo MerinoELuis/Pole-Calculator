@@ -157,9 +157,11 @@
     return Boolean(aPoles && bPoles && aPoles === bPoles);
   }
 
-  function getLocalCommCandidate(spanId, poleId, ownerBase = "") {
+  function getLocalCommCandidate(spanId, poleId, ownerBase = "", preferredWireId = "") {
     const target = normalizeOwnerForMatch(ownerBase);
     const candidates = S().getSpanCommsForSpan(spanId).filter(row => row.poleId === poleId);
+    const exactWire = candidates.find(row => preferredWireId && row.wireId && row.wireId === preferredWireId);
+    if (exactWire) return exactWire;
     return candidates.find(row => target && ownerTokens(row).has(target)) || candidates[0] || null;
   }
 
@@ -183,7 +185,9 @@
     const otherPole = S().getOtherPoleId(span, poleId);
     if (!otherPole) return null;
 
-    const local = getLocalCommCandidate(spanId, poleId, ownerBase) || {
+    // Primero se busca por wireId porque un mismo owner puede tener varios
+    // cables en el mismo poste. El owner queda como respaldo para datos viejos.
+    const local = getLocalCommCandidate(spanId, poleId, ownerBase, preferredWireId) || {
       spanId,
       poleId,
       owner: ownerBase,
@@ -468,13 +472,40 @@
     const importedMidspan = getImportedMidspanInchesForComm(midspanSource);
 
     let calculated = "";
+    let localAdjustment = 0;
+    let remoteAdjustment = 0;
     if (importedMidspan !== null) {
-      // Formula actual:
-      // Midspan nuevo = Midspan importado + mitad del movimiento local + mitad del movimiento remoto.
-      // Movimiento = Cambio de HOA - Existing HOA. Si no hay Cambio de HOA, se usa Existing HOA.
-      const localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
-      const remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
+      // Fórmula documentada para comms:
+      // Midspan nuevo = Midspan importado + (movimiento local / 2) + (movimiento remoto / 2).
+      // Movimiento = HOA efectivo - Existing HOA.
+      // El HOA efectivo es Cambio de HOA cuando existe; si no, Existing HOA.
+      // Ejemplo: 20' -> 19' aporta -6" al midspan. Si el otro poste pasa
+      // de 20' -> 21', aporta +6", y ambos cambios se compensan.
+      localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
+      remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
       calculated = format(Math.round(importedMidspan + localAdjustment + remoteAdjustment));
+    }
+
+    // Depuración visible en consola. Se puede apagar con:
+    // window.POLE_CALC_DEBUG_MIDSPAN = false
+    if (global.POLE_CALC_DEBUG_MIDSPAN !== false) {
+      console.debug("[PoleCalc midspan]", {
+        spanId: spanComm.spanId,
+        poleId: spanComm.poleId,
+        owner: commOwnerLabel(spanComm),
+        wireId: spanComm.wireId || "",
+        sourceSpanId: midspanSource?.spanId || "",
+        importedMidspan: importedMidspan !== null ? format(importedMidspan) : "",
+        localExisting: spanComm.existingHOA || "",
+        localEffective: getEffectiveCommHOA(spanComm),
+        localAdjustment: format(Math.round(localAdjustment)),
+        remotePoleId: remote?.poleId || "",
+        remoteSpanId: remote?.spanId || "",
+        remoteExisting: remote?.existingHOA || "",
+        remoteEffective: remoteHOA,
+        remoteAdjustment: format(Math.round(remoteAdjustment)),
+        calculatedMidspan: calculated
+      });
     }
 
     const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);

@@ -146,8 +146,9 @@
   }
 
   function commMidspanEntries(group, poleId) {
-    // One comm can touch more than one span. Keep span and midspan in separate
-    // columns, but build both columns from the same compact list so they stay aligned.
+    // Un comm puede tocar más de un span. Las columnas Span, Midspan y
+    // Otro poste HOA salen de esta misma lista para conservar la alineación
+    // visual y la relación fila a fila entre los tres datos.
     const seen = new Set();
     const entries = [];
     const rows = [...group.rows].sort((a, b) =>
@@ -161,6 +162,7 @@
       if (seen.has(key)) return;
       seen.add(key);
       const isBackspan = span && span.fromPole !== poleId;
+      const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner, sc.wireId || "");
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
@@ -168,7 +170,10 @@
           ${hasMidspan && isBackspan ? `<em>ref</em>` : ""}
           ${!hasMidspan ? `<em>REF</em>` : ""}
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan)}</strong></div>`
+        midspanHtml: `<div class="comm-midspan-value"><strong>${escapeHtml(midspan)}</strong></div>`,
+        remoteHtml: !remote
+          ? `<div class="comm-midspan-value"><strong></strong></div>`
+          : `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`
       });
     });
     return entries;
@@ -185,16 +190,8 @@
   }
 
   function renderCommRemoteValues(group) {
-    // This column exposes the height at the connected pole. Editing it updates
-    // that pole and triggers the shared span-midspan recalculation.
-    const rows = [...group.rows].sort((a, b) =>
-      `${a.spanId}${a.wireIndex || ""}`.localeCompare(`${b.spanId}${b.wireIndex || ""}`, undefined, { numeric: true })
-    );
-    return `<div class="comm-midspan-list">${rows.map(sc => {
-      const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner);
-      if (!remote) return `<div class="comm-midspan-value"><strong></strong></div>`;
-      return `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`;
-    }).join("")}</div>`;
+    const entries = commMidspanEntries(group, group.rows[0]?.poleId || "");
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.remoteHtml).join("")}</div>`;
   }
 
   function renderCommFlagging(group) {
