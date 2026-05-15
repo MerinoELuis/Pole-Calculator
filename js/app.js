@@ -177,6 +177,14 @@
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
           ${hasMidspan && isBackspan ? `<em>ref</em>` : ""}
           ${!hasMidspan ? `<em>REF</em>` : ""}
+          <button class="inline-icon-action danger-action" type="button"
+            data-delete-comm-span
+            data-pole="${escapeHtml(sc.poleId)}"
+            data-span="${escapeHtml(sc.spanId)}"
+            data-owner="${escapeHtml(sc.owner)}"
+            data-wire-id="${escapeHtml(sc.wireId || "")}"
+            title="Borrar solo este span"
+            aria-label="Borrar solo este span">&#10005;</button>
         </div>`,
         midspanHtml: `<div class="comm-midspan-value">${hasMidspan && !midspanLocked
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}">`
@@ -596,7 +604,7 @@
           <td><div class="row-actions">
             <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Editar comm" aria-label="Editar comm">&#9998;</button>
             <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Editar spans del comm" aria-label="Editar spans del comm">&#8644;</button>
-            <button class="icon-action danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Borrar comm" aria-label="Borrar comm">&#128465;</button>
+            <button class="icon-action danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Borrar comm completo" aria-label="Borrar comm completo">&#10005;</button>
           </div></td>
         </tr>`;
       }).join("")}</tbody>
@@ -701,6 +709,12 @@
     root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
     root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
+    root.querySelectorAll("[data-delete-comm-span]").forEach(btn => btn.addEventListener("click", () => deleteCommSpan(
+      btn.dataset.span,
+      btn.dataset.pole,
+      btn.dataset.owner,
+      btn.dataset.wireId || ""
+    )));
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
@@ -864,6 +878,14 @@
     group.rows.forEach(row => S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
+  }
+
+  function deleteCommSpan(spanId, poleId, owner, wireId = "") {
+    if (!spanId || !poleId || !owner) return;
+    if (!confirm("Borrar solo este span del comm?")) return;
+    S.removeSpanComm(spanId, poleId, owner, wireId || "");
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, ...poleIdsForSpan(spanId)]);
   }
 
   function editableInputKey(el) {

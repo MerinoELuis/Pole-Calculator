@@ -121,20 +121,27 @@
 
   function connectedUGInstructions(poleId) {
     const spans = S().getConnectedSpans(poleId);
-    const outgoing = spans
-      .filter(span => span.fromPole === poleId)
-      .sort((a, b) => String(a.spanIndex || a.spanId).localeCompare(String(b.spanIndex || b.spanId), undefined, { numeric: true }));
     const byOtherPole = new Map();
+
+    function normalizeSpanRelation(rawType, isReverseSide) {
+      const clean = String(rawType || "").replace(/\s+/g, "").toLowerCase();
+      const relation = clean === "forespan" ? "Forespan"
+        : clean === "backspan" ? "Backspan"
+          : "Otherspan";
+      if (!isReverseSide) return relation;
+      if (relation === "Forespan") return "Backspan";
+      if (relation === "Backspan") return "Forespan";
+      return relation;
+    }
 
     spans.forEach(span => {
       const otherPoleId = S().getOtherPoleId(span, poleId);
       const otherPole = S().getPole(otherPoleId);
       if (!otherPole?.ugActive || !otherPoleId) return;
       const current = byOtherPole.get(otherPoleId);
-      const outgoingIndex = outgoing.findIndex(item => item.spanId === span.spanId);
-      const relation = span.fromPole === poleId
-        ? (outgoingIndex <= 0 ? "Forespan" : "Otherspan")
-        : "Backspan";
+      // Excel already defines whether the span is Fore, Back, or Other from
+      // the imported side. Reverse it only when we are reading the far end.
+      const relation = normalizeSpanRelation(span.rawType || span.type, span.fromPole !== poleId);
       const directionFromThisPole = span.fromPole === poleId
         ? span.direction
         : oppositeDirection(span.direction);
@@ -163,6 +170,7 @@
     const ug = [];
     const power = [];
     const commMoves = [];
+    const dropMoves = [];
     const proposed = [];
     const ensure = [];
     const pole = S().getPole(poleId);
@@ -185,12 +193,14 @@
       .sort((a, b) => (H().parseHeight(getEffectiveCommHOAForMR(b)) ?? -Infinity) - (H().parseHeight(getEffectiveCommHOAForMR(a)) ?? -Infinity))
       .forEach(sc => {
       const text = generateMRForComm(sc);
-      if (text) commMoves.push(text);
+      if (!text) return;
+      if (sc.serviceDrop) dropMoves.push(text);
+      else commMoves.push(text);
     });
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
 
-    const lines = [...ug, ...power, ...commMoves, ...proposed, ...ensure].map(applyCase);
+    const lines = [...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure].map(applyCase);
     const unique = Array.from(new Set(lines.map(line => line.trim()).filter(Boolean)));
     if (unique.length) state.mr.push({ poleId, spanId: "", owner: "MR", text: unique.join("\n"), imported: false });
     return state.mr.filter(item => item.poleId === poleId);

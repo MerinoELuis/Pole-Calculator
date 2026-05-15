@@ -590,6 +590,26 @@ tr.danger-row {
   font-size: .62rem;
 }
 
+.inline-icon-action {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: .72rem;
+  line-height: 1;
+}
+
+.inline-icon-action:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .span-color-dot {
   display: inline-block;
   width: 9px;

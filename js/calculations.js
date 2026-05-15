@@ -314,13 +314,21 @@
     const position = getSettingPosition();
     const topComm = H().parseHeight(pole?.topComm || "");
     const lowComm = H().parseHeight(pole?.lowComm || "");
+    const issues = [];
     if (position === "TOP_COMM" && topComm !== null && proposed < topComm) {
-      return { status: "PROBLEM", message: "Proposed below top comm." };
+      issues.push("Proposed below top comm.");
     }
     if (position === "LOW_COMM" && lowComm !== null && proposed > lowComm) {
-      return { status: "PROBLEM", message: "Proposed above low comm." };
+      issues.push("Proposed above low comm.");
     }
-    return { status: "OK", message: "OK" };
+    // Proposed attachments have pole rules of their own. Keep those in the same
+    // flagging field so the operator does not have to discover them in notes.
+    const poleClearance = evaluateProposedPoleClearance(spanSide);
+    if (!poleClearance.ok && poleClearance.message) issues.push(poleClearance.message);
+    return {
+      status: issues.length ? "PROBLEM" : "OK",
+      message: issues.length ? Array.from(new Set(issues)).join(" ") : "OK"
+    };
   }
 
   function applyDelayedMidspanResult(existing, evaluation) {
