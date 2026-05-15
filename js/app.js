@@ -1149,8 +1149,6 @@
       render();
       toast("Guardado local cargado.", "success");
     });
-    // The demo loader stays in the markup for possible future development use,
-    // but is intentionally disabled in the production workflow.
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
     document.addEventListener("keydown", event => {
@@ -1173,7 +1171,6 @@
       exportJsonBtn: qs("exportJsonBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
-      resetSampleBtn: qs("resetSampleBtn"),
       projectMeta: qs("projectMeta"),
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),

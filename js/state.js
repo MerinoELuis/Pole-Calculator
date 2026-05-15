@@ -575,65 +575,6 @@
     return state;
   }
 
-  function loadSampleData() {
-    state = emptyState();
-    state.importedFileName = "Datos de ejemplo";
-
-    [
-      createPole("P72", "35'", "", { lowPower: "30'8\"", sequence: "P72" }),
-      createPole("P73", "40'", "", { lowPower: "22'5\"", sequence: "P73" }),
-      createPole("P74", "35'", "", { lowPower: "23'", sequence: "P74" }),
-      createPole("P81", "35'", "", { lowPower: "20'9\"", sequence: "P81" }),
-      createPole("P79", "40'", "", { lowPower: "25'", sequence: "P79" }),
-      createPole({ poleId: "Unknown-S-P79", isGenerated: true })
-    ].forEach(upsertPole);
-
-    [
-      createSpan("S-P72-P73", "P72", "P73", "E", "Principal", { lengthDisplay: "125'", bearingDegrees: 90 }),
-      createSpan("S-P73-P74", "P73", "P74", "E", "Principal", { lengthDisplay: "110'", bearingDegrees: 90 }),
-      createSpan("S-P73-P81", "P73", "P81", "S", "Ramal", { lengthDisplay: "95'", bearingDegrees: 180 }),
-      createSpan("S-P79-UNKNOWN", "P79", "Unknown-S-P79", "N", "Other pole editable", { lengthDisplay: "80'", bearingDegrees: 0, isGeneratedOtherPole: true })
-    ].forEach(upsertSpan);
-
-    [
-      ["P72", "CTL", "24'"], ["P72", "CATV", "22'6\""], ["P72", "FIBER", "21'10\""],
-      ["P73", "CTL", "25'"], ["P73", "CATV", "23'1\""], ["P73", "FIBER", "22'"],
-      ["P74", "CTL", "24'8\""], ["P74", "CATV", "22'10\""],
-      ["P81", "CATV", "23'4\""], ["P81", "FIBER", "21'8\""],
-      ["P79", "CTL", "24'2\""], ["P79", "FIBER", "22'4\""],
-      ["Unknown-S-P79", "CTL", "23'8\""], ["Unknown-S-P79", "FIBER", "22'1\""]
-    ].forEach(([poleId, owner, hoa]) => upsertComm(poleId, owner, hoa, "", { ownerBase: owner }));
-
-    const sampleSpanComms = [
-      { spanId: "S-P72-P73", poleId: "P72", owner: "CTL", ownerBase: "CTL", existingHOA: "24'", ocalcMS: "21'8\"", midspan: "21'8\"" },
-      { spanId: "S-P72-P73", poleId: "P73", owner: "CTL", ownerBase: "CTL", existingHOA: "25'", ocalcMS: "21'8\"", midspan: "21'8\"" },
-      { spanId: "S-P72-P73", poleId: "P72", owner: "CATV", ownerBase: "CATV", existingHOA: "22'6\"", ocalcMS: "20'2\"", midspan: "20'2\"" },
-      { spanId: "S-P72-P73", poleId: "P73", owner: "CATV", ownerBase: "CATV", existingHOA: "23'1\"", ocalcMS: "20'2\"", midspan: "20'2\"" },
-      { spanId: "S-P73-P74", poleId: "P73", owner: "CTL", ownerBase: "CTL", existingHOA: "25'", ocalcMS: "21'6\"", midspan: "21'6\"" },
-      { spanId: "S-P73-P74", poleId: "P74", owner: "CTL", ownerBase: "CTL", existingHOA: "24'8\"", ocalcMS: "21'6\"", midspan: "21'6\"" },
-      { spanId: "S-P73-P81", poleId: "P73", owner: "CATV", ownerBase: "CATV", existingHOA: "23'1\"", ocalcMS: "20'9\"", midspan: "20'9\"" },
-      { spanId: "S-P73-P81", poleId: "P81", owner: "CATV", ownerBase: "CATV", existingHOA: "23'4\"", ocalcMS: "20'9\"", midspan: "20'9\"" },
-      { spanId: "S-P79-UNKNOWN", poleId: "P79", owner: "CTL", ownerBase: "CTL", existingHOA: "24'2\"", ocalcMS: "22'2\"", midspan: "22'2\"" },
-      { spanId: "S-P79-UNKNOWN", poleId: "Unknown-S-P79", owner: "CTL", ownerBase: "CTL", existingHOA: "23'8\"", ocalcMS: "22'2\"", midspan: "22'2\"" }
-    ];
-    sampleSpanComms.forEach(data => upsertSpanComm(data));
-
-    [
-      { spanId: "S-P72-P73", poleId: "P72", label: "Neutral", attachmentHeight: "30'8\"", midspan: "26'8\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-1" },
-      { spanId: "S-P72-P73", poleId: "P73", label: "Neutral", attachmentHeight: "22'5\"", midspan: "26'8\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-2" },
-      { spanId: "S-P73-P74", poleId: "P73", label: "Neutral", attachmentHeight: "22'5\"", midspan: "24'6\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-3" },
-      { spanId: "S-P73-P74", poleId: "P74", label: "Neutral", attachmentHeight: "23'", midspan: "24'6\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-4" },
-      { spanId: "S-P73-P81", poleId: "P73", label: "Neutral", attachmentHeight: "22'5\"", midspan: "24'", size: "Neutral", owner: "UTILITY", wireId: "PWR-5" },
-      { spanId: "S-P79-UNKNOWN", poleId: "P79", label: "Neutral", attachmentHeight: "25'", midspan: "24'8\"", size: "Neutral", owner: "UTILITY", wireId: "PWR-6" }
-    ].forEach(addSpanPower);
-
-    upsertSpanSide({ spanId: "S-P72-P73", poleId: "P72", proposedHOA: "24'1\"", proposedMidspan: "23'7\"" });
-    upsertSpanSide({ spanId: "S-P72-P73", poleId: "P73", proposedHOA: "24'1\"", proposedMidspan: "23'7\"" });
-    upsertSpanSide({ spanId: "S-P73-P74", poleId: "P73", proposedHOA: "19'1\"", proposedMidspan: "19'2\"" });
-
-    return normalizeState(state);
-  }
-
   function saveToLocal() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
@@ -650,7 +591,6 @@
     getState,
     setState,
     resetState,
-    loadSampleData,
     saveToLocal,
     loadFromLocal,
     createPole,
