@@ -486,6 +486,10 @@
 
   function renderPoleEditableHeader(poleId) {
     const { pole, spans, warnings, hasChanges } = poleSummary(poleId);
+    const maxHeightAtMS = spans
+      .map(span => H.parseHeight(span.midspanMaxCommHeight || ""))
+      .filter(value => value !== null);
+    const restrictiveMaxHeightAtMS = maxHeightAtMS.length ? H.formatHeight(Math.min(...maxHeightAtMS)) : "";
     return `<div class="pole-workspace-header">
       <div>
         <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
@@ -497,9 +501,10 @@
           ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
         </div>
       </div>
-      <div class="pole-kpis two-up">
+      <div class="pole-kpis three-up">
         <label>Low Power on Pole<input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="lowPower" value="${escapeHtml(pole.lowPower || "")}" placeholder="30'8&quot;"></label>
         <label>Max Height on Pole<input class="input height-input muted-input" value="${escapeHtml(pole.maxCommHeight || "")}" readonly></label>
+        <label>Max Height at MS<input class="input height-input muted-input" value="${escapeHtml(restrictiveMaxHeightAtMS)}" readonly></label>
       </div>
     </div>`;
   }
@@ -509,7 +514,7 @@
     if (!spans.length) return `<p class="muted">No hay spans con midspan para proponer desde este poste.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Environment</th><th>Environment Clearance</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Notes</th>
+        <th>Span</th><th>Environment</th><th>Environment Clearance</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Notes</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -532,7 +537,6 @@
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
           <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}" placeholder="XX.XX"></td>
           <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
-          <td>${escapeHtml(span.midspanMaxCommHeight || "")}</td>
           <td>${renderSpanSideMidspanStatus(side)}</td>
           <td><span class="calculated-value">${escapeHtml(side.finalMidspan || "")}</span></td>
           <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Notas propias...")}</td>
