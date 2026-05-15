@@ -378,7 +378,16 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   border-color: rgba(217, 119, 6, .45);
 }
 
+.pole-workspace-card.pco-active {
+  background: #dcfce7;
+  border-color: rgba(22, 163, 74, .45);
+}
+
 .pole-workspace-card.ug-active .subsection {
+  background: rgba(255, 255, 255, .82);
+}
+
+.pole-workspace-card.pco-active .subsection {
   background: rgba(255, 255, 255, .82);
 }
 
@@ -386,6 +395,11 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   border-color: rgba(217, 119, 6, .35);
   background: #fff8db;
   color: #78350f;
+}
+
+.pole-workspace-card.pco-active .mr-output {
+  border-color: rgba(22, 163, 74, .35);
+  background: #dcfce7;
 }
 
 .pole-workspace-header {
@@ -469,6 +483,24 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .subsection h4 {
   margin: 0 0 6px;
   font-size: 1rem;
+}
+
+.manual-proposed-starter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.manual-proposed-starter label {
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  color: #475569;
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
 }
 
 .muted-input {

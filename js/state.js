@@ -178,6 +178,7 @@
     return {
       spanId: trim(data.spanId || ""),
       poleId: trim(data.poleId || ""),
+      isManualProposed: Boolean(data.isManualProposed),
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),

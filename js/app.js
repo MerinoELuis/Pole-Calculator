@@ -143,7 +143,7 @@
     const seen = new Set();
     return connectedSpansSorted(poleId)
       .filter(span => span.fromPole === poleId)
-      .filter(span => spanHasRealMidspan(span.spanId))
+      .filter(span => spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
         if (seen.has(key)) return false;
@@ -606,7 +606,7 @@
 
   function renderSpanProposedTable(poleId) {
     const spans = proposedSpansForPole(poleId);
-    if (!spans.length) return `<p class="muted">No hay spans con midspan para proponer desde este poste.</p>`;
+    if (!spans.length) return renderManualProposedSpanStarter(poleId);
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
         <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th>
@@ -641,6 +641,26 @@
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
+  }
+
+  function renderManualProposedSpanStarter(poleId) {
+    const options = Object.keys(S.getState().poles || {})
+      .filter(id => id !== poleId)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`)
+      .join("");
+    if (!options) return `<p class="muted">No hay otro poste disponible para crear un span propuesto.</p>`;
+    return `<div class="manual-proposed-starter">
+      <span class="muted">No hay spans con midspan para proponer desde este poste.</span>
+      <label>
+        <span>Propose to</span>
+        <select class="input" data-manual-proposed-target="${escapeHtml(poleId)}">
+          <option value="">Select pole</option>
+          ${options}
+        </select>
+      </label>
+      <button class="mini-btn" type="button" data-add-proposed-span data-pole="${escapeHtml(poleId)}">Add Proposed Span</button>
+    </div>`;
   }
 
   function renderCommMovementTable(poleId) {
@@ -700,7 +720,7 @@
 
   function renderPoleWorkspace(poleId) {
     const pole = S.getPole(poleId);
-    return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
+    return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""} ${pole?.pcoActive ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
         <section class="subsection wide" id="spans-${escapeHtml(poleId)}">
@@ -789,6 +809,7 @@
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
+    root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
   }
 
   function toggleUG(poleId) {
@@ -828,6 +849,25 @@
       console.error(error);
       toast("No se pudo copiar el Make Ready.", "error");
     }
+  }
+
+  function addManualProposedSpan(poleId, root) {
+    const select = root.querySelector(`[data-manual-proposed-target="${CSS.escape(poleId)}"]`);
+    const targetPoleId = select?.value || "";
+    if (!targetPoleId) return toast("Elige a qué poste irá el span propuesto.", "warning");
+    const existing = connectedSpansSorted(poleId).find(span =>
+      span.fromPole === poleId && span.toPole === targetPoleId
+    );
+    recordUndoSnapshot();
+    const span = existing || S.upsertSpan({
+      spanId: `manual-proposed-${Date.now()}`,
+      fromPole: poleId,
+      toPole: targetPoleId,
+      type: "Other"
+    });
+    S.upsertSpanSide({ spanId: span.spanId, poleId, isManualProposed: true });
+    global.Calculations.recalculateSpan(span.spanId);
+    renderAffectedPoles([poleId, targetPoleId]);
   }
 
   function isLiveRecalcField(field) {
