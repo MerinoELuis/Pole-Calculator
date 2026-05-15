@@ -8,6 +8,9 @@
   let delayedMidspanRenderTimer = null;
   const delayedMidspanRenderPoleIds = new Set();
   const editableInputTimers = new Map();
+  const undoHistory = [];
+  const MAX_UNDO_STEPS = 100;
+  let restoringUndo = false;
   const SPAN_COLOR_CLASS_COUNT = 5;
 
 
@@ -29,6 +32,34 @@
     div.textContent = message;
     els.toastHost.appendChild(div);
     setTimeout(() => div.remove(), 4200);
+  }
+
+  function cloneCurrentState() {
+    return JSON.parse(JSON.stringify(S.getState()));
+  }
+
+  function recordUndoSnapshot() {
+    if (restoringUndo) return;
+    const snapshot = cloneCurrentState();
+    const serialized = JSON.stringify(snapshot);
+    const previous = undoHistory[undoHistory.length - 1];
+    if (previous && previous.serialized === serialized) return;
+    undoHistory.push({ serialized, snapshot });
+    if (undoHistory.length > MAX_UNDO_STEPS) undoHistory.shift();
+  }
+
+  function undoLastAction() {
+    const previous = undoHistory.pop();
+    if (!previous) return toast("No hay cambios para deshacer.", "info");
+    restoringUndo = true;
+    clearTimeout(delayedMidspanRenderTimer);
+    delayedMidspanRenderTimer = null;
+    delayedMidspanRenderPoleIds.clear();
+    S.setState(previous.snapshot);
+    global.Calculations.recalculateAll();
+    render();
+    restoringUndo = false;
+    toast("Último cambio deshecho.", "success");
   }
 
   function spanLabel(span) {
@@ -548,10 +579,11 @@
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
         const boltIssue = global.Calculations.evaluateProposedPoleClearance(side);
+        const proposedFlaggingIssue = side.proposedFlaggingStatus === "PROBLEM";
         const rowClasses = [
           spanRowClasses(poleId, span.spanId),
           side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop ? "changed-row" : "",
-          aboveMax || midspanIssue || !boltIssue.ok ? "warning-row" : ""
+          aboveMax || midspanIssue || !boltIssue.ok || proposedFlaggingIssue ? "warning-row" : ""
         ].filter(Boolean).join(" ");
         const autoNotes = [spanSideClearanceNote(side), boltIssue.message];
         return `<tr class="${rowClasses}">
@@ -724,6 +756,7 @@
   function toggleUG(poleId) {
     const pole = S.getPole(poleId);
     if (!pole) return;
+    recordUndoSnapshot();
     S.upsertPole({
       ...pole,
       ugActive: !pole.ugActive,
@@ -736,6 +769,7 @@
   function togglePCO(poleId) {
     const pole = S.getPole(poleId);
     if (!pole) return;
+    recordUndoSnapshot();
     S.upsertPole({
       ...pole,
       pcoActive: !pole.pcoActive,
@@ -802,6 +836,7 @@
     const existingHOA = prompt("Existing HOA", "") || "";
     const span = defaultSpanForNewComm(poleId);
     if (!span) return toast("Ese poste no tiene spans para asociar el comm.", "warning");
+    recordUndoSnapshot();
     const wireId = `manual-${Date.now()}`;
     S.upsertComm(poleId, owner, existingHOA, "", { ownerBase: owner, rawOwner: owner, wireId });
     S.upsertSpanComm({ spanId: span.spanId, poleId, owner, ownerBase: owner, rawOwner: owner, existingHOA, wireId });
@@ -815,6 +850,7 @@
     const nextOwner = prompt("Owner/Comm", group.owner);
     if (!nextOwner) return;
     const nextHOA = prompt("Existing HOA", group.existingHOA || "") || "";
+    recordUndoSnapshot();
     group.rows.forEach(row => {
       S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
       S.upsertComm(poleId, nextOwner, nextHOA, "", { ownerBase: nextOwner, rawOwner: nextOwner, wireId: row.wireId || "" });
@@ -842,6 +878,7 @@
       .filter(index => Number.isInteger(index) && spans[index])
       .map(index => spans[index].spanId));
     if (!selected.size) return;
+    recordUndoSnapshot();
 
     group.rows.forEach(row => {
       if (!selected.has(row.spanId)) S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
@@ -875,6 +912,7 @@
   function deleteCommGroup(poleId, groupKey) {
     const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
     if (!group || !confirm(`Borrar ${group.owner}?`)) return;
+    recordUndoSnapshot();
     group.rows.forEach(row => S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
@@ -883,6 +921,7 @@
   function deleteCommSpan(spanId, poleId, owner, wireId = "") {
     if (!spanId || !poleId || !owner) return;
     if (!confirm("Borrar solo este span del comm?")) return;
+    recordUndoSnapshot();
     S.removeSpanComm(spanId, poleId, owner, wireId || "");
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...poleIdsForSpan(spanId)]);
@@ -953,6 +992,7 @@
     const scope = el.dataset.scope;
     const field = el.dataset.field;
     const value = el.type === "checkbox" ? el.checked : el.value;
+    recordUndoSnapshot();
 
     if (scope === "pole") {
       S.updatePoleField(el.dataset.pole, field, value);
@@ -1030,6 +1070,7 @@
   async function handleExcelImport(file) {
     if (!file) return;
     try {
+      recordUndoSnapshot();
       await global.ExcelImport.importExcelFile(file);
       render();
       toast("Excel crudo importado. Se cargaron las hojas disponibles.", "success");
@@ -1044,6 +1085,7 @@
   async function handleJsonImport(file) {
     if (!file) return;
     try {
+      recordUndoSnapshot();
       await global.ExcelImport.importJsonFile(file);
       render();
       toast("JSON importado. El trabajo guardado quedo cargado.", "success");
@@ -1061,14 +1103,26 @@
     els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
     els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Guardado local en este navegador.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
+      recordUndoSnapshot();
       const loaded = S.loadFromLocal();
       if (!loaded) return toast("No hay guardado local.", "warning");
       render();
       toast("Guardado local cargado.", "success");
     });
-    els.resetSampleBtn.addEventListener("click", () => { S.loadSampleData(); render(); toast("Datos demo cargados.", "info"); });
+    els.resetSampleBtn.addEventListener("click", () => {
+      recordUndoSnapshot();
+      S.loadSampleData();
+      render();
+      toast("Datos demo cargados.", "info");
+    });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
+    document.addEventListener("keydown", event => {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        undoLastAction();
+      }
+    });
   }
 
   function init() {
