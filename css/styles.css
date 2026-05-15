@@ -363,6 +363,12 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   background: rgba(255, 255, 255, .82);
 }
 
+.pole-workspace-card.ug-active .mr-output {
+  border-color: rgba(217, 119, 6, .35);
+  background: #fff8db;
+  color: #78350f;
+}
+
 .pole-workspace-header {
   display: grid;
   min-width: 0;
