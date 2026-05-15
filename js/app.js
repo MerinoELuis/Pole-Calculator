@@ -1122,6 +1122,11 @@
         event.preventDefault();
         undoLastAction();
       }
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        S.saveToLocal();
+        toast("Guardado local en este navegador.", "success");
+      }
     });
   }
 
