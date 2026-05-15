@@ -490,6 +490,20 @@
     };
   }
 
+  function poleFlaggingSummary(poleId) {
+    const pole = S.getPole(poleId);
+    const commIssues = S.getSpanCommsForPole(poleId)
+      .filter(sc => sc.flaggingStatus === "PROBLEM")
+      .length;
+    const proposedIssues = S.getSpanSidesForPole(poleId)
+      .filter(side => side.proposedFlaggingStatus === "PROBLEM")
+      .length;
+    return {
+      issueCount: commIssues + proposedIssues,
+      resolution: pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : ""
+    };
+  }
+
   function renderSummary() {
     const state = S.getState();
     if (els.projectMeta) {
@@ -516,11 +530,13 @@
   function renderPoleListItem(poleId) {
     const state = S.getState();
     const { pole, warnings, hasChanges } = poleSummary(poleId);
+    const flagging = poleFlaggingSummary(poleId);
     const active = state.selectedPoleId === poleId ? " active" : "";
     return `<button class="pole-index-link${active}" data-pole-select="${escapeHtml(poleId)}" type="button">
       <span>${escapeHtml(poleId)}</span>
       ${pole.isGenerated ? `<span class="mini-dot warning">Gen</span>` : ""}
-      ${warnings.length ? `<span class="mini-dot danger">${warnings.length}</span>` : ""}
+      ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
+      ${!flagging.resolution && flagging.issueCount ? `<span class="mini-dot danger">Flag ${flagging.issueCount}</span>` : ""}
       ${hasChanges ? `<span class="mini-dot changed">Cambio</span>` : ""}
     </button>`;
   }
@@ -549,6 +565,7 @@
 
   function renderPoleEditableHeader(poleId) {
     const { pole, spans, hasChanges } = poleSummary(poleId);
+    const flagging = poleFlaggingSummary(poleId);
     return `<div class="pole-workspace-header">
       <div>
         <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
@@ -556,6 +573,8 @@
           ${pole.isGenerated ? `<span class="badge warning">Other pole generado editable</span>` : ""}
           <span class="badge">Spans ${spans.length}</span>
           <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
+          ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
+          ${!flagging.resolution && flagging.issueCount ? `<span class="badge danger">Flagging ${flagging.issueCount}</span>` : ""}
           ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
         </div>
       </div>

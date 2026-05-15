@@ -183,6 +183,8 @@ button:disabled { cursor: not-allowed; }
 .badge.changed { background: #dcfce7; color: #15803d; }
 .badge.warning { background: #fef3c7; color: #b45309; }
 .badge.danger { background: #fee2e2; color: #b91c1c; }
+.badge.ug { background: #fef3c7; color: #b45309; }
+.badge.pco { background: #e0f2fe; color: #0369a1; }
 .badge.backspan { background: #ede9fe; color: #6d28d9; }
 .pole-list { display: grid; gap: 10px; }
 .pole-list-item { text-align: left; width: 100%; }
@@ -216,6 +218,8 @@ button:disabled { cursor: not-allowed; }
 }
 .mini-dot.warning { color: #b45309; background: #fef3c7; }
 .mini-dot.danger { color: #b91c1c; background: #fee2e2; }
+.mini-dot.ug { color: #b45309; background: #fef3c7; }
+.mini-dot.pco { color: #0369a1; background: #e0f2fe; }
 .mini-dot.changed { color: #15803d; background: #dcfce7; }
 
 .detail-placeholder { padding: 36px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 16px; background: var(--panel-2); }
