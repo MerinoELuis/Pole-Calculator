@@ -234,6 +234,14 @@
         if (span.toPole) ids.add(span.toPole);
       });
     }
+    if (scope === "spanSide" && el?.dataset?.pole && el?.dataset?.field === "proposedHOA") {
+      // Un proposed del poste actual puede alimentar el Next Pole Proposed de
+      // spans que llegan desde postes anteriores, incluso con otro spanId.
+      S.getConnectedSpans(el.dataset.pole).forEach(span => {
+        if (span.fromPole) ids.add(span.fromPole);
+        if (span.toPole) ids.add(span.toPole);
+      });
+    }
     return Array.from(ids).filter(Boolean);
   }
 

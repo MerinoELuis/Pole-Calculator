@@ -88,7 +88,7 @@
     return `Attach ${proposedOwnerForMR()} at HOA ${joinedHeights}.`;
   }
 
-  function replacementOnlyMR() {
+  function ugReplacementMR() {
     return [
       "Unable to attach due to (reasoning).",
       "Red tag",
@@ -96,6 +96,13 @@
       "TDU replace required",
       "Existing neutral / multiplex above 26'9\"",
       "PCO neutral / multiplex exceeds 26'9\""
+    ];
+  }
+
+  function pcoReplacementMR() {
+    return [
+      "(Existing/proposed) clearance violations (specify violation), replace pole. Transfer (existing comm 1 ie Fiber, CATV, Telco) & (existing comm 2 type) to new pole.",
+      "(Existing/proposed) pole overloaded by (who is causing overload), replace pole. Transfer (existing comm 1 ie Fiber, CATV, Telco) & (existing comm 2 type) to new pole."
     ];
   }
 
@@ -116,7 +123,8 @@
     const ensure = [];
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
-      const text = replacementOnlyMR().map(applyCase).join("\n");
+      const lines = pole.ugActive ? ugReplacementMR() : pcoReplacementMR();
+      const text = lines.map(applyCase).join("\n");
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
