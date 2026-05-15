@@ -153,9 +153,9 @@
   }
 
   function commMidspanEntries(group, poleId) {
-    // Un comm puede tocar más de un span. Las columnas Span, Midspan y
-    // Otro poste HOA salen de esta misma lista para conservar la alineación
-    // visual y la relación fila a fila entre los tres datos.
+    // Un comm puede tocar más de un span. Las columnas Span, Max Height at MS,
+    // Midspan y Otro poste HOA salen de esta misma lista para conservar la
+    // alineación visual y la relación fila a fila entre todos los datos.
     const seen = new Set();
     const entries = [];
     const rows = [...group.rows].sort((a, b) =>
@@ -181,6 +181,7 @@
         midspanHtml: `<div class="comm-midspan-value">${hasMidspan && !midspanLocked
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}">`
           : `<strong>${escapeHtml(midspan)}</strong>`}</div>`,
+        maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
         remoteHtml: !hasMidspan || !remote
           ? `<div class="comm-midspan-value"><strong></strong></div>`
           : `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`
@@ -197,6 +198,11 @@
   function renderCommMidspanValues(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
     return `<div class="comm-midspan-list">${entries.map(entry => entry.midspanHtml).join("")}</div>`;
+  }
+
+  function renderCommMaxHeightAtMSValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.maxHeightAtMSHtml).join("")}</div>`;
   }
 
   function renderCommRemoteValues(group) {
@@ -571,7 +577,7 @@
     if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th><th>Actions</th>
+        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th><th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -590,6 +596,7 @@
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
+          <td>${renderCommMaxHeightAtMSValues(group, poleId)}</td>
           <td>${renderCommMidspanValues(group, poleId)}</td>
           <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
@@ -720,7 +727,7 @@
       pcoActive: pole.ugActive ? pole.pcoActive : false
     });
     global.Calculations.recalculateSpansForPole(poleId);
-    renderAffectedPoles([poleId]);
+    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
   }
 
   function togglePCO(poleId) {
@@ -732,7 +739,7 @@
       ugActive: pole.pcoActive ? pole.ugActive : false
     });
     global.Calculations.recalculateSpansForPole(poleId);
-    renderAffectedPoles([poleId]);
+    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
   }
 
   async function copyMR(poleId) {
