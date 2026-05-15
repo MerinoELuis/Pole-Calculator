@@ -39,16 +39,11 @@
 
     S().getSpanSidesForSpan(spanId).forEach(side => {
       if (side.proposedHOA && !H().isValidHeight(side.proposedHOA)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED", "Proposed inválido.", "danger");
-      if (side.proposedHOAChange && !H().isValidHeight(side.proposedHOAChange)) addWarning(warnings, side.poleId, spanId, "", "INVALID_NEXT_POLE_PROPOSED", "Next Pole Proposed inválido.", "danger");
+      if (side.proposedHOAChange && !H().isValidHeight(side.proposedHOAChange)) addWarning(warnings, side.poleId, spanId, "", "INVALID_CAMBIO_PROPOSED", "Cambio Proposed inválido.", "danger");
       if (side.ocalcMS && !H().isValidHeight(side.ocalcMS)) addWarning(warnings, side.poleId, spanId, "", "INVALID_OCALC_MS", "O-CALC MS inválido.", "danger");
       if (side.msProposed && !H().isValidHeight(side.msProposed)) addWarning(warnings, side.poleId, spanId, "", "INVALID_MS_PROPOSED", "MS Proposed inválido.", "danger");
       if (side.finalMidspan && !H().isValidHeight(side.finalMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_FINAL_MIDSPAN", "Midspan final ajustado inválido.", "danger");
       if (side.endDrop && !H().isValidHeight(side.endDrop)) addWarning(warnings, side.poleId, spanId, "", "INVALID_END_DROP", "End Drop inválido.", "danger");
-      const otherPoleId = S().getOtherPoleId(span, side.poleId);
-      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
-      if (side.proposedHOA && !side.proposedHOAChange && !otherSide?.proposedHOA) {
-        addWarning(warnings, side.poleId, spanId, "", "MISSING_PROPOSED_TARGET", "Hay Proposed pero falta Next Pole Proposed o Proposed del otro poste para calcular End Drop.");
-      }
       if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
       const boltClearance = global.Calculations.evaluateProposedBoltClearance(side);
       if (!boltClearance.ok) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_BOLT_CLEARANCE", boltClearance.message, "danger");
