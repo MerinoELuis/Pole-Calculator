@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // JSON export is the lightweight save-point format. It stores the full state,
+  // including user edits and calculated fields, so work can be resumed exactly.
   const S = () => global.AppStore;
 
   function downloadJson(filename, data) {

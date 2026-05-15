@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // MRLogic turns calculated state into the final Make Ready text shown per
+  // pole. Ordering matters because crews read these instructions top to bottom.
   const H = () => global.HeightUtils;
   const S = () => global.AppStore;
 

@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // app.js owns the browser UI: rendering tables, binding controls, dispatching
+  // user edits to the store, and refreshing affected poles after recalculation.
   const S = global.AppStore;
   const H = global.HeightUtils;
 
@@ -522,7 +524,9 @@
   function renderSummary() {
     const state = S.getState();
     if (els.projectMeta) {
-      els.projectMeta.textContent = `${state.importedFileName || "Proyecto"} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`;
+      els.projectMeta.textContent = state.importedFileName
+        ? `${state.importedFileName} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`
+        : "Sin archivo importado";
     }
   }
 
@@ -1094,6 +1098,8 @@
   }
 
   function render() {
+    // One top-level render always recalculates first so every table displays the
+    // newest derived values after imports, edits, undo, or local restore.
     global.Calculations.recalculateAll();
     renderSummary();
     renderClearanceSettings();
@@ -1143,12 +1149,8 @@
       render();
       toast("Guardado local cargado.", "success");
     });
-    els.resetSampleBtn.addEventListener("click", () => {
-      recordUndoSnapshot();
-      S.loadSampleData();
-      render();
-      toast("Datos demo cargados.", "info");
-    });
+    // The demo loader stays in the markup for possible future development use,
+    // but is intentionally disabled in the production workflow.
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
     document.addEventListener("keydown", event => {
@@ -1184,7 +1186,7 @@
 
     bindEvents();
     global.FloatingCalculator?.setupFloatingCalculator();
-    S.loadSampleData();
+    S.resetState();
     render();
   }
 

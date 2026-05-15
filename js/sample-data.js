@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // Development fixture data. The normal app no longer loads it on startup, but
+  // keeping it here makes manual testing possible without an Excel file.
   const S = () => global.AppStore;
 
   // Demo basado en EXCEL_VEX-AZPR022-7_2026-05-11.xlsx.

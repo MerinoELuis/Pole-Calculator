@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // calculations.js contains derived business logic. It recalculates spans,
+  // comm movements, proposed values, clearances, end drops, and flagging.
   const H = () => global.HeightUtils;
   const S = () => global.AppStore;
   const CLEARANCE_FIX_DELAY_MS = 700;
@@ -14,6 +16,7 @@
   }
 
   function getEffectiveCommHOA(sc) {
+    // A changed HOA replaces the imported HOA for downstream calculations.
     return sc ? (sc.existingHOAChange || sc.existingHOA || "") : "";
   }
 
@@ -308,6 +311,8 @@
   }
 
   function evaluateSpanSideFlagging(spanSide) {
+    // Proposed flagging is intentionally compact: one field summarizes every
+    // pole-side rule that can make a proposed attachment invalid.
     const pole = S().getPole(spanSide?.poleId);
     const proposed = H().parseHeight(spanSide?.proposedHOA || "");
     if (!spanSide || proposed === null) return { status: "OK", message: "" };

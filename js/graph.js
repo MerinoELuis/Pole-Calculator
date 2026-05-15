@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // Legacy graph helpers retained for future use. They turn the pole graph into
+  // simple screen coordinates and SVG markup without changing application state.
   const S = () => global.AppStore;
 
   function buildLayout(width, height) {

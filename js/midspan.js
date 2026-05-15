@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // MidspanLogic is a small facade around the lower-level calculation module.
+  // UI code can ask for midspan-oriented rows without knowing graph details.
   const S = () => global.AppStore;
 
   function calculateMidspanForSpan(spanId, owner) {

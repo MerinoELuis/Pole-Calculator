@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // Excel export serializes the current state into readable worksheets plus the
+  // hidden AppState payload needed for a later exact re-import.
   const S = () => global.AppStore;
 
   function stateToSheets() {

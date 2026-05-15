@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // HeightUtils converts every accepted display format into inches internally.
+  // Keeping one numeric unit avoids mixing feet/inches math throughout the app.
   function normalizeText(value) {
     return String(value ?? "")
       .trim()
@@ -12,6 +14,7 @@
   }
 
   function parseHeight(value) {
+    // Users may enter 20, 20', 20'6", or 20.5; all become integer inches.
     if (value === null || value === undefined || value === "") return null;
     if (typeof value === "number" && Number.isFinite(value)) return Math.round(value * 12);
 

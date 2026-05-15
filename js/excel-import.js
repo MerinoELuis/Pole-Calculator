@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // ExcelImport translates workbook sheets into the normalized graph stored in
+  // AppStore. Flexible header matching keeps imports resilient to export drift.
   const S = () => global.AppStore;
   const H = () => global.HeightUtils;
 
@@ -410,6 +412,8 @@
   }
 
   function buildSpanRecords(spanRows, collectionIndex) {
+    // Span rows define the graph edges between poles. Unknown remote poles are
+    // still created so the user can finish the missing data manually.
     return spanRows.map((row, index) => {
       const rawSpanId = String(pick(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"])).trim() || `SPAN-${index + 1}`;
       const currentPole = String(pick(row, ["Id", "Pole ID", "Pole", "From Pole"])).trim()

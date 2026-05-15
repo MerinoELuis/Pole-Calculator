@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // Validations stores broad project warnings. Table-level flagging lives in
+  // calculations.js; these warnings remain useful for import/data integrity.
   const H = () => global.HeightUtils;
   const S = () => global.AppStore;
 

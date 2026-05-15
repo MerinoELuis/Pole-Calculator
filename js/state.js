@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // AppStore is the single source of truth for the calculator. UI modules read
+  // from this state, and calculation modules write derived values back into it.
   const CURRENT_VERSION = "1.3.0";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
@@ -27,11 +29,13 @@
     { value: "TROLLEY", label: "Trolley", clearance: "25'" }
   ];
 
+  // Keep startup empty. Imported Excel/JSON or local saves are the only things
+  // that should populate the workspace in normal use.
   const emptyState = () => ({
     version: CURRENT_VERSION,
-    importedFileName: "Datos demo",
+    importedFileName: "",
     importedAt: new Date().toISOString(),
-    selectedPoleId: "P72",
+    selectedPoleId: "",
     selectedSpanId: "",
     autoCreateSpanComms: false,
     settings: {
@@ -76,6 +80,8 @@
   }
 
   function createPole(poleId, poleHeight = "", notes = "", extra = {}) {
+    // Constructors normalize all incoming data so later code can assume each
+    // entity has the same shape, whether it came from Excel, JSON, or the UI.
     if (typeof poleId === "object" && poleId !== null) {
       const data = poleId;
       return {

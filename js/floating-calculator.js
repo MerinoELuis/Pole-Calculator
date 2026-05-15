@@ -1,6 +1,7 @@
 (function (global) {
   "use strict";
 
+  // Small independent helper for quick feet/inches math while editing the app.
   function setupFloatingCalculator() {
     const panel = document.getElementById("floatingCalculator");
     const openBtn = document.getElementById("openCalculatorBtn");
