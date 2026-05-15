@@ -508,6 +508,9 @@ tr.danger-row {
   align-content: center;
   grid-auto-rows: minmax(38px, auto);
 }
+.pole-kpis.two-up {
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
 
 .comm-span-list {
   min-width: 260px;
