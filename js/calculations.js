@@ -232,48 +232,90 @@
   }
 
   function evaluateSpanSideMidspan(baseInches, span, poleId = "") {
+    if (baseInches === null || !span) {
+      return {
+        baseFormatted: "",
+        finalFormatted: "",
+        status: "MISSING",
+        issue: false,
+        impossible: false,
+        needsAdjustment: false,
+        clearanceMSReason: "",
+        message: "Missing O-CALC MS.",
+        position: getSettingPosition()
+      };
+    }
+    const commClearance = getMidspanCommCommClearance();
+    const references = getReferenceMidspansForSpanSide(span.spanId, poleId);
+    const maxMS = H().parseHeight(span.midspanMaxCommHeight || "");
+    const envMin = getEnvironmentMinimum(span);
+    const position = getSettingPosition();
+    let target = baseInches;
+    let issue = false;
+    let needsAdjustment = false;
+    let impossible = false;
+    let clearanceMSReason = "";
+    const messages = [];
+
+    if (references.length) {
+      const reference = position === "TOP_COMM" ? Math.max(...references) : Math.min(...references);
+      const required = position === "TOP_COMM" ? reference + commClearance : reference - commClearance;
+      if ((position === "TOP_COMM" && target < required) || (position === "LOW_COMM" && target > required)) {
+        target = required;
+        issue = true;
+        needsAdjustment = true;
+        messages.push(`Adjusted to keep ${format(commClearance)} from comm midspan ${format(reference)}.`);
+      }
+    }
+    if (envMin !== null && target < envMin) {
+      target = envMin;
+      issue = true;
+      needsAdjustment = true;
+      messages.push(`Adjusted to environment minimum ${format(envMin)}.`);
+    }
+    if (maxMS !== null && target > maxMS) {
+      target = maxMS;
+      issue = true;
+      needsAdjustment = true;
+      clearanceMSReason = "LOW_POWER";
+      messages.push(`Adjusted to max height at MS ${format(maxMS)}.`);
+    }
+    if (maxMS !== null && target > maxMS) impossible = true;
     return {
-      baseFormatted: "",
-      finalFormatted: "",
-      status: "",
-      issue: false,
-      impossible: false,
-      needsAdjustment: false,
-      clearanceMSReason: "",
-      message: "",
-      position: getSettingPosition()
+      baseFormatted: format(baseInches),
+      finalFormatted: format(target),
+      status: issue ? (impossible ? "PROBLEM" : "ADJUSTED") : "OK",
+      issue,
+      impossible,
+      needsAdjustment,
+      clearanceMSReason,
+      message: messages.join(" ") || "OK",
+      position
     };
   }
 
   function applyDelayedMidspanResult(existing, evaluation) {
     return {
-      msProposed: "",
-      finalMidspan: "",
+      msProposed: evaluation.baseFormatted,
+      finalMidspan: evaluation.finalFormatted,
       pendingMidspanFinal: "",
       clearanceFixReadyAt: 0,
-      clearanceMSStatus: "",
-      clearanceMSMessage: "",
-      clearanceMSReason: "",
-      clearanceMSIssue: false
+      clearanceMSStatus: evaluation.status,
+      clearanceMSMessage: evaluation.message,
+      clearanceMSReason: evaluation.clearanceMSReason || "",
+      clearanceMSIssue: Boolean(evaluation.issue)
     };
   }
 
   function calculateSpanSideMidspan(spanId, poleId) {
     const side = S().getSpanSide(spanId, poleId);
-    if (!side) return null;
-
-    // El midspan ya no se calcula desde Proposed/End Drop/O-CALC MS en esta tabla.
-    // El midspan que se mueve vive en cada comm importado desde Span.Wire.
+    const span = S().getSpan(spanId);
+    if (!side || !span) return null;
+    const baseInches = calculateProposedMidspanBase(side, span);
+    const evaluation = evaluateSpanSideMidspan(baseInches, span, poleId);
     S().upsertSpanSide({
       ...side,
-      msProposed: "",
-      finalMidspan: "",
-      pendingMidspanFinal: "",
-      clearanceFixReadyAt: 0,
-      clearanceMSStatus: "",
-      clearanceMSMessage: "",
-      clearanceMSReason: "",
-      clearanceMSIssue: false
+      ...applyDelayedMidspanResult(side, evaluation)
     });
     return S().getSpanSide(spanId, poleId);
   }
@@ -449,12 +491,29 @@
   }
 
   function calculateEndDropForSpanSide(spanId, poleId) {
-    const side = S().getSpanSide(spanId, poleId);
-    return side?.endDrop || "";
+    let side = S().getSpanSide(spanId, poleId);
+    const span = S().getSpan(spanId);
+    if (!side || !span) return "";
+    const proposed = H().parseHeight(side.proposedHOA || "");
+    const manualNext = side.nextPoleProposedAuto ? "" : side.proposedHOAChange;
+    let nextPoleProposed = H().parseHeight(manualNext || "");
+    if (nextPoleProposed === null) {
+      const otherPoleId = S().getOtherPoleId(span, poleId);
+      const otherSide = otherPoleId ? S().getSpanSide(spanId, otherPoleId) : null;
+      nextPoleProposed = H().parseHeight(otherSide?.proposedHOA || "");
+      side = S().upsertSpanSide({
+        ...side,
+        proposedHOAChange: nextPoleProposed !== null ? format(nextPoleProposed) : "",
+        nextPoleProposedAuto: nextPoleProposed !== null
+      });
+    }
+    const endDrop = proposed !== null && nextPoleProposed !== null ? format(nextPoleProposed - proposed) : "";
+    S().upsertSpanSide({ ...side, endDrop });
+    return endDrop;
   }
 
   function calculateProposedMidspanBase(side, span) {
-    return null;
+    return parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
   }
 
   function calculateMidspanForComm(spanComm) {
@@ -564,7 +623,9 @@
       data.clearanceMSIssue = false;
     }
 
+    if (field === "proposedHOAChange") data.nextPoleProposedAuto = false;
     S().upsertSpanSide(data);
+    if (["proposedHOA", "proposedHOAChange"].includes(field)) calculateEndDropForSpanSide(spanId, poleId);
     recalculateSpansForPole(poleId);
     return S().getSpanSide(spanId, poleId);
   }
@@ -616,7 +677,10 @@
       if (span.toPole) calculatePoleDerived(span.toPole);
     }
     S().getSpanCommsForSpan(spanId).forEach(sc => calculateMidspanForComm(sc));
-    S().getSpanSidesForSpan(spanId).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
+    S().getSpanSidesForSpan(spanId).forEach(side => {
+      calculateEndDropForSpanSide(side.spanId, side.poleId);
+      calculateSpanSideMidspan(side.spanId, side.poleId);
+    });
   }
 
   function recalculateSpansForPole(poleId) {
@@ -645,7 +709,10 @@
     });
 
     spans.forEach(span => {
-      S().getSpanSidesForSpan(span.spanId).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
+      S().getSpanSidesForSpan(span.spanId).forEach(side => {
+        calculateEndDropForSpanSide(side.spanId, side.poleId);
+        calculateSpanSideMidspan(side.spanId, side.poleId);
+      });
     });
 
     global.MRLogic.generateMRForPole(poleId);
@@ -658,7 +725,10 @@
     Object.keys(state.spans).forEach(calculateSpanPowerDerived);
     Object.keys(state.poles).forEach(calculatePoleDerived);
     Object.values(state.spanComms).forEach(sc => calculateMidspanForComm(sc));
-    Object.values(state.spanSides).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
+    Object.values(state.spanSides).forEach(side => {
+      calculateEndDropForSpanSide(side.spanId, side.poleId);
+      calculateSpanSideMidspan(side.spanId, side.poleId);
+    });
   }
 
   function recalculateAll() {
@@ -666,7 +736,10 @@
     Object.keys(state.spans).forEach(calculateSpanPowerDerived);
     Object.keys(state.poles).forEach(calculatePoleDerived);
     Object.values(state.spanComms).forEach(sc => calculateMidspanForComm(sc));
-    Object.values(state.spanSides).forEach(side => calculateSpanSideMidspan(side.spanId, side.poleId));
+    Object.values(state.spanSides).forEach(side => {
+      calculateEndDropForSpanSide(side.spanId, side.poleId);
+      calculateSpanSideMidspan(side.spanId, side.poleId);
+    });
     global.MRLogic.generateAllMR();
     global.Validations.validateAll();
   }

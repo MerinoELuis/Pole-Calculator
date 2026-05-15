@@ -357,7 +357,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .pole-workspace-header {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(240px, 1fr) minmax(520px, 1.6fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
   border-bottom: 1px solid var(--line);

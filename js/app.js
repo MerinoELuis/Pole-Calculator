@@ -497,12 +497,6 @@
           ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
         </div>
       </div>
-      <div class="pole-kpis">
-        <label>Low Power<input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="lowPower" value="${escapeHtml(pole.lowPower || "")}" placeholder="30'8&quot;"></label>
-        <label>Altura Max<input class="input height-input muted-input" value="${escapeHtml(pole.maxCommHeight || "")}" readonly></label>
-        <label>Top Comm<input class="input height-input muted-input" value="${escapeHtml(pole.topComm || "")}" readonly></label>
-        <label>Low Comm<input class="input height-input muted-input" value="${escapeHtml(pole.lowComm || "")}" readonly></label>
-      </div>
     </div>`;
   }
 
@@ -511,7 +505,7 @@
     if (!spans.length) return `<p class="muted">No hay spans con midspan para proponer desde este poste.</p>`;
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Environment</th><th>Env Clearance</th><th>Low Power</th><th>Max Comm</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Clearance MS Proposed</th><th>Midspan final ajustado</th><th>Notas</th>
+        <th>Span</th><th>Environment</th><th>Environment Clearance</th><th>Low Power at MS</th><th>Max Height at MS</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Notes</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -529,8 +523,8 @@
           <td class="span-cell"><strong>${spanChip(poleId, span.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environmentClearance" value="${escapeHtml(span.environmentClearance || "")}"></td>
-          <td>${escapeHtml(pole?.lowPower || "")}</td>
-          <td>${escapeHtml(side.maxCommHeight || pole?.maxCommHeight || "")}</td>
+          <td>${escapeHtml(span.midspanLowPower || "")}</td>
+          <td>${escapeHtml(span.midspanMaxCommHeight || "")}</td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
           <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
@@ -549,7 +543,7 @@
     if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>Cambio de HOA</th><th>Span</th><th>Midspan</th><th>Otro poste HOA</th><th>Flagging</th><th>Acciones</th>
+        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th><th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -585,7 +579,7 @@
     const rows = S.getSpanPowerForPole(poleId).filter(row => H.parseHeight(row.midspan) !== null);
     if (!rows.length) return `<p class="muted">No se importaron wires de power para este poste.</p>`;
     return `<div class="table-wrap"><table class="power-table">
-      <thead><tr><th>Span</th><th>Tipo</th><th>Attachment Height</th><th>Midspan</th></tr></thead>
+      <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>Midspan</th></tr></thead>
       <tbody>${rows.map(row => {
         const span = S.getSpan(row.spanId);
         return `<tr>
@@ -603,19 +597,19 @@
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
         <section class="subsection wide" id="spans-${escapeHtml(poleId)}">
-          <h4>Proposed por span</h4>
+          <h4>Proposed by Span</h4>
           ${renderSpanProposedTable(poleId)}
         </section>
         <section class="subsection wide" id="comms-${escapeHtml(poleId)}">
           <div class="subsection-title-row">
-            <h4>Movimientos de comms existentes</h4>
-            <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Agregar comm</button>
+            <h4>Existing Comm Movements</h4>
+            <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
           </div>
           <p class="muted">Aquí se mueve cada comm existente con nueva altura. Si cambia el otro poste del mismo span, el Midspan calculado se actualiza.</p>
           ${renderCommMovementTable(poleId)}
         </section>
         <section class="subsection wide">
-          <h4>Power / clearance importado</h4>
+          <h4>Imported Power / Clearance</h4>
           ${renderPowerTable(poleId)}
         </section>
         <section class="subsection" id="warnings-${escapeHtml(poleId)}">
