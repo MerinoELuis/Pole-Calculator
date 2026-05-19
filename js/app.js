@@ -344,13 +344,14 @@
 
   function renderCommFlagging(group) {
     const messages = Array.from(new Set(group.rows
-      .map(row => String(row.flaggingMessage || "").trim())
+      .flatMap(row => [String(row.flaggingMessage || "").trim(), String(row.autoCalcMessage || "").trim()])
       .filter(message => message && message !== "OK")));
     const hasProblem = group.rows.some(row => row.flaggingStatus === "PROBLEM");
+    const hasManualAuto = group.rows.some(row => row.autoCalcStatus === "MANUAL");
     const hasMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
-    if (!messages.length && !hasProblem && !hasMissing) return `<span class="badge changed">OK</span>`;
+    if (!messages.length && !hasProblem && !hasMissing && !hasManualAuto) return `<span class="badge changed">OK</span>`;
     const badgeClass = hasProblem ? "danger" : "warning";
-    const label = hasProblem ? "Clearance Issue" : "Missing Data";
+    const label = hasProblem ? "Clearance Issue" : hasManualAuto ? "Manual" : "Missing Data";
     return `<div class="flagging-cell">
       <span class="badge ${badgeClass}">${label}</span>
       <div class="flagging-message">${messages.map(escapeHtml).join(" ")}</div>
@@ -1394,6 +1395,12 @@
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
     els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
     els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
+    els.autoCalculateBtn.addEventListener("click", () => {
+      recordUndoSnapshot();
+      const result = global.Calculations.autoCalculateMovements();
+      render();
+      toast(`Autocalcular: ${result.applied} aplicados, ${result.manual} manuales, ${result.skipped} sin cambio.`, result.applied ? "success" : "warning");
+    });
     els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Guardado local en este navegador.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
       recordUndoSnapshot();
@@ -1428,6 +1435,7 @@
       excelFileInput: qs("excelFileInput"),
       jsonFileInput: qs("jsonFileInput"),
       exportJsonBtn: qs("exportJsonBtn"),
+      autoCalculateBtn: qs("autoCalculateBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
       projectMeta: qs("projectMeta"),

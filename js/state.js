@@ -230,6 +230,8 @@
       clearanceFixReadyAt: Number(data.clearanceFixReadyAt || 0),
       flaggingStatus: trim(data.flaggingStatus || ""),
       flaggingMessage: trim(data.flaggingMessage || ""),
+      autoCalcStatus: trim(data.autoCalcStatus || ""),
+      autoCalcMessage: trim(data.autoCalcMessage || ""),
       mr: trim(data.mr || ""),
       notes: trim(data.notes || ""),
       rawOwner: trim(data.rawOwner || ""),

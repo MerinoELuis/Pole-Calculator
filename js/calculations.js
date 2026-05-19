@@ -689,6 +689,188 @@
     return updateExistingHOAChange(poleId, owner, spanId, newHeight);
   }
 
+  function cloneStateForAutoCalc() {
+    return JSON.parse(JSON.stringify(S().getState()));
+  }
+
+  function autoCalcGroupKey(sc) {
+    return [
+      normalizeOwnerForMatch(commOwnerLabel(sc) || sc.owner),
+      normalizedHeightLabelForCalc(sc.existingHOA)
+    ].join("|");
+  }
+
+  function autoCalcGroupsForPole(poleId) {
+    const groups = new Map();
+    S().getSpanCommsForPole(poleId).forEach(sc => {
+      const key = autoCalcGroupKey(sc);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          owner: commOwnerLabel(sc) || sc.owner,
+          ownerToken: normalizeOwnerForMatch(commOwnerLabel(sc) || sc.owner),
+          existingInches: H().parseHeight(sc.existingHOA),
+          rows: []
+        });
+      }
+      groups.get(key).rows.push(sc);
+    });
+    return Array.from(groups.values())
+      .filter(group => group.existingInches !== null)
+      .sort((a, b) => b.existingInches - a.existingInches);
+  }
+
+  function autoCalcPoleAnchor(poleId) {
+    const pole = S().getPole(poleId);
+    const maxPole = H().parseHeight(pole?.maxCommHeight || "");
+    if (maxPole === null) return null;
+    const proposedHeights = S().getSpanSidesForPole(poleId)
+      .map(side => H().parseHeight(side.proposedHOA || ""))
+      .filter(value => value !== null);
+    if (!proposedHeights.length) return maxPole;
+    return Math.min(maxPole, Math.min(...proposedHeights) - getPoleCommCommClearance());
+  }
+
+  function autoCalcGapBetweenGroups(upper, lower) {
+    if (upper.ownerToken && upper.ownerToken === lower.ownerToken) return getPoleBoltBoltClearance();
+    return getPoleCommCommClearance();
+  }
+
+  function autoCalcPoleNeedsMovement(poleId, groups, anchor) {
+    const hasProblems = groups.some(group => group.rows.some(row =>
+      row.flaggingStatus === "PROBLEM" || row.clearanceMSStatus === "PROBLEM"
+    ));
+    const topExisting = groups.length ? Math.max(...groups.map(group => group.existingInches)) : null;
+    const proposedHeights = S().getSpanSidesForPole(poleId)
+      .map(side => H().parseHeight(side.proposedHOA || ""))
+      .filter(value => value !== null);
+    const noRoomForProposed = proposedHeights.length && topExisting !== null && anchor !== null && topExisting > anchor;
+    const aboveAllowedStackTop = topExisting !== null && anchor !== null && topExisting > anchor;
+    return hasProblems || noRoomForProposed || aboveAllowedStackTop;
+  }
+
+  function autoCalcBuildStackPlan(groups, anchor) {
+    if (anchor === null || !groups.length) return null;
+    let cursor = anchor;
+    return groups.map((group, index) => {
+      if (index > 0) cursor -= autoCalcGapBetweenGroups(groups[index - 1], group);
+      return { group, targetInches: cursor };
+    });
+  }
+
+  function autoCalcAffectedPoleIds(poleId) {
+    const ids = new Set([poleId]);
+    S().getConnectedSpans(poleId).forEach(span => {
+      if (span.fromPole) ids.add(span.fromPole);
+      if (span.toPole) ids.add(span.toPole);
+    });
+    const wireIds = new Set(S().getSpanCommsForPole(poleId).map(row => row.wireId).filter(Boolean));
+    Object.values(S().getState().spanComms || {}).forEach(row => {
+      if (wireIds.has(row.wireId)) ids.add(row.poleId);
+    });
+    return Array.from(ids).filter(Boolean);
+  }
+
+  function autoCalcMarkGroups(groups, status, message) {
+    groups.forEach(group => {
+      group.rows.forEach(row => {
+        S().upsertSpanComm({
+          ...row,
+          autoCalcStatus: status,
+          autoCalcMessage: message
+        });
+      });
+    });
+  }
+
+  function autoCalcClearExistingMarks() {
+    Object.values(S().getState().spanComms || {}).forEach(row => {
+      if (!row.autoCalcStatus && !row.autoCalcMessage) return;
+      S().upsertSpanComm({ ...row, autoCalcStatus: "", autoCalcMessage: "" });
+    });
+  }
+
+  function autoCalcResultIsSafe(affectedPoleIds) {
+    const affected = new Set(affectedPoleIds);
+    const rows = Object.values(S().getState().spanComms || {}).filter(row => affected.has(row.poleId));
+    const badComm = rows.find(row => row.flaggingStatus === "PROBLEM" || row.clearanceMSStatus === "PROBLEM");
+    if (badComm) return { ok: false, reason: badComm.flaggingMessage || badComm.clearanceMSMessage || "Comm clearance issue." };
+
+    const badProposed = Object.values(S().getState().spanSides || {}).find(side =>
+      affected.has(side.poleId)
+      && side.proposedHOA
+      && (side.proposedFlaggingStatus === "PROBLEM" || side.clearanceMSStatus === "PROBLEM")
+    );
+    if (badProposed) return { ok: false, reason: badProposed.proposedFlaggingMessage || badProposed.clearanceMSMessage || "Proposed clearance issue." };
+    return { ok: true, reason: "" };
+  }
+
+  function autoCalculateMovements() {
+    const summary = { applied: 0, manual: 0, skipped: 0 };
+    autoCalcClearExistingMarks();
+    S().getState().settings.position = "TOP_COMM";
+    recalculateAll();
+    const poleIds = Object.keys(S().getState().poles || {});
+
+    poleIds.forEach(poleId => {
+      const beforePole = cloneStateForAutoCalc();
+      const groups = autoCalcGroupsForPole(poleId);
+      if (!groups.length) {
+        summary.skipped += 1;
+        return;
+      }
+      if (groups.some(group => group.rows.some(row => row.existingHOAChange))) {
+        summary.manual += 1;
+        autoCalcMarkGroups(groups, "MANUAL", "Auto skipped: existing HOA Change already set.");
+        return;
+      }
+
+      const anchor = autoCalcPoleAnchor(poleId);
+      const needsMovement = autoCalcPoleNeedsMovement(poleId, groups, anchor);
+      if (!needsMovement) {
+        summary.skipped += 1;
+        return;
+      }
+
+      const plan = autoCalcBuildStackPlan(groups, anchor);
+      if (!plan || plan.some(item => item.targetInches < 0)) {
+        summary.manual += 1;
+        autoCalcMarkGroups(groups, "MANUAL", "Auto manual: no safe pole stack found.");
+        return;
+      }
+
+      plan.forEach(item => {
+        const target = format(item.targetInches);
+        item.group.rows.forEach(row => {
+          const existing = H().parseHeight(row.existingHOA);
+          S().upsertSpanComm({
+            ...row,
+            existingHOAChange: existing === item.targetInches ? "" : target,
+            autoCalcStatus: "AUTO",
+            autoCalcMessage: ""
+          });
+        });
+      });
+
+      const affected = autoCalcAffectedPoleIds(poleId);
+      affected.forEach(recalculateSpansForPole);
+      const safe = autoCalcResultIsSafe(affected);
+      if (safe.ok) {
+        summary.applied += 1;
+        return;
+      }
+
+      S().setState(beforePole);
+      const restoredGroups = autoCalcGroupsForPole(poleId);
+      autoCalcMarkGroups(restoredGroups, "MANUAL", `Auto manual: ${safe.reason}`);
+      recalculateSpansForPole(poleId);
+      summary.manual += 1;
+    });
+
+    recalculateAll();
+    return summary;
+  }
+
   function updateExistingHOAChange(poleId, owner, spanId, newHeight, wireId = "") {
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
     S().upsertSpanComm({ ...sc, existingHOAChange: newHeight || "" });
@@ -882,6 +1064,7 @@
     getEffectiveCommHOA,
     getEstimatedSagInches,
     findRemoteComm,
-    getReferenceMidspansForSpanSide
+    getReferenceMidspansForSpanSide,
+    autoCalculateMovements
   };
 })(window);
