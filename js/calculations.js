@@ -469,8 +469,16 @@
 
     if (poleHeight !== null) {
       const poleClearance = getPoleCommCommClearance();
+      const boltClearance = getPoleBoltBoltClearance();
+      const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
+      if (sc.existingHOAChange && ownExistingHeight !== null) {
+        const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
+        if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
+          issues.push(`Bolt-bolt poste: ${format(ownBoltDiff)} contra Existing HOA ${format(ownExistingHeight)}; mínimo ${format(boltClearance)}.`);
+        }
+      }
       S().getSpanCommsForPole(sc.poleId).forEach(other => {
         if (spanCommKey(other) === spanCommKey(sc)) return;
         const otherOwner = commOwnerLabel(other);
@@ -483,10 +491,22 @@
         const otherHeight = H().parseHeight(getEffectiveCommHOA(other));
         if (otherHeight === null) return;
         const diff = Math.abs(poleHeight - otherHeight);
-        const required = sameOwner ? getPoleBoltBoltClearance() : poleClearance;
+        const required = sameOwner ? boltClearance : poleClearance;
         const label = sameOwner ? "Bolt-bolt poste" : "Comm-comm poste";
         if (diff < required) {
           issues.push(`${label}: ${format(diff)} con ${otherOwner || "sin owner"}; mínimo ${format(required)}.`);
+        }
+
+        // Bolt-bolt also applies against previous attachment points. Example:
+        // if Cable is moved to 22' and another comm used to sit at 21'10",
+        // the new bolt is only 2" from that existing point, even if the other
+        // comm was moved down to 21'. That must still flag.
+        const otherExistingHeight = H().parseHeight(other.existingHOA || "");
+        if (otherExistingHeight !== null) {
+          const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
+          if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
+            issues.push(`Bolt-bolt poste: ${format(existingPointDiff)} contra Existing HOA ${format(otherExistingHeight)} de ${otherOwner || "sin owner"}; mínimo ${format(boltClearance)}.`);
+          }
         }
       });
     }
