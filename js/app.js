@@ -561,6 +561,49 @@
     wireEditableEvents(els.clearanceSettings);
   }
 
+  function renderPoleClassResults() {
+    if (!els.poleClassResults) return;
+    const rows = S.getState().poleClassChecks || [];
+    if (!rows.length) {
+      els.poleClassResults.innerHTML = `<div class="detail-placeholder">Importa un Excel con datos en Collection para revisar Height / Class.</div>`;
+      return;
+    }
+    const issueCount = rows.filter(row => row.status !== "OK").length;
+    els.poleClassResults.innerHTML = `
+      <div class="pole-class-summary">
+        <span class="badge changed">OK ${rows.length - issueCount}</span>
+        <span class="badge ${issueCount ? "danger" : "changed"}">Issues ${issueCount}</span>
+      </div>
+      <div class="table-wrap"><table class="pole-class-table">
+        <thead><tr>
+          <th>Pole ID</th><th>Tip</th><th>Circumference</th><th>Imported Type</th><th>Calc Height</th><th>Calc Class</th><th>Expected Type</th><th>Status</th>
+        </tr></thead>
+        <tbody>${rows.map(row => `
+          <tr class="${row.status === "OK" ? "changed-row" : "warning-row"}">
+            <td><strong>${poleLink(row.poleId)}</strong></td>
+            <td>${escapeHtml(row.tip || "")}</td>
+            <td>${escapeHtml(row.circumference || "")}</td>
+            <td>${escapeHtml(row.importedType || "")}</td>
+            <td>${escapeHtml(row.calculatedHeight || "")}</td>
+            <td>${escapeHtml(row.calculatedClass || "")}</td>
+            <td>${escapeHtml(row.expectedType || "")}</td>
+            <td>${row.status === "OK" ? `<span class="badge changed">OK</span>` : `<span class="badge danger">${escapeHtml(row.status)}</span>`}</td>
+          </tr>
+        `).join("")}</tbody>
+      </table></div>`;
+    bindScrollLinks(els.poleClassResults);
+  }
+
+  function renderActiveView() {
+    const activeView = S.getState().ui.activeView || "calculator";
+    document.querySelectorAll("[data-view-tab]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.viewTab === activeView);
+    });
+    document.querySelectorAll("[data-view-panel]").forEach(panel => {
+      panel.classList.toggle("hidden", panel.dataset.viewPanel !== activeView);
+    });
+  }
+
   function renderEnvironmentOptions(selected) {
     const current = selected || "NONE";
     return (S.ENVIRONMENT_OPTIONS || []).map(option => (
@@ -1236,6 +1279,7 @@
     const state = S.getState();
     state.selectedPoleId = poleId;
     state.selectedSpanId = "";
+    state.ui.activeView = "calculator";
     render();
     scrollToPole(poleId);
   }
@@ -1246,8 +1290,10 @@
     global.Calculations.recalculateAll();
     renderSummary();
     renderClearanceSettings();
+    renderPoleClassResults();
     renderPoleLists();
     renderAllPolesWorkspace();
+    renderActiveView();
   }
 
   async function handleExcelImport(file) {
@@ -1294,6 +1340,12 @@
     });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
+    document.querySelectorAll("[data-view-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        S.getState().ui.activeView = btn.dataset.viewTab || "calculator";
+        renderActiveView();
+      });
+    });
     document.addEventListener("keydown", event => {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -1319,6 +1371,7 @@
       warningFilterSelect: qs("warningFilterSelect"),
       polesList: qs("polesList"),
       polesOverview: qs("polesOverview"),
+      poleClassResults: qs("poleClassResults"),
       appLayout: qs("appLayout"),
       clearanceSettings: qs("clearanceSettings"),
       toastHost: qs("toastHost")

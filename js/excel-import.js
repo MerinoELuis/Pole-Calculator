@@ -121,6 +121,112 @@
     return H().formatHeight(Math.round(feet * 12));
   }
 
+  const ANSI_POLE_CLASSES = ["H6", "H5", "H4", "H3", "H2", "H1", "1", "2", "3", "4", "5", "6", "7", "9", "10"];
+  const ANSI_CLASS_TABLE = {
+    20: [null, null, null, null, null, null, 31, 29, 27, 25, 23, 21, 19.6, 17.6, 14],
+    25: [null, null, null, null, null, null, 33.5, 31.5, 29.5, 27.5, 25.5, 23, 21.5, 19.5, 15],
+    30: [null, null, null, null, null, null, 36.5, 34, 32, 29.5, 27.5, 25, 23.5, 20.5, null],
+    35: [null, null, null, null, null, null, 39, 36.5, 34, 31.5, 29, 27, 25, null, null],
+    40: [null, null, 51, 48.5, 46, 43.5, 41, 38.5, 36, 33.5, 31, 28.5, null, null, null],
+    45: [58.5, 56, 53.5, 51, 48.5, 45.5, 43, 40.5, 37.5, 35, 32.5, 30, null, null, null],
+    50: [61, 58.5, 55.5, 53, 50.5, 47.5, 45, 42, 39, 36.5, 34, null, null, null, null],
+    55: [63.5, 60.5, 58, 55, 52, 49.5, 46.5, 43.5, 40.5, 38, null, null, null, null, null],
+    60: [65.5, 62.5, 59.5, 57, 54, 51, 48, 45, 42, 39, null, null, null, null, null],
+    65: [67.5, 64.5, 61.5, 58.5, 55.5, 52.5, 49.5, 46.5, 43.5, 40.5, null, null, null, null, null],
+    70: [69, 66.5, 63.5, 60.5, 57, 54, 51, 48, 45, 41.5, null, null, null, null, null],
+    75: [71, 68, 65, 62, 59, 55.5, 52.5, 49, 46, null, null, null, null, null, null],
+    80: [72.5, 69.5, 66.5, 63.5, 60, 57, 54, 50.5, 47, null, null, null, null, null, null],
+    85: [74.5, 71.5, 68, 65, 61.5, 58.5, 55, 51.5, 48, null, null, null, null, null, null],
+    90: [76, 73, 69.5, 66.5, 63, 59.5, 56, 53, 49, null, null, null, null, null, null],
+    95: [77.5, 74.5, 71, 67.5, 64.5, 61, 57, 54, null, null, null, null, null, null, null],
+    100: [79, 76, 72.5, 69, 65.5, 62, 58.5, 55, null, null, null, null, null, null, null],
+    105: [80.5, 77, 74, 70.5, 67, 63, 59.5, 56, null, null, null, null, null, null, null],
+    110: [82, 78.5, 75, 71.5, 68, 64.5, 60.5, 57, null, null, null, null, null, null, null],
+    115: [83.5, 80, 76.5, 72.5, 69, 65.5, 61.5, 58, null, null, null, null, null, null, null],
+    120: [85, 81, 77.5, 74, 70, 66.5, 62.5, 59, null, null, null, null, null, null, null],
+    125: [86, 82.5, 78.5, 75, 71, 67.5, 63.5, 59.5, null, null, null, null, null, null, null]
+  };
+
+  function parseNumber(value) {
+    if (isBlank(value)) return null;
+    const match = String(value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const n = Number(match[0]);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function parseImportedType(typeValue) {
+    const parts = String(typeValue || "").split(">").map(part => part.trim()).filter(Boolean);
+    const height = parts.length >= 3 ? parseNumber(parts[2]) : parseNumber(parts[parts.length - 1]);
+    return {
+      species: parts[0] || "",
+      classValue: parts.length >= 2 ? parts[1] : "",
+      height: height === null ? "" : height
+    };
+  }
+
+  function roundPoleLengthFromTip(tipHeight) {
+    const tipInches = H().parseHeight(tipHeight);
+    if (tipInches === null) return "";
+    const totalFeet = (tipInches / 12) * 1.10 + 2;
+    return Math.ceil(totalFeet / 5) * 5;
+  }
+
+  function classFromAnsiTable(height, circumference) {
+    const row = ANSI_CLASS_TABLE[height];
+    if (!row || circumference === null) return "";
+    let match = null;
+    row.forEach((minimum, index) => {
+      if (minimum === null || minimum === undefined) return;
+      if (minimum <= circumference && (!match || minimum > match.minimum)) {
+        match = { classValue: ANSI_POLE_CLASSES[index], minimum };
+      }
+    });
+    return match || null;
+  }
+
+  function buildPoleClassChecks(collectionRows) {
+    return collectionRows.map(row => {
+      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
+      if (!poleId) return null;
+      const importedType = String(pick(row, ["Type", "Pole Type"])).trim();
+      const parsedType = parseImportedType(importedType);
+      const tipHeight = heightFromRow(row, ["Tip.display", "Tip Display"], ["Tip"]);
+      const circumferenceRaw = pick(row, ["Circumference", "Circumfer", "Circumference (\")", "Ground Circumference"], { contains: true });
+      const diameterRaw = pick(row, ["Diameter", "Groundline Diameter"], { contains: true });
+      const circumference = parseNumber(circumferenceRaw) ?? (parseNumber(diameterRaw) === null ? null : Number((parseNumber(diameterRaw) * 3.14).toFixed(2)));
+      const calculatedHeight = roundPoleLengthFromTip(tipHeight);
+      const tableMatch = classFromAnsiTable(calculatedHeight, circumference);
+      const calculatedClass = tableMatch?.classValue || "";
+      const species = parsedType.species || "Pole";
+      const expectedType = calculatedClass && calculatedHeight ? `${species} > ${calculatedClass} > ${calculatedHeight}` : "";
+      const importedClass = String(parsedType.classValue || "").toUpperCase();
+      const expectedClass = String(calculatedClass || "").toUpperCase();
+      const issues = [];
+
+      if (!tipHeight) issues.push("Missing Tip");
+      if (circumference === null) issues.push("Missing Circumference");
+      if (!importedType) issues.push("Missing Type");
+      if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No ANSI height row");
+      if (tipHeight && circumference !== null && !tableMatch) issues.push("No table match");
+      if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
+      if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
+
+      return {
+        poleId,
+        tip: tipHeight,
+        circumference: circumference === null ? "" : String(circumference),
+        importedType,
+        calculatedHeight: calculatedHeight || "",
+        calculatedClass,
+        expectedType,
+        status: issues.length ? issues.join(", ") : "OK",
+        tableMinimumCircumference: tableMatch?.minimum || "",
+        source: "Collection"
+      };
+    }).filter(Boolean);
+  }
+
   function normalizeOwner(rawOwner, size) {
     const text = `${rawOwner || ""} ${size || ""}`.toLowerCase();
     if (/century\s*link|centurylink|\bctl\b|telco/.test(text)) return "CTL";
@@ -572,6 +678,7 @@
 
     const collectionIndex = buildCollectionIndex(collectionRows);
     importPolesFromCollection(collectionRows);
+    state.poleClassChecks = buildPoleClassChecks(collectionRows);
 
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);
     const rawSpanToSpanId = importSpans(spanRecords);

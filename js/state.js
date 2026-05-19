@@ -56,6 +56,7 @@
     spanSides: {},
     spanComms: {},
     spanPower: {},
+    poleClassChecks: [],
     movements: [],
     mr: [],
     warnings: [],
@@ -527,6 +528,7 @@
     next.spanSides = next.spanSides || {};
     next.spanComms = next.spanComms || {};
     next.spanPower = next.spanPower || {};
+    next.poleClassChecks = Array.isArray(next.poleClassChecks) ? next.poleClassChecks : [];
     next.movements = Array.isArray(next.movements) ? next.movements : [];
     next.mr = Array.isArray(next.mr) ? next.mr : [];
     next.warnings = Array.isArray(next.warnings) ? next.warnings : [];

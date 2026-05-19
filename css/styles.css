@@ -57,6 +57,26 @@ button:disabled { cursor: not-allowed; }
 
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; min-width: 0; max-width: 100%; }
 .content { display: grid; gap: 18px; min-width: 0; max-width: 100%; }
+.view-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+}
+.view-tab {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  padding: 9px 14px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.view-tab.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
 .panel {
   min-width: 0;
   max-width: 100%;
@@ -641,6 +661,22 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .power-table {
   min-width: 880px;
+}
+
+.pole-class-summary {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pole-class-table {
+  min-width: 1180px;
+}
+
+.pole-class-table th,
+.pole-class-table td {
+  text-align: center;
 }
 
 .danger-row,

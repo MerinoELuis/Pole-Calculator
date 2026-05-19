@@ -29,7 +29,12 @@
 
     <main class="layout" id="appLayout">
       <section class="content">
-        <section class="panel index-panel">
+        <nav class="view-tabs" aria-label="Vistas de la calculadora">
+          <button class="view-tab active" type="button" data-view-tab="calculator">Calculator</button>
+          <button class="view-tab" type="button" data-view-tab="poleClass">Pole Type Check</button>
+        </nav>
+
+        <section class="panel index-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
               <p class="eyebrow">Índice</p>
@@ -51,7 +56,7 @@
           <div id="polesList" class="pole-index-links"></div>
         </section>
 
-        <section class="panel clearance-panel">
+        <section class="panel clearance-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
               <p class="eyebrow">Configuración</p>
@@ -62,8 +67,19 @@
           <div id="clearanceSettings" class="clearance-settings compact"></div>
         </section>
 
-        <section class="panel hero-panel">
+        <section class="panel hero-panel" data-view-panel="calculator">
           <div id="polesOverview" class="cards-grid"></div>
+        </section>
+
+        <section class="panel pole-class-panel hidden" data-view-panel="poleClass">
+          <div class="panel-header split">
+            <div>
+              <p class="eyebrow">Pole Type Check</p>
+              <h2>Height / Class Review</h2>
+              <p class="muted">Uses Collection Tip, Circumference and Type against ANSI O5.1-2015.</p>
+            </div>
+          </div>
+          <div id="poleClassResults"></div>
         </section>
 
       </section>
