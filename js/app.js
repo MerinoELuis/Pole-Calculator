@@ -583,7 +583,7 @@
             <td><strong>${poleLink(row.poleId)}</strong></td>
             <td>${escapeHtml(row.tip || "")}</td>
             <td>${escapeHtml(row.importedCircumference || "")}</td>
-            <td><input class="input pole-class-diameter-input" data-scope="poleClassCheck" data-index="${index}" data-field="manualDiameter" value="${escapeHtml(row.manualDiameter || "")}" placeholder="${escapeHtml(row.importedDiameter || "Diameter")}" /></td>
+            <td><input class="input pole-class-diameter-input" data-scope="poleClassCheck" data-index="${index}" data-field="manualDiameter" value="${escapeHtml(row.manualDiameter || "")}" /></td>
             <td>${escapeHtml(row.circumference || "")}</td>
             <td>${escapeHtml(row.importedType || "")}</td>
             <td>${escapeHtml(row.calculatedHeight || "")}</td>
@@ -601,16 +601,18 @@
   function renderAnsiReferenceTable() {
     const classes = global.ExcelImport?.ANSI_POLE_CLASSES || [];
     const table = global.ExcelImport?.ANSI_CLASS_TABLE || {};
+    const groundline = global.ExcelImport?.ANSI_APPROX_GROUNDLINE_DISTANCE || {};
     const heights = Object.keys(table).map(Number).sort((a, b) => a - b);
     return `<details class="reference-table-panel" open>
       <summary>ANSI O5.1-2015 Reference Table</summary>
       <div class="table-wrap"><table class="ansi-reference-table">
         <thead>
-          <tr><th>Length of Pole (ft)</th>${classes.map(item => `<th>${escapeHtml(item)}</th>`).join("")}</tr>
+          <tr><th>Length of Pole (ft)</th><th>Approx. Groundline Distance from Butt (ft)</th>${classes.map(item => `<th>${escapeHtml(item)}</th>`).join("")}</tr>
         </thead>
         <tbody>${heights.map(height => `
           <tr>
             <td><strong>${height}</strong></td>
+            <td>${escapeHtml(groundline[height] ?? "-")}</td>
             ${(table[height] || []).map(value => `<td>${value === null || value === undefined ? "-" : escapeHtml(value)}</td>`).join("")}
           </tr>
         `).join("")}</tbody>

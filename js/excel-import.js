@@ -146,6 +146,30 @@
     120: [85, 81, 77.5, 74, 70, 66.5, 62.5, 59, null, null, null, null, null, null, null],
     125: [86, 82.5, 78.5, 75, 71, 67.5, 63.5, 59.5, null, null, null, null, null, null, null]
   };
+  const ANSI_APPROX_GROUNDLINE_DISTANCE = {
+    20: 4,
+    25: 5,
+    30: 5.5,
+    35: 6,
+    40: 6,
+    45: 6.5,
+    50: 7,
+    55: 7.5,
+    60: 8,
+    65: 8.5,
+    70: 9,
+    75: 9.5,
+    80: 10,
+    85: 10.5,
+    90: 11,
+    95: 11,
+    100: 11,
+    105: 12,
+    110: 12,
+    115: 12,
+    120: 12,
+    125: 12
+  };
 
   function parseNumber(value) {
     if (isBlank(value)) return null;
@@ -754,6 +778,7 @@
     directionFromBearingDisplay,
     recalculatePoleClassCheck,
     ANSI_POLE_CLASSES,
-    ANSI_CLASS_TABLE
+    ANSI_CLASS_TABLE,
+    ANSI_APPROX_GROUNDLINE_DISTANCE
   };
 })(window);

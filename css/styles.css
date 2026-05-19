@@ -680,7 +680,10 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 }
 
 .pole-class-diameter-input {
-  min-width: 110px;
+  min-width: 72px;
+  max-width: 92px;
+  padding-left: 8px;
+  padding-right: 8px;
   text-align: center;
 }
 
