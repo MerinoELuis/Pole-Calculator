@@ -671,12 +671,42 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 }
 
 .pole-class-table {
-  min-width: 1180px;
+  min-width: 1380px;
 }
 
 .pole-class-table th,
 .pole-class-table td {
   text-align: center;
+}
+
+.pole-class-diameter-input {
+  min-width: 110px;
+  text-align: center;
+}
+
+.reference-table-panel {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.reference-table-panel summary {
+  padding: 12px 14px;
+  color: #334155;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ansi-reference-table {
+  min-width: 1280px;
+}
+
+.ansi-reference-table th,
+.ansi-reference-table td {
+  text-align: center;
+  font-size: .78rem;
 }
 
 .danger-row,

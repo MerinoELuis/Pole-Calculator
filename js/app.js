@@ -576,12 +576,14 @@
       </div>
       <div class="table-wrap"><table class="pole-class-table">
         <thead><tr>
-          <th>Pole ID</th><th>Tip</th><th>Circumference</th><th>Imported Type</th><th>Calc Height</th><th>Calc Class</th><th>Expected Type</th><th>Status</th>
+          <th>Pole ID</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Calc Circ.</th><th>Imported Type</th><th>Calc Height</th><th>Calc Class</th><th>Expected Type</th><th>Status</th>
         </tr></thead>
-        <tbody>${rows.map(row => `
+        <tbody>${rows.map((row, index) => `
           <tr class="${row.status === "OK" ? "changed-row" : "warning-row"}">
             <td><strong>${poleLink(row.poleId)}</strong></td>
             <td>${escapeHtml(row.tip || "")}</td>
+            <td>${escapeHtml(row.importedCircumference || "")}</td>
+            <td><input class="input pole-class-diameter-input" data-scope="poleClassCheck" data-index="${index}" data-field="manualDiameter" value="${escapeHtml(row.manualDiameter || "")}" placeholder="${escapeHtml(row.importedDiameter || "Diameter")}" /></td>
             <td>${escapeHtml(row.circumference || "")}</td>
             <td>${escapeHtml(row.importedType || "")}</td>
             <td>${escapeHtml(row.calculatedHeight || "")}</td>
@@ -591,7 +593,29 @@
           </tr>
         `).join("")}</tbody>
       </table></div>`;
+    els.poleClassResults.insertAdjacentHTML("beforeend", renderAnsiReferenceTable());
+    wireEditableEvents(els.poleClassResults);
     bindScrollLinks(els.poleClassResults);
+  }
+
+  function renderAnsiReferenceTable() {
+    const classes = global.ExcelImport?.ANSI_POLE_CLASSES || [];
+    const table = global.ExcelImport?.ANSI_CLASS_TABLE || {};
+    const heights = Object.keys(table).map(Number).sort((a, b) => a - b);
+    return `<details class="reference-table-panel" open>
+      <summary>ANSI O5.1-2015 Reference Table</summary>
+      <div class="table-wrap"><table class="ansi-reference-table">
+        <thead>
+          <tr><th>Length of Pole (ft)</th>${classes.map(item => `<th>${escapeHtml(item)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>${heights.map(height => `
+          <tr>
+            <td><strong>${height}</strong></td>
+            ${(table[height] || []).map(value => `<td>${value === null || value === undefined ? "-" : escapeHtml(value)}</td>`).join("")}
+          </tr>
+        `).join("")}</tbody>
+      </table></div>
+    </details>`;
   }
 
   function renderActiveView() {
@@ -1256,6 +1280,16 @@
     if (scope === "settings") {
       S.updateSetting(field, value);
       global.Calculations.recalculateAll();
+    }
+
+    if (scope === "poleClassCheck") {
+      const rows = S.getState().poleClassChecks || [];
+      const index = Number(el.dataset.index);
+      if (Number.isInteger(index) && rows[index]) {
+        rows[index] = global.ExcelImport.recalculatePoleClassCheck({ ...rows[index], [field]: value });
+      }
+      renderPoleClassResults();
+      return;
     }
 
     const affectedPoleIds = affectedPoleIdsForElement(el, scope);

@@ -185,45 +185,64 @@
     return match || null;
   }
 
+  function recalculatePoleClassCheck(data = {}) {
+    const importedType = String(data.importedType || "").trim();
+    const parsedType = parseImportedType(importedType);
+    const manualDiameter = parseNumber(data.manualDiameter);
+    const importedDiameter = parseNumber(data.importedDiameter);
+    const importedCircumference = parseNumber(data.importedCircumference ?? data.circumference);
+    const diameterForCalc = manualDiameter;
+    const circumference = diameterForCalc === null
+      ? (importedCircumference ?? (importedDiameter === null ? null : Number((importedDiameter * 3.14).toFixed(2))))
+      : Number((diameterForCalc * 3.14).toFixed(2));
+    const calculatedHeight = roundPoleLengthFromTip(data.tip);
+    const tableMatch = classFromAnsiTable(calculatedHeight, circumference);
+    const calculatedClass = tableMatch?.classValue || "";
+    const species = parsedType.species || "Pole";
+    const expectedType = calculatedClass && calculatedHeight ? `${species} > ${calculatedClass} > ${calculatedHeight}` : "";
+    const importedClass = String(parsedType.classValue || "").toUpperCase();
+    const expectedClass = String(calculatedClass || "").toUpperCase();
+    const issues = [];
+
+    if (!data.tip) issues.push("Missing Tip");
+    if (circumference === null) issues.push("Missing Circumference");
+    if (!importedType) issues.push("Missing Type");
+    if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No ANSI height row");
+    if (data.tip && circumference !== null && !tableMatch) issues.push("No table match");
+    if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
+    if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
+
+    return {
+      ...data,
+      manualDiameter: String(data.manualDiameter || ""),
+      circumference: circumference === null ? "" : String(circumference),
+      calculatedHeight: calculatedHeight || "",
+      calculatedClass,
+      expectedType,
+      status: issues.length ? issues.join(", ") : "OK",
+      tableMinimumCircumference: tableMatch?.minimum || "",
+      circumferenceSource: diameterForCalc === null ? (importedCircumference === null ? "Imported diameter" : "Collection") : "Manual diameter"
+    };
+  }
+
   function buildPoleClassChecks(collectionRows) {
     return collectionRows.map(row => {
       const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
       if (!poleId) return null;
       const importedType = String(pick(row, ["Type", "Pole Type"])).trim();
-      const parsedType = parseImportedType(importedType);
       const tipHeight = heightFromRow(row, ["Tip.display", "Tip Display"], ["Tip"]);
       const circumferenceRaw = pick(row, ["Circumference", "Circumfer", "Circumference (\")", "Ground Circumference"], { contains: true });
       const diameterRaw = pick(row, ["Diameter", "Groundline Diameter"], { contains: true });
-      const circumference = parseNumber(circumferenceRaw) ?? (parseNumber(diameterRaw) === null ? null : Number((parseNumber(diameterRaw) * 3.14).toFixed(2)));
-      const calculatedHeight = roundPoleLengthFromTip(tipHeight);
-      const tableMatch = classFromAnsiTable(calculatedHeight, circumference);
-      const calculatedClass = tableMatch?.classValue || "";
-      const species = parsedType.species || "Pole";
-      const expectedType = calculatedClass && calculatedHeight ? `${species} > ${calculatedClass} > ${calculatedHeight}` : "";
-      const importedClass = String(parsedType.classValue || "").toUpperCase();
-      const expectedClass = String(calculatedClass || "").toUpperCase();
-      const issues = [];
 
-      if (!tipHeight) issues.push("Missing Tip");
-      if (circumference === null) issues.push("Missing Circumference");
-      if (!importedType) issues.push("Missing Type");
-      if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No ANSI height row");
-      if (tipHeight && circumference !== null && !tableMatch) issues.push("No table match");
-      if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
-      if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
-
-      return {
+      return recalculatePoleClassCheck({
         poleId,
         tip: tipHeight,
-        circumference: circumference === null ? "" : String(circumference),
+        importedCircumference: parseNumber(circumferenceRaw) === null ? "" : String(parseNumber(circumferenceRaw)),
+        importedDiameter: parseNumber(diameterRaw) === null ? "" : String(parseNumber(diameterRaw)),
+        manualDiameter: "",
         importedType,
-        calculatedHeight: calculatedHeight || "",
-        calculatedClass,
-        expectedType,
-        status: issues.length ? issues.join(", ") : "OK",
-        tableMinimumCircumference: tableMatch?.minimum || "",
         source: "Collection"
-      };
+      });
     }).filter(Boolean);
   }
 
@@ -732,6 +751,9 @@
     pick,
     findSheet,
     normalizeHeaderName,
-    directionFromBearingDisplay
+    directionFromBearingDisplay,
+    recalculatePoleClassCheck,
+    ANSI_POLE_CLASSES,
+    ANSI_CLASS_TABLE
   };
 })(window);
