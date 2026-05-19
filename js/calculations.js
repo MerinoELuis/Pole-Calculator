@@ -457,7 +457,7 @@
       });
     }
 
-    if (midspan !== null && maxMS !== null && getSettingPosition() === "TOP_COMM") {
+    if (midspan !== null && maxMS !== null && getSettingPosition() === "TOP_COMM" && span?.fromPole === sc.poleId) {
       const spanMidspans = S().getSpanCommsForSpan(sc.spanId)
         .map(getMidspanInchesForComm)
         .filter(value => value !== null);
@@ -469,12 +469,17 @@
 
     if (poleHeight !== null) {
       const poleClearance = getPoleCommCommClearance();
+      const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
+      const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
       S().getSpanCommsForPole(sc.poleId).forEach(other => {
         if (spanCommKey(other) === spanCommKey(sc)) return;
         const otherOwner = commOwnerLabel(other);
-        const sameOwner = otherOwner && otherOwner === owner;
+        const sameOwner = normalizeOwnerForMatch(otherOwner) && normalizeOwnerForMatch(otherOwner) === normalizeOwnerForMatch(owner);
         const otherEffective = getEffectiveCommHOA(other);
-        if (sameOwner && normalizedHeightLabelForCalc(otherEffective) === normalizedHeightLabelForCalc(getEffectiveCommHOA(sc))) return;
+        const isSamePhysicalComm = sameOwner
+          && normalizedHeightLabelForCalc(other.existingHOA) === thisExisting
+          && normalizedHeightLabelForCalc(otherEffective) === thisEffective;
+        if (isSamePhysicalComm) return;
         const otherHeight = H().parseHeight(getEffectiveCommHOA(other));
         if (otherHeight === null) return;
         const diff = Math.abs(poleHeight - otherHeight);
@@ -791,11 +796,15 @@
 
   function autoCalcBuildStackPlan(groups, topCommTarget) {
     if (topCommTarget === null || !groups.length) return [];
-    let cursor = topCommTarget;
-    return groups.map((group, index) => {
-      if (index > 0) cursor -= autoCalcGapBetweenGroups(groups[index - 1], group);
-      return { group, targetInches: cursor };
+    const plan = [];
+    groups.forEach((group, index) => {
+      const previous = plan[index - 1];
+      const stackTarget = previous ? previous.targetInches - autoCalcGapBetweenGroups(previous.group, group) : topCommTarget;
+      const midspanTarget = autoCalcGroupMidspanTarget(group);
+      const targetInches = Math.round(midspanTarget === null ? stackTarget : Math.min(stackTarget, midspanTarget));
+      plan.push({ group, targetInches });
     });
+    return plan;
   }
 
   function autoCalcPlanMovesComm(plan) {
@@ -803,6 +812,36 @@
       const existing = H().parseHeight(row.existingHOA);
       return existing !== null && existing !== item.targetInches;
     }));
+  }
+
+  function autoCalcGroupMidspanTarget(group) {
+    // A comm movement changes the related midspan by half of the pole movement.
+    // If a row is too close to power at midspan, cap the local HOA so the next
+    // recalculation lowers that midspan enough. For the proposing side of a
+    // span, TOP_COMM also keeps the configured midspan comm-comm gap available
+    // above the current top comm.
+    let target = null;
+    group.rows.forEach(row => {
+      const span = S().getSpan(row.spanId);
+      const currentHOA = H().parseHeight(getEffectiveCommHOA(row));
+      const currentMS = getMidspanInchesForComm(row);
+      const maxMS = H().parseHeight(span?.midspanMaxCommHeight || "");
+      if (currentHOA === null || currentMS === null || maxMS === null) return;
+
+      let requiredMS = maxMS;
+      if (getSettingPosition() === "TOP_COMM" && span?.fromPole === row.poleId) {
+        const spanMidspans = S().getSpanCommsForSpan(row.spanId)
+          .map(getMidspanInchesForComm)
+          .filter(value => value !== null);
+        const isTopCommAtMidspan = spanMidspans.length && currentMS === Math.max(...spanMidspans);
+        if (isTopCommAtMidspan) requiredMS = Math.min(requiredMS, maxMS - getMidspanCommCommClearance());
+      }
+
+      if (currentMS <= requiredMS) return;
+      const localTarget = currentHOA - ((currentMS - requiredMS) * 2);
+      target = target === null ? localTarget : Math.min(target, localTarget);
+    });
+    return target;
   }
 
   function autoCalcProposedCandidates(groups, maxPole, hasCommProblems, hasSpaceAbove, aboveProposed) {
@@ -823,7 +862,7 @@
       values.push(rounded);
     };
 
-    if (!hasCommProblems && hasSpaceAbove) add(aboveProposed);
+    if (hasSpaceAbove) add(aboveProposed);
     add(maxPole);
     groups
       .map(group => group.existingInches)
@@ -854,16 +893,35 @@
     });
   }
 
-  function autoCalcResultIsSafe(affectedPoleIds) {
+  function autoCalcBadCommKeys(state) {
+    return new Set(Object.values(state?.spanComms || {})
+      .filter(row => row.flaggingStatus === "PROBLEM" || row.clearanceMSStatus === "PROBLEM")
+      .map(row => S().keyForSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "")));
+  }
+
+  function autoCalcBadSpanSideKeys(state) {
+    return new Set(Object.values(state?.spanSides || {})
+      .filter(side => side.proposedHOA && (side.proposedFlaggingStatus === "PROBLEM" || side.clearanceMSStatus === "PROBLEM"))
+      .map(side => S().keyForSpanSide(side.spanId, side.poleId)));
+  }
+
+  function autoCalcResultIsSafe(affectedPoleIds, beforeState = null, primaryPoleId = "") {
+    const beforeBadComms = autoCalcBadCommKeys(beforeState);
+    const beforeBadSides = autoCalcBadSpanSideKeys(beforeState);
     const affected = new Set(affectedPoleIds);
     const rows = Object.values(S().getState().spanComms || {}).filter(row => affected.has(row.poleId));
-    const badComm = rows.find(row => row.flaggingStatus === "PROBLEM" || row.clearanceMSStatus === "PROBLEM");
+    const badComm = rows.find(row => {
+      if (row.flaggingStatus !== "PROBLEM" && row.clearanceMSStatus !== "PROBLEM") return false;
+      const key = S().keyForSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
+      return row.poleId === primaryPoleId || !beforeBadComms.has(key);
+    });
     if (badComm) return { ok: false, reason: badComm.flaggingMessage || badComm.clearanceMSMessage || "Comm clearance issue." };
 
     const badProposed = Object.values(S().getState().spanSides || {}).find(side =>
       affected.has(side.poleId)
       && side.proposedHOA
       && (side.proposedFlaggingStatus === "PROBLEM" || side.clearanceMSStatus === "PROBLEM")
+      && (side.poleId === primaryPoleId || !beforeBadSides.has(S().keyForSpanSide(side.spanId, side.poleId)))
     );
     if (badProposed) return { ok: false, reason: badProposed.proposedFlaggingMessage || badProposed.clearanceMSMessage || "Proposed clearance issue." };
     return { ok: true, reason: "" };
@@ -903,14 +961,10 @@
     // Do not overwrite user-entered HOA changes. A candidate can still pass if
     // it only fills Proposed and the existing manual comm moves already work.
     if (hasManualChanges && autoCalcPlanMovesComm(plan)) return { ok: false, reason: "Existing HOA Change already set." };
-    if (requireMoveBecauseOfProblems && plan.length && !plan.some(item => item.targetInches > item.group.existingInches)) {
-      return { ok: false, reason: "Comm violations cannot be raised safely." };
-    }
-
     autoCalcApplyPlan(plan);
     const affected = autoCalcAffectedPoleIds(poleId);
     affected.forEach(recalculateSpansForPole);
-    const safe = autoCalcResultIsSafe(affected);
+    const safe = autoCalcResultIsSafe(affected, beforePole, poleId);
     return safe.ok ? { ok: true, reason: "" } : safe;
   }
 
