@@ -568,18 +568,23 @@
       els.poleClassResults.innerHTML = `<div class="detail-placeholder">Importa un Excel con datos en Collection para revisar Height / Class.</div>`;
       return;
     }
+    const heightIssueCount = rows.filter(row => poleClassSeverity(row) === "critical").length;
+    const classIssueCount = rows.filter(row => poleClassSeverity(row) === "warning").length;
     const issueCount = rows.filter(row => row.status !== "OK").length;
     els.poleClassResults.innerHTML = `
       <div class="pole-class-summary">
         <span class="badge changed">OK ${rows.length - issueCount}</span>
-        <span class="badge ${issueCount ? "danger" : "changed"}">Issues ${issueCount}</span>
+        <span class="badge danger">Height ${heightIssueCount}</span>
+        <span class="badge warning">Class ${classIssueCount}</span>
       </div>
       <div class="table-wrap"><table class="pole-class-table">
         <thead><tr>
           <th>Pole ID</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Calc Circ.</th><th>Imported Type</th><th>Calc Height</th><th>Calc Class</th><th>Expected Type</th><th>Status</th>
         </tr></thead>
-        <tbody>${rows.map((row, index) => `
-          <tr class="${row.status === "OK" ? "changed-row" : "warning-row"}">
+        <tbody>${rows.map((row, index) => {
+          const severity = poleClassSeverity(row);
+          return `
+          <tr class="${poleClassRowClass(severity)}">
             <td><strong>${poleLink(row.poleId)}</strong></td>
             <td>${escapeHtml(row.tip || "")}</td>
             <td>${escapeHtml(row.importedCircumference || "")}</td>
@@ -589,13 +594,36 @@
             <td>${escapeHtml(row.calculatedHeight || "")}</td>
             <td>${escapeHtml(row.calculatedClass || "")}</td>
             <td>${escapeHtml(row.expectedType || "")}</td>
-            <td>${row.status === "OK" ? `<span class="badge changed">OK</span>` : `<span class="badge danger">${escapeHtml(row.status)}</span>`}</td>
+            <td>${renderPoleClassStatus(row, severity)}</td>
           </tr>
-        `).join("")}</tbody>
+        `; }).join("")}</tbody>
       </table></div>`;
     els.poleClassResults.insertAdjacentHTML("beforeend", renderAnsiReferenceTable());
     wireEditableEvents(els.poleClassResults);
     bindScrollLinks(els.poleClassResults);
+  }
+
+  function poleClassSeverity(row) {
+    const status = String(row?.status || "");
+    if (status === "OK") return "ok";
+    if (/Height mismatch|Missing Tip|No ANSI height row/i.test(status)) return "critical";
+    return "warning";
+  }
+
+  function poleClassRowClass(severity) {
+    if (severity === "ok") return "changed-row";
+    if (severity === "critical") return "pole-class-critical-row";
+    return "pole-class-warning-row";
+  }
+
+  function renderPoleClassStatus(row, severity) {
+    if (severity === "ok") return `<span class="badge changed">OK</span>`;
+    const label = severity === "critical" ? "Height Critical" : "Review Class";
+    const badgeClass = severity === "critical" ? "danger" : "warning";
+    return `<div class="flagging-cell">
+      <span class="badge ${badgeClass}">${label}</span>
+      <div class="flagging-message">${escapeHtml(row.status)}</div>
+    </div>`;
   }
 
   function renderAnsiReferenceTable() {

@@ -687,6 +687,14 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   text-align: center;
 }
 
+.pole-class-critical-row {
+  background: #fee2e2;
+}
+
+.pole-class-warning-row {
+  background: #fff7ed;
+}
+
 .reference-table-panel {
   margin-top: 14px;
   border: 1px solid var(--line);
