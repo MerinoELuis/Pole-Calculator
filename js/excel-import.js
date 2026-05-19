@@ -193,7 +193,10 @@
     const tipInches = H().parseHeight(tipHeight);
     if (tipInches === null) return "";
     const totalFeet = (tipInches / 12) * 1.10 + 2;
-    return Math.ceil(totalFeet / 5) * 5;
+    // The check should estimate the closest standard pole length, not force a
+    // jump to the next size every time the embedment calculation lands slightly
+    // above a 5 ft boundary.
+    return Math.round(totalFeet / 5) * 5;
   }
 
   function classFromAnsiTable(height, circumference) {
