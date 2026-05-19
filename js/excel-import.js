@@ -193,10 +193,12 @@
     const tipInches = H().parseHeight(tipHeight);
     if (tipInches === null) return "";
     const totalFeet = (tipInches / 12) * 1.10 + 2;
-    // The check should estimate the closest standard pole length, not force a
-    // jump to the next size every time the embedment calculation lands slightly
-    // above a 5 ft boundary.
-    return Math.round(totalFeet / 5) * 5;
+    // IKE estimates can land just above a standard length because embedment is
+    // inferred. Keep tiny overages on the lower length, but move up once the
+    // estimate is meaningfully past that boundary.
+    const lower = Math.floor(totalFeet / 5) * 5;
+    const overLower = totalFeet - lower;
+    return overLower <= 1 ? lower : lower + 5;
   }
 
   function classFromAnsiTable(height, circumference) {
