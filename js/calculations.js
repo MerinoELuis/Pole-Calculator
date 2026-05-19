@@ -373,7 +373,6 @@
     const span = S().getSpan(sc.spanId);
     const midspan = H().parseHeight(calculatedMidspan || displayMidspanForComm(sc));
     const maxMS = H().parseHeight(span?.midspanMaxCommHeight || "");
-    const commClearance = getMidspanCommCommClearance();
 
     if (midspan === null) {
       return {
@@ -395,15 +394,17 @@
       };
     }
 
-    const requiredWithClearance = midspan + commClearance;
-    const ok = requiredWithClearance <= maxMS;
+    // span.midspanMaxCommHeight already equals Low Power MS minus the required
+    // power-to-comm clearance. The comm only has to be at or below this ceiling;
+    // comm-to-comm spacing is validated separately in evaluateCommFlagging().
+    const ok = midspan <= maxMS;
     return {
       msProposed: format(midspan),
       finalMidspan: format(midspan),
       clearanceMSStatus: ok ? "OK" : "PROBLEM",
       clearanceMSMessage: ok
-        ? `${format(midspan)} + ${format(commClearance)} <= ${format(maxMS)}.`
-        : `${format(midspan)} + ${format(commClearance)} supera el límite ${format(maxMS)}.`,
+        ? `${format(midspan)} <= ${format(maxMS)}.`
+        : `${format(midspan)} supera el límite ${format(maxMS)}.`,
       clearanceMSIssue: !ok
     };
   }
@@ -505,13 +506,28 @@
     const issues = [];
 
     S().getSpanCommsForPole(spanSide.poleId)
-      .map(sc => ({ owner: commOwnerLabel(sc) || "sin owner", height: H().parseHeight(getEffectiveCommHOA(sc)) }))
-      .filter(item => item.height !== null)
+      .map(sc => ({
+        owner: commOwnerLabel(sc) || "sin owner",
+        existing: H().parseHeight(sc.existingHOA || ""),
+        effective: H().parseHeight(getEffectiveCommHOA(sc)),
+        moved: Boolean(sc.existingHOAChange)
+      }))
+      .filter(item => item.effective !== null || item.existing !== null)
       .forEach(item => {
-        const diff = Math.abs(proposed - item.height);
-        if (diff === 0) return;
-        if (diff < commRequired) {
-          issues.push(`Proposed ${format(proposed)} no respeta Pole · Comm-comm ${format(commRequired)} contra ${item.owner} ${format(item.height)}.`);
+        if (item.effective !== null) {
+          const diff = Math.abs(proposed - item.effective);
+          if (diff === 0 && !item.moved) {
+            issues.push(`Proposed ${format(proposed)} ocupa el mismo HOA que ${item.owner}.`);
+          }
+          if (diff > 0 && diff < commRequired) {
+            issues.push(`Proposed ${format(proposed)} no respeta Pole · Comm-comm ${format(commRequired)} contra ${item.owner} ${format(item.effective)}.`);
+          }
+        }
+        if (item.existing !== null) {
+          const boltDiff = Math.abs(proposed - item.existing);
+          if (boltDiff > 0 && boltDiff < boltRequired) {
+            issues.push(`Proposed ${format(proposed)} no respeta Pole · Bolt-bolt ${format(boltRequired)} contra Existing HOA ${format(item.existing)}.`);
+          }
         }
       });
 
@@ -789,6 +805,35 @@
     }));
   }
 
+  function autoCalcProposedCandidates(groups, maxPole, hasCommProblems, hasSpaceAbove, aboveProposed) {
+    // Candidate order matters:
+    // 1. If the existing stack is healthy and there is space above, try the
+    //    cleanest attachment first: top comm + Pole · Comm-comm.
+    // 2. Try the pole maximum so violation cases can use all available room.
+    // 3. Try existing HOA heights exactly. Reusing the same bolt elevation is
+    //    allowed only if the comm at that elevation is moved away.
+    // 4. Try one bolt clearance below the maximum as a last simple fallback.
+    const values = [];
+    const seen = new Set();
+    const add = value => {
+      if (value === null || value === undefined || !Number.isFinite(value) || value < 0 || value > maxPole) return;
+      const rounded = Math.round(value);
+      if (seen.has(rounded)) return;
+      seen.add(rounded);
+      values.push(rounded);
+    };
+
+    if (!hasCommProblems && hasSpaceAbove) add(aboveProposed);
+    add(maxPole);
+    groups
+      .map(group => group.existingInches)
+      .filter(value => value !== null && value <= maxPole)
+      .sort((a, b) => b - a)
+      .forEach(add);
+    add(maxPole - getPoleBoltBoltClearance());
+    return values;
+  }
+
   function autoCalcAffectedPoleIds(poleId) {
     const ids = new Set([poleId]);
     S().getConnectedSpans(poleId).forEach(span => {
@@ -800,18 +845,6 @@
       if (wireIds.has(row.wireId)) ids.add(row.poleId);
     });
     return Array.from(ids).filter(Boolean);
-  }
-
-  function autoCalcMarkGroups(groups, status, message) {
-    groups.forEach(group => {
-      group.rows.forEach(row => {
-        S().upsertSpanComm({
-          ...row,
-          autoCalcStatus: status,
-          autoCalcMessage: message
-        });
-      });
-    });
   }
 
   function autoCalcClearExistingMarks() {
@@ -851,11 +884,43 @@
     });
   }
 
+  function autoCalcTryCandidate(beforePole, poleId, proposedInches, requireMoveBecauseOfProblems = false, hasManualChanges = false) {
+    // Each candidate is tested against a clean copy of the pole state. That
+    // lets the solver try a proposed height, calculate any required comm stack,
+    // run the normal validations, and throw that attempt away if it fails.
+    S().setState(beforePole);
+    const groups = autoCalcGroupsForPole(poleId);
+    const proposedSpans = autoCalcProposedSpansForPole(poleId);
+    if (!proposedSpans.length) return { ok: false, reason: "No proposed spans." };
+
+    autoCalcSetProposed(poleId, proposedSpans, proposedInches);
+    const topExisting = groups.length ? Math.max(...groups.map(group => group.existingInches)) : null;
+    const topCommTarget = groups.length ? proposedInches - getPoleCommCommClearance() : null;
+    const mustMoveComms = groups.length && (requireMoveBecauseOfProblems || (topExisting !== null && topExisting > topCommTarget));
+    const plan = mustMoveComms ? autoCalcBuildStackPlan(groups, topCommTarget) : [];
+
+    if (!plan || plan.some(item => item.targetInches < 0)) return { ok: false, reason: "No safe pole stack found." };
+    // Do not overwrite user-entered HOA changes. A candidate can still pass if
+    // it only fills Proposed and the existing manual comm moves already work.
+    if (hasManualChanges && autoCalcPlanMovesComm(plan)) return { ok: false, reason: "Existing HOA Change already set." };
+    if (requireMoveBecauseOfProblems && plan.length && !plan.some(item => item.targetInches > item.group.existingInches)) {
+      return { ok: false, reason: "Comm violations cannot be raised safely." };
+    }
+
+    autoCalcApplyPlan(plan);
+    const affected = autoCalcAffectedPoleIds(poleId);
+    affected.forEach(recalculateSpansForPole);
+    const safe = autoCalcResultIsSafe(affected);
+    return safe.ok ? { ok: true, reason: "" } : safe;
+  }
+
   function autoCalculateMovements() {
     const summary = { applied: 0, manual: 0, skipped: 0 };
     if (getSettingPosition() !== "TOP_COMM") {
       return { ...summary, disabled: true };
     }
+    // Old auto/manual labels were only helper metadata. Clear them every run so
+    // the UI only shows real clearance flagging, not solver bookkeeping.
     autoCalcClearExistingMarks();
     recalculateAll();
     const poleIds = Object.keys(S().getState().poles || {});
@@ -871,7 +936,6 @@
       }
       if (maxPole === null) {
         summary.manual += 1;
-        if (groups.length) autoCalcMarkGroups(groups, "MANUAL", "Auto manual: missing Max Height on Pole.");
         return;
       }
 
@@ -880,55 +944,15 @@
       const topExisting = groups.length ? Math.max(...groups.map(group => group.existingInches)) : null;
       const aboveProposed = topExisting === null ? maxPole : topExisting + getPoleCommCommClearance();
       const hasSpaceAbove = aboveProposed <= maxPole;
-      const proposedInches = (!hasCommProblems && hasSpaceAbove) ? aboveProposed : maxPole;
-      const topCommTarget = groups.length ? proposedInches - getPoleCommCommClearance() : null;
-      const plan = groups.length && (!hasSpaceAbove || hasCommProblems)
-        ? autoCalcBuildStackPlan(groups, topCommTarget)
-        : [];
 
-      if (hasManualChanges && autoCalcPlanMovesComm(plan)) {
-        autoCalcSetProposed(poleId, proposedSpans, proposedInches);
-        const affected = autoCalcAffectedPoleIds(poleId);
-        affected.forEach(recalculateSpansForPole);
-        const safeWithManual = autoCalcResultIsSafe(affected);
-        if (safeWithManual.ok) {
-          summary.applied += 1;
-          autoCalcMarkGroups(groups, "MANUAL", "Auto proposed only: existing HOA Change already set.");
-          return;
-        }
-        S().setState(beforePole);
-        autoCalcMarkGroups(autoCalcGroupsForPole(poleId), "MANUAL", "Auto manual: existing HOA Change already set.");
-        recalculateSpansForPole(poleId);
-        summary.manual += 1;
-        return;
-      }
-
-      if (!plan || plan.some(item => item.targetInches < 0)) {
-        summary.manual += 1;
-        autoCalcMarkGroups(groups, "MANUAL", "Auto manual: no safe pole stack found.");
-        return;
-      }
-
-      if (hasCommProblems && plan.length && !plan.some(item => item.targetInches > item.group.existingInches)) {
-        summary.manual += 1;
-        autoCalcMarkGroups(groups, "MANUAL", "Auto manual: comm violations cannot be raised safely.");
-        return;
-      }
-
-      autoCalcSetProposed(poleId, proposedSpans, proposedInches);
-      autoCalcApplyPlan(plan);
-
-      const affected = autoCalcAffectedPoleIds(poleId);
-      affected.forEach(recalculateSpansForPole);
-      const safe = autoCalcResultIsSafe(affected);
-      if (safe.ok) {
+      const candidates = autoCalcProposedCandidates(groups, maxPole, hasCommProblems, hasSpaceAbove, aboveProposed);
+      const solved = candidates.some(candidate => autoCalcTryCandidate(beforePole, poleId, candidate, hasCommProblems, hasManualChanges).ok);
+      if (solved) {
         summary.applied += 1;
         return;
       }
 
       S().setState(beforePole);
-      const restoredGroups = autoCalcGroupsForPole(poleId);
-      autoCalcMarkGroups(restoredGroups, "MANUAL", `Auto manual: ${safe.reason}`);
       recalculateSpansForPole(poleId);
       summary.manual += 1;
     });

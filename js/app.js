@@ -344,14 +344,13 @@
 
   function renderCommFlagging(group) {
     const messages = Array.from(new Set(group.rows
-      .flatMap(row => [String(row.flaggingMessage || "").trim(), String(row.autoCalcMessage || "").trim()])
+      .map(row => String(row.flaggingMessage || "").trim())
       .filter(message => message && message !== "OK")));
     const hasProblem = group.rows.some(row => row.flaggingStatus === "PROBLEM");
-    const hasManualAuto = group.rows.some(row => row.autoCalcStatus === "MANUAL");
     const hasMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
-    if (!messages.length && !hasProblem && !hasMissing && !hasManualAuto) return `<span class="badge changed">OK</span>`;
+    if (!messages.length && !hasProblem && !hasMissing) return `<span class="badge changed">OK</span>`;
     const badgeClass = hasProblem ? "danger" : "warning";
-    const label = hasProblem ? "Clearance Issue" : hasManualAuto ? "Manual" : "Missing Data";
+    const label = hasProblem ? "Clearance Issue" : "Missing Data";
     return `<div class="flagging-cell">
       <span class="badge ${badgeClass}">${label}</span>
       <div class="flagging-message">${messages.map(escapeHtml).join(" ")}</div>
