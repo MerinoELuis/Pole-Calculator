@@ -720,15 +720,9 @@
       .sort((a, b) => b.existingInches - a.existingInches);
   }
 
-  function autoCalcPoleAnchor(poleId) {
+  function autoCalcMaxPole(poleId) {
     const pole = S().getPole(poleId);
-    const maxPole = H().parseHeight(pole?.maxCommHeight || "");
-    if (maxPole === null) return null;
-    const proposedHeights = S().getSpanSidesForPole(poleId)
-      .map(side => H().parseHeight(side.proposedHOA || ""))
-      .filter(value => value !== null);
-    if (!proposedHeights.length) return maxPole;
-    return Math.min(maxPole, Math.min(...proposedHeights) - getPoleCommCommClearance());
+    return H().parseHeight(pole?.maxCommHeight || "");
   }
 
   function autoCalcGapBetweenGroups(upper, lower) {
@@ -736,26 +730,63 @@
     return getPoleCommCommClearance();
   }
 
-  function autoCalcPoleNeedsMovement(poleId, groups, anchor) {
-    const hasProblems = groups.some(group => group.rows.some(row =>
+  function autoCalcPoleHasCommProblems(groups) {
+    return groups.some(group => group.rows.some(row =>
       row.flaggingStatus === "PROBLEM" || row.clearanceMSStatus === "PROBLEM"
     ));
-    const topExisting = groups.length ? Math.max(...groups.map(group => group.existingInches)) : null;
-    const proposedHeights = S().getSpanSidesForPole(poleId)
-      .map(side => H().parseHeight(side.proposedHOA || ""))
-      .filter(value => value !== null);
-    const noRoomForProposed = proposedHeights.length && topExisting !== null && anchor !== null && topExisting > anchor;
-    const aboveAllowedStackTop = topExisting !== null && anchor !== null && topExisting > anchor;
-    return hasProblems || noRoomForProposed || aboveAllowedStackTop;
   }
 
-  function autoCalcBuildStackPlan(groups, anchor) {
-    if (anchor === null || !groups.length) return null;
-    let cursor = anchor;
+  function autoCalcHasRealMidspan(spanId) {
+    return S().getSpanCommsForSpan(spanId).some(row => getImportedMidspanInchesForComm(row) !== null)
+      || S().getSpanSidesForSpan(spanId).some(side => parseMidspanValue(side.ocalcMS || side.proposedMidspan || side.msProposed || "") !== null);
+  }
+
+  function autoCalcProposedSpansForPole(poleId) {
+    const seen = new Set();
+    return S().getConnectedSpans(poleId)
+      .filter(span => span.fromPole === poleId)
+      .filter(span => autoCalcHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => {
+        const key = `${span.fromPole || ""}->${span.toPole || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function autoCalcSetProposed(poleId, spans, proposedInches) {
+    const proposed = format(proposedInches);
+    spans.forEach(span => {
+      const side = S().getSpanSide(span.spanId, poleId) || S().upsertSpanSide({ spanId: span.spanId, poleId });
+      S().upsertSpanSide({
+        ...side,
+        proposedHOA: proposed,
+        clearanceFixReadyAt: 0,
+        pendingMidspanFinal: "",
+        msProposed: "",
+        finalMidspan: "",
+        clearanceMSStatus: "",
+        clearanceMSMessage: "",
+        clearanceMSReason: "",
+        clearanceMSIssue: false
+      });
+    });
+  }
+
+  function autoCalcBuildStackPlan(groups, topCommTarget) {
+    if (topCommTarget === null || !groups.length) return [];
+    let cursor = topCommTarget;
     return groups.map((group, index) => {
       if (index > 0) cursor -= autoCalcGapBetweenGroups(groups[index - 1], group);
       return { group, targetInches: cursor };
     });
+  }
+
+  function autoCalcPlanMovesComm(plan) {
+    return plan.some(item => item.group.rows.some(row => {
+      const existing = H().parseHeight(row.existingHOA);
+      return existing !== null && existing !== item.targetInches;
+    }));
   }
 
   function autoCalcAffectedPoleIds(poleId) {
@@ -805,52 +836,87 @@
     return { ok: true, reason: "" };
   }
 
+  function autoCalcApplyPlan(plan) {
+    plan.forEach(item => {
+      const target = format(item.targetInches);
+      item.group.rows.forEach(row => {
+        const existing = H().parseHeight(row.existingHOA);
+        S().upsertSpanComm({
+          ...row,
+          existingHOAChange: existing === item.targetInches ? "" : target,
+          autoCalcStatus: existing === item.targetInches ? "" : "AUTO",
+          autoCalcMessage: ""
+        });
+      });
+    });
+  }
+
   function autoCalculateMovements() {
     const summary = { applied: 0, manual: 0, skipped: 0 };
+    if (getSettingPosition() !== "TOP_COMM") {
+      return { ...summary, disabled: true };
+    }
     autoCalcClearExistingMarks();
-    S().getState().settings.position = "TOP_COMM";
     recalculateAll();
     const poleIds = Object.keys(S().getState().poles || {});
 
     poleIds.forEach(poleId => {
       const beforePole = cloneStateForAutoCalc();
       const groups = autoCalcGroupsForPole(poleId);
-      if (!groups.length) {
+      const proposedSpans = autoCalcProposedSpansForPole(poleId);
+      const maxPole = autoCalcMaxPole(poleId);
+      if (!proposedSpans.length) {
         summary.skipped += 1;
         return;
       }
-      if (groups.some(group => group.rows.some(row => row.existingHOAChange))) {
+      if (maxPole === null) {
         summary.manual += 1;
-        autoCalcMarkGroups(groups, "MANUAL", "Auto skipped: existing HOA Change already set.");
+        if (groups.length) autoCalcMarkGroups(groups, "MANUAL", "Auto manual: missing Max Height on Pole.");
         return;
       }
 
-      const anchor = autoCalcPoleAnchor(poleId);
-      const needsMovement = autoCalcPoleNeedsMovement(poleId, groups, anchor);
-      if (!needsMovement) {
-        summary.skipped += 1;
+      const hasManualChanges = groups.some(group => group.rows.some(row => row.existingHOAChange));
+      const hasCommProblems = autoCalcPoleHasCommProblems(groups);
+      const topExisting = groups.length ? Math.max(...groups.map(group => group.existingInches)) : null;
+      const aboveProposed = topExisting === null ? maxPole : topExisting + getPoleCommCommClearance();
+      const hasSpaceAbove = aboveProposed <= maxPole;
+      const proposedInches = (!hasCommProblems && hasSpaceAbove) ? aboveProposed : maxPole;
+      const topCommTarget = groups.length ? proposedInches - getPoleCommCommClearance() : null;
+      const plan = groups.length && (!hasSpaceAbove || hasCommProblems)
+        ? autoCalcBuildStackPlan(groups, topCommTarget)
+        : [];
+
+      if (hasManualChanges && autoCalcPlanMovesComm(plan)) {
+        autoCalcSetProposed(poleId, proposedSpans, proposedInches);
+        const affected = autoCalcAffectedPoleIds(poleId);
+        affected.forEach(recalculateSpansForPole);
+        const safeWithManual = autoCalcResultIsSafe(affected);
+        if (safeWithManual.ok) {
+          summary.applied += 1;
+          autoCalcMarkGroups(groups, "MANUAL", "Auto proposed only: existing HOA Change already set.");
+          return;
+        }
+        S().setState(beforePole);
+        autoCalcMarkGroups(autoCalcGroupsForPole(poleId), "MANUAL", "Auto manual: existing HOA Change already set.");
+        recalculateSpansForPole(poleId);
+        summary.manual += 1;
         return;
       }
 
-      const plan = autoCalcBuildStackPlan(groups, anchor);
       if (!plan || plan.some(item => item.targetInches < 0)) {
         summary.manual += 1;
         autoCalcMarkGroups(groups, "MANUAL", "Auto manual: no safe pole stack found.");
         return;
       }
 
-      plan.forEach(item => {
-        const target = format(item.targetInches);
-        item.group.rows.forEach(row => {
-          const existing = H().parseHeight(row.existingHOA);
-          S().upsertSpanComm({
-            ...row,
-            existingHOAChange: existing === item.targetInches ? "" : target,
-            autoCalcStatus: "AUTO",
-            autoCalcMessage: ""
-          });
-        });
-      });
+      if (hasCommProblems && plan.length && !plan.some(item => item.targetInches > item.group.existingInches)) {
+        summary.manual += 1;
+        autoCalcMarkGroups(groups, "MANUAL", "Auto manual: comm violations cannot be raised safely.");
+        return;
+      }
+
+      autoCalcSetProposed(poleId, proposedSpans, proposedInches);
+      autoCalcApplyPlan(plan);
 
       const affected = autoCalcAffectedPoleIds(poleId);
       affected.forEach(recalculateSpansForPole);

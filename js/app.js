@@ -562,6 +562,15 @@
     wireEditableEvents(els.clearanceSettings);
   }
 
+  function updateAutoCalculateButtonState() {
+    if (!els.autoCalculateBtn) return;
+    const isLowComm = (S.getState().settings?.position || "TOP_COMM") === "LOW_COMM";
+    els.autoCalculateBtn.disabled = isLowComm;
+    els.autoCalculateBtn.classList.toggle("btn-disabled", isLowComm);
+    els.autoCalculateBtn.classList.toggle("btn-primary", !isLowComm);
+    els.autoCalculateBtn.textContent = isLowComm ? "Autocalcular movimientos · Top Comm requerido" : "Autocalcular movimientos";
+  }
+
   function renderPoleClassResults() {
     if (!els.poleClassResults) return;
     const rows = S.getState().poleClassChecks || [];
@@ -1359,6 +1368,7 @@
     renderPoleLists();
     renderAllPolesWorkspace();
     renderActiveView();
+    updateAutoCalculateButtonState();
   }
 
   async function handleExcelImport(file) {
@@ -1396,8 +1406,13 @@
     els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
     els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
     els.autoCalculateBtn.addEventListener("click", () => {
+      if (els.autoCalculateBtn.disabled) return;
       recordUndoSnapshot();
       const result = global.Calculations.autoCalculateMovements();
+      if (result.disabled) {
+        toast("Autocalcular solo esta disponible en modo Top Comm.", "warning");
+        return;
+      }
       render();
       toast(`Autocalcular: ${result.applied} aplicados, ${result.manual} manuales, ${result.skipped} sin cambio.`, result.applied ? "success" : "warning");
     });
