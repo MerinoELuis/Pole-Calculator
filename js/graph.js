@@ -75,7 +75,7 @@
       </g>`;
     }).join("");
 
-    container.innerHTML = `<svg class="graph-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfica de postes y spans">${spanLines}${nodeItems}</svg>`;
+    container.innerHTML = `<svg class="graph-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Pole and span graph">${spanLines}${nodeItems}</svg>`;
     container.querySelectorAll("[data-pole-id]").forEach(node => {
       node.addEventListener("click", () => onSelectPole(node.dataset.poleId));
     });

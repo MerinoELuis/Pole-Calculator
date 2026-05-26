@@ -1,60 +1,64 @@
 # Pole Span MR Calculator
 
-Pole Span MR Calculator es una aplicacion web estatica para revisar postes, spans, comunicaciones, midspans, clearances y make ready a partir de archivos Excel de levantamiento. Esta pensada para correr directamente en GitHub Pages con HTML, CSS y JavaScript puro.
+Pole Span MR Calculator is a static web app for reviewing poles, spans, communications, midspans, clearances and make ready from field Excel exports. It runs directly on GitHub Pages with plain HTML, CSS and JavaScript.
 
-La calculadora permite importar datos crudos, editar alturas de comunicaciones existentes, proponer nuevas alturas por span, recalcular midspans afectados por movimientos en ambos extremos del span y generar un MR unificado por poste.
+The calculator imports raw pole data, lets users edit existing comm heights, proposes new attachment heights by span, recalculates midspans affected by changes at either end of a span, and generates one Make Ready block per pole.
 
-## Funciones principales
+## Main Features
 
-- Importa postes desde la hoja `Collection`.
-- Importa relaciones entre postes desde la hoja `Span`.
-- Importa cables, owners, attachment heights y midspans desde `Span.Wire`.
-- Muestra todos los postes en una vista editable.
-- Calcula alturas maximas contra Low Power.
-- Recalcula midspans cuando se suben o bajan comms en cualquiera de los postes conectados.
-- Distingue comms con midspan real de comms que solo sirven como referencia del span conectado.
-- Valida clearances de power-comm, comm-comm y bolt-bolt.
-- Genera MR por poste a partir de movimientos y proposed.
-- Exporta e importa JSON para guardar y continuar el avance.
+- Imports poles from the `Collection` sheet.
+- Imports pole-to-pole relationships from the `Span` sheet.
+- Imports wires, owners, attachment heights and midspans from `Span.Wire`.
+- Imports `Attachment Size` references from the `Make Ready` sheet for proposed export data.
+- Shows all poles in one editable workspace.
+- Calculates max heights against Low Power.
+- Recalculates midspans when comms move up or down on either connected pole.
+- Separates real midspan comms from `REF` comms that only reference a connected span.
+- Validates power-comm, comm-comm and bolt-bolt clearances.
+- Generates Make Ready by pole from comm movements and proposed attachments.
+- Exports/imports full JSON save points.
+- Exports a proposed JSON package intended for a future O-Calc plugin.
 
-## Flujo de trabajo
+## Workflow
 
-1. Importar el Excel crudo del levantamiento.
-2. Revisar postes, spans, power y comms importados.
-3. Editar `Low Power`, alturas de comms existentes o proposed por span.
-4. Revisar midspans recalculados, warnings y clearances.
-5. Revisar el MR generado por poste.
-6. Exportar JSON para guardar el avance.
-7. Importar ese JSON despues para continuar.
+1. Import the raw field Excel file.
+2. Review imported poles, spans, power and comms.
+3. Edit `Low Power`, existing comm heights, or proposed heights by span.
+4. Review recalculated midspans, flagging and clearances.
+5. Review the generated Make Ready for each pole.
+6. Export JSON to save progress or export Proposed JSON for downstream O-Calc work.
+7. Import the saved JSON later to continue.
 
-## Hojas del Excel usadas
+## Excel Sheets Used
 
 ### Collection
 
-Se usa para crear postes y leer datos generales:
+Used to create poles and read general pole data:
 
-- Pole ID o nombre del poste.
-- Altura del poste.
+- Pole ID or pole name.
+- Pole height / type.
 - Low Power.
+- Tip and Circumference for the Pole Type Check tab.
 
-La columna de Low Power se busca de forma flexible. La app reconoce nombres que contengan `Low Power Attachment`, y tambien fallbacks como `Lowest Power` o `Low Power`.
+Low Power is matched flexibly. The app accepts headers containing `Low Power Attachment`, plus fallbacks such as `Lowest Power` or `Low Power`.
 
 ### Span
 
-Se usa para crear las conexiones entre postes:
+Used to create graph connections between poles:
 
 - Span ID.
-- Poste origen.
-- Poste conectado.
-- Longitud.
-- Bearing.
+- Source pole.
+- Connected pole.
+- Span length.
+- Bearing angle.
+- Span type.
 - Environment.
 
-El bearing se convierte a direccion cardinal para ayudar a leer las relaciones entre postes.
+Bearing is converted to a cardinal direction so span relationships are easier to read.
 
 ### Span.Wire
 
-Se usa para crear comms y power por span:
+Used to create comm and power rows by span:
 
 - `Owner`.
 - `Attachment Height.display`.
@@ -64,31 +68,43 @@ Se usa para crear comms y power por span:
 - `Construction`.
 - `Insulator`.
 
-El campo Owner/Comm visible sale de la columna `Owner`.
+The visible Owner/Comm value comes from the `Owner` column.
 
-## Reglas de calculo
+### Make Ready
 
-### Movimientos de comms
+Used as imported reference data, not as the final generated Make Ready. The app reads:
 
-Cada comm existente puede tener un `Cambio de HOA`. Cuando se cambia una altura en un extremo del span, el midspan del tramo se recalcula usando la mitad del movimiento.
+- `Attachment Size`, such as `6.6M 24CT Fiber (E/W)`.
+- Attachment type.
+- Attachment height.
+- Proposed midspan.
+- Reference notes.
 
-Ejemplo:
+The Proposed JSON export preserves the raw attachment size and also breaks it into messenger, fiber and direction fields.
 
-- Si un comm baja de `20'` a `19'`, el movimiento es `-12"` y el midspan baja `6"`.
-- Si el comm del otro poste sube de `20'` a `21'`, el movimiento es `+12"` y el midspan sube `6"`.
-- Si ambos extremos se mueven, ambos efectos se aplican sobre el midspan.
+## Calculation Rules
 
-Los comms que no traen midspan propio pueden mostrarse como `REF`. Eso indica que pertenecen al span conectado, pero el midspan real viene del otro extremo del tramo.
+### Existing Comm Movements
 
-### Proposed por span
+Each existing comm can have a `HOA Change`. When a height changes at one end of a span, the span midspan is recalculated with half of that movement.
 
-La seccion `Proposed por span` se usa solo para spans que tienen midspan real. No repite backspans ni duplica una misma conexion.
+Example:
 
-El end drop se calcula con el Proposed local y el cambio del otro extremo cuando existe.
+- If a comm moves from `20'` to `19'`, the movement is `-12"` and the midspan drops `6"`.
+- If the comm on the other pole moves from `20'` to `21'`, the movement is `+12"` and the midspan rises `6"`.
+- If both ends move, both effects are applied to the midspan.
+
+Comms without their own imported midspan can show as `REF`. That means they belong to the connected span, while the real midspan comes from the other end.
+
+### Proposed by Span
+
+`Proposed by Span` is only used for spans that have real midspan data or manually added proposed spans. It avoids repeating backspans and duplicate physical connections.
+
+End Drop is calculated from the local Proposed value and the Next Pole Proposed value when available.
 
 ### Clearances
 
-Los valores editables de clearances controlan los calculos:
+Editable clearance values control these checks:
 
 - `Pole · Power-comms`.
 - `Pole · Comm-comm`.
@@ -96,43 +112,58 @@ Los valores editables de clearances controlan los calculos:
 - `Midspan · Power-comm`.
 - `Midspan · Comm-comm`.
 
-Entre comms del poste:
+Between comms on the pole:
 
-- Si son owners diferentes, se usa `Pole · Comm-comm`.
-- Si son el mismo owner, se usa `Pole · Bolt-bolt`.
+- Different owners use `Pole · Comm-comm`.
+- The same owner uses `Pole · Bolt-bolt`.
 
-Para proposed en el poste, tambien se revisa que no quede dentro de una zona no permitida entre bolts existentes. Si los attachments estan demasiado cerca, no se permite colocar proposed en medio de ellos; si hay suficiente separacion, se permite una altura que respete `Pole · Bolt-bolt`.
+Proposed attachments also check against existing attachment points. A proposed height may reuse an exact existing HOA only when that existing comm was moved away. It cannot land inside the bolt-bolt restricted zone around existing attachment points.
 
-### Low Power en midspan
+### Low Power at Midspan
 
-La app calcula la altura maxima de comm en midspan usando el power mas bajo del span y el clearance `Midspan · Power-comm`.
+The app calculates `Max Height at MS` from the lowest power midspan on the span minus `Midspan · Power-comm`.
 
-Cuando el ajuste de proposed se debe a Low Power en midspan, el MR agrega:
+When a proposed adjustment is specifically required by Low Power at midspan, the Make Ready can include:
 
 `Ensure min 30" to low power at midspan.`
 
-Si el ajuste ya no es necesario, o si el ajuste fue por comm-comm y no por Low Power, esa nota no se genera.
+If the adjustment is no longer required, or if the adjustment was caused by comm-comm spacing instead of Low Power, that note is not generated.
 
-### Tabla de reglas
+## Rule Table
 
-| Regla | Valor por defecto | Se aplica a | Resultado |
+| Rule | Default | Applies To | Result |
 | --- | --- | --- | --- |
-| `Pole · Power-comms` | `40"` | comms y proposed en el poste | Define `Max Height on Pole`. |
-| `Pole · Comm-comm` | `12"` | comms de owners diferentes en el poste | Evita comms demasiado juntos en el poste. |
-| `Pole · Bolt-bolt` | `4"` | comms del mismo owner y proposed entre sí en el poste | Evita bolts demasiado cercanos. |
-| `Midspan · Power-comm` | `30"` | comms y proposed en midspan | Define `Max Height at MS`. |
-| `Midspan · Comm-comm` | `4"` | comms y proposed en midspan | Mantiene separación vertical entre cables. |
-| `Environment` | según span | comms y proposed en midspan | Evita quedar por debajo del mínimo del entorno. |
-| Orden de comms | según alturas | comms existentes del mismo span | Evita que dos comms se crucen entre poste y midspan. |
-| Posición `Top Comm` / `Low Comm` | configurable | proposed en poste y midspan | Obliga al proposed a quedar del lado configurado de los comms existentes. |
+| `Pole · Power-comms` | `40"` | comms and proposed on the pole | Defines `Max Height on Pole`. |
+| `Pole · Comm-comm` | `12"` | different-owner comms on the pole | Prevents comms from being too close on the pole. |
+| `Pole · Bolt-bolt` | `4"` | same-owner comms, proposed-to-proposed, and existing bolt points | Prevents bolts from being too close. |
+| `Midspan · Power-comm` | `30"` | comms and proposed at midspan | Defines `Max Height at MS`. |
+| `Midspan · Comm-comm` | `4"` | comms and proposed at midspan | Keeps vertical separation between cables. |
+| `Environment` | by span | comms and proposed at midspan | Prevents values below the environment minimum. |
+| Comm order | by heights | existing comms on the same span | Prevents cables from crossing between pole and midspan. |
+| `Top Comm` / `Low Comm` | configurable | proposed on pole and midspan | Forces proposed to stay on the configured side of existing comms. |
 
-Para `Proposed` en el poste:
+For `Proposed` on the pole:
 
-- Siempre debe conservar `Pole · Comm-comm` frente a comms existentes.
-- Puede compartir exactamente la misma altura con un attachment existente.
-- Entre proposeds distintos del mismo poste se aplica `Pole · Bolt-bolt`.
+- It must always keep `Pole · Comm-comm` from existing comms.
+- It may share the exact same height as an existing attachment only when that comm has been moved away.
+- Separate proposed attachments on the same pole use `Pole · Bolt-bolt`.
 
-## Archivos principales
+## Proposed JSON Export
+
+The `Export Proposed` button creates a `.json` package for downstream O-Calc automation. It includes:
+
+- Proposed height.
+- End Drop.
+- Next Pole Proposed.
+- O-CALC MS, MS Proposed and Adjusted Final MS.
+- Span length, bearing angle and direction.
+- Max Height at MS and Low Power at MS.
+- Environment values.
+- Comm movement records.
+- Comm-only Make Ready lines.
+- Make Ready `Attachment Size` references, including messenger, fiber and direction.
+
+## Main Files
 
 - `index.html`
 - `css/styles.css`
@@ -148,8 +179,8 @@ Para `Proposed` en el poste:
 - `js/floating-calculator.js`
 - `libs/xlsx.full.min.js`
 
-## Uso local
+## Local Use
 
-Abre `index.html` en el navegador o publica la carpeta en GitHub Pages.
+Open `index.html` in a browser or publish the folder through GitHub Pages.
 
-La aplicacion no requiere backend, servidor propio, Node.js, npm, build step ni frameworks.
+The app does not require a backend, custom server, Node.js, npm, build step or framework.

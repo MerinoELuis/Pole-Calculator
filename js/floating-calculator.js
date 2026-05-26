@@ -23,7 +23,7 @@
         if (op.value === "toDecimal") output = `${H.heightToDecimalFeet(a.value)} ft`;
         if (op.value === "fromDecimal") output = H.decimalFeetToHeight(a.value);
         if (op.value === "inchesToHeight") output = H.inchesToHeight(a.value);
-        result.textContent = output || "Entrada invalida";
+        result.textContent = output || "Invalid input";
       } catch (error) {
         result.textContent = error.message;
       }

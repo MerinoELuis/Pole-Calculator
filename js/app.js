@@ -128,7 +128,7 @@
 
   function undoLastAction() {
     const previous = undoHistory.pop();
-    if (!previous) return toast("No hay cambios para deshacer.", "info");
+    if (!previous) return toast("No changes to undo.", "info");
     restoringUndo = true;
     clearTimeout(delayedMidspanRenderTimer);
     delayedMidspanRenderTimer = null;
@@ -137,7 +137,7 @@
     global.Calculations.recalculateAll();
     render();
     restoringUndo = false;
-    toast("Último cambio deshecho.", "success");
+    toast("Last change undone.", "success");
   }
 
   function spanLabel(span) {
@@ -194,7 +194,7 @@
     const label = global.Calculations.commOwnerLabel
       ? global.Calculations.commOwnerLabel(sc)
       : String(sc?.rawOwner || sc?.owner || "").trim();
-    return label || "Sin owner";
+    return label || "No owner";
   }
 
   function normalizedHeightLabel(value) {
@@ -250,8 +250,8 @@
       group.rows.push(sc);
     });
     return Array.from(groups.values()).sort((a, b) => {
-      // La tabla representa el acomodo físico original del poste, por eso el
-      // orden siempre depende de Existing HOA y no de Cambio de HOA.
+      // The table represents the original physical pole stack, so sorting stays
+      // based on Existing HOA instead of HOA Change.
       const aHeight = H.parseHeight(a.existingHOA || "");
       const bHeight = H.parseHeight(b.existingHOA || "");
       if (aHeight !== null && bHeight !== null && aHeight !== bHeight) return bHeight - aHeight;
@@ -262,9 +262,9 @@
   }
 
   function commMidspanEntries(group, poleId) {
-    // Un comm puede tocar más de un span. Las columnas Span, Max Height at MS,
-    // Midspan y Otro poste HOA salen de esta misma lista para conservar la
-    // alineación visual y la relación fila a fila entre todos los datos.
+    // One comm can touch more than one span. The Span, Max Height at MS,
+    // Midspan and Other Pole HOA columns all come from this list so every
+    // stacked value stays visually aligned row by row.
     const seen = new Set();
     const entries = [];
     const rows = [...group.rows].sort((a, b) =>
@@ -292,8 +292,8 @@
             data-span="${escapeHtml(sc.spanId)}"
             data-owner="${escapeHtml(sc.owner)}"
             data-wire-id="${escapeHtml(sc.wireId || "")}"
-            title="Borrar solo este span"
-            aria-label="Borrar solo este span">&#10005;</button>
+            title="Delete only this span"
+            aria-label="Delete only this span">&#10005;</button>
         </div>`,
         serviceDropHtml: `<div class="comm-midspan-value">
           <input type="checkbox"
@@ -373,8 +373,8 @@
       });
     }
     if (scope === "spanSide" && el?.dataset?.pole && el?.dataset?.field === "proposedHOA") {
-      // Un proposed del poste actual puede alimentar el Next Pole Proposed de
-      // spans que llegan desde postes anteriores, incluso con otro spanId.
+      // A proposed value on the current pole can feed Next Pole Proposed for
+      // spans arriving from previous poles, even when the spanId is different.
       S.getConnectedSpans(el.dataset.pole).forEach(span => {
         if (span.fromPole) ids.add(span.fromPole);
         if (span.toPole) ids.add(span.toPole);
@@ -434,7 +434,7 @@
     return `<div class="auto-notes">${clean.map(line => `<div>${escapeHtml(line)}</div>`).join("")}</div>`;
   }
 
-  function renderEditableNotes(scope, attrs, value, autoNotes, placeholder = "Notas...") {
+  function renderEditableNotes(scope, attrs, value, autoNotes, placeholder = "Notes...") {
     const attrText = Object.entries(attrs || {})
       .map(([name, attrValue]) => `data-${name}="${escapeHtml(attrValue)}"`)
       .join(" ");
@@ -444,16 +444,16 @@
   }
 
   function commMidspanNote(row, span) {
-    if (!span || !span.midspanLowPower) return "Falta Power MS para calcular Max MS Comm.";
+    if (!span || !span.midspanLowPower) return "Missing Power MS to calculate Max MS Comm.";
     const midspan = typeof row === "string" ? row : displayMidspan(row);
-    if (!midspan) return span.midspanMaxCommHeight ? `Falta midspan. Max ${span.midspanMaxCommHeight}.` : "Falta midspan.";
+    if (!midspan) return span.midspanMaxCommHeight ? `Missing midspan. Max ${span.midspanMaxCommHeight}.` : "Missing midspan.";
     return row?.clearanceMSMessage || `Max ${span.midspanMaxCommHeight} · Low Power MS ${span.midspanLowPower}.`;
   }
 
   function poleClearanceNote(height, pole, missingLabel = "Missing Data") {
     if (!pole || !pole.lowPower) return missingLabel;
     const max = pole.maxCommHeight || "";
-    if (!height) return max ? `Falta dato. Max ${max}.` : "Falta dato.";
+    if (!height) return max ? `Missing data. Max ${max}.` : "Missing data.";
     const aboveMax = max && H.compareHeights(height, max) === 1;
     return aboveMax
       ? `Clearance issue. Max ${max} · Low Power ${pole.lowPower}.`
@@ -461,10 +461,10 @@
   }
 
   function spanSideClearanceNote(side) {
-    if (!side.ocalcMS && !side.proposedMidspan) return "Falta O-CALC MS.";
+    if (!side.ocalcMS && !side.proposedMidspan) return "Missing O-CALC MS.";
     if (side.clearanceMSReason === "LOW_POWER" && side.clearanceMSIssue) return `Ensure min 30" to low power at midspan.`;
     if (side.clearanceMSStatus === "PENDING") {
-      return `${side.clearanceMSMessage || "Clearance issue."} Corrigiendo a ${side.pendingMidspanFinal || ""}...`;
+      return `${side.clearanceMSMessage || "Clearance issue."} Adjusting to ${side.pendingMidspanFinal || ""}...`;
     }
     return side.clearanceMSMessage || "";
   }
@@ -484,8 +484,8 @@
     if (!side.ocalcMS && !side.proposedMidspan) return `<span class="badge warning">Missing Data</span>`;
     if (status === "PENDING") return `<span class="badge danger pulse-badge">Clearance Issue</span>`;
     if (status === "PROBLEM") return `<span class="badge danger">Clearance Issue</span>`;
-    if (status === "ADJUSTED") return `<span class="badge warning">Ajustado</span>`;
-    if (status === "ADJUSTMENT_NEEDED") return `<span class="badge warning">Ajuste requerido</span>`;
+    if (status === "ADJUSTED") return `<span class="badge warning">Adjusted</span>`;
+    if (status === "ADJUSTMENT_NEEDED") return `<span class="badge warning">Adjustment Needed</span>`;
     return `<span class="badge changed">OK</span>`;
   }
 
@@ -533,10 +533,10 @@
         <div class="settings-grid clearance-grid">${clearanceRows.map(renderRow).join("")}</div>
       </div>
       <div class="settings-section settings-section-adjustments">
-        <h3>Ajustes</h3>
+        <h3>Adjustments</h3>
         <div class="settings-grid adjustments-grid">
           <label class="clearance-row position-row">
-            <span>Posición</span>
+            <span>Position</span>
             <select class="input position-select" data-scope="settings" data-field="position">
               <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
               <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
@@ -545,12 +545,12 @@
           <label class="clearance-row position-row">
             <span>Make Ready</span>
             <select class="input position-select" data-scope="settings" data-field="mrCase">
-              <option value="LOWER" ${(settings.mrCase || "LOWER") === "LOWER" ? "selected" : ""}>Minúsculas</option>
-              <option value="UPPER" ${settings.mrCase === "UPPER" ? "selected" : ""}>Mayúsculas</option>
+              <option value="LOWER" ${(settings.mrCase || "LOWER") === "LOWER" ? "selected" : ""}>Lowercase</option>
+              <option value="UPPER" ${settings.mrCase === "UPPER" ? "selected" : ""}>Uppercase</option>
             </select>
           </label>
           <label class="clearance-row position-row">
-            <span>Owner del Proposed</span>
+            <span>Proposed Owner</span>
             <select class="input position-select" data-scope="settings" data-field="proposedOwner">
               ${ownerOptions}
             </select>
@@ -567,14 +567,14 @@
     els.autoCalculateBtn.disabled = isLowComm;
     els.autoCalculateBtn.classList.toggle("btn-disabled", isLowComm);
     els.autoCalculateBtn.classList.toggle("btn-primary", !isLowComm);
-    els.autoCalculateBtn.textContent = isLowComm ? "Autocalcular movimientos · Top Comm requerido" : "Autocalcular movimientos";
+    els.autoCalculateBtn.textContent = isLowComm ? "Auto Calculate Moves · Top Comm Required" : "Auto Calculate Moves";
   }
 
   function renderPoleClassResults() {
     if (!els.poleClassResults) return;
     const rows = S.getState().poleClassChecks || [];
     if (!rows.length) {
-      els.poleClassResults.innerHTML = `<div class="detail-placeholder">Importa un Excel con datos en Collection para revisar Height / Class.</div>`;
+      els.poleClassResults.innerHTML = `<div class="detail-placeholder">Import an Excel file with Collection data to review Height / Class.</div>`;
       return;
     }
     const heightIssueCount = rows.filter(row => poleClassSeverity(row) === "critical").length;
@@ -708,7 +708,7 @@
     if (els.projectMeta) {
       els.projectMeta.textContent = state.importedFileName
         ? `${state.importedFileName} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`
-        : "Sin archivo importado";
+        : "No file imported";
     }
   }
 
@@ -738,13 +738,13 @@
       ${pole.isGenerated ? `<span class="mini-dot warning">Gen</span>` : ""}
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
       ${!flagging.resolution && flagging.issueCount ? `<span class="mini-dot danger">Flag ${flagging.issueCount}</span>` : ""}
-      ${hasChanges ? `<span class="mini-dot changed">Cambio</span>` : ""}
+      ${hasChanges ? `<span class="mini-dot changed">Changed</span>` : ""}
     </button>`;
   }
 
   function renderPoleLists() {
     const poleIds = filteredPoles();
-    els.polesList.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No hay postes con ese filtro.</div>`;
+    els.polesList.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No poles match that filter.</div>`;
     els.polesList.querySelectorAll("[data-pole-select]").forEach(btn => {
       btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
     });
@@ -752,7 +752,7 @@
 
   function renderMRText(poleId) {
     const item = S.getState().mr.find(mr => mr.poleId === poleId);
-    if (!item) return `<p class="muted">Sin MR generado todavía.</p>`;
+    if (!item) return `<p class="muted">No Make Ready generated yet.</p>`;
     return `<pre class="mr-output">${escapeHtml(item.text)}</pre>`;
   }
 
@@ -771,12 +771,12 @@
       <div>
         <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
         <div class="pole-meta">
-          ${pole.isGenerated ? `<span class="badge warning">Other pole generado editable</span>` : ""}
+          ${pole.isGenerated ? `<span class="badge warning">Editable generated other pole</span>` : ""}
           <span class="badge">Spans ${spans.length}</span>
           <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
           ${!flagging.resolution && flagging.issueCount ? `<span class="badge danger">Flagging ${flagging.issueCount}</span>` : ""}
-          ${hasChanges ? `<span class="badge changed">Con cambios</span>` : ""}
+          ${hasChanges ? `<span class="badge changed">Changed</span>` : ""}
         </div>
       </div>
       <div class="pole-kpis two-up">
@@ -819,7 +819,7 @@
           <td>${renderSpanSideFlagging(side)}</td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environmentClearance" value="${escapeHtml(span.environmentClearance || "")}"></td>
-          <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Notas propias...")}</td>
+          <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Own notes...")}</td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -831,9 +831,9 @@
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`)
       .join("");
-    if (!options) return `<p class="muted">No hay otro poste disponible para crear un span propuesto.</p>`;
+    if (!options) return `<p class="muted">No other pole is available for a proposed span.</p>`;
     return `<div class="manual-proposed-starter">
-      <span class="muted">No hay spans con midspan para proponer desde este poste.</span>
+      <span class="muted">No spans with midspan are available to propose from this pole.</span>
       <label>
         <span>Propose to</span>
         <select class="input" data-manual-proposed-target="${escapeHtml(poleId)}">
@@ -847,7 +847,7 @@
 
   function renderCommMovementTable(poleId) {
     const groups = groupedCommsForPole(poleId);
-    if (!groups.length) return `<p class="muted">No hay comms importados desde Span.Wire para este poste.</p>`;
+    if (!groups.length) return `<p class="muted">No comms imported from Span.Wire for this pole.</p>`;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
         <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th><th>Actions</th>
@@ -874,9 +874,9 @@
           <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
           <td><div class="row-actions">
-            <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Editar comm" aria-label="Editar comm">&#9998;</button>
-            <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Editar spans del comm" aria-label="Editar spans del comm">&#8644;</button>
-            <button class="icon-action danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Borrar comm completo" aria-label="Borrar comm completo">&#10005;</button>
+            <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm" aria-label="Edit comm">&#9998;</button>
+            <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm spans" aria-label="Edit comm spans">&#8644;</button>
+            <button class="icon-action danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Delete full comm" aria-label="Delete full comm">&#10005;</button>
           </div></td>
         </tr>`;
       }).join("")}</tbody>
@@ -885,7 +885,7 @@
 
   function renderPowerTable(poleId) {
     const rows = S.getSpanPowerForPole(poleId).filter(row => H.parseHeight(row.midspan) !== null);
-    if (!rows.length) return `<p class="muted">No se importaron wires de power para este poste.</p>`;
+    if (!rows.length) return `<p class="muted">No power wires were imported for this pole.</p>`;
     return `<div class="table-wrap"><table class="power-table">
       <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>Midspan</th></tr></thead>
       <tbody>${rows.map(row => {
@@ -914,7 +914,7 @@
             <h4>Existing Comm Movements</h4>
             <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
           </div>
-          <p class="muted">Aquí se mueve cada comm existente con nueva altura. Si cambia el otro poste del mismo span, el Midspan calculado se actualiza.</p>
+          <p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>
           ${renderCommMovementTable(poleId)}
         </section>
         <section class="subsection wide">
@@ -942,18 +942,18 @@
       try {
         return renderPoleWorkspace(id);
       } catch (error) {
-        console.error(`Error renderizando poste ${id}`, error);
+        console.error(`Error rendering pole ${id}`, error);
         return `<article class="pole-workspace-card warning-row" data-pole-card="${escapeHtml(id)}">
           <div class="pole-workspace-header">
             <div>
               <h3>${escapeHtml(id)}</h3>
-              <span class="badge danger">Error de datos</span>
+              <span class="badge danger">Data Error</span>
             </div>
           </div>
-          <p class="muted">Este poste se importo, pero tiene datos incompletos o inesperados. Revisa el Excel o vuelve a importar.</p>
+          <p class="muted">This pole was imported, but it has incomplete or unexpected data. Review the Excel file or import again.</p>
         </article>`;
       }
-    }).join("") || `<div class="detail-placeholder">No hay postes para mostrar.</div>`;
+    }).join("") || `<div class="detail-placeholder">No poles to show.</div>`;
     wireEditableEvents(els.polesOverview);
     bindScrollLinks(els.polesOverview);
     bindLocalActions(els.polesOverview);
@@ -1023,20 +1023,20 @@
   async function copyMR(poleId) {
     const item = S.getState().mr.find(mr => mr.poleId === poleId);
     const text = item?.text || "";
-    if (!text) return toast("No hay Make Ready para copiar.", "warning");
+    if (!text) return toast("No Make Ready to copy.", "warning");
     try {
       await navigator.clipboard.writeText(text);
-      toast("Make Ready copiado.", "success");
+      toast("Make Ready copied.", "success");
     } catch (error) {
       console.error(error);
-      toast("No se pudo copiar el Make Ready.", "error");
+      toast("Could not copy Make Ready.", "error");
     }
   }
 
   function addManualProposedSpan(poleId, root) {
     const select = root.querySelector(`[data-manual-proposed-target="${CSS.escape(poleId)}"]`);
     const targetPoleId = select?.value || "";
-    if (!targetPoleId) return toast("Elige a qué poste irá el span propuesto.", "warning");
+    if (!targetPoleId) return toast("Choose which pole the proposed span goes to.", "warning");
     const existing = connectedSpansSorted(poleId).find(span =>
       span.fromPole === poleId && span.toPole === targetPoleId
     );
@@ -1103,7 +1103,7 @@
     if (!owner) return;
     const existingHOA = values.existingHOA || "";
     const span = defaultSpanForNewComm(poleId);
-    if (!span) return toast("Ese poste no tiene spans para asociar el comm.", "warning");
+    if (!span) return toast("That pole has no spans to associate with this comm.", "warning");
     recordUndoSnapshot();
     const wireId = `manual-${Date.now()}`;
     S.upsertComm(poleId, owner, existingHOA, "", { ownerBase: owner, rawOwner: owner, wireId });
@@ -1140,7 +1140,7 @@
     const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
     if (!group) return;
     const spans = connectedSpansSorted(poleId);
-    if (!spans.length) return toast("Ese poste no tiene spans disponibles.", "warning");
+    if (!spans.length) return toast("That pole has no available spans.", "warning");
     const spanValues = await openAppDialog({
       title: "Edit Comm Spans",
       description: group.owner,
@@ -1376,10 +1376,10 @@
       recordUndoSnapshot();
       await global.ExcelImport.importExcelFile(file);
       render();
-      toast("Excel crudo importado. Se cargaron las hojas disponibles.", "success");
+      toast("Raw Excel imported. Available sheets were loaded.", "success");
     } catch (error) {
       console.error(error);
-      toast(`Error importando Excel: ${error.message}`, "error");
+      toast(`Error importing Excel: ${error.message}`, "error");
     } finally {
       els.excelFileInput.value = "";
     }
@@ -1391,10 +1391,10 @@
       recordUndoSnapshot();
       await global.ExcelImport.importJsonFile(file);
       render();
-      toast("JSON importado. El trabajo guardado quedo cargado.", "success");
+      toast("JSON imported. Saved work is loaded.", "success");
     } catch (error) {
       console.error(error);
-      toast(`Error importando JSON: ${error.message}`, "error");
+      toast(`Error importing JSON: ${error.message}`, "error");
     } finally {
       els.jsonFileInput.value = "";
     }
@@ -1404,24 +1404,25 @@
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
     els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
     els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
+    els.exportProposedJsonBtn.addEventListener("click", () => global.ProjectExport.exportProposedJson());
     els.autoCalculateBtn.addEventListener("click", () => {
       if (els.autoCalculateBtn.disabled) return;
       recordUndoSnapshot();
       const result = global.Calculations.autoCalculateMovements();
       if (result.disabled) {
-        toast("Autocalcular solo esta disponible en modo Top Comm.", "warning");
+        toast("Auto Calculate is only available in Top Comm mode.", "warning");
         return;
       }
       render();
-      toast(`Autocalcular: ${result.applied} aplicados, ${result.manual} manuales, ${result.skipped} sin cambio.`, result.applied ? "success" : "warning");
+      toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged.`, result.applied ? "success" : "warning");
     });
-    els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Guardado local en este navegador.", "success"); });
+    els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Saved locally in this browser.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
       recordUndoSnapshot();
       const loaded = S.loadFromLocal();
-      if (!loaded) return toast("No hay guardado local.", "warning");
+      if (!loaded) return toast("No local save found.", "warning");
       render();
-      toast("Guardado local cargado.", "success");
+      toast("Local save loaded.", "success");
     });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
@@ -1439,7 +1440,7 @@
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
         S.saveToLocal();
-        toast("Guardado local en este navegador.", "success");
+        toast("Saved locally in this browser.", "success");
       }
     });
   }
@@ -1449,6 +1450,7 @@
       excelFileInput: qs("excelFileInput"),
       jsonFileInput: qs("jsonFileInput"),
       exportJsonBtn: qs("exportJsonBtn"),
+      exportProposedJsonBtn: qs("exportProposedJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),

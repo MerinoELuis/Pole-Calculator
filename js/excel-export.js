@@ -127,6 +127,23 @@
       row.wireId
     ]));
 
+    const makeReadyRefs = [["poleId", "collectionId", "makeReadyIndex", "makeReadyId", "attachmentSizeRaw", "attachmentMessenger", "attachmentFiber", "attachmentDirection", "attachmentDirectionTokens", "attachmentType", "attachmentHeight", "proposedMidspan", "makeReadyNotes"]];
+    (state.makeReadyReferences || []).forEach(row => makeReadyRefs.push([
+      row.poleId || "",
+      row.collectionId || "",
+      row.makeReadyIndex || "",
+      row.makeReadyId || "",
+      row.attachmentSizeRaw || "",
+      row.attachmentMessenger || "",
+      row.attachmentFiber || "",
+      row.attachmentDirection || "",
+      Array.isArray(row.attachmentDirectionTokens) ? row.attachmentDirectionTokens.join(" | ") : "",
+      row.attachmentType || "",
+      row.attachmentHeight || "",
+      row.proposedMidspan || "",
+      row.makeReadyNotes || ""
+    ]));
+
     const midspans = [["spanId", "span", "poleId", "owner", "existingHOA", "existingHOAChange", "remotePoleId", "remoteHOA", "importedMidspan", "ocalcMS", "calculatedMidspan"]];
     Object.values(state.spanComms).forEach(sc => {
       const span = S().getSpan(sc.spanId);
@@ -153,6 +170,7 @@
       { name: "Comms", rows: comms },
       { name: "SpanComms", rows: spanComms },
       { name: "SpanPower", rows: spanPower },
+      { name: "MakeReadyRefs", rows: makeReadyRefs },
       { name: "Midspans", rows: midspans },
       { name: "Movements", rows: movements },
       { name: "MR", rows: mr },
@@ -182,7 +200,7 @@
     global.Calculations.recalculateAll();
     const state = S().getState();
     const date = new Date().toISOString().slice(0, 10);
-    downloadJson(`pole-calculator-datos-${date}.json`, {
+    downloadJson(`pole-calculator-data-${date}.json`, {
       app: "pole-calculator",
       exportedAt: new Date().toISOString(),
       version: state.version || S().CURRENT_VERSION,

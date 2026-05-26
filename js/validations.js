@@ -24,51 +24,51 @@
     if (!span) return warnings;
 
     if (!span.toPole || /^Unknown-/i.test(span.toPole)) {
-      addWarning(warnings, span.fromPole, span.spanId, "", "EDITABLE_OTHER_POLE", "El other pole fue generado porque no venía ligado en Span. Puedes editar sus datos.");
+      addWarning(warnings, span.fromPole, span.spanId, "", "EDITABLE_OTHER_POLE", "The other pole was generated because Span did not link it. You can edit its data.");
     }
 
     const spanRows = S().getSpanCommsForSpan(spanId);
-    if (!spanRows.length) addWarning(warnings, span.fromPole, span.spanId, "", "EMPTY_SPAN", "El span no tiene comms importados desde Span.Wire.");
+    if (!spanRows.length) addWarning(warnings, span.fromPole, span.spanId, "", "EMPTY_SPAN", "The span has no comms imported from Span.Wire.");
     if (spanRows.length && !span.midspanLowPower) {
-      addWarning(warnings, span.fromPole, span.spanId, "", "MISSING_MIDSPAN_POWER", "Falta midspan de power para calcular altura máxima en midspan.");
+      addWarning(warnings, span.fromPole, span.spanId, "", "MISSING_MIDSPAN_POWER", "Missing power midspan to calculate max height at midspan.");
     }
     if (span.environment && span.environment !== "NONE") {
       if (!span.environmentClearance) addWarning(warnings, span.fromPole, span.spanId, "", "MISSING_ENV_CLEARANCE", "El span tiene environment pero falta clearance editable.");
       if (span.environmentClearance && span.environmentClearance !== "Variable" && !H().isValidHeight(span.environmentClearance)) {
-        addWarning(warnings, span.fromPole, span.spanId, "", "INVALID_ENV_CLEARANCE", "Environment clearance inválido.", "danger");
+        addWarning(warnings, span.fromPole, span.spanId, "", "INVALID_ENV_CLEARANCE", "Invalid environment clearance.", "danger");
       }
     }
 
     S().getSpanSidesForSpan(spanId).forEach(side => {
-      if (side.proposedHOA && !H().isValidHeight(side.proposedHOA)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED", "Proposed inválido.", "danger");
-      if (side.proposedHOAChange && !H().isValidHeight(side.proposedHOAChange)) addWarning(warnings, side.poleId, spanId, "", "INVALID_CAMBIO_PROPOSED", "Cambio Proposed inválido.", "danger");
-      if (side.ocalcMS && !H().isValidHeight(side.ocalcMS)) addWarning(warnings, side.poleId, spanId, "", "INVALID_OCALC_MS", "O-CALC MS inválido.", "danger");
-      if (side.msProposed && !H().isValidHeight(side.msProposed)) addWarning(warnings, side.poleId, spanId, "", "INVALID_MS_PROPOSED", "MS Proposed inválido.", "danger");
-      if (side.finalMidspan && !H().isValidHeight(side.finalMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_FINAL_MIDSPAN", "Midspan final ajustado inválido.", "danger");
-      if (side.endDrop && !H().isValidHeight(side.endDrop)) addWarning(warnings, side.poleId, spanId, "", "INVALID_END_DROP", "End Drop inválido.", "danger");
-      if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed ${side.proposedHOA} supera la altura máxima ${side.maxCommHeight}.`, "danger");
+      if (side.proposedHOA && !H().isValidHeight(side.proposedHOA)) addWarning(warnings, side.poleId, spanId, "", "INVALID_PROPOSED", "Invalid Proposed.", "danger");
+      if (side.proposedHOAChange && !H().isValidHeight(side.proposedHOAChange)) addWarning(warnings, side.poleId, spanId, "", "INVALID_NEXT_POLE_PROPOSED", "Invalid Next Pole Proposed.", "danger");
+      if (side.ocalcMS && !H().isValidHeight(side.ocalcMS)) addWarning(warnings, side.poleId, spanId, "", "INVALID_OCALC_MS", "Invalid O-CALC MS.", "danger");
+      if (side.msProposed && !H().isValidHeight(side.msProposed)) addWarning(warnings, side.poleId, spanId, "", "INVALID_MS_PROPOSED", "Invalid MS Proposed.", "danger");
+      if (side.finalMidspan && !H().isValidHeight(side.finalMidspan)) addWarning(warnings, side.poleId, spanId, "", "INVALID_FINAL_MIDSPAN", "Invalid Adjusted Final MS.", "danger");
+      if (side.endDrop && !H().isValidHeight(side.endDrop)) addWarning(warnings, side.poleId, spanId, "", "INVALID_END_DROP", "Invalid End Drop.", "danger");
+      if (side.proposedHOA && exceedsMax(side.proposedHOA, side.maxCommHeight)) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_ABOVE_MAX", `Proposed ${side.proposedHOA} exceeds max height ${side.maxCommHeight}.`, "danger");
       const boltClearance = global.Calculations.evaluateProposedPoleClearance(side);
       if (!boltClearance.ok) addWarning(warnings, side.poleId, spanId, "", "PROPOSED_BOLT_CLEARANCE", boltClearance.message, "danger");
       if (side.clearanceMSIssue) {
-        addWarning(warnings, side.poleId, spanId, "", "MS_PROPOSED_CLEARANCE", side.clearanceMSMessage || "MS Proposed tiene problema de clearance.", side.clearanceMSStatus === "PROBLEM" ? "danger" : "warning");
+        addWarning(warnings, side.poleId, spanId, "", "MS_PROPOSED_CLEARANCE", side.clearanceMSMessage || "MS Proposed has a clearance issue.", side.clearanceMSStatus === "PROBLEM" ? "danger" : "warning");
       }
       if (side.proposedFlaggingStatus === "PROBLEM") {
-        addWarning(warnings, side.poleId, spanId, "", "PROPOSED_POSITION", side.proposedFlaggingMessage || "Proposed no respeta la posición configurada.", "danger");
+        addWarning(warnings, side.poleId, spanId, "", "PROPOSED_POSITION", side.proposedFlaggingMessage || "Proposed does not respect the configured position.", "danger");
       }
     });
 
     spanRows.forEach(sc => {
       if (sc.calculatedMidspan && span.midspanMaxCommHeight && exceedsMax(sc.calculatedMidspan, span.midspanMaxCommHeight)) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "MIDSPAN_ABOVE_POWER_CLEARANCE", `Midspan ${sc.calculatedMidspan} supera la altura máxima en midspan ${span.midspanMaxCommHeight}.`, "danger");
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "MIDSPAN_ABOVE_POWER_CLEARANCE", `Midspan ${sc.calculatedMidspan} exceeds max height at midspan ${span.midspanMaxCommHeight}.`, "danger");
       }
       if (sc.clearanceMSIssue) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_MIDSPAN_CLEARANCE", sc.clearanceMSMessage || "El comm no tiene suficiente espacio en midspan.", "danger");
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_MIDSPAN_CLEARANCE", sc.clearanceMSMessage || "The comm does not have enough midspan clearance.", "danger");
       }
       if (sc.existingHOAChange && exceedsMax(sc.existingHOAChange, S().getPole(sc.poleId)?.maxCommHeight)) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_CHANGE_ABOVE_MAX", `Cambio de HOA ${sc.existingHOAChange} supera la altura máxima del poste.`, "danger");
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_CHANGE_ABOVE_MAX", `HOA Change ${sc.existingHOAChange} exceeds max height on pole.`, "danger");
       }
       if (sc.existingHOAChange && !global.MRLogic.generateMRForComm(sc)) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "CHANGE_WITHOUT_MR", "Hay Cambio de HOA pero no se generó MR.");
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "CHANGE_WITHOUT_MR", "HOA Change exists but no MR was generated.");
       }
     });
 
@@ -82,22 +82,22 @@
     const warnings = [];
     if (!pole) return warnings;
 
-    if (pole.lowPower && !H().isValidHeight(pole.lowPower)) addWarning(warnings, poleId, "", "", "INVALID_LOW_POWER", "Low Power inválido.", "danger");
-    if (!pole.lowPower && !pole.isGenerated) addWarning(warnings, poleId, "", "", "MISSING_LOW_POWER", "Falta Low Power del poste.");
+    if (pole.lowPower && !H().isValidHeight(pole.lowPower)) addWarning(warnings, poleId, "", "", "INVALID_LOW_POWER", "Invalid Low Power.", "danger");
+    if (!pole.lowPower && !pole.isGenerated) addWarning(warnings, poleId, "", "", "MISSING_LOW_POWER", "Missing Low Power on pole.");
 
     pole.comms.forEach(comm => {
       if (!comm.owner) addWarning(warnings, poleId, "", "", "UNKNOWN_OWNER", "Hay un comm sin owner.");
-      if (comm.unknownOwner) addWarning(warnings, poleId, "", comm.owner, "UNKNOWN_OWNER", `Owner no normalizado: ${comm.rawOwner || comm.owner}.`);
-      if (comm.existingHOA && !H().isValidHeight(comm.existingHOA)) addWarning(warnings, poleId, "", comm.owner, "INVALID_EXISTING_HOA", `Existing HOA inválido para ${comm.owner}.`, "danger");
+      if (comm.unknownOwner) addWarning(warnings, poleId, "", comm.owner, "UNKNOWN_OWNER", `Unnormalized owner: ${comm.rawOwner || comm.owner}.`);
+      if (comm.existingHOA && !H().isValidHeight(comm.existingHOA)) addWarning(warnings, poleId, "", comm.owner, "INVALID_EXISTING_HOA", `Invalid Existing HOA for ${comm.owner}.`, "danger");
     });
 
     const connected = S().getConnectedSpans(poleId);
-    if (!connected.length) addWarning(warnings, poleId, "", "", "DISCONNECTED_POLE", "El poste no tiene spans conectados.");
+    if (!connected.length) addWarning(warnings, poleId, "", "", "DISCONNECTED_POLE", "The pole has no connected spans.");
 
     S().getSpanCommsForPole(poleId).forEach(sc => {
-      if (sc.unknownOwner) addWarning(warnings, poleId, sc.spanId, sc.owner, "UNKNOWN_OWNER", `Owner no normalizado en Span.Wire: ${sc.rawOwner || sc.owner}.`);
+      if (sc.unknownOwner) addWarning(warnings, poleId, sc.spanId, sc.owner, "UNKNOWN_OWNER", `Unnormalized owner in Span.Wire: ${sc.rawOwner || sc.owner}.`);
       ["existingHOA", "existingHOAChange", "ocalcMS", "midspan", "calculatedMidspan", "msProposed", "finalMidspan"].forEach(field => {
-        if (sc[field] && !H().isValidHeight(sc[field])) addWarning(warnings, poleId, sc.spanId, sc.owner, `INVALID_${field.toUpperCase()}`, `${field} inválido para ${sc.owner}.`, "danger");
+        if (sc[field] && !H().isValidHeight(sc[field])) addWarning(warnings, poleId, sc.spanId, sc.owner, `INVALID_${field.toUpperCase()}`, `Invalid ${field} for ${sc.owner}.`, "danger");
       });
     });
 

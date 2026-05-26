@@ -289,6 +289,58 @@
     return "";
   }
 
+  function parseAttachmentSize(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return {
+        attachmentSizeRaw: "",
+        attachmentMessenger: "",
+        attachmentFiber: "",
+        attachmentDirection: "",
+        attachmentDirectionTokens: []
+      };
+    }
+
+    const directionMatch = raw.match(/\(([^)]+)\)\s*$/);
+    const attachmentDirection = directionMatch ? directionMatch[1].trim() : "";
+    const withoutDirection = raw.replace(/\s*\([^)]+\)\s*$/, "").trim();
+    const parts = withoutDirection.split(/\s+/).filter(Boolean);
+    const attachmentMessenger = parts.shift() || "";
+    const attachmentFiber = parts.join(" ");
+    const attachmentDirectionTokens = attachmentDirection
+      .split(/[\/,;\s]+/)
+      .map(token => token.trim().toUpperCase())
+      .filter(Boolean);
+
+    return {
+      attachmentSizeRaw: raw,
+      attachmentMessenger,
+      attachmentFiber,
+      attachmentDirection,
+      attachmentDirectionTokens
+    };
+  }
+
+  function importMakeReadyReferences(makeReadyRows) {
+    return makeReadyRows.map(row => {
+      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])).trim();
+      const attachmentSize = parseAttachmentSize(pick(row, ["Attachment Size"], { contains: true }));
+      if (!poleId && !attachmentSize.attachmentSizeRaw) return null;
+      return S().createMakeReadyReference({
+        poleId,
+        collectionId: String(pick(row, ["collectionId", "Collection ID"])).trim(),
+        makeReadyIndex: pick(row, ["Make Ready Index", "MR Index"], { contains: true }),
+        makeReadyId: pick(row, ["Make Ready Id", "Make Ready ID", "MR ID"], { contains: true }),
+        ...attachmentSize,
+        attachmentType: pick(row, ["Attachment Type"], { contains: true }),
+        attachmentHeight: heightFromRow(row, ["Attachment Height.display", "Attachment Height Display"], ["Attachment Height"]),
+        proposedMidspan: heightFromRow(row, ["Proposed Mid Span.display", "Proposed Midspan.display", "Proposed Mid Span Display"], ["Proposed Mid Span", "Proposed Midspan"]),
+        makeReadyNotes: pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true }),
+        raw: row
+      });
+    }).filter(Boolean);
+  }
+
   function fallbackOwner(rawOwner, size, wireId) {
     const raw = String(rawOwner || "").replace(/^COMMUNICATION\s*>\s*/i, "").trim();
     if (raw) return raw;
@@ -384,10 +436,11 @@
     const spanCommsSheet = findSheet(workbook, ["SpanComms"]);
     const spanSidesSheet = findSheet(workbook, ["SpanSides"]);
     const spanPowerSheet = findSheet(workbook, ["SpanPower"]);
-    if (!polesSheet && !spansSheet && !spanCommsSheet && !spanSidesSheet && !spanPowerSheet) return null;
+    const makeReadyRefsSheet = findSheet(workbook, ["MakeReadyRefs", "Make Ready References"]);
+    if (!polesSheet && !spansSheet && !spanCommsSheet && !spanSidesSheet && !spanPowerSheet && !makeReadyRefsSheet) return null;
 
     const state = S().resetState();
-    state.importedFileName = "Excel exportado reimportado";
+    state.importedFileName = "Reimported exported Excel";
     state.autoCreateSpanComms = false;
 
     rowsToObjects(polesSheet || []).forEach(row => {
@@ -511,6 +564,23 @@
         wireId: pick(row, ["wireId", "Wire ID"])
       });
     });
+
+    state.makeReadyReferences = rowsToObjects(makeReadyRefsSheet || []).map(row => S().createMakeReadyReference({
+      poleId: pick(row, ["poleId", "Pole ID", "Id"]),
+      collectionId: pick(row, ["collectionId", "Collection ID"]),
+      makeReadyIndex: pick(row, ["makeReadyIndex", "Make Ready Index"]),
+      makeReadyId: pick(row, ["makeReadyId", "Make Ready ID"]),
+      attachmentSizeRaw: pick(row, ["attachmentSizeRaw", "Attachment Size"]),
+      attachmentMessenger: pick(row, ["attachmentMessenger", "Messenger"]),
+      attachmentFiber: pick(row, ["attachmentFiber", "Fiber"]),
+      attachmentDirection: pick(row, ["attachmentDirection", "Direction"]),
+      attachmentDirectionTokens: String(pick(row, ["attachmentDirectionTokens", "Direction Tokens"])).split(/[|,]/).map(item => item.trim()).filter(Boolean),
+      attachmentType: pick(row, ["attachmentType", "Attachment Type"]),
+      attachmentHeight: pick(row, ["attachmentHeight", "Attachment Height"]),
+      proposedMidspan: pick(row, ["proposedMidspan", "Proposed Midspan"]),
+      makeReadyNotes: pick(row, ["makeReadyNotes", "Make Ready Notes"]),
+      raw: row
+    }));
 
     return S().normalizeState(state);
   }
@@ -719,9 +789,10 @@
     const collectionRows = rowsToObjects(findSheet(workbook, ["Collection", "Poles", "Postes"]) || []);
     const spanRows = rowsToObjects(findSheet(workbook, ["Span", "Spans"]) || []);
     const wireRows = rowsToObjects(findSheet(workbook, ["Span.Wire", "Span Wire", "Wires", "Comms"]) || []);
+    const makeReadyRows = rowsToObjects(findSheet(workbook, ["Make Ready", "MakeReady", "MR"]) || []);
 
     if (!collectionRows.length && !spanRows.length && !wireRows.length) {
-      throw new Error("No encontre hojas Collection, Span o Span.Wire con encabezados legibles.");
+      throw new Error("Could not find readable Collection, Span or Span.Wire sheets.");
     }
 
     const collectionIndex = buildCollectionIndex(collectionRows);
@@ -731,12 +802,13 @@
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);
     const rawSpanToSpanId = importSpans(spanRecords);
     importSpanWires(wireRows, rawSpanToSpanId);
+    state.makeReadyReferences = importMakeReadyReferences(makeReadyRows);
 
     S().normalizeState(state);
     global.Calculations.recalculateAll();
 
     if (!Object.keys(S().getState().poles).length) {
-      throw new Error("No se pudo cargar ningun poste desde el archivo.");
+      throw new Error("Could not load any pole from the file.");
     }
 
     return S().getState();
@@ -746,11 +818,11 @@
     const payload = JSON.parse(await file.text());
     const nextState = payload && payload.state ? payload.state : payload;
     if (!nextState || typeof nextState !== "object" || !nextState.poles || !nextState.spans) {
-      throw new Error("El JSON no contiene datos validos de la calculadora.");
+      throw new Error("The JSON does not contain valid calculator data.");
     }
     const restored = S().setState({
       ...nextState,
-      importedFileName: file.name || nextState.importedFileName || "Datos importados",
+      importedFileName: file.name || nextState.importedFileName || "Imported data",
       importedAt: new Date().toISOString()
     });
     global.Calculations.recalculateAll();

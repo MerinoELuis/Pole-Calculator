@@ -56,6 +56,7 @@
     spanSides: {},
     spanComms: {},
     spanPower: {},
+    makeReadyReferences: [],
     poleClassChecks: [],
     movements: [],
     mr: [],
@@ -255,6 +256,25 @@
       size: trim(data.size || ""),
       owner: trim(data.owner || ""),
       wireId: trim(data.wireId || "")
+    };
+  }
+
+  function createMakeReadyReference(data = {}) {
+    return {
+      poleId: trim(data.poleId || data.id || ""),
+      collectionId: trim(data.collectionId || ""),
+      makeReadyIndex: trim(data.makeReadyIndex || data.index || ""),
+      makeReadyId: trim(data.makeReadyId || ""),
+      attachmentSizeRaw: trim(data.attachmentSizeRaw || data.attachmentSize || ""),
+      attachmentMessenger: trim(data.attachmentMessenger || ""),
+      attachmentFiber: trim(data.attachmentFiber || ""),
+      attachmentDirection: trim(data.attachmentDirection || ""),
+      attachmentDirectionTokens: Array.isArray(data.attachmentDirectionTokens) ? data.attachmentDirectionTokens.map(trim).filter(Boolean) : [],
+      attachmentType: trim(data.attachmentType || ""),
+      attachmentHeight: trim(data.attachmentHeight || ""),
+      proposedMidspan: trim(data.proposedMidspan || ""),
+      makeReadyNotes: trim(data.makeReadyNotes || data.notes || ""),
+      raw: data.raw || {}
     };
   }
 
@@ -488,9 +508,9 @@
   }
 
   function ensureEndpointComms() {
-    // Si un extremo del span no trae filas propias, se crean comms placeholder
-    // con los mismos owners/wireIds que llegan desde el otro extremo. El usuario
-    // completará las alturas; así el poste nunca queda visualmente vacío.
+    // If one end of the span has no own rows, create placeholder comms with the
+    // same owners/wireIds arriving from the other end. The user can complete the
+    // heights later, and the pole never appears visually empty.
     Object.values(state.spans).forEach(span => {
       [span.fromPole, span.toPole].filter(Boolean).forEach(poleId => {
         const rowsAtPole = getSpanCommsForPole(poleId);
@@ -530,6 +550,9 @@
     next.spanSides = next.spanSides || {};
     next.spanComms = next.spanComms || {};
     next.spanPower = next.spanPower || {};
+    next.makeReadyReferences = Array.isArray(next.makeReadyReferences)
+      ? next.makeReadyReferences.map(createMakeReadyReference)
+      : [];
     next.poleClassChecks = Array.isArray(next.poleClassChecks) ? next.poleClassChecks : [];
     next.movements = Array.isArray(next.movements) ? next.movements : [];
     next.mr = Array.isArray(next.mr) ? next.mr : [];
@@ -604,6 +627,7 @@
     createSpanSide,
     createSpanComm,
     createSpanPower,
+    createMakeReadyReference,
     keyForSpanSide,
     keyForSpanComm,
     getPole,

@@ -1,29 +1,29 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Calculadora de Postes, Spans y Midspans</title>
+  <title>Pole Span MR Calculator</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
-        <h1>Calculadora Web de Postes</h1>
+        <h1>Pole Span MR Calculator</h1>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
-          Importar Excel crudo
+          Import Raw Excel
           <input id="excelFileInput" type="file" accept=".xlsx,.csv" hidden />
         </label>
         <label class="btn btn-primary file-btn">
-          Importar JSON
+          Import JSON
           <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
         </label>
-        <button id="exportJsonBtn" class="btn btn-success" type="button">Exportar JSON</button>
-        <button id="saveLocalBtn" class="btn" type="button">Guardar local</button>
-        <button id="loadLocalBtn" class="btn" type="button">Cargar local</button>
+        <button id="exportJsonBtn" class="btn btn-success" type="button">Export JSON</button>
+        <button id="saveLocalBtn" class="btn" type="button">Save Local</button>
+        <button id="loadLocalBtn" class="btn" type="button">Load Local</button>
       </div>
     </header>
 
@@ -37,20 +37,21 @@
         <section class="panel index-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
-              <p class="eyebrow">Índice</p>
-              <h2>Postes</h2>
-              <p id="projectMeta" class="muted">Sin archivo importado</p>
+              <p class="eyebrow">Index</p>
+              <h2>Poles</h2>
+              <p id="projectMeta" class="muted">No file imported</p>
             </div>
-            <div class="toolbar compact-toolbar">
-              <button id="autoCalculateBtn" class="btn btn-primary" type="button">Autocalcular movimientos</button>
+            <div class="index-actions">
+              <button id="autoCalculateBtn" class="btn btn-primary" type="button">Auto Calculate Moves</button>
+              <button id="exportProposedJsonBtn" class="btn btn-success" type="button">Export Proposed</button>
             </div>
           </div>
           <div class="toolbar compact-toolbar">
-            <input id="poleSearchInput" class="input" type="search" placeholder="Buscar poste u owner..." />
+            <input id="poleSearchInput" class="input" type="search" placeholder="Search pole or owner..." />
             <select id="warningFilterSelect" class="input">
-              <option value="all">Todos</option>
-              <option value="warnings">Solo con warnings</option>
-              <option value="changed">Solo con cambios/proposed</option>
+              <option value="all">All</option>
+              <option value="warnings">Flagged only</option>
+              <option value="changed">Changed / proposed only</option>
             </select>
           </div>
           <div id="polesList" class="pole-index-links"></div>
@@ -59,10 +60,10 @@
         <section class="panel clearance-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
-              <p class="eyebrow">Configuración</p>
-              <h2>Valores de cálculo</h2>
+              <p class="eyebrow">Configuration</p>
+              <h2>Calculation Values</h2>
             </div>
-            <p class="muted">Edita estos valores y se recalculan postes, warnings y MR.</p>
+            <p class="muted">Edit these values to recalculate poles, flagging and MR.</p>
           </div>
           <div id="clearanceSettings" class="clearance-settings compact"></div>
         </section>
@@ -89,28 +90,28 @@
   <div id="toastHost" class="toast-host"></div>
 
   <button id="openCalculatorBtn" class="floating-open-btn" type="button">ft/in</button>
-  <section id="floatingCalculator" class="floating-calculator hidden" aria-label="Calculadora de pies y pulgadas">
+  <section id="floatingCalculator" class="floating-calculator hidden" aria-label="Feet and inches calculator">
     <div class="floating-header">
       <div>
-        <p class="eyebrow">Calculadora</p>
-        <h3>Pies / pulgadas</h3>
+        <p class="eyebrow">Calculator</p>
+        <h3>Feet / Inches</h3>
       </div>
-      <button id="closeCalculatorBtn" class="icon-btn" type="button" aria-label="Cerrar calculadora">×</button>
+      <button id="closeCalculatorBtn" class="icon-btn" type="button" aria-label="Close calculator">×</button>
     </div>
     <div class="calc-grid">
-      <label>Valor A<input id="calcA" class="input" placeholder="24'6&quot;" /></label>
-      <label>Operación
+      <label>Value A<input id="calcA" class="input" placeholder="24'6&quot;" /></label>
+      <label>Operation
         <select id="calcOperation" class="input">
           <option value="add">A + B</option>
           <option value="subtract">A - B</option>
-          <option value="toDecimal">A a ft decimal</option>
-          <option value="fromDecimal">A ft decimal a ft/in</option>
-          <option value="inchesToHeight">A pulgadas a ft/in</option>
+          <option value="toDecimal">A to decimal ft</option>
+          <option value="fromDecimal">A decimal ft to ft/in</option>
+          <option value="inchesToHeight">A inches to ft/in</option>
         </select>
       </label>
-      <label>Valor B<input id="calcB" class="input" placeholder="1'8&quot;" /></label>
-      <button id="runCalculatorBtn" class="btn btn-primary" type="button">Calcular</button>
-      <div class="calc-result" id="calcResult">Resultado</div>
+      <label>Value B<input id="calcB" class="input" placeholder="1'8&quot;" /></label>
+      <button id="runCalculatorBtn" class="btn btn-primary" type="button">Calculate</button>
+      <div class="calc-result" id="calcResult">Result</div>
     </div>
   </section>
 

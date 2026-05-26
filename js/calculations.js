@@ -125,7 +125,7 @@
 
   function getImportedMidspanInchesForComm(sc) {
     // El midspan base viene de la columna Midspan de Span.Wire. O-CALC MS queda
-    // solo como respaldo para archivos guardados viejos que ya traían ese campo.
+    // only as a fallback for older saved files that already had that field.
     return parseMidspanValue(sc?.midspan || sc?.ocalcMS || "");
   }
 
@@ -192,7 +192,7 @@
     if (!otherPole) return null;
 
     // Primero se busca por wireId porque un mismo owner puede tener varios
-    // cables en el mismo poste. El owner queda como respaldo para datos viejos.
+    // wires on the same pole. Owner stays as the fallback for older data.
     const local = getLocalCommCandidate(spanId, poleId, ownerBase, preferredWireId) || {
       spanId,
       poleId,
@@ -379,7 +379,7 @@
         msProposed: "",
         finalMidspan: "",
         clearanceMSStatus: "MISSING",
-        clearanceMSMessage: "Falta midspan del comm.",
+        clearanceMSMessage: "Missing comm midspan.",
         clearanceMSIssue: false
       };
     }
@@ -389,7 +389,7 @@
         msProposed: format(midspan),
         finalMidspan: format(midspan),
         clearanceMSStatus: "MISSING_POWER",
-        clearanceMSMessage: "Falta Max MS Comm / Low Power en midspan.",
+        clearanceMSMessage: "Missing Max MS Comm / Low Power at midspan.",
         clearanceMSIssue: false
       };
     }
@@ -404,7 +404,7 @@
       clearanceMSStatus: ok ? "OK" : "PROBLEM",
       clearanceMSMessage: ok
         ? `${format(midspan)} <= ${format(maxMS)}.`
-        : `${format(midspan)} supera el límite ${format(maxMS)}.`,
+        : `${format(midspan)} exceeds limit ${format(maxMS)}.`,
       clearanceMSIssue: !ok
     };
   }
@@ -436,7 +436,7 @@
         if (otherMidspan === null) return;
         const diff = Math.abs(midspan - otherMidspan);
         if (diff < midspanClearance) {
-          issues.push(`Comm-comm MS: ${format(diff)} con ${commOwnerLabel(other) || "sin owner"}; mínimo ${format(midspanClearance)}.`);
+          issues.push(`Comm-comm MS: ${format(diff)} with ${commOwnerLabel(other) || "no owner"}; minimum ${format(midspanClearance)}.`);
         }
       });
     }
@@ -476,7 +476,7 @@
       if (sc.existingHOAChange && ownExistingHeight !== null) {
         const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
         if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
-          issues.push(`Bolt-bolt poste: ${format(ownBoltDiff)} contra Existing HOA ${format(ownExistingHeight)}; mínimo ${format(boltClearance)}.`);
+          issues.push(`Pole bolt-bolt: ${format(ownBoltDiff)} against Existing HOA ${format(ownExistingHeight)}; minimum ${format(boltClearance)}.`);
         }
       }
       S().getSpanCommsForPole(sc.poleId).forEach(other => {
@@ -492,9 +492,9 @@
         if (otherHeight === null) return;
         const diff = Math.abs(poleHeight - otherHeight);
         const required = sameOwner ? boltClearance : poleClearance;
-        const label = sameOwner ? "Bolt-bolt poste" : "Comm-comm poste";
+        const label = sameOwner ? "Pole bolt-bolt" : "Pole comm-comm";
         if (diff < required) {
-          issues.push(`${label}: ${format(diff)} con ${otherOwner || "sin owner"}; mínimo ${format(required)}.`);
+          issues.push(`${label}: ${format(diff)} with ${otherOwner || "no owner"}; minimum ${format(required)}.`);
         }
 
         // Bolt-bolt also applies against previous attachment points. Example:
@@ -505,7 +505,7 @@
         if (otherExistingHeight !== null) {
           const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
           if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
-            issues.push(`Bolt-bolt poste: ${format(existingPointDiff)} contra Existing HOA ${format(otherExistingHeight)} de ${otherOwner || "sin owner"}; mínimo ${format(boltClearance)}.`);
+            issues.push(`Pole bolt-bolt: ${format(existingPointDiff)} against Existing HOA ${format(otherExistingHeight)} from ${otherOwner || "no owner"}; minimum ${format(boltClearance)}.`);
           }
         }
       });
@@ -514,7 +514,7 @@
     const maxPole = H().parseHeight(pole?.maxCommHeight || "");
     const changedPoleHeight = H().parseHeight(sc.existingHOAChange || "");
     if (changedPoleHeight !== null && maxPole !== null && changedPoleHeight > maxPole) {
-      issues.push(`Poste: Cambio de HOA ${format(changedPoleHeight)} supera max ${format(maxPole)}.`);
+      issues.push(`Pole: HOA Change ${format(changedPoleHeight)} exceeds max ${format(maxPole)}.`);
     }
 
     return {
@@ -542,16 +542,16 @@
         if (item.effective !== null) {
           const diff = Math.abs(proposed - item.effective);
           if (diff === 0 && !item.moved) {
-            issues.push(`Proposed ${format(proposed)} ocupa el mismo HOA que ${item.owner}.`);
+            issues.push(`Proposed ${format(proposed)} occupies the same HOA as ${item.owner}.`);
           }
           if (diff > 0 && diff < commRequired) {
-            issues.push(`Proposed ${format(proposed)} no respeta Pole · Comm-comm ${format(commRequired)} contra ${item.owner} ${format(item.effective)}.`);
+            issues.push(`Proposed ${format(proposed)} does not respect Pole · Comm-comm ${format(commRequired)} against ${item.owner} ${format(item.effective)}.`);
           }
         }
         if (item.existing !== null) {
           const boltDiff = Math.abs(proposed - item.existing);
           if (boltDiff > 0 && boltDiff < boltRequired) {
-            issues.push(`Proposed ${format(proposed)} no respeta Pole · Bolt-bolt ${format(boltRequired)} contra Existing HOA ${format(item.existing)}.`);
+            issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against Existing HOA ${format(item.existing)}.`);
           }
         }
       });
@@ -563,7 +563,7 @@
       .forEach(item => {
         const diff = Math.abs(proposed - item.height);
         if (diff > 0 && diff < boltRequired) {
-          issues.push(`Proposed ${format(proposed)} no respeta Pole · Bolt-bolt ${format(boltRequired)} contra otro proposed ${format(item.height)}.`);
+          issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against another proposed ${format(item.height)}.`);
         }
       });
 
@@ -633,9 +633,9 @@
     let debugSelected = null;
     if (nextPoleProposed === null) {
       const otherPoleId = S().getOtherPoleId(span, poleId);
-      // El proposed del poste siguiente no siempre vive en el mismo spanId.
-      // Para este flujo se toma el primer proposed que el poste siguiente
-      // realmente propone hacia adelante; si no existe, se deja vacío.
+      // The next pole proposed value does not always live on the same spanId.
+      // This flow uses the first forward proposed value from the next pole; if
+      // none exists, the field stays empty.
       const otherSides = otherPoleId ? S().getSpanSidesForPole(otherPoleId) : [];
       debugOtherPoleId = otherPoleId || "";
       debugCandidates = otherSides.map(otherSide => {
@@ -700,12 +700,12 @@
     let localAdjustment = 0;
     let remoteAdjustment = 0;
     if (importedMidspan !== null) {
-      // Fórmula documentada para comms:
-      // Midspan nuevo = Midspan importado + (movimiento local / 2) + (movimiento remoto / 2).
-      // Movimiento = HOA efectivo - Existing HOA.
-      // El HOA efectivo es Cambio de HOA cuando existe; si no, Existing HOA.
-      // Ejemplo: 20' -> 19' aporta -6" al midspan. Si el otro poste pasa
-      // de 20' -> 21', aporta +6", y ambos cambios se compensan.
+      // Documented comm formula:
+      // New midspan = imported midspan + (local move / 2) + (remote move / 2).
+      // Move = effective HOA - Existing HOA.
+      // Effective HOA is HOA Change when present; otherwise Existing HOA.
+      // Example: 20' -> 19' contributes -6" to midspan. If the other pole moves
+      // from 20' -> 21', it contributes +6", and both changes offset each other.
       localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
       remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
       calculated = format(Math.round(importedMidspan + localAdjustment + remoteAdjustment));
@@ -1185,8 +1185,8 @@
       S().getSpanCommsForSpan(span.spanId).forEach(sc => calculateMidspanForComm(sc));
     });
 
-    // Recalcula también comms de spans recíprocos por Wire Id. Esto cubre casos
-    // Fore/Back importados con distinto Span Id, pero pertenecientes al mismo cable.
+    // Also recalculate reciprocal span comms by Wire Id. This covers imported
+    // Fore/Back cases with different Span Ids that belong to the same cable.
     const affectedWireIds = new Set(
       S().getSpanCommsForPole(poleId)
         .map(sc => sc.wireId)

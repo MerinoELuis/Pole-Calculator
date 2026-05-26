@@ -116,6 +116,12 @@ button:disabled { cursor: not-allowed; }
 .compact-toolbar { flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
 .compact-toolbar .input { max-width: 280px; }
 .index-panel .panel-header { margin-bottom: 8px; }
+.index-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  align-content: start;
+}
 .hidden { display: none !important; }
 .clearance-settings { display: grid; gap: 10px; }
 .clearance-row { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 8px; align-items: center; color: #475569; font-size: .78rem; font-weight: 800; }
