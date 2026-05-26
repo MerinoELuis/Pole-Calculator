@@ -152,16 +152,14 @@ For `Proposed` on the pole:
 
 The `Export Proposed` button creates a `.json` package for downstream O-Calc automation. It includes:
 
-- Proposed height.
-- End Drop.
-- Next Pole Proposed.
-- O-CALC MS, MS Proposed and Adjusted Final MS.
-- Span length, bearing angle and direction.
-- Max Height at MS and Low Power at MS.
-- Environment values.
-- Comm movement records.
-- Comm-only Make Ready lines.
-- Make Ready `Attachment Size` references, including messenger, fiber and direction.
+- A compact `poles[]` list grouped by Pole ID.
+- For each pole, the related `spans[]` with span label, other pole, length, bearing and direction.
+- A clear `proposed` object inside each span with Proposed, End Drop, Next Pole Proposed, O-CALC MS, MS Proposed and Adjusted Final MS.
+- Comm movement records grouped under the same span.
+- Comm-only Make Ready lines grouped under the same pole.
+- Make Ready `Attachment Size` data needed by O-Calc, including messenger, fiber and direction.
+
+The proposed export intentionally omits internal app IDs such as `spanId` and avoids repeating environment or Low Power clearance fields that O-Calc does not need for placing the proposal.
 
 ## Main Files
 

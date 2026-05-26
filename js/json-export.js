@@ -72,29 +72,78 @@
     return directionMatches.length ? directionMatches : refs;
   }
 
+  function spanExportInfo(span, poleId) {
+    const fromPole = span?.fromPole || "";
+    const toPole = span?.toPole || "";
+    return {
+      label: span ? `${fromPole} -> ${toPole}` : "",
+      fromPole,
+      toPole,
+      otherPole: span ? S().getOtherPoleId(span, poleId) : "",
+      type: span?.type || "",
+      direction: directionFromPole(span, poleId),
+      bearingDegrees: span?.bearingDegrees ?? "",
+      lengthDisplay: span?.lengthDisplay || "",
+      lengthFeet: spanLengthFeet(span)
+    };
+  }
+
+  function attachmentExportInfo(ref) {
+    if (!ref) return null;
+    return {
+      attachmentSize: ref.attachmentSizeRaw || "",
+      messenger: ref.attachmentMessenger || "",
+      fiber: ref.attachmentFiber || "",
+      direction: ref.attachmentDirection || "",
+      attachmentType: ref.attachmentType || "",
+      attachmentHeight: ref.attachmentHeight || "",
+      proposedMidspan: ref.proposedMidspan || "",
+      referenceNotes: ref.makeReadyNotes || ""
+    };
+  }
+
+  function ensurePoleExport(map, poleId, state) {
+    const key = poleId || "UNKNOWN_POLE";
+    if (!map.has(key)) {
+      map.set(key, {
+        poleId: key,
+        proposedOwner: state.settings?.proposedOwner || "",
+        spans: [],
+        commMakeReady: []
+      });
+    }
+    return map.get(key);
+  }
+
+  function ensureSpanExport(poleItem, span, poleId) {
+    const info = spanExportInfo(span, poleId);
+    const key = info.label || `${poleId || ""}->${info.otherPole || ""}`;
+    let item = poleItem.spans.find(row => row.label === key);
+    if (!item) {
+      item = {
+        ...info,
+        proposed: null,
+        commMovements: []
+      };
+      poleItem.spans.push(item);
+    }
+    return item;
+  }
+
   function exportProposedJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
     const date = new Date().toISOString().slice(0, 10);
+    const polesById = new Map();
 
-    const proposals = Object.values(state.spanSides || {})
+    Object.values(state.spanSides || {})
       .filter(side => side.proposedHOA)
-      .map(side => {
+      .forEach(side => {
         const span = S().getSpan(side.spanId);
-        const otherPoleId = span ? S().getOtherPoleId(span, side.poleId) : "";
-        const attachmentReferences = makeReadyRefsForProposal(state, side.poleId, span);
-        const primaryAttachmentReference = attachmentReferences[0] || null;
-        return {
-          poleId: side.poleId,
-          spanId: side.spanId,
-          spanLabel: span ? `${span.fromPole} -> ${span.toPole}` : side.spanId,
-          otherPoleId,
-          spanType: span?.type || "",
-          spanDirection: directionFromPole(span, side.poleId),
-          spanBearingDegrees: span?.bearingDegrees ?? "",
-          spanLength: span?.length || "",
-          spanLengthDisplay: span?.lengthDisplay || "",
-          spanLengthFeet: spanLengthFeet(span),
+        const poleItem = ensurePoleExport(polesById, side.poleId, state);
+        const spanItem = ensureSpanExport(poleItem, span, side.poleId);
+        const primaryAttachmentReference = makeReadyRefsForProposal(state, side.poleId, span)[0] || null;
+        spanItem.proposed = {
           proposed: side.proposedHOA || "",
           proposedFeet: heightToDecimalFeet(side.proposedHOA),
           endDrop: side.endDrop || "",
@@ -102,73 +151,44 @@
           ocalcMS: side.ocalcMS || "",
           msProposed: side.msProposed || "",
           adjustedFinalMS: side.finalMidspan || "",
-          maxHeightAtMS: span?.midspanMaxCommHeight || "",
-          lowPowerAtMS: span?.midspanLowPower || "",
-          proposedOwner: state.settings?.proposedOwner || "",
-          attachmentSize: primaryAttachmentReference?.attachmentSizeRaw || "",
-          messenger: primaryAttachmentReference?.attachmentMessenger || "",
-          fiber: primaryAttachmentReference?.attachmentFiber || "",
-          attachmentDirection: primaryAttachmentReference?.attachmentDirection || "",
-          environment: span?.environment || "",
-          environmentClearance: span?.environmentClearance || "",
-          notes: side.notes || "",
-          primaryAttachmentReference,
-          attachmentReferences
+          attachment: attachmentExportInfo(primaryAttachmentReference),
+          notes: side.notes || ""
         };
       });
 
-    const commMovements = Object.values(state.spanComms || {})
-      .map(sc => {
-        const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
-        if (!sc.existingHOAChange || !mrLine) return null;
-        const span = S().getSpan(sc.spanId);
-        return {
-          poleId: sc.poleId,
-          spanId: sc.spanId,
-          spanLabel: span ? `${span.fromPole} -> ${span.toPole}` : sc.spanId,
-          otherPoleId: span ? S().getOtherPoleId(span, sc.poleId) : "",
-          owner: global.Calculations.commOwnerLabel(sc),
-          rawOwner: sc.rawOwner || "",
-          ownerBase: sc.ownerBase || sc.owner || "",
-          serviceDrop: Boolean(sc.serviceDrop),
-          existingHOA: sc.existingHOA || "",
-          hoaChange: sc.existingHOAChange || "",
-          importedMidspan: sc.midspan || sc.ocalcMS || "",
-          calculatedMidspan: sc.calculatedMidspan || "",
-          mrLine,
-          wireId: sc.wireId || "",
-          size: sc.size || "",
-          construction: sc.construction || "",
-          insulator: sc.insulator || ""
-        };
-      })
-      .filter(Boolean);
+    Object.values(state.spanComms || {}).forEach(sc => {
+      const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
+      if (!sc.existingHOAChange || !mrLine) return;
+      const span = S().getSpan(sc.spanId);
+      const poleItem = ensurePoleExport(polesById, sc.poleId, state);
+      const spanItem = ensureSpanExport(poleItem, span, sc.poleId);
+      spanItem.commMovements.push({
+        owner: global.Calculations.commOwnerLabel(sc),
+        rawOwner: sc.rawOwner || "",
+        ownerBase: sc.ownerBase || sc.owner || "",
+        serviceDrop: Boolean(sc.serviceDrop),
+        existingHOA: sc.existingHOA || "",
+        hoaChange: sc.existingHOAChange || "",
+        importedMidspan: sc.midspan || sc.ocalcMS || "",
+        calculatedMidspan: sc.calculatedMidspan || "",
+        mrLine,
+        size: sc.size || "",
+        construction: sc.construction || "",
+        insulator: sc.insulator || ""
+      });
+      poleItem.commMakeReady.push(mrLine);
+      poleItem.commMakeReady = Array.from(new Set(poleItem.commMakeReady));
+    });
 
-    const commMakeReadyByPole = commMovements.reduce((acc, item) => {
-      if (!acc[item.poleId]) acc[item.poleId] = [];
-      acc[item.poleId].push(item.mrLine);
-      acc[item.poleId] = Array.from(new Set(acc[item.poleId]));
-      return acc;
-    }, {});
-
-    const spans = Object.values(state.spans || {})
-      .filter(span => proposals.some(proposal => proposal.spanId === span.spanId) || commMovements.some(move => move.spanId === span.spanId))
-      .map(span => ({
-        spanId: span.spanId,
-        fromPole: span.fromPole,
-        toPole: span.toPole,
-        type: span.type || "",
-        rawType: span.rawType || "",
-        direction: span.direction || "",
-        bearingDegrees: span.bearingDegrees ?? "",
-        length: span.length || "",
-        lengthDisplay: span.lengthDisplay || "",
-        lengthFeet: spanLengthFeet(span),
-        environment: span.environment || "",
-        environmentClearance: span.environmentClearance || "",
-        lowPowerAtMS: span.midspanLowPower || "",
-        maxHeightAtMS: span.midspanMaxCommHeight || ""
-      }));
+    const poles = Array.from(polesById.values())
+      .map(pole => ({
+        ...pole,
+        spans: pole.spans
+          .filter(span => span.proposed || span.commMovements.length)
+          .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+      }))
+      .filter(pole => pole.spans.length || pole.commMakeReady.length)
+      .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
     downloadJson(`pole-proposed-ocalc-${date}.json`, {
       app: "pole-calculator",
@@ -184,11 +204,7 @@
         midspanPowerCommClearance: state.settings?.midspanPowerCommClearance || "",
         midspanCommCommClearance: state.settings?.midspanCommCommClearance || ""
       },
-      spans,
-      proposals,
-      commMovements,
-      commMakeReadyByPole,
-      makeReadyReferences: state.makeReadyReferences || []
+      poles
     });
   }
 
