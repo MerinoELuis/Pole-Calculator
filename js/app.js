@@ -563,11 +563,23 @@
 
   function updateAutoCalculateButtonState() {
     if (!els.autoCalculateBtn) return;
+    const hasPoleData = Object.keys(S.getState().poles || {}).length > 0;
     const isLowComm = (S.getState().settings?.position || "TOP_COMM") === "LOW_COMM";
-    els.autoCalculateBtn.disabled = isLowComm;
-    els.autoCalculateBtn.classList.toggle("btn-disabled", isLowComm);
-    els.autoCalculateBtn.classList.toggle("btn-primary", !isLowComm);
-    els.autoCalculateBtn.textContent = isLowComm ? "Auto Calculate Moves · Top Comm Required" : "Auto Calculate Moves";
+    const disableAuto = !hasPoleData || isLowComm;
+    els.autoCalculateBtn.disabled = disableAuto;
+    els.autoCalculateBtn.classList.toggle("btn-disabled", disableAuto);
+    els.autoCalculateBtn.classList.toggle("btn-primary", !disableAuto);
+    els.autoCalculateBtn.textContent = !hasPoleData
+      ? "Auto Calculate Moves · Import Data First"
+      : isLowComm
+        ? "Auto Calculate Moves · Top Comm Required"
+        : "Auto Calculate Moves";
+
+    if (els.exportProposedJsonBtn) {
+      els.exportProposedJsonBtn.disabled = !hasPoleData;
+      els.exportProposedJsonBtn.classList.toggle("btn-disabled", !hasPoleData);
+      els.exportProposedJsonBtn.classList.toggle("btn-success", hasPoleData);
+    }
   }
 
   function renderPoleClassResults() {
@@ -1404,7 +1416,10 @@
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
     els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
     els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
-    els.exportProposedJsonBtn.addEventListener("click", () => global.ProjectExport.exportProposedJson());
+    els.exportProposedJsonBtn.addEventListener("click", () => {
+      if (els.exportProposedJsonBtn.disabled) return;
+      global.ProjectExport.exportProposedJson();
+    });
     els.autoCalculateBtn.addEventListener("click", () => {
       if (els.autoCalculateBtn.disabled) return;
       recordUndoSnapshot();

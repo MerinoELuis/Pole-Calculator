@@ -122,8 +122,7 @@
     if (!item) {
       item = {
         ...info,
-        proposed: null,
-        commMovements: []
+        proposed: null
       };
       poleItem.spans.push(item);
     }
@@ -159,23 +158,7 @@
     Object.values(state.spanComms || {}).forEach(sc => {
       const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
       if (!sc.existingHOAChange || !mrLine) return;
-      const span = S().getSpan(sc.spanId);
       const poleItem = ensurePoleExport(polesById, sc.poleId, state);
-      const spanItem = ensureSpanExport(poleItem, span, sc.poleId);
-      spanItem.commMovements.push({
-        owner: global.Calculations.commOwnerLabel(sc),
-        rawOwner: sc.rawOwner || "",
-        ownerBase: sc.ownerBase || sc.owner || "",
-        serviceDrop: Boolean(sc.serviceDrop),
-        existingHOA: sc.existingHOA || "",
-        hoaChange: sc.existingHOAChange || "",
-        importedMidspan: sc.midspan || sc.ocalcMS || "",
-        calculatedMidspan: sc.calculatedMidspan || "",
-        mrLine,
-        size: sc.size || "",
-        construction: sc.construction || "",
-        insulator: sc.insulator || ""
-      });
       poleItem.commMakeReady.push(mrLine);
       poleItem.commMakeReady = Array.from(new Set(poleItem.commMakeReady));
     });
@@ -184,7 +167,7 @@
       .map(pole => ({
         ...pole,
         spans: pole.spans
-          .filter(span => span.proposed || span.commMovements.length)
+          .filter(span => span.proposed)
           .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
       }))
       .filter(pole => pole.spans.length || pole.commMakeReady.length)

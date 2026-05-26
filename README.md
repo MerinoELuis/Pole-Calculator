@@ -155,7 +155,6 @@ The `Export Proposed` button creates a `.json` package for downstream O-Calc aut
 - A compact `poles[]` list grouped by Pole ID.
 - For each pole, the related `spans[]` with span label, other pole, length, bearing and direction.
 - A clear `proposed` object inside each span with Proposed, End Drop, Next Pole Proposed, O-CALC MS, MS Proposed and Adjusted Final MS.
-- Comm movement records grouped under the same span.
 - Comm-only Make Ready lines grouped under the same pole.
 - Make Ready `Attachment Size` data needed by O-Calc, including messenger, fiber and direction.
 
