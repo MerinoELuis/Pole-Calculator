@@ -1010,8 +1010,29 @@
     return safe.ok ? { ok: true, reason: "" } : safe;
   }
 
+  function autoCalcMovementSignature() {
+    const state = S().getState();
+    const commMoves = Object.values(state.spanComms || {})
+      .map(row => ({
+        key: S().keyForSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""),
+        existingHOAChange: row.existingHOAChange || "",
+        autoCalcStatus: row.autoCalcStatus || ""
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+    const proposedMoves = Object.values(state.spanSides || {})
+      .map(side => ({
+        key: S().keyForSpanSide(side.spanId, side.poleId),
+        proposedHOA: side.proposedHOA || "",
+        nextPoleProposed: side.proposedHOAChange || "",
+        nextPoleProposedAuto: Boolean(side.nextPoleProposedAuto)
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+
+    return JSON.stringify({ commMoves, proposedMoves });
+  }
+
   function autoCalculateMovements() {
-    const summary = { applied: 0, manual: 0, skipped: 0 };
+    const summary = { applied: 0, manual: 0, skipped: 0, passes: 0, converged: false, stoppedByRepeat: false, maxPassesReached: false };
     if (getSettingPosition() !== "TOP_COMM") {
       return { ...summary, disabled: true };
     }
@@ -1022,8 +1043,13 @@
     const appliedPoles = new Set();
     const manualPoles = new Set();
     const skippedPoles = new Set();
+    const seenSignatures = new Set();
+    const maxPasses = Math.max(8, poleIds.length * 2 + 4);
 
-    for (let pass = 0; pass < 2; pass += 1) {
+    let previousSignature = autoCalcMovementSignature();
+    seenSignatures.add(previousSignature);
+
+    for (let pass = 0; pass < maxPasses; pass += 1) {
       recalculateAll();
       poleIds.forEach(poleId => {
         const beforePole = cloneStateForAutoCalc();
@@ -1057,9 +1083,26 @@
         recalculateSpansForPole(poleId);
         manualPoles.add(poleId);
       });
+
+      recalculateAll();
+      summary.passes = pass + 1;
+      const nextSignature = autoCalcMovementSignature();
+      if (nextSignature === previousSignature) {
+        summary.converged = true;
+        break;
+      }
+      if (seenSignatures.has(nextSignature)) {
+        summary.stoppedByRepeat = true;
+        break;
+      }
+      seenSignatures.add(nextSignature);
+      previousSignature = nextSignature;
     }
 
     recalculateAll();
+    if (!summary.converged && !summary.stoppedByRepeat && summary.passes >= maxPasses) {
+      summary.maxPassesReached = true;
+    }
     summary.applied = appliedPoles.size;
     summary.manual = manualPoles.size;
     summary.skipped = skippedPoles.size;

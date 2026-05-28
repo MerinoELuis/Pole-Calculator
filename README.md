@@ -13,6 +13,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Shows all poles in one editable workspace.
 - Calculates max heights against Low Power.
 - Recalculates midspans when comms move up or down on either connected pole.
+- Runs Auto Calculate in repeated passes until proposed and HOA changes stop moving.
 - Separates real midspan comms from `REF` comms that only reference a connected span.
 - Validates power-comm, comm-comm and bolt-bolt clearances.
 - Generates Make Ready by pole from comm movements and proposed attachments.

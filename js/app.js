@@ -1429,7 +1429,13 @@
         return;
       }
       render();
-      toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged.`, result.applied ? "success" : "warning");
+      const passText = result.passes ? ` in ${result.passes} pass${result.passes === 1 ? "" : "es"}` : "";
+      const stopText = result.maxPassesReached
+        ? " Max pass safety limit reached."
+        : result.stoppedByRepeat
+          ? " Repeated state detected."
+          : "";
+      toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged${passText}.${stopText}`, result.applied ? "success" : "warning");
     });
     els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Saved locally in this browser.", "success"); });
     els.loadLocalBtn.addEventListener("click", () => {
