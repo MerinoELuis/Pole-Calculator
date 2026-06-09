@@ -215,10 +215,17 @@
     return hasCommMidspan || hasProposedMidspan;
   }
 
+  function isForespanForProposed(span, poleId) {
+    const type = String(span?.type || span?.rawType || "").toLowerCase();
+    if (/fore\s*span|forespan/.test(type)) return span.fromPole === poleId;
+    if (/back\s*span|backspan|other/.test(type)) return false;
+    return span?.fromPole === poleId;
+  }
+
   function proposedSpansForPole(poleId) {
     const seen = new Set();
     return connectedSpansSorted(poleId)
-      .filter(span => span.fromPole === poleId)
+      .filter(span => isForespanForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
@@ -226,10 +233,6 @@
         seen.add(key);
         return true;
       });
-  }
-
-  function commHasImportedMidspan(sc) {
-    return H.parseHeight(sc?.ocalcMS || sc?.midspan || "") !== null;
   }
 
   function groupedCommsForPole(poleId) {
@@ -272,8 +275,8 @@
     );
     rows.forEach(sc => {
       const span = S.getSpan(sc.spanId);
-      const hasMidspan = commHasImportedMidspan(sc);
-      const midspan = hasMidspan ? displayMidspan(sc) : "";
+      const midspan = displayMidspan(sc);
+      const hasMidspan = H.parseHeight(midspan || "") !== null;
       const key = `${sc.spanId}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
       if (seen.has(key)) return;
       seen.add(key);

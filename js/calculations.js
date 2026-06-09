@@ -259,8 +259,11 @@
     });
     if (physicalOwnerMatch) return physicalOwnerMatch;
 
-    const ownerMatch = rows.find(row => ownersMatch(row, spanComm));
-    return ownerMatch || null;
+    // Do not fall back to "same owner anywhere in the project". A CATV on the
+    // next forespan is not evidence for a CATV midspan on this backspan. That
+    // was the source of false Comm-comm MS errors where REF rows with no
+    // imported midspan borrowed a value from a different physical span.
+    return null;
   }
 
   function calculateCommMidspanDetails(spanComm) {
@@ -843,10 +846,17 @@
       || S().getSpanSidesForSpan(spanId).some(side => parseMidspanValue(side.ocalcMS || side.proposedMidspan || side.msProposed || "") !== null);
   }
 
+  function isForespanForProposed(span, poleId) {
+    const type = String(span?.type || span?.rawType || "").toLowerCase();
+    if (/fore\s*span|forespan/.test(type)) return span.fromPole === poleId;
+    if (/back\s*span|backspan|other/.test(type)) return false;
+    return span?.fromPole === poleId;
+  }
+
   function autoCalcProposedSpansForPole(poleId) {
     const seen = new Set();
     return S().getConnectedSpans(poleId)
-      .filter(span => span.fromPole === poleId)
+      .filter(span => isForespanForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => autoCalcHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
