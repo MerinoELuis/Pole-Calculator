@@ -224,9 +224,10 @@
 
   function proposedSpansForPole(poleId) {
     const seen = new Set();
+    const allowNoMidspan = S.getState().settings?.proposeForeSpanWithoutMidspan === true;
     return connectedSpansSorted(poleId)
       .filter(span => isForespanForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
-      .filter(span => spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
         if (seen.has(key)) return false;
@@ -512,6 +513,11 @@
   function renderClearanceSettings() {
     if (!els.clearanceSettings) return;
     const settings = S.getState().settings || {};
+    const profiles = global.ProjectProfiles?.PROFILES || {};
+    const selectedProfile = settings.projectProfile || "INTEC";
+    const projectOptions = Object.values(profiles).map(profile =>
+      `<option value="${escapeHtml(profile.id)}" ${selectedProfile === profile.id ? "selected" : ""}>${escapeHtml(profile.label)}</option>`
+    ).join("");
     const clearanceRows = [
       ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
@@ -539,6 +545,12 @@
         <h3>Adjustments</h3>
         <div class="settings-grid adjustments-grid">
           <label class="clearance-row position-row">
+            <span>Project</span>
+            <select class="input position-select" data-scope="settings" data-field="projectProfile">
+              ${projectOptions}
+            </select>
+          </label>
+          <label class="clearance-row position-row">
             <span>Position</span>
             <select class="input position-select" data-scope="settings" data-field="position">
               <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
@@ -552,12 +564,12 @@
               <option value="UPPER" ${settings.mrCase === "UPPER" ? "selected" : ""}>Uppercase</option>
             </select>
           </label>
-          <label class="clearance-row position-row">
+          ${settings.hideProposedOwner ? "" : `<label class="clearance-row position-row">
             <span>Proposed Owner</span>
             <select class="input position-select" data-scope="settings" data-field="proposedOwner">
               ${ownerOptions}
             </select>
-          </label>
+          </label>`}
         </div>
       </div>
     `;
@@ -1083,6 +1095,7 @@
       "clearanceToPower",
       "commClearance",
       "boltClearance",
+      "projectProfile",
       "position",
       "mrCase",
       "proposedOwner"
@@ -1353,7 +1366,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }

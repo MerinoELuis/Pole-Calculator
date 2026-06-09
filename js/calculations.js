@@ -57,6 +57,10 @@
     return H().parseHeight(settings.boltClearance || "4\"") ?? 4;
   }
 
+  function shouldBorrowMidspanFromPhysicalSpan() {
+    return S().getState().settings?.borrowMidspanFromPhysicalSpan !== false;
+  }
+
   function commOwnerLabel(sc) {
     return String(sc?.rawOwner || sc?.owner || "")
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -253,11 +257,13 @@
     const exactWire = rows.find(row => spanComm.wireId && row.wireId === spanComm.wireId);
     if (exactWire) return exactWire;
 
-    const physicalOwnerMatch = rows.find(row => {
-      const rowSpan = S().getSpan(row.spanId);
-      return samePhysicalSpan(span, rowSpan) && ownersMatch(row, spanComm);
-    });
-    if (physicalOwnerMatch) return physicalOwnerMatch;
+    if (shouldBorrowMidspanFromPhysicalSpan()) {
+      const physicalOwnerMatch = rows.find(row => {
+        const rowSpan = S().getSpan(row.spanId);
+        return samePhysicalSpan(span, rowSpan) && ownersMatch(row, spanComm);
+      });
+      if (physicalOwnerMatch) return physicalOwnerMatch;
+    }
 
     // Do not fall back to "same owner anywhere in the project". A CATV on the
     // next forespan is not evidence for a CATV midspan on this backspan. That
@@ -855,9 +861,10 @@
 
   function autoCalcProposedSpansForPole(poleId) {
     const seen = new Set();
+    const allowNoMidspan = S().getState().settings?.proposeForeSpanWithoutMidspan === true;
     return S().getConnectedSpans(poleId)
       .filter(span => isForespanForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
-      .filter(span => autoCalcHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => allowNoMidspan || autoCalcHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
         if (seen.has(key)) return false;

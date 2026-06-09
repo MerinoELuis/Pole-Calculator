@@ -795,6 +795,11 @@
       throw new Error("Could not find readable Collection, Span or Span.Wire sheets.");
     }
 
+    if (global.ProjectProfiles) {
+      const owners = wireRows.map(row => String(pick(row, ["Owner", "owner"])).trim()).filter(Boolean);
+      S().applyProjectProfile(global.ProjectProfiles.detectProfile({ fileName, owners }));
+    }
+
     const collectionIndex = buildCollectionIndex(collectionRows);
     importPolesFromCollection(collectionRows);
     state.poleClassChecks = buildPoleClassChecks(collectionRows);

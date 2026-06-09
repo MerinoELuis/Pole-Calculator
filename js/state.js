@@ -45,9 +45,13 @@
       boltClearance: DEFAULT_BOLT_CLEARANCE,
       midspanPowerCommClearance: "30\"",
       midspanCommCommClearance: "4\"",
+      projectProfile: "INTEC",
       position: "TOP_COMM",
       mrCase: "LOWER",
       proposedOwner: "Wecom",
+      borrowMidspanFromPhysicalSpan: true,
+      proposeForeSpanWithoutMidspan: false,
+      hideProposedOwner: false,
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
     },
@@ -326,9 +330,19 @@
 
   function updateSetting(field, value) {
     if (!state.settings || !Object.prototype.hasOwnProperty.call(emptyState().settings, field)) return null;
+    if (field === "projectProfile" && global.ProjectProfiles) {
+      state.settings = global.ProjectProfiles.applyProfileSettings(state.settings, value);
+      return state.settings;
+    }
     state.settings[field] = trim(value);
     if (field === "polePowerCommsClearance") state.settings.clearanceToPower = trim(value);
     if (field === "clearanceToPower") state.settings.polePowerCommsClearance = trim(value);
+    return state.settings;
+  }
+
+  function applyProjectProfile(profileId) {
+    if (!global.ProjectProfiles) return state.settings;
+    state.settings = global.ProjectProfiles.applyProfileSettings(state.settings || emptyState().settings, profileId);
     return state.settings;
   }
 
@@ -637,6 +651,7 @@
     upsertPole,
     updatePoleField,
     updateSetting,
+    applyProjectProfile,
     updateSpanField,
     updateSpanPowerField,
     upsertComm,
