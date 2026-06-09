@@ -14,7 +14,8 @@
         proposedOwner: "Wecom",
         borrowMidspanFromPhysicalSpan: true,
         proposeForeSpanWithoutMidspan: false,
-        hideProposedOwner: false
+        hideProposedOwner: false,
+        mrTemplate: "INTEC"
       }
     },
     METRONET: {
@@ -26,7 +27,8 @@
         proposedOwner: "METRONET",
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: true,
-        hideProposedOwner: true
+        hideProposedOwner: true,
+        mrTemplate: "METRONET"
       }
     }
   };

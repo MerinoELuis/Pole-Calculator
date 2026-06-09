@@ -53,6 +53,11 @@
     return (settings.mrCase || "LOWER") === "UPPER" ? text.toUpperCase() : text;
   }
 
+  function isMetronetMR() {
+    const settings = S().getState().settings || {};
+    return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "METRONET";
+  }
+
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
     if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
@@ -91,6 +96,11 @@
   }
 
   function ugReplacementMR() {
+    if (isMetronetMR()) {
+      return [
+        "Suggest going UG due to [clearance violation / 2 span aerial requirement]."
+      ];
+    }
     return [
       "Unable to attach due to (reasoning).",
       "Red tag",
@@ -102,6 +112,11 @@
   }
 
   function pcoReplacementMR() {
+    if (isMetronetMR()) {
+      return [
+        "Replace pole to 45ft Class 3 due to (failing clearances on pole / failing clearances at midspan / failing load capacity) & (keeping 1/2 span aerial / keeping 2 poles aerial)."
+      ];
+    }
     return [
       "(Existing/proposed) clearance violations (specify violation), replace pole. Transfer (existing comm 1 ie Fiber, CATV, Telco) & (existing comm 2 type) to new pole.",
       "(Existing/proposed) pole overloaded by (who is causing overload), replace pole. Transfer (existing comm 1 ie Fiber, CATV, Telco) & (existing comm 2 type) to new pole."
@@ -155,6 +170,10 @@
 
     return Array.from(byOtherPole.values()).map(item => {
       const direction = item.direction ? ` ${item.direction}` : "";
+      if (isMetronetMR()) {
+        const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
+        return `${relation} going UG due to [clearance violation/insert other reason]. PL NEW ANC/DG FOR DEADENDING LINES. PL NEW RISER FOR UG TRANSFER${direction}.`;
+      }
       return `${item.relation} to go UG${direction} due to (Red tag / TDU Replace required / PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9" / inability to place ANC).`;
     });
   }
