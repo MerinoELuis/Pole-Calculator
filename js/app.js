@@ -305,8 +305,8 @@
             data-field="serviceDrop"
             ${sc.serviceDrop ? "checked" : ""}>
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value">${hasMidspan && !midspanLocked
-          ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}">`
+        midspanHtml: `<div class="comm-midspan-value">${!midspanLocked
+          ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
           : `<strong>${escapeHtml(midspan)}</strong>`}</div>`,
         maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
         remoteHtml: !hasMidspan || !remote
@@ -1188,7 +1188,7 @@
       const midspan = midspanValues ? midspanValues.midspan : (existing?.midspan || "");
       if (existing) {
         global.Calculations.updateSpanCommField(existing.spanId, existing.poleId, existing.owner, existing.wireId || "", "midspan", midspan);
-        return;
+        continue;
       }
       const wireId = `manual-${Date.now()}-${span.spanId}`;
       S.upsertSpanComm({

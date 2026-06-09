@@ -123,6 +123,32 @@
     return parseMidspanValue(sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
   }
 
+  function commMidspanValueDetails(sc, calculatedOverride = "") {
+    // The UI and the Comm-comm MS validation both use this priority. When the
+    // current recalculation has a fresh calculated value, it wins over stored
+    // values so flagging never compares against stale finalMidspan/msProposed.
+    const candidates = [
+      ["calculatedMidspan", calculatedOverride],
+      ["finalMidspan", sc?.finalMidspan],
+      ["msProposed", sc?.msProposed],
+      ["calculatedMidspan", sc?.calculatedMidspan],
+      ["midspan", sc?.midspan],
+      ["ocalcMS", sc?.ocalcMS]
+    ];
+    for (const [source, raw] of candidates) {
+      const parsed = parseMidspanValue(raw || "");
+      if (parsed !== null) {
+        return {
+          source,
+          raw: raw || "",
+          inches: parsed,
+          display: format(parsed)
+        };
+      }
+    }
+    return { source: "", raw: "", inches: null, display: "" };
+  }
+
   function getImportedMidspanInchesForComm(sc) {
     // El midspan base viene de la columna Midspan de Span.Wire. O-CALC MS queda
     // only as a fallback for older saved files that already had that field.
@@ -235,6 +261,35 @@
 
     const ownerMatch = rows.find(row => ownersMatch(row, spanComm));
     return ownerMatch || null;
+  }
+
+  function calculateCommMidspanDetails(spanComm) {
+    if (!spanComm) return { calculated: "", remote: null, remoteHOA: "", localAdjustment: 0, remoteAdjustment: 0 };
+    const span = S().getSpan(spanComm.spanId);
+    if (!span) return { calculated: spanComm.midspan || "", remote: null, remoteHOA: "", localAdjustment: 0, remoteAdjustment: 0 };
+
+    const localExisting = H().parseHeight(spanComm.existingHOA);
+    const localCurrent = H().parseHeight(getEffectiveCommHOA(spanComm));
+    const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, spanComm.ownerBase || spanComm.owner, spanComm.wireId || "");
+    const remoteHOA = remote ? getEffectiveCommHOA(remote) : "";
+    const remoteExisting = H().parseHeight(remote?.existingHOA || "");
+    const remoteCurrent = H().parseHeight(remoteHOA);
+    const midspanSource = findMidspanSourceComm(spanComm) || spanComm;
+    const importedMidspan = getImportedMidspanInchesForComm(midspanSource);
+
+    let calculated = "";
+    let localAdjustment = 0;
+    let remoteAdjustment = 0;
+    if (importedMidspan !== null) {
+      // New midspan = imported midspan + half of this pole movement + half of
+      // the other pole movement. This is kept pure so validations can ask for
+      // a fresh value without waiting for every row to be saved first.
+      localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
+      remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
+      calculated = format(Math.round(importedMidspan + localAdjustment + remoteAdjustment));
+    }
+
+    return { calculated, remote, remoteHOA, localAdjustment, remoteAdjustment };
   }
 
   function evaluateSpanSideMidspan(baseInches, span, poleId = "") {
@@ -412,7 +467,8 @@
   function evaluateCommFlagging(sc, calculatedMidspan) {
     const span = S().getSpan(sc.spanId);
     const pole = S().getPole(sc.poleId);
-    const midspan = H().parseHeight(calculatedMidspan || displayMidspanForComm(sc));
+    const midspanDetails = commMidspanValueDetails(sc, calculatedMidspan);
+    const midspan = midspanDetails.inches;
     const poleHeight = H().parseHeight(getEffectiveCommHOA(sc));
     const owner = commOwnerLabel(sc);
     const issues = [];
@@ -432,11 +488,36 @@
       S().getSpanCommsForSpan(sc.spanId).forEach(other => {
         if (spanCommKey(other) === spanCommKey(sc)) return;
         if (commOwnerLabel(other) && commOwnerLabel(other) === owner) return;
-        const otherMidspan = getMidspanInchesForComm(other);
+        const otherFresh = calculateCommMidspanDetails(other);
+        const otherDetails = commMidspanValueDetails(other, otherFresh.calculated);
+        const otherMidspan = otherDetails.inches;
         if (otherMidspan === null) return;
         const diff = Math.abs(midspan - otherMidspan);
+        const otherOwner = commOwnerLabel(other) || "no owner";
+        const spanName = span ? `${span.fromPole || "?"} -> ${span.toPole || "?"}` : sc.spanId;
+        const ok = diff >= midspanClearance;
+        console.debug("[PoleCalc Comm-comm MS]", {
+          spanId: sc.spanId,
+          span: spanName,
+          poleId: sc.poleId,
+          ownerA: owner || "no owner",
+          wireIdA: sc.wireId || "",
+          midspanA: midspanDetails.display,
+          midspanAInches: midspan,
+          sourceA: midspanDetails.source,
+          ownerB: otherOwner,
+          wireIdB: other.wireId || "",
+          midspanB: otherDetails.display,
+          midspanBInches: otherMidspan,
+          sourceB: otherDetails.source,
+          separation: format(diff),
+          separationInches: diff,
+          minimum: format(midspanClearance),
+          minimumInches: midspanClearance,
+          result: ok ? "OK" : "PROBLEM"
+        });
         if (diff < midspanClearance) {
-          issues.push(`Comm-comm MS: ${format(diff)} with ${commOwnerLabel(other) || "no owner"}; minimum ${format(midspanClearance)}.`);
+          issues.push(`Comm-comm MS on ${spanName}: ${owner || "no owner"} ${midspanDetails.display} vs ${otherOwner} ${otherDetails.display}; separation ${format(diff)}; minimum ${format(midspanClearance)}.`);
         }
       });
     }
@@ -686,30 +767,10 @@
     if (!spanComm) return "";
     const span = S().getSpan(spanComm.spanId);
     if (!span) return spanComm.midspan || "";
-
-    const localExisting = H().parseHeight(spanComm.existingHOA);
-    const localCurrent = H().parseHeight(getEffectiveCommHOA(spanComm));
-    const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, spanComm.ownerBase || spanComm.owner, spanComm.wireId || "");
-    const remoteHOA = remote ? getEffectiveCommHOA(remote) : "";
-    const remoteExisting = H().parseHeight(remote?.existingHOA || "");
-    const remoteCurrent = H().parseHeight(remoteHOA);
-    const midspanSource = findMidspanSourceComm(spanComm) || spanComm;
-    const importedMidspan = getImportedMidspanInchesForComm(midspanSource);
-
-    let calculated = "";
-    let localAdjustment = 0;
-    let remoteAdjustment = 0;
-    if (importedMidspan !== null) {
-      // Documented comm formula:
-      // New midspan = imported midspan + (local move / 2) + (remote move / 2).
-      // Move = effective HOA - Existing HOA.
-      // Effective HOA is HOA Change when present; otherwise Existing HOA.
-      // Example: 20' -> 19' contributes -6" to midspan. If the other pole moves
-      // from 20' -> 21', it contributes +6", and both changes offset each other.
-      localAdjustment = localExisting !== null && localCurrent !== null ? (localCurrent - localExisting) / 2 : 0;
-      remoteAdjustment = remoteExisting !== null && remoteCurrent !== null ? (remoteCurrent - remoteExisting) / 2 : 0;
-      calculated = format(Math.round(importedMidspan + localAdjustment + remoteAdjustment));
-    }
+    const details = calculateCommMidspanDetails(spanComm);
+    const calculated = details.calculated;
+    const remote = details.remote;
+    const remoteHOA = details.remoteHOA;
 
     const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);
     const clearance = evaluateCommMidspanClearance(spanComm, calculated);
