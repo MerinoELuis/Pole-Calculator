@@ -281,15 +281,15 @@
       const key = `${sc.spanId}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
       if (seen.has(key)) return;
       seen.add(key);
-      const isBackspan = span && span.fromPole !== poleId;
+      const spanType = String(span?.type || span?.rawType || "").toLowerCase();
+      const isReferenceSpan = /back\s*span|backspan|other/.test(spanType);
       const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner, sc.wireId || "");
       const midspanLocked = Boolean(sc.existingHOAChange || remote?.existingHOAChange);
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
-          ${hasMidspan && isBackspan ? `<em>ref</em>` : ""}
-          ${!hasMidspan ? `<em>REF</em>` : ""}
+          ${isReferenceSpan ? `<em>REF</em>` : ""}
           <button class="inline-icon-action danger-action" type="button"
             data-delete-comm-span
             data-pole="${escapeHtml(sc.poleId)}"

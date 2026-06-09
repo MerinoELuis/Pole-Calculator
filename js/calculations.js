@@ -58,7 +58,12 @@
   }
 
   function shouldBorrowMidspanFromPhysicalSpan() {
-    return S().getState().settings?.borrowMidspanFromPhysicalSpan !== false;
+    const state = S().getState();
+    const hasMetronetOwner = Object.values(state.spanComms || {}).some(row =>
+      /proposed\s*mnt|\bmnt\b/i.test(`${row.owner || ""} ${row.ownerBase || ""} ${row.rawOwner || ""}`)
+    );
+    if (hasMetronetOwner) return false;
+    return state.settings?.borrowMidspanFromPhysicalSpan !== false;
   }
 
   function commOwnerLabel(sc) {
