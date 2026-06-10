@@ -607,9 +607,9 @@
     }
 
     const maxPole = H().parseHeight(pole?.maxCommHeight || "");
-    const changedPoleHeight = H().parseHeight(sc.existingHOAChange || "");
-    if (changedPoleHeight !== null && maxPole !== null && changedPoleHeight > maxPole) {
-      issues.push(`Pole: HOA Change ${format(changedPoleHeight)} exceeds max ${format(maxPole)}.`);
+    if (poleHeight !== null && maxPole !== null && poleHeight > maxPole) {
+      const source = sc.existingHOAChange ? "HOA Change" : "Existing HOA";
+      issues.push(`Pole: ${source} ${format(poleHeight)} exceeds max ${format(maxPole)}.`);
     }
 
     return {
