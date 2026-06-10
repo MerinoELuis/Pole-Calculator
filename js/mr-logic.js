@@ -33,6 +33,14 @@
     return /riser/i.test(`${spanSide.notes || ""}`);
   }
 
+  function detectDownGuy(value) {
+    return /\bdg\b|down\s*guy/i.test(`${value || ""}`);
+  }
+
+  function detectOHG(spanSide) {
+    return /\bohg\b|overhead\s*guy/i.test(`${spanSide.notes || ""}`);
+  }
+
   function ownerForMR(spanComm) {
     const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
     if (/century\s*link/i.test(raw)) return "CTL";
@@ -58,12 +66,35 @@
     return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "METRONET";
   }
 
+  function metronetAnchorMR(spanSide, direction) {
+    const notes = String(spanSide?.notes || "");
+    const hoa = mrHeight(spanSide?.proposedHOA || "");
+    if (!hoa) return "";
+    const dir = direction || "";
+    if (detectOHG(spanSide)) {
+      return `PL NEW OHG${dir ? ` ${dir}` : ""} AT HOA ${hoa} AND PL DG ON${dir ? ` ${dir}` : ""} POLE.`;
+    }
+    const sizeMatch = notes.match(/\b(8|10)\s*(?:"|”|in\b|inch\b)?/i);
+    const size = sizeMatch ? `${sizeMatch[1]}"` : `8"`;
+    const sidewalk = /sidewalk/i.test(notes) ? " SIDEWALK" : "";
+    const distanceMatch = notes.match(/\b(\d+)\s*'\s*([NSEW])\b/i);
+    const distance = distanceMatch
+      ? `${distanceMatch[1]}' ${distanceMatch[2].toUpperCase()}`
+      : `15'${dir ? ` ${dir}` : ""}`;
+    return `PL NEW ${size}${sidewalk} ANC ${distance} AND PL NEW DG AT HOA ${hoa}.`;
+  }
+
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
     if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
     const action = detectRaiseLower(spanComm);
     if (!action) return "";
     const owner = ownerForMR(spanComm);
+    if (isMetronetMR()) {
+      const verb = action === "Lower" ? "LOWER" : "RAISE";
+      const dg = detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " WITH DG" : "";
+      return `AT HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} TO HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+    }
     // Service drops use different MR wording than regular comm movement.
     if (spanComm.serviceDrop) return `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
     const verb = action === "Lower" ? "Lower" : "Raise";
@@ -78,6 +109,14 @@
     if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue) {
       items.push(`Ensure min 30" to low power at midspan.`);
     }
+    if (isMetronetMR()) {
+      if (detectAnchor(spanSide) || detectDownGuy(spanSide.notes) || detectOHG(spanSide)) {
+        const anchor = metronetAnchorMR(spanSide, span?.direction || "");
+        if (anchor) items.push(anchor);
+      }
+      if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));
+      return items.join("\n");
+    }
     if (detectSlack(spanSide)) items.push(`Proposed slack span${dir}.`.replace("  ", " "));
     if (detectAnchor(spanSide)) items.push(`PL NEW ANC${dir}.`.replace("  ", " "));
     if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));
@@ -85,6 +124,7 @@
   }
 
   function generateAttachMRForPole(poleId) {
+    if (isMetronetMR()) return "";
     const heights = S().getSpanSidesForPole(poleId)
       .map(side => H().parseHeight(side.proposedHOA || ""))
       .filter(value => value !== null)
