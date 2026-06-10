@@ -78,7 +78,7 @@
     if (!hoa) return "";
     const dir = direction || "";
     if (detectOHG(spanSide)) {
-      return `PL NEW OHG${dir ? ` ${dir}` : ""} AT HOA ${hoa} AND PL DG ON${dir ? ` ${dir}` : ""} POLE.`;
+      return `Pl new OHG${dir ? ` ${dir}` : ""} at HOA ${hoa} and pl DG on${dir ? ` ${dir}` : ""} pole.`;
     }
     const sizeMatch = notes.match(/\b(8|10)\s*(?:"|”|in\b|inch\b)?/i);
     const size = sizeMatch ? `${sizeMatch[1]}"` : `8"`;
@@ -87,7 +87,7 @@
     const distance = distanceMatch
       ? `${distanceMatch[1]}' ${distanceMatch[2].toUpperCase()}`
       : `15'${dir ? ` ${dir}` : ""}`;
-    return `PL NEW ${size}${sidewalk} ANC ${distance} AND PL NEW DG AT HOA ${hoa}.`;
+    return `Pl new ${size}${sidewalk} ANC ${distance} and pl new DG at HOA ${hoa}.`;
   }
 
   function generateMRForComm(spanComm) {
@@ -97,9 +97,9 @@
     if (!action) return "";
     const owner = ownerForMR(spanComm);
     if (isMetronetMR()) {
-      const verb = action === "Lower" ? "LOWER" : "RAISE";
-      const dg = detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " WITH DG" : "";
-      return `AT HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} TO HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+      const verb = action === "Lower" ? "lower" : "raise";
+      const dg = detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " with DG" : "";
+      return `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
     }
     // Service drops use different MR wording than regular comm movement.
     if (spanComm.serviceDrop) return `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
@@ -121,7 +121,7 @@
         const anchor = metronetAnchorMR(spanSide, span?.direction || "");
         if (anchor) items.push(anchor);
       }
-      if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));
+      if (detectRiser(spanSide)) items.push(`Pl new riser${dir}.`.replace("  ", " "));
       return items.join("\n");
     }
     if (detectSlack(spanSide)) items.push(`Proposed slack span${dir}.`.replace("  ", " "));
@@ -219,7 +219,7 @@
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
-        return `${relation} going UG due to [clearance violation/insert other reason]. PL NEW ANC/DG FOR DEADENDING LINES. PL NEW RISER FOR UG TRANSFER${direction}.`;
+        return `${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`;
       }
       return `${item.relation} to go UG${direction} due to (Red tag / TDU Replace required / PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9" / inability to place ANC).`;
     });
