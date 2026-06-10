@@ -47,6 +47,12 @@
     return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
   }
 
+  function ownerForIntecMovementMR(spanComm) {
+    const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
+    if (/century\s*link|centurylink/i.test(raw)) return "CenturyLink";
+    return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
+  }
+
   function proposedOwnerForMR() {
     const settings = S().getState().settings || {};
     return String(settings.proposedOwner || "Wecom").trim() || "Wecom";
@@ -97,8 +103,9 @@
     }
     // Service drops use different MR wording than regular comm movement.
     if (spanComm.serviceDrop) return `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
-    const verb = action === "Lower" ? "Lower" : "Raise";
-    return `${verb} ${owner} from HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
+    const verb = action === "Lower" ? "lower" : "raise";
+    const dg = detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " with DG" : "";
+    return `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${ownerForIntecMovementMR(spanComm)} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
   }
 
   function generateMRForSpanSide(spanSide) {
