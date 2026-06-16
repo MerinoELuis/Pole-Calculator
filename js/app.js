@@ -289,6 +289,9 @@
       seen.add(key);
       const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner, sc.wireId || "");
       const midspanLocked = Boolean(sc.existingHOAChange || remote?.existingHOAChange);
+      // Backspans are reference-only here, but Fore/Other rows without an
+      // imported midspan must stay editable so the user can create the MS.
+      const canEditMidspan = !isBackspan && (!midspanLocked || !ownMidspan);
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
@@ -313,7 +316,7 @@
             data-field="serviceDrop"
             ${sc.serviceDrop ? "checked" : ""}>
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value">${!isReferenceSpan && !midspanLocked
+        midspanHtml: `<div class="comm-midspan-value">${canEditMidspan
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
           : `<strong>${escapeHtml(midspan)}</strong>`}
           ${hasStoredMidspan ? `<button class="inline-icon-action danger-action" type="button"
