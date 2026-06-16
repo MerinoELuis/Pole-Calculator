@@ -115,18 +115,12 @@
     return sc?.midspan || sc?.ocalcMS || "";
   }
 
-  function hasKnownOtherPole(sc) {
-    const span = S().getSpan(sc?.spanId || "");
-    const otherPoleId = span ? S().getOtherPoleId(span, sc?.poleId || "") : "";
-    return Boolean(otherPoleId && !/^Unknown-/i.test(otherPoleId));
-  }
-
   function isReferenceSpanComm(sc) {
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
     if (/back\s*span|backspan/.test(type)) return true;
     if (/other/.test(type)) {
-      return parseMidspanValue(ownMidspanValue(sc)) === null || !hasKnownOtherPole(sc);
+      return parseMidspanValue(ownMidspanValue(sc)) === null;
     }
     return false;
   }

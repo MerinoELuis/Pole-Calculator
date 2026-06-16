@@ -278,10 +278,8 @@
       const span = S.getSpan(sc.spanId);
       const spanType = String(span?.type || span?.rawType || "").toLowerCase();
       const ownMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || "") !== null;
-      const otherPoleId = span ? S.getOtherPoleId(span, sc.poleId) : "";
-      const hasKnownOtherPole = Boolean(otherPoleId && !/^Unknown-/i.test(otherPoleId));
       const isBackspan = /back\s*span|backspan/.test(spanType);
-      const isOtherReference = /other/.test(spanType) && (!ownMidspan || !hasKnownOtherPole);
+      const isOtherReference = /other/.test(spanType) && !ownMidspan;
       const isReferenceSpan = isBackspan || isOtherReference;
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
