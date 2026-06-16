@@ -325,7 +325,7 @@
             data-owner="${escapeHtml(sc.owner)}"
             data-wire-id="${escapeHtml(sc.wireId || "")}"
             title="Clear only this midspan"
-            aria-label="Clear only this midspan">&#9003;</button>` : ""}
+            aria-label="Clear only this midspan">&#10005;</button>` : ""}
         </div>`,
         maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${!isReferenceSpan && hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
         remoteHtml: isReferenceSpan || !hasMidspan || !remote
