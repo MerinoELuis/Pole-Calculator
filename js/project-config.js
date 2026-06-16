@@ -12,7 +12,7 @@
         position: "TOP_COMM",
         mrCase: "LOWER",
         proposedOwner: "Wecom",
-        borrowMidspanFromPhysicalSpan: true,
+        borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: false,
         hideProposedOwner: false,
         mrTemplate: "INTEC"

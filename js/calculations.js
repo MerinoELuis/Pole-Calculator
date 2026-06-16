@@ -57,15 +57,6 @@
     return H().parseHeight(settings.boltClearance || "4\"") ?? 4;
   }
 
-  function shouldBorrowMidspanFromPhysicalSpan() {
-    const state = S().getState();
-    const hasMetronetOwner = Object.values(state.spanComms || {}).some(row =>
-      /proposed\s*mnt|\bmnt\b/i.test(`${row.owner || ""} ${row.ownerBase || ""} ${row.rawOwner || ""}`)
-    );
-    if (hasMetronetOwner) return false;
-    return state.settings?.borrowMidspanFromPhysicalSpan !== false;
-  }
-
   function commOwnerLabel(sc) {
     return String(sc?.rawOwner || sc?.owner || "")
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -120,8 +111,15 @@
     return H().parseHeight(value);
   }
 
+  function isReferenceSpanComm(sc) {
+    const span = S().getSpan(sc?.spanId || "");
+    const type = String(span?.type || span?.rawType || "").toLowerCase();
+    return /back\s*span|backspan|other/.test(type);
+  }
+
   function displayMidspanForComm(sc) {
     if (!sc) return "";
+    if (isReferenceSpanComm(sc)) return "";
     const value = sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
     const parsed = parseMidspanValue(value);
     return parsed === null ? value : format(parsed);
@@ -129,10 +127,12 @@
 
   function getMidspanInchesForComm(sc) {
     if (!sc) return null;
+    if (isReferenceSpanComm(sc)) return null;
     return parseMidspanValue(sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
   }
 
   function commMidspanValueDetails(sc, calculatedOverride = "") {
+    if (isReferenceSpanComm(sc)) return { source: "", raw: "", inches: null, display: "" };
     // The UI and the Comm-comm MS validation both use this priority. When the
     // current recalculation has a fresh calculated value, it wins over stored
     // values so flagging never compares against stale finalMidspan/msProposed.
@@ -159,6 +159,7 @@
   }
 
   function getImportedMidspanInchesForComm(sc) {
+    if (isReferenceSpanComm(sc)) return null;
     // El midspan base viene de la columna Midspan de Span.Wire. O-CALC MS queda
     // only as a fallback for older saved files that already had that field.
     return parseMidspanValue(sc?.midspan || sc?.ocalcMS || "");
@@ -253,27 +254,9 @@
     if (!spanComm) return null;
     const ownMidspan = getImportedMidspanInchesForComm(spanComm);
     if (ownMidspan !== null) return spanComm;
-
-    const span = S().getSpan(spanComm.spanId);
-    const rows = Object.values(S().getState().spanComms || {})
-      .filter(row => spanCommKey(row) !== spanCommKey(spanComm))
-      .filter(row => getImportedMidspanInchesForComm(row) !== null);
-
-    const exactWire = rows.find(row => spanComm.wireId && row.wireId === spanComm.wireId);
-    if (exactWire) return exactWire;
-
-    if (shouldBorrowMidspanFromPhysicalSpan()) {
-      const physicalOwnerMatch = rows.find(row => {
-        const rowSpan = S().getSpan(row.spanId);
-        return samePhysicalSpan(span, rowSpan) && ownersMatch(row, spanComm);
-      });
-      if (physicalOwnerMatch) return physicalOwnerMatch;
-    }
-
-    // Do not fall back to "same owner anywhere in the project". A CATV on the
-    // next forespan is not evidence for a CATV midspan on this backspan. That
-    // was the source of false Comm-comm MS errors where REF rows with no
-    // imported midspan borrowed a value from a different physical span.
+    // Midspan belongs to the row/span where it was captured. Do not borrow it
+    // from the previous/next span or from a matching owner/wire elsewhere; REF
+    // rows must stay as references so only the real measured side is solved.
     return null;
   }
 
@@ -1266,6 +1249,26 @@
     return S().getSpanComm(spanId, poleId, owner, wireId);
   }
 
+  function clearSpanCommMidspan(spanId, poleId, owner, wireId = "") {
+    const sc = S().getSpanComm(spanId, poleId, owner, wireId);
+    if (!sc) return null;
+    S().upsertSpanComm({
+      ...sc,
+      ocalcMS: "",
+      midspan: "",
+      calculatedMidspan: "",
+      msProposed: "",
+      finalMidspan: "",
+      clearanceMSStatus: "",
+      clearanceMSMessage: "",
+      clearanceMSIssue: false,
+      pendingMidspanFinal: "",
+      clearanceFixReadyAt: 0
+    });
+    recalculateSpan(spanId);
+    return S().getSpanComm(spanId, poleId, owner, wireId);
+  }
+
   function updateOcalcValue(poleId, owner, spanId, field, value) {
     if (field === "proposedHOA" || field === "proposedMidspan" || field === "ocalcMS" || field === "endDrop") return updateSpanSideField(spanId, poleId, field, value);
     return updateSpanCommField(spanId, poleId, owner, "", field, value);
@@ -1367,6 +1370,7 @@
     updateSpanSideField,
     updateSpanField,
     updateSpanCommField,
+    clearSpanCommMidspan,
     updateOcalcValue,
     calculateEndDrop,
     calculateEndDropForSpanSide,

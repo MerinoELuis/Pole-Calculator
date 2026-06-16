@@ -278,6 +278,7 @@
       const span = S.getSpan(sc.spanId);
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
+      const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || sc.calculatedMidspan || sc.msProposed || sc.finalMidspan || "") !== null;
       const key = `${sc.spanId}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -309,9 +310,18 @@
             data-field="serviceDrop"
             ${sc.serviceDrop ? "checked" : ""}>
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value">${!midspanLocked
+        midspanHtml: `<div class="comm-midspan-value">${!isReferenceSpan && !midspanLocked
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
-          : `<strong>${escapeHtml(midspan)}</strong>`}</div>`,
+          : `<strong>${escapeHtml(midspan)}</strong>`}
+          ${hasStoredMidspan ? `<button class="inline-icon-action danger-action" type="button"
+            data-clear-comm-midspan
+            data-pole="${escapeHtml(sc.poleId)}"
+            data-span="${escapeHtml(sc.spanId)}"
+            data-owner="${escapeHtml(sc.owner)}"
+            data-wire-id="${escapeHtml(sc.wireId || "")}"
+            title="Clear only this midspan"
+            aria-label="Clear only this midspan">&#9003;</button>` : ""}
+        </div>`,
         maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
         remoteHtml: !hasMidspan || !remote
           ? `<div class="comm-midspan-value"><strong></strong></div>`
@@ -1014,6 +1024,12 @@
       btn.dataset.owner,
       btn.dataset.wireId || ""
     )));
+    root.querySelectorAll("[data-clear-comm-midspan]").forEach(btn => btn.addEventListener("click", () => clearCommMidspan(
+      btn.dataset.span,
+      btn.dataset.pole,
+      btn.dataset.owner,
+      btn.dataset.wireId || ""
+    )));
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
@@ -1239,6 +1255,14 @@
     recordUndoSnapshot();
     S.removeSpanComm(spanId, poleId, owner, wireId || "");
     global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, ...poleIdsForSpan(spanId)]);
+  }
+
+  async function clearCommMidspan(spanId, poleId, owner, wireId = "") {
+    if (!spanId || !poleId || !owner) return;
+    if (!(await confirmInApp("Clear Midspan", "Clear only this midspan and keep the span?"))) return;
+    recordUndoSnapshot();
+    global.Calculations.clearSpanCommMidspan(spanId, poleId, owner, wireId || "");
     renderAffectedPoles([poleId, ...poleIdsForSpan(spanId)]);
   }
 
