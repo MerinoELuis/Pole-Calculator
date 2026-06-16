@@ -111,15 +111,32 @@
     return H().parseHeight(value);
   }
 
+  function ownMidspanValue(sc) {
+    return sc?.midspan || sc?.ocalcMS || "";
+  }
+
+  function hasKnownOtherPole(sc) {
+    const span = S().getSpan(sc?.spanId || "");
+    const otherPoleId = span ? S().getOtherPoleId(span, sc?.poleId || "") : "";
+    return Boolean(otherPoleId && !/^Unknown-/i.test(otherPoleId));
+  }
+
   function isReferenceSpanComm(sc) {
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    return /back\s*span|backspan|other/.test(type);
+    if (/back\s*span|backspan/.test(type)) return true;
+    if (/other/.test(type)) {
+      return parseMidspanValue(ownMidspanValue(sc)) === null || !hasKnownOtherPole(sc);
+    }
+    return false;
   }
 
   function displayMidspanForComm(sc) {
     if (!sc) return "";
-    if (isReferenceSpanComm(sc)) return "";
+    if (isReferenceSpanComm(sc)) {
+      const own = parseMidspanValue(ownMidspanValue(sc));
+      return own === null ? "" : format(own);
+    }
     const value = sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
     const parsed = parseMidspanValue(value);
     return parsed === null ? value : format(parsed);
@@ -162,7 +179,7 @@
     if (isReferenceSpanComm(sc)) return null;
     // El midspan base viene de la columna Midspan de Span.Wire. O-CALC MS queda
     // only as a fallback for older saved files that already had that field.
-    return parseMidspanValue(sc?.midspan || sc?.ocalcMS || "");
+    return parseMidspanValue(ownMidspanValue(sc));
   }
 
   function spanCommKey(sc) {
@@ -492,27 +509,6 @@
         const diff = Math.abs(midspan - otherMidspan);
         const otherOwner = commOwnerLabel(other) || "no owner";
         const spanName = span ? `${span.fromPole || "?"} -> ${span.toPole || "?"}` : sc.spanId;
-        const ok = diff >= midspanClearance;
-        console.debug("[PoleCalc Comm-comm MS]", {
-          spanId: sc.spanId,
-          span: spanName,
-          poleId: sc.poleId,
-          ownerA: owner || "no owner",
-          wireIdA: sc.wireId || "",
-          midspanA: midspanDetails.display,
-          midspanAInches: midspan,
-          sourceA: midspanDetails.source,
-          ownerB: otherOwner,
-          wireIdB: other.wireId || "",
-          midspanB: otherDetails.display,
-          midspanBInches: otherMidspan,
-          sourceB: otherDetails.source,
-          separation: format(diff),
-          separationInches: diff,
-          minimum: format(midspanClearance),
-          minimumInches: midspanClearance,
-          result: ok ? "OK" : "PROBLEM"
-        });
         if (diff < midspanClearance) {
           issues.push(`Comm-comm MS on ${spanName}: ${owner || "no owner"} ${midspanDetails.display} vs ${otherOwner} ${otherDetails.display}; separation ${format(diff)}; minimum ${format(midspanClearance)}.`);
         }
@@ -764,6 +760,24 @@
     if (!spanComm) return "";
     const span = S().getSpan(spanComm.spanId);
     if (!span) return spanComm.midspan || "";
+    if (isReferenceSpanComm(spanComm)) {
+      const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);
+      const flagging = evaluateCommFlagging(spanComm, "");
+      S().upsertSpanComm({
+        ...spanComm,
+        remotePoleId: "",
+        remoteHOA: "",
+        calculatedMidspan: "",
+        difference,
+        msProposed: "",
+        finalMidspan: "",
+        clearanceMSStatus: "",
+        clearanceMSMessage: "",
+        clearanceMSIssue: false,
+        ...flagging
+      });
+      return "";
+    }
     const details = calculateCommMidspanDetails(spanComm);
     const calculated = details.calculated;
     const remote = details.remote;

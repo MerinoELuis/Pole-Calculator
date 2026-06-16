@@ -276,14 +276,19 @@
     );
     rows.forEach(sc => {
       const span = S.getSpan(sc.spanId);
+      const spanType = String(span?.type || span?.rawType || "").toLowerCase();
+      const ownMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || "") !== null;
+      const otherPoleId = span ? S.getOtherPoleId(span, sc.poleId) : "";
+      const hasKnownOtherPole = Boolean(otherPoleId && !/^Unknown-/i.test(otherPoleId));
+      const isBackspan = /back\s*span|backspan/.test(spanType);
+      const isOtherReference = /other/.test(spanType) && (!ownMidspan || !hasKnownOtherPole);
+      const isReferenceSpan = isBackspan || isOtherReference;
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
       const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || sc.calculatedMidspan || sc.msProposed || sc.finalMidspan || "") !== null;
       const key = `${sc.spanId}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
       if (seen.has(key)) return;
       seen.add(key);
-      const spanType = String(span?.type || span?.rawType || "").toLowerCase();
-      const isReferenceSpan = /back\s*span|backspan|other/.test(spanType);
       const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner, sc.wireId || "");
       const midspanLocked = Boolean(sc.existingHOAChange || remote?.existingHOAChange);
       entries.push({
@@ -322,8 +327,8 @@
             title="Clear only this midspan"
             aria-label="Clear only this midspan">&#9003;</button>` : ""}
         </div>`,
-        maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
-        remoteHtml: !hasMidspan || !remote
+        maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${!isReferenceSpan && hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
+        remoteHtml: isReferenceSpan || !hasMidspan || !remote
           ? `<div class="comm-midspan-value"><strong></strong></div>`
           : `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`
       });
