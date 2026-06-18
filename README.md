@@ -81,6 +81,8 @@ Used to pre-check the `DG` box on existing comm movements. The importer matches:
 
 When all three match, Make Ready movement lines can include `with DG`.
 
+`Service Drop` remains visible for INTEC and Metronet workflows. The Wecom project profile hides `Service Drop` and keeps `DG`.
+
 ### Make Ready
 
 Used as imported reference data, not as the final generated Make Ready. The app reads:

@@ -52,7 +52,7 @@
       borrowMidspanFromPhysicalSpan: false,
       proposeForeSpanWithoutMidspan: false,
       allowLowPowerMidspanAdjustment: true,
-      showServiceDrop: false,
+      showServiceDrop: true,
       hideProposedOwner: false,
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
