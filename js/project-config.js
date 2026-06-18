@@ -20,21 +20,6 @@
         mrTemplate: "INTEC"
       }
     },
-    WECOM: {
-      id: "WECOM",
-      label: "Wecom",
-      settings: {
-        position: "TOP_COMM",
-        mrCase: "LOWER",
-        proposedOwner: "Wecom",
-        borrowMidspanFromPhysicalSpan: false,
-        proposeForeSpanWithoutMidspan: false,
-        allowLowPowerMidspanAdjustment: true,
-        showServiceDrop: true,
-        hideProposedOwner: true,
-        mrTemplate: "INTEC"
-      }
-    },
     METRONET: {
       id: "METRONET",
       label: "Metronet",
@@ -73,7 +58,6 @@
   function detectProfile({ fileName = "", owners = [] } = {}) {
     const text = [fileName, ...owners].join(" ").toLowerCase();
     if (/metronet|proposed\s*mnt|\bmnt\b/.test(text)) return "METRONET";
-    if (/\bwecom\b/.test(text)) return "WECOM";
     return "INTEC";
   }
 

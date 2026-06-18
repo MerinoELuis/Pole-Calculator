@@ -81,7 +81,7 @@ Used to pre-check the `DG` box on existing comm movements. The importer matches:
 
 When all three match, Make Ready movement lines can include `with DG`.
 
-`Service Drop` is shown for INTEC and Wecom projects and hidden for Metronet projects. `DG` remains available for every profile because it depends on the imported anchor/guy relationship, not on the service-drop workflow.
+`Service Drop` is shown for INTEC projects and hidden for Metronet projects. Wecom remains an INTEC proposed owner, not a separate project profile. `DG` remains available for every profile because it depends on the imported anchor/guy relationship, not on the service-drop workflow.
 
 ### Make Ready
 
