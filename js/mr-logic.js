@@ -72,6 +72,11 @@
     return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "METRONET";
   }
 
+  function shouldAddLowPowerMidspanMR() {
+    const settings = S().getState().settings || {};
+    return settings.allowLowPowerMidspanAdjustment !== false && !isMetronetMR();
+  }
+
   function metronetAnchorMR(spanSide, direction) {
     const notes = String(spanSide?.notes || "");
     const hoa = mrHeight(spanSide?.proposedHOA || "");
@@ -113,7 +118,7 @@
     const span = S().getSpan(spanSide.spanId);
     const dir = span && span.direction ? ` ${span.direction}` : "";
     const items = [];
-    if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue) {
+    if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue && shouldAddLowPowerMidspanMR()) {
       items.push(`Ensure min 30" to low power at midspan.`);
     }
     if (isMetronetMR()) {

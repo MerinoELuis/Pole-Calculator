@@ -124,11 +124,11 @@ Proposed attachments also check against existing attachment points. A proposed h
 
 The app calculates `Max Height at MS` from the lowest power midspan on the span minus `Midspan · Power-comm`.
 
-When a proposed adjustment is specifically required by Low Power at midspan, the Make Ready can include:
+For INTEC, when a proposed adjustment is specifically required by Low Power at midspan, the Make Ready can include:
 
 `Ensure min 30" to low power at midspan.`
 
-If the adjustment is no longer required, or if the adjustment was caused by comm-comm spacing instead of Low Power, that note is not generated.
+For Metronet, the proposed midspan is not automatically adjusted down for this rule and that Make Ready line is not generated. The clearance violation remains visible so it can be solved by lowering the affected comms.
 
 ## Rule Table
 

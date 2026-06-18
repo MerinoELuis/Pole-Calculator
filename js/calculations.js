@@ -42,6 +42,11 @@
     return value === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
   }
 
+  function shouldAdjustLowPowerMidspan() {
+    const settings = S().getState().settings || {};
+    return settings.allowLowPowerMidspanAdjustment !== false;
+  }
+
   function getMidspanCommCommClearance() {
     const settings = S().getState().settings || {};
     return H().parseHeight(settings.midspanCommCommClearance || "4\"") ?? 4;
@@ -343,11 +348,17 @@
       messages.push(`Adjusted to environment minimum ${format(envMin)}.`);
     }
     if (maxMS !== null && target > maxMS) {
-      target = maxMS;
       issue = true;
-      needsAdjustment = true;
+      if (shouldAdjustLowPowerMidspan()) {
+        target = maxMS;
+        needsAdjustment = true;
+      } else {
+        impossible = true;
+      }
       clearanceMSReason = "LOW_POWER";
-      messages.push(`Adjusted to max height at MS ${format(maxMS)}.`);
+      messages.push(shouldAdjustLowPowerMidspan()
+        ? `Adjusted to max height at MS ${format(maxMS)}.`
+        : `MS ${format(target)} exceeds max height at MS ${format(maxMS)}.`);
     }
     if (maxMS !== null && target > maxMS) impossible = true;
     return {

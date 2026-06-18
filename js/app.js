@@ -482,7 +482,8 @@
 
   function spanSideClearanceNote(side) {
     if (!side.ocalcMS && !side.proposedMidspan) return "Missing O-CALC MS.";
-    if (side.clearanceMSReason === "LOW_POWER" && side.clearanceMSIssue) return `Ensure min 30" to low power at midspan.`;
+    const settings = S.getState().settings || {};
+    if (side.clearanceMSReason === "LOW_POWER" && side.clearanceMSIssue && settings.allowLowPowerMidspanAdjustment !== false) return `Ensure min 30" to low power at midspan.`;
     if (side.clearanceMSStatus === "PENDING") {
       return `${side.clearanceMSMessage || "Clearance issue."} Adjusting to ${side.pendingMidspanFinal || ""}...`;
     }
