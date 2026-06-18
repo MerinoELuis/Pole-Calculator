@@ -71,6 +71,16 @@ Used to create comm and power rows by span:
 
 The visible Owner/Comm value comes from the `Owner` column.
 
+### Anchor.Guys
+
+Used to pre-check the `DG` box on existing comm movements. The importer matches:
+
+- `Id` with the pole ID.
+- `Owner` with the comm owner.
+- `Attachment Height.display` with the comm `Existing HOA`.
+
+When all three match, Make Ready movement lines can include `with DG`.
+
 ### Make Ready
 
 Used as imported reference data, not as the final generated Make Ready. The app reads:

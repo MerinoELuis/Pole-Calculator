@@ -321,6 +321,16 @@
             data-field="serviceDrop"
             ${sc.serviceDrop ? "checked" : ""}>
         </div>`,
+        downGuyHtml: `<div class="comm-midspan-value">
+          <input type="checkbox"
+            data-scope="spanComm"
+            data-pole="${escapeHtml(sc.poleId)}"
+            data-span="${escapeHtml(sc.spanId)}"
+            data-owner="${escapeHtml(sc.owner)}"
+            data-wire-id="${escapeHtml(sc.wireId || "")}"
+            data-field="downGuy"
+            ${sc.downGuy ? "checked" : ""}>
+        </div>`,
         midspanHtml: `<div class="comm-midspan-value">${canEditMidspan
           ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
           : `<strong>${escapeHtml(midspan)}</strong>`}
@@ -350,6 +360,11 @@
   function renderCommServiceDropValues(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
     return `<div class="comm-midspan-list">${entries.map(entry => entry.serviceDropHtml).join("")}</div>`;
+  }
+
+  function renderCommDownGuyValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.downGuyHtml).join("")}</div>`;
   }
 
   function renderCommMidspanValues(group, poleId) {
@@ -900,9 +915,10 @@
   function renderCommMovementTable(poleId) {
     const groups = groupedCommsForPole(poleId);
     if (!groups.length) return `<p class="muted">No comms imported from Span.Wire for this pole.</p>`;
+    const showServiceDrop = (S.getState().settings || {}).showServiceDrop !== false;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Service Drop</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th><th>Actions</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -917,7 +933,6 @@
         ].filter(Boolean).join(" ");
         return `<tr class="${rowClasses}">
           <td><span class="badge owner">${escapeHtml(group.owner)}</span></td>
-          <td>${renderCommServiceDropValues(group, poleId)}</td>
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
@@ -925,6 +940,8 @@
           <td>${renderCommMidspanValues(group, poleId)}</td>
           <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
+          ${showServiceDrop ? `<td>${renderCommServiceDropValues(group, poleId)}</td>` : ""}
+          <td>${renderCommDownGuyValues(group, poleId)}</td>
           <td><div class="row-actions">
             <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm" aria-label="Edit comm">&#9998;</button>
             <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm spans" aria-label="Edit comm spans">&#8644;</button>
@@ -1129,12 +1146,14 @@
       "projectProfile",
       "position",
       "mrCase",
-      "proposedOwner"
+      "proposedOwner",
+      "serviceDrop",
+      "downGuy"
     ].includes(field);
   }
 
   function updateCommGroupField(poleId, groupKey, field, value) {
-    if (!["existingHOAChange", "serviceDrop"].includes(field)) return [poleId].filter(Boolean);
+    if (!["existingHOAChange"].includes(field)) return [poleId].filter(Boolean);
     const affected = new Set([poleId].filter(Boolean));
     S.getSpanCommsForPole(poleId)
       .filter(sc => commGroupKey(sc) === groupKey)
@@ -1247,6 +1266,7 @@
         existingHOA: group.existingHOA,
         existingHOAChange: group.existingHOAChange || "",
         serviceDrop: Boolean(group.rows[0].serviceDrop),
+        downGuy: Boolean(group.rows[0].downGuy),
         midspan,
         wireId
       });

@@ -37,6 +37,10 @@
     return value === undefined || value === null || String(value).trim() === "";
   }
 
+  function truthyCell(value) {
+    return /^(true|yes|1|si|sí)$/i.test(String(value || "").trim());
+  }
+
   function findKey(row, names, options = {}) {
     if (!row) return "";
     const keys = Object.keys(row);
@@ -289,6 +293,23 @@
     return "";
   }
 
+  function ownerMatchToken(value) {
+    return String(value || "")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/,\s*.*$/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function ownersMatchForAnchorGuy(anchorOwner, spanComm) {
+    const anchor = ownerMatchToken(anchorOwner);
+    if (!anchor) return false;
+    return [spanComm.owner, spanComm.ownerBase, spanComm.rawOwner]
+      .map(ownerMatchToken)
+      .filter(Boolean)
+      .some(token => token === anchor || token.includes(anchor) || anchor.includes(token));
+  }
+
   function parseAttachmentSize(value) {
     const raw = String(value || "").trim();
     if (!raw) {
@@ -515,7 +536,7 @@
       if (poleId && owner) S().upsertComm(poleId, owner, pick(row, ["existingHOA", "Existing HOA", "Altura actual"]), pick(row, ["notes", "Notas"]), {
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
-        serviceDrop: /^(true|yes|1|si|sí)$/i.test(String(pick(row, ["serviceDrop", "Service Drop"]))),
+        serviceDrop: truthyCell(pick(row, ["serviceDrop", "Service Drop"])),
         rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
         unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
         size: pick(row, ["size", "Size"]),
@@ -531,7 +552,8 @@
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOA: pick(row, ["existingHOA", "Existing HOA"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
-        serviceDrop: /^(true|yes|1|si|sí)$/i.test(String(pick(row, ["serviceDrop", "Service Drop"]))),
+        serviceDrop: truthyCell(pick(row, ["serviceDrop", "Service Drop"])),
+        downGuy: truthyCell(pick(row, ["downGuy", "DG", "Down Guy", "Has DG"])),
         difference: pick(row, ["difference", "Difference"]),
         remotePoleId: pick(row, ["remotePoleId", "Remote Pole"]),
         remoteHOA: pick(row, ["remoteHOA", "Remote HOA"]),
@@ -780,6 +802,23 @@
     });
   }
 
+  function importAnchorGuys(anchorRows) {
+    anchorRows.forEach(row => {
+      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])).trim();
+      const owner = String(pick(row, ["Owner", "owner"])).trim();
+      const attachmentHeight = heightFromRow(row, ["Attachment Height.display", "Attachment Height Display", "Existing HOA", "HOA"], ["Attachment Height", "Height"]);
+      const attachmentInches = H().parseHeight(attachmentHeight);
+      if (!poleId || !owner || attachmentInches === null) return;
+
+      S().getSpanCommsForPole(poleId).forEach(sc => {
+        const commHeight = H().parseHeight(sc.existingHOA || "");
+        if (commHeight === null || commHeight !== attachmentInches) return;
+        if (!ownersMatchForAnchorGuy(owner, sc)) return;
+        S().upsertSpanComm({ ...sc, downGuy: true });
+      });
+    });
+  }
+
   function importOriginalWorkbook(workbook, fileName) {
     const state = S().resetState();
     state.importedFileName = fileName || "Excel original";
@@ -789,6 +828,7 @@
     const collectionRows = rowsToObjects(findSheet(workbook, ["Collection", "Poles", "Postes"]) || []);
     const spanRows = rowsToObjects(findSheet(workbook, ["Span", "Spans"]) || []);
     const wireRows = rowsToObjects(findSheet(workbook, ["Span.Wire", "Span Wire", "Wires", "Comms"]) || []);
+    const anchorGuyRows = rowsToObjects(findSheet(workbook, ["Anchor.Guys", "Anchor Guys", "Anchor Guy", "Guys"]) || []);
     const makeReadyRows = rowsToObjects(findSheet(workbook, ["Make Ready", "MakeReady", "MR"]) || []);
 
     if (!collectionRows.length && !spanRows.length && !wireRows.length) {
@@ -807,6 +847,7 @@
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);
     const rawSpanToSpanId = importSpans(spanRecords);
     importSpanWires(wireRows, rawSpanToSpanId);
+    importAnchorGuys(anchorGuyRows);
     state.makeReadyReferences = importMakeReadyReferences(makeReadyRows);
 
     S().normalizeState(state);

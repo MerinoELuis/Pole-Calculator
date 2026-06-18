@@ -1252,7 +1252,7 @@
   }
 
   function updateSpanCommField(spanId, poleId, owner, wireId, field, value) {
-    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "ocalcMS", "midspan", "notes", "mr"];
+    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "ocalcMS", "midspan", "notes", "mr"];
     if (!allowed.includes(field)) return null;
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
     const next = { ...sc, [field]: value || "" };

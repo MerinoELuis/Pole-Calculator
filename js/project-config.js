@@ -15,6 +15,7 @@
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: false,
         allowLowPowerMidspanAdjustment: true,
+        showServiceDrop: false,
         hideProposedOwner: false,
         mrTemplate: "INTEC"
       }
@@ -29,6 +30,7 @@
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: true,
         allowLowPowerMidspanAdjustment: false,
+        showServiceDrop: true,
         hideProposedOwner: true,
         mrTemplate: "METRONET"
       }
