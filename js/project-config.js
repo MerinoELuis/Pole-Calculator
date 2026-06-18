@@ -30,7 +30,7 @@
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: false,
         allowLowPowerMidspanAdjustment: true,
-        showServiceDrop: false,
+        showServiceDrop: true,
         hideProposedOwner: true,
         mrTemplate: "INTEC"
       }
