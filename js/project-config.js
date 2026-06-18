@@ -45,7 +45,7 @@
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: true,
         allowLowPowerMidspanAdjustment: false,
-        showServiceDrop: true,
+        showServiceDrop: false,
         hideProposedOwner: true,
         mrTemplate: "METRONET"
       }
