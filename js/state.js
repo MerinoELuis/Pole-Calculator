@@ -10,7 +10,7 @@
   const DEFAULT_COMM_CLEARANCE = "12\"";
   const DEFAULT_BOLT_CLEARANCE = "4\"";
   const ENVIRONMENT_OPTIONS = [
-    { value: "NONE", label: "None", clearance: "" },
+    { value: "NONE", label: "None", clearance: "15'6\"" },
     { value: "STREET", label: "Street", clearance: "15'6\"" },
     { value: "HIGHWAY", label: "Highway", clearance: "18'" },
     { value: "PEDESTRIAN", label: "Pedestrian", clearance: "9'6\"" },
@@ -76,6 +76,12 @@
 
   function trim(value) {
     return String(value ?? "").trim();
+  }
+
+  function defaultEnvironmentClearance(environment) {
+    const env = trim(environment || "NONE") || "NONE";
+    const option = ENVIRONMENT_OPTIONS.find(item => item.value === env);
+    return option ? option.clearance : "";
   }
 
   function keyForSpanSide(spanId, poleId) {
@@ -170,7 +176,7 @@
       length: trim(extra.length || ""),
       lengthDisplay: trim(extra.lengthDisplay || ""),
       environment: trim(extra.environment || "NONE"),
-      environmentClearance: trim(extra.environmentClearance || ""),
+      environmentClearance: trim(extra.environmentClearance || defaultEnvironmentClearance(extra.environment || "NONE")),
       midspanLowPower: trim(extra.midspanLowPower || ""),
       midspanMaxCommHeight: trim(extra.midspanMaxCommHeight || ""),
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
@@ -352,6 +358,9 @@
     if (!span) return null;
     if (!["environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "notes"].includes(field)) return span;
     span[field] = trim(value);
+    if (field === "environment" && !span.environmentClearance) {
+      span.environmentClearance = defaultEnvironmentClearance(value);
+    }
     return span;
   }
 

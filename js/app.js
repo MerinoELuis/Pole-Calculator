@@ -150,6 +150,11 @@
     return `${span.fromPole || "?"} → ${span.toPole || "Unknown"}`;
   }
 
+  function spanLengthDisplay(span) {
+    if (!span) return "";
+    return span.lengthDisplay || "";
+  }
+
   function poleLink(poleId) {
     if (!poleId) return "";
     return `<button class="link-button" type="button" data-scroll-to-pole="${escapeHtml(poleId)}">${escapeHtml(poleId)}</button>`;
@@ -851,7 +856,10 @@
         ].filter(Boolean).join(" ");
         const autoNotes = [spanSideClearanceNote(side), boltIssue.message];
         return `<tr class="${rowClasses}">
-          <td class="span-cell"><strong>${spanChip(poleId, span.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong></td>
+          <td class="span-cell">
+            <strong class="span-main-line">${spanChip(poleId, span.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong>
+            ${spanLengthDisplay(span) ? `<span class="span-distance-line">${escapeHtml(spanLengthDisplay(span))}</span>` : ""}
+          </td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
           <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>

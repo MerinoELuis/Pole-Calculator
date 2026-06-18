@@ -640,6 +640,23 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   white-space: nowrap;
 }
 
+.span-main-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.span-distance-line {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+
 .cell-hint {
   margin-top: 4px;
   color: var(--muted);
