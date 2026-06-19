@@ -71,6 +71,8 @@ Used to create comm and power rows by span:
 
 The visible Owner/Comm value comes from the `Owner` column.
 
+For INTEC, `Size` values containing `Self-Supporting Fiber` are treated as POF. They remain visible in the Existing Comm Movements table with a `POF` badge, but they do not define the Top Comm reference and are not moved by Auto Calculate.
+
 ### Anchor.Guys
 
 Used to pre-check the `DG` box on existing comm movements. The importer matches:

@@ -68,6 +68,20 @@
       .trim();
   }
 
+  function isPofComm(sc) {
+    // INTEC can import Self-Supporting Fiber. Operators need to see that cable,
+    // but it is POF and should not define the Top Comm reference used to place
+    // proposed attachments above the comm stack.
+    const settings = S().getState().settings || {};
+    const template = String(settings.mrTemplate || settings.projectProfile || "").toUpperCase();
+    if (template !== "INTEC") return false;
+    return /self[-\s]*supporting\s*fiber/i.test(`${sc?.size || ""} ${sc?.rawOwner || ""} ${sc?.owner || ""}`);
+  }
+
+  function countsAsTopCommReference(sc) {
+    return !isPofComm(sc);
+  }
+
   function normalizeOwnerForMatch(value) {
     const text = String(value || "")
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -187,6 +201,7 @@
 
   function getReferenceMidspansForSpan(spanId, excludeKey = "") {
     return S().getSpanCommsForSpan(spanId)
+      .filter(countsAsTopCommReference)
       .filter(sc => spanCommKey(sc) !== excludeKey)
       .map(getMidspanInchesForComm)
       .filter(value => value !== null);
@@ -195,6 +210,7 @@
   function getReferenceMidspansForSpanSide(spanId, poleId) {
     const rows = poleId ? S().getSpanCommsForPole(poleId) : S().getSpanCommsForSpan(spanId);
     const values = rows
+      .filter(countsAsTopCommReference)
       .map(getMidspanInchesForComm)
       .filter(value => value !== null);
     return Array.from(new Set(values));
@@ -538,6 +554,7 @@
 
     if (midspan !== null && maxMS !== null && getSettingPosition() === "TOP_COMM" && span?.fromPole === sc.poleId) {
       const spanMidspans = S().getSpanCommsForSpan(sc.spanId)
+        .filter(countsAsTopCommReference)
         .map(getMidspanInchesForComm)
         .filter(value => value !== null);
       const isTopCommAtMidspan = spanMidspans.length && midspan === Math.max(...spanMidspans);
@@ -674,6 +691,7 @@
 
     const commRows = S().getSpanCommsForPole(poleId);
     const heights = commRows
+      .filter(countsAsTopCommReference)
       .map(sc => H().parseHeight(getEffectiveCommHOA(sc)))
       .filter(value => value !== null);
 
@@ -820,7 +838,7 @@
 
   function autoCalcGroupsForPole(poleId) {
     const groups = new Map();
-    S().getSpanCommsForPole(poleId).forEach(sc => {
+    S().getSpanCommsForPole(poleId).filter(countsAsTopCommReference).forEach(sc => {
       const key = autoCalcGroupKey(sc);
       if (!groups.has(key)) {
         groups.set(key, {
@@ -941,6 +959,7 @@
       if (getSettingPosition() === "TOP_COMM" && span?.fromPole === row.poleId) {
         const currentMS = getMidspanInchesForComm(row);
         const spanMidspans = S().getSpanCommsForSpan(row.spanId)
+          .filter(countsAsTopCommReference)
           .map(getMidspanInchesForComm)
           .filter(value => value !== null);
         const isTopCommAtMidspan = currentMS !== null && spanMidspans.length && currentMS === Math.max(...spanMidspans);
@@ -1403,6 +1422,7 @@
     evaluateSpanSideFlagging,
     evaluateProposedPoleClearance,
     commOwnerLabel,
+    isPofComm,
     displayMidspanForComm,
     getConnectedSpans,
     getBackspanForPole,

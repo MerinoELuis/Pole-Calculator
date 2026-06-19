@@ -251,11 +251,13 @@
           owner: commOwnerLabel(sc),
           existingHOA: normalizedHeightLabel(sc.existingHOA || ""),
           existingHOAChange: sc.existingHOAChange || "",
+          isPof: false,
           rows: []
         });
       }
       const group = groups.get(key);
       if (!group.existingHOAChange && sc.existingHOAChange) group.existingHOAChange = sc.existingHOAChange;
+      if (global.Calculations.isPofComm && global.Calculations.isPofComm(sc)) group.isPof = true;
       group.rows.push(sc);
     });
     return Array.from(groups.values()).sort((a, b) => {
@@ -932,7 +934,7 @@
           aboveMax || flaggingIssue || flaggingMissing ? "warning-row" : ""
         ].filter(Boolean).join(" ");
         return `<tr class="${rowClasses}">
-          <td><span class="badge owner">${escapeHtml(group.owner)}</span></td>
+          <td><span class="badge owner">${escapeHtml(group.owner)}</span>${group.isPof ? ` <span class="badge pof">POF</span>` : ""}</td>
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
