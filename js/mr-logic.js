@@ -43,13 +43,13 @@
 
   function ownerForMR(spanComm) {
     const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
-    if (/century\s*link/i.test(raw)) return "CTL";
+    if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
     return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
   }
 
   function ownerForIntecMovementMR(spanComm) {
     const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
-    if (/century\s*link|centurylink/i.test(raw)) return "CenturyLink";
+    if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
     return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
   }
 

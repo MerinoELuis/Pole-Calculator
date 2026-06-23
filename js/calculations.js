@@ -589,6 +589,8 @@
         const diff = Math.abs(poleHeight - otherHeight);
         const required = sameOwner ? boltClearance : poleClearance;
         const label = sameOwner ? "Pole bolt-bolt" : "Pole comm-comm";
+        const sameOwnerServiceDropSameBolt = sameOwner && diff === 0 && (sc.serviceDrop || other.serviceDrop);
+        if (sameOwnerServiceDropSameBolt) return;
         if (diff < required) {
           issues.push(`${label}: ${format(diff)} with ${otherOwner || "no owner"}; minimum ${format(required)}.`);
         }
