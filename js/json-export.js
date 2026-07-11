@@ -43,17 +43,12 @@
     });
   }
 
-  function heightToDecimalFeet(value) {
-    const inches = H().parseHeight(value || "");
-    return inches === null ? "" : Number((inches / 12).toFixed(3));
-  }
-
-  function spanLengthFeet(span) {
+  function hasSpanLength(span) {
     if (!span) return "";
     const displayInches = H().parseHeight(span.lengthDisplay || "");
-    if (displayInches !== null) return Number((displayInches / 12).toFixed(3));
+    if (displayInches !== null) return true;
     const raw = Number(span.length);
-    return Number.isFinite(raw) ? Number((raw * 3.280839895).toFixed(3)) : "";
+    return Number.isFinite(raw) && raw > 0;
   }
 
   function oppositeDirection(direction) {
@@ -92,12 +87,10 @@
       label: span ? `${fromPole} -> ${toPole}` : "",
       fromPole,
       toPole,
-      otherPole: span ? S().getOtherPoleId(span, poleId) : "",
       type: span?.type || "",
       direction: directionFromPole(span, poleId),
       bearingDegrees: span?.bearingDegrees ?? "",
-      lengthDisplay: span?.lengthDisplay || "",
-      lengthFeet: spanLengthFeet(span)
+      lengthDisplay: span?.lengthDisplay || ""
     };
   }
 
@@ -105,12 +98,11 @@
     if (!span) return false;
     const direction = directionFromPole(span, poleId);
     const bearing = Number(span.bearingDegrees);
-    const length = spanLengthFeet(span);
     return Boolean(
       direction ||
       Number.isFinite(bearing) ||
       span.lengthDisplay ||
-      (typeof length === "number" && length > 0)
+      hasSpanLength(span)
     );
   }
 
@@ -153,7 +145,7 @@
   function ensureSpanExport(poleItem, span, poleId) {
     if (!shouldExportSpanForPole(span, poleId)) return null;
     const info = spanExportInfo(span, poleId);
-    const key = info.label || `${poleId || ""}->${info.otherPole || ""}`;
+    const key = info.label || `${poleId || ""}->${info.toPole || ""}`;
     let item = poleItem.spans.find(row => row.label === key);
     if (!item) {
       item = { ...info };
@@ -206,16 +198,13 @@
           ...attachment,
           spanLabel: spanItem.label,
           spanDirection: spanItem.direction,
-          proposed: side.proposedHOA || "",
-          proposedFeet: heightToDecimalFeet(side.proposedHOA)
+          proposed: side.proposedHOA || ""
         } : null);
         addProposedForPole(poleItem, {
           spanLabel: spanItem.label,
           fromPole: spanItem.fromPole,
           toPole: spanItem.toPole,
-          otherPole: spanItem.otherPole,
           proposed: side.proposedHOA || "",
-          proposedFeet: heightToDecimalFeet(side.proposedHOA),
           endDrop: side.endDrop || "",
           nextPoleProposed: side.proposedHOAChange || "",
           ocalcMS: side.ocalcMS || "",
