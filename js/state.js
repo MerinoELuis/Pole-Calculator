@@ -193,6 +193,7 @@
       spanId: trim(data.spanId || ""),
       poleId: trim(data.poleId || ""),
       isManualProposed: Boolean(data.isManualProposed),
+      isAdditionalProposed: Boolean(data.isAdditionalProposed),
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),

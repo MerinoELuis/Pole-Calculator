@@ -20,6 +20,12 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Exports/imports full JSON save points.
 - Exports a proposed JSON package intended for a future O-Calc plugin.
 
+## Saving Work
+
+`Save Local` writes a full calculator JSON named from the job, for example `EXCEL_JOB_Pole_Calculator.json`. In browsers that support the File System Access API, the first save asks for a file path and later saves overwrite that same file. `Load Local` opens a `.json` save file and restores the calculator state.
+
+If there are unsaved changes and the page is closed, the browser shows its native leave-page warning. Browsers do not allow custom Save/Cancel buttons during tab close, so the app keeps `Ctrl+S` and the visible `Save Local` button as the supported save path.
+
 ## Workflow
 
 1. Import the raw field Excel file.

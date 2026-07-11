@@ -18,6 +18,16 @@
     URL.revokeObjectURL(url);
   }
 
+  function safeJobFilePart(value) {
+    const raw = String(value || "pole_job")
+      .replace(/\.[^.]+$/, "")
+      .replace(/_Pole_Calculator$/i, "")
+      .trim();
+    return (raw || "pole_job")
+      .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "_")
+      .replace(/\s+/g, "_");
+  }
+
   function exportJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -173,7 +183,8 @@
       .filter(pole => pole.spans.length || pole.commMakeReady.length)
       .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
-    downloadJson(`pole-proposed-ocalc-${date}.json`, {
+    const jobName = safeJobFilePart(state.importedFileName || `pole_job_${date}`);
+    downloadJson(`${jobName}_Pole_Calculator_Proposed.json`, {
       app: "pole-calculator",
       exportType: "proposed-for-ocalc",
       exportedAt: new Date().toISOString(),

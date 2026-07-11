@@ -13,6 +13,9 @@
   const undoHistory = [];
   const MAX_UNDO_STEPS = 100;
   let restoringUndo = false;
+  let saveFileHandle = null;
+  let lastSavedSerialized = "";
+  let hasUnsavedChanges = false;
   const SPAN_COLOR_CLASS_COUNT = 5;
 
 
@@ -124,6 +127,119 @@
     if (previous && previous.serialized === serialized) return;
     undoHistory.push({ serialized, snapshot });
     if (undoHistory.length > MAX_UNDO_STEPS) undoHistory.shift();
+    markDirty();
+  }
+
+  function safeJobFilePart(value) {
+    const raw = String(value || "pole_job")
+      .replace(/\.[^.]+$/, "")
+      .replace(/_Pole_Calculator$/i, "")
+      .trim();
+    return (raw || "pole_job")
+      .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "_")
+      .replace(/\s+/g, "_");
+  }
+
+  function saveFileName() {
+    const state = S.getState();
+    return `${safeJobFilePart(state.importedFileName || "pole_job")}_Pole_Calculator.json`;
+  }
+
+  function savePayload() {
+    global.Calculations.recalculateAll();
+    const state = cloneCurrentState();
+    return {
+      app: "pole-calculator",
+      exportedAt: new Date().toISOString(),
+      version: state.version || S.CURRENT_VERSION,
+      sourceFile: state.importedFileName || "",
+      state
+    };
+  }
+
+  function serializedSavePayload() {
+    return JSON.stringify(savePayload(), null, 2);
+  }
+
+  function markDirty() {
+    hasUnsavedChanges = true;
+    updateSaveButtonState();
+  }
+
+  function markClean(serialized = "") {
+    lastSavedSerialized = serialized || JSON.stringify(savePayload());
+    hasUnsavedChanges = false;
+    updateSaveButtonState();
+  }
+
+  function updateSaveButtonState() {
+    if (!els.saveLocalBtn) return;
+    els.saveLocalBtn.textContent = hasUnsavedChanges ? "Save Local *" : "Save Local";
+    els.saveLocalBtn.title = saveFileHandle
+      ? "Save changes to the selected JSON file"
+      : "Choose where to save the job JSON file";
+  }
+
+  async function writeSaveFile(handle, text) {
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+  }
+
+  async function saveLocalFile() {
+    const text = serializedSavePayload();
+    const suggestedName = saveFileName();
+    if (window.showSaveFilePicker) {
+      if (!saveFileHandle) {
+        saveFileHandle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [{
+            description: "Pole Calculator JSON",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+      }
+      await writeSaveFile(saveFileHandle, text);
+      markClean(text);
+      toast(`Saved ${suggestedName}.`, "success");
+      return true;
+    }
+
+    global.ProjectExport.downloadJson(suggestedName, JSON.parse(text));
+    markClean(text);
+    toast("Browser file overwrite is not available; JSON was downloaded.", "warning");
+    return true;
+  }
+
+  async function loadLocalFile() {
+    let file = null;
+    saveFileHandle = null;
+    if (window.showOpenFilePicker) {
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{
+          description: "Pole Calculator JSON",
+          accept: { "application/json": [".json"] }
+        }]
+      });
+      saveFileHandle = handle || null;
+      file = handle ? await handle.getFile() : null;
+    } else {
+      file = await new Promise(resolve => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json,application/json";
+        input.addEventListener("change", () => resolve(input.files?.[0] || null), { once: true });
+        input.click();
+      });
+    }
+    if (!file) return false;
+    recordUndoSnapshot();
+    await global.ExcelImport.importJsonFile(file);
+    render();
+    markClean(serializedSavePayload());
+    toast("Local JSON loaded.", "success");
+    return true;
   }
 
   function undoLastAction() {
@@ -137,6 +253,7 @@
     global.Calculations.recalculateAll();
     render();
     restoringUndo = false;
+    markDirty();
     toast("Last change undone.", "success");
   }
 
@@ -234,7 +351,10 @@
       .filter(span => isForespanForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
-        const key = `${span.fromPole || ""}->${span.toPole || ""}`;
+        const side = S.getSpanSide(span.spanId, poleId);
+        const key = side?.isAdditionalProposed
+          ? `${span.fromPole || ""}->${span.toPole || ""}->${span.spanId}`
+          : `${span.fromPole || ""}->${span.toPole || ""}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -855,7 +975,8 @@
   function renderSpanProposedTable(poleId) {
     const spans = proposedSpansForPole(poleId);
     if (!spans.length) return renderManualProposedSpanStarter(poleId);
-    return `<div class="table-wrap"><table class="span-proposed-table wide-table">
+    return `${renderManualProposedSpanStarter(poleId, { compact: true })}
+    <div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
         <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th>
       </tr></thead>
@@ -894,7 +1015,7 @@
     </table></div>`;
   }
 
-  function renderManualProposedSpanStarter(poleId) {
+  function renderManualProposedSpanStarter(poleId, optionsConfig = {}) {
     const options = Object.keys(S.getState().poles || {})
       .filter(id => id !== poleId)
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
@@ -902,7 +1023,7 @@
       .join("");
     if (!options) return `<p class="muted">No other pole is available for a proposed span.</p>`;
     return `<div class="manual-proposed-starter">
-      <span class="muted">No spans with midspan are available to propose from this pole.</span>
+      ${optionsConfig.compact ? "" : `<span class="muted">No spans with midspan are available to propose from this pole.</span>`}
       <label>
         <span>Propose to</span>
         <select class="input" data-manual-proposed-target="${escapeHtml(poleId)}">
@@ -1118,15 +1239,24 @@
       span.fromPole === poleId && span.toPole === targetPoleId
     );
     recordUndoSnapshot();
-    const span = existing || S.upsertSpan({
-      spanId: `manual-proposed-${Date.now()}`,
+    const existingSide = existing ? S.getSpanSide(existing.spanId, poleId) : null;
+    const shouldCreateAdditional = Boolean(existingSide);
+    const span = shouldCreateAdditional || !existing ? S.upsertSpan({
+      spanId: `${shouldCreateAdditional ? "additional" : "manual"}-proposed-${Date.now()}`,
       fromPole: poleId,
       toPole: targetPoleId,
-      type: "Other"
+      type: "Other",
+      isManualProposed: true
+    }) : existing;
+    S.upsertSpanSide({
+      spanId: span.spanId,
+      poleId,
+      isManualProposed: true,
+      isAdditionalProposed: shouldCreateAdditional
     });
-    S.upsertSpanSide({ spanId: span.spanId, poleId, isManualProposed: true });
     global.Calculations.recalculateSpan(span.spanId);
     renderAffectedPoles([poleId, targetPoleId]);
+    markDirty();
   }
 
   function isLiveRecalcField(field) {
@@ -1463,8 +1593,10 @@
     if (!file) return;
     try {
       recordUndoSnapshot();
+      saveFileHandle = null;
       await global.ExcelImport.importExcelFile(file);
       render();
+      markDirty();
       toast("Raw Excel imported. Available sheets were loaded.", "success");
     } catch (error) {
       console.error(error);
@@ -1474,25 +1606,8 @@
     }
   }
 
-  async function handleJsonImport(file) {
-    if (!file) return;
-    try {
-      recordUndoSnapshot();
-      await global.ExcelImport.importJsonFile(file);
-      render();
-      toast("JSON imported. Saved work is loaded.", "success");
-    } catch (error) {
-      console.error(error);
-      toast(`Error importing JSON: ${error.message}`, "error");
-    } finally {
-      els.jsonFileInput.value = "";
-    }
-  }
-
   function bindEvents() {
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
-    els.jsonFileInput.addEventListener("change", event => handleJsonImport(event.target.files[0]));
-    els.exportJsonBtn.addEventListener("click", () => global.ProjectExport.exportJson());
     els.exportProposedJsonBtn.addEventListener("click", () => {
       if (els.exportProposedJsonBtn.disabled) return;
       global.ProjectExport.exportProposedJson();
@@ -1514,13 +1629,23 @@
           : "";
       toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged${passText}.${stopText}`, result.applied ? "success" : "warning");
     });
-    els.saveLocalBtn.addEventListener("click", () => { S.saveToLocal(); toast("Saved locally in this browser.", "success"); });
-    els.loadLocalBtn.addEventListener("click", () => {
-      recordUndoSnapshot();
-      const loaded = S.loadFromLocal();
-      if (!loaded) return toast("No local save found.", "warning");
-      render();
-      toast("Local save loaded.", "success");
+    els.saveLocalBtn.addEventListener("click", async () => {
+      try {
+        await saveLocalFile();
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        console.error(error);
+        toast(`Error saving JSON: ${error.message}`, "error");
+      }
+    });
+    els.loadLocalBtn.addEventListener("click", async () => {
+      try {
+        await loadLocalFile();
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        console.error(error);
+        toast(`Error loading JSON: ${error.message}`, "error");
+      }
     });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
@@ -1537,17 +1662,23 @@
       }
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        S.saveToLocal();
-        toast("Saved locally in this browser.", "success");
+        saveLocalFile().catch(error => {
+          if (error?.name === "AbortError") return;
+          console.error(error);
+          toast(`Error saving JSON: ${error.message}`, "error");
+        });
       }
+    });
+    window.addEventListener("beforeunload", event => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = "";
     });
   }
 
   function init() {
     Object.assign(els, {
       excelFileInput: qs("excelFileInput"),
-      jsonFileInput: qs("jsonFileInput"),
-      exportJsonBtn: qs("exportJsonBtn"),
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
@@ -1567,6 +1698,7 @@
     global.FloatingCalculator?.setupFloatingCalculator();
     S.resetState();
     render();
+    markClean(serializedSavePayload());
   }
 
   document.addEventListener("DOMContentLoaded", init);

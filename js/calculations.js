@@ -747,7 +747,7 @@
       });
       const forwardProposedSide = otherSides.find(otherSide => {
         const candidateSpan = S().getSpan(otherSide.spanId);
-        return Boolean(otherSide.proposedHOA && candidateSpan?.fromPole === otherPoleId);
+        return Boolean(otherSide.proposedHOA && !otherSide.isAdditionalProposed && candidateSpan?.fromPole === otherPoleId);
       });
       const sourceSide = forwardProposedSide || null;
       debugSelected = sourceSide ? { spanId: sourceSide.spanId, proposedHOA: sourceSide.proposedHOA } : null;
@@ -892,6 +892,7 @@
     return S().getConnectedSpans(poleId)
       .filter(span => isForespanForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => allowNoMidspan || autoCalcHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => !S().getSpanSide(span.spanId, poleId)?.isAdditionalProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
         if (seen.has(key)) return false;
