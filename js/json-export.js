@@ -142,6 +142,11 @@
     return item;
   }
 
+  function addConnectedSpansForPole(poleItem, poleId) {
+    S().getConnectedSpans(poleId)
+      .forEach(span => ensureSpanExport(poleItem, span, poleId));
+  }
+
   function exportProposedJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -153,6 +158,7 @@
       .forEach(side => {
         const span = S().getSpan(side.spanId);
         const poleItem = ensurePoleExport(polesById, side.poleId, state);
+        addConnectedSpansForPole(poleItem, side.poleId);
         const spanItem = ensureSpanExport(poleItem, span, side.poleId);
         const primaryAttachmentReference = makeReadyRefsForProposal(state, side.poleId, span)[0] || null;
         spanItem.proposed = {
@@ -172,6 +178,7 @@
       const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
       if (!sc.existingHOAChange || !mrLine) return;
       const poleItem = ensurePoleExport(polesById, sc.poleId, state);
+      addConnectedSpansForPole(poleItem, sc.poleId);
       poleItem.commMakeReady.push(mrLine);
       poleItem.commMakeReady = Array.from(new Set(poleItem.commMakeReady));
     });
@@ -180,7 +187,6 @@
       .map(pole => ({
         ...pole,
         spans: pole.spans
-          .filter(span => span.proposed)
           .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
       }))
       .filter(pole => pole.spans.length || pole.commMakeReady.length)
