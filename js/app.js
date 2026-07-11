@@ -586,6 +586,7 @@
             data-wire-id="${escapeHtml(sc.wireId || "")}"
             title="Clear only this midspan"
             aria-label="Clear only this midspan">&#10005;</button>` : ""}
+          ${!hasStoredMidspan ? `<span class="inline-icon-action ghost-action" aria-hidden="true"></span>` : ""}
         </div>`,
         maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${!isReferenceSpan && hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
         remoteHtml: isReferenceSpan || !hasMidspan || !remote

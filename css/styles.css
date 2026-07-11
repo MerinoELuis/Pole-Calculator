@@ -889,6 +889,11 @@ tr.danger-row {
   color: #b91c1c;
 }
 
+.inline-icon-action.ghost-action {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .span-color-dot {
   display: inline-block;
   width: 9px;
