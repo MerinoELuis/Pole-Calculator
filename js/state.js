@@ -184,6 +184,7 @@
       rawType: trim(extra.rawType || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
       sourceCollectionId: trim(extra.sourceCollectionId || ""),
+      isManualProposed: Boolean(extra.isManualProposed),
       isGeneratedOtherPole: Boolean(extra.isGeneratedOtherPole)
     };
   }
@@ -409,6 +410,20 @@
     const existing = state.spanSides[key] || createSpanSide(data);
     state.spanSides[key] = createSpanSide({ ...existing, ...data, updatedAt: new Date().toISOString() });
     return state.spanSides[key];
+  }
+
+  function removeSpanSide(spanId, poleId) {
+    delete state.spanSides[keyForSpanSide(spanId, poleId)];
+  }
+
+  function removeManualSpan(spanId) {
+    const span = state.spans[trim(spanId)];
+    if (!span || (!span.isManualProposed && !/^(manual|additional)-proposed-/i.test(trim(spanId)))) return false;
+    delete state.spans[trim(spanId)];
+    Object.keys(state.spanSides).forEach(key => {
+      if (state.spanSides[key].spanId === spanId) delete state.spanSides[key];
+    });
+    return true;
   }
 
   function upsertSpanComm(data) {
@@ -671,6 +686,8 @@
     upsertComm,
     upsertSpan,
     upsertSpanSide,
+    removeSpanSide,
+    removeManualSpan,
     upsertSpanComm,
     removeSpanComm,
     addSpanPower,

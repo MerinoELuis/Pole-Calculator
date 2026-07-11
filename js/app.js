@@ -17,6 +17,9 @@
   let lastSavedSerialized = "";
   let hasUnsavedChanges = false;
   const SPAN_COLOR_CLASS_COUNT = 5;
+  const FILE_HANDLE_DB = "poleCalculatorFileHandles";
+  const FILE_HANDLE_STORE = "handles";
+  const SAVE_HANDLE_KEY = "currentSaveFile";
 
 
   function qs(id) { return document.getElementById(id); }
@@ -145,6 +148,49 @@
     return `${safeJobFilePart(state.importedFileName || "pole_job")}_Pole_Calculator.json`;
   }
 
+  function openFileHandleDb() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) return resolve(null);
+      const request = indexedDB.open(FILE_HANDLE_DB, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore(FILE_HANDLE_STORE);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function storeFileHandle(handle) {
+    if (!handle) return;
+    const db = await openFileHandleDb();
+    if (!db) return;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(FILE_HANDLE_STORE, "readwrite");
+      tx.objectStore(FILE_HANDLE_STORE).put(handle, SAVE_HANDLE_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }
+
+  async function readStoredFileHandle() {
+    const db = await openFileHandleDb();
+    if (!db) return null;
+    const handle = await new Promise((resolve, reject) => {
+      const tx = db.transaction(FILE_HANDLE_STORE, "readonly");
+      const request = tx.objectStore(FILE_HANDLE_STORE).get(SAVE_HANDLE_KEY);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return handle;
+  }
+
+  async function canUseFileHandle(handle, mode = "read") {
+    if (!handle?.queryPermission) return Boolean(handle);
+    const options = { mode };
+    if ((await handle.queryPermission(options)) === "granted") return true;
+    return (await handle.requestPermission(options)) === "granted";
+  }
+
   function savePayload() {
     global.Calculations.recalculateAll();
     const state = cloneCurrentState();
@@ -174,7 +220,7 @@
 
   function updateSaveButtonState() {
     if (!els.saveLocalBtn) return;
-    els.saveLocalBtn.textContent = hasUnsavedChanges ? "Save Local *" : "Save Local";
+    els.saveLocalBtn.textContent = hasUnsavedChanges ? "Save *" : "Save";
     els.saveLocalBtn.title = saveFileHandle
       ? "Save changes to the selected JSON file"
       : "Choose where to save the job JSON file";
@@ -191,6 +237,10 @@
     const suggestedName = saveFileName();
     if (window.showSaveFilePicker) {
       if (!saveFileHandle) {
+        const storedHandle = await readStoredFileHandle();
+        if (storedHandle && await canUseFileHandle(storedHandle, "readwrite")) saveFileHandle = storedHandle;
+      }
+      if (!saveFileHandle) {
         saveFileHandle = await window.showSaveFilePicker({
           suggestedName,
           types: [{
@@ -200,8 +250,9 @@
         });
       }
       await writeSaveFile(saveFileHandle, text);
+      await storeFileHandle(saveFileHandle);
       markClean(text);
-      toast(`Saved ${suggestedName}.`, "success");
+      toast(`Saved ${saveFileHandle.name || suggestedName}.`, "success");
       return true;
     }
 
@@ -213,16 +264,20 @@
 
   async function loadLocalFile() {
     let file = null;
-    saveFileHandle = null;
     if (window.showOpenFilePicker) {
-      const [handle] = await window.showOpenFilePicker({
-        multiple: false,
-        types: [{
-          description: "Pole Calculator JSON",
-          accept: { "application/json": [".json"] }
-        }]
-      });
-      saveFileHandle = handle || null;
+      let handle = saveFileHandle || await readStoredFileHandle();
+      if (!handle || !(await canUseFileHandle(handle, "read"))) {
+        const [picked] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [{
+            description: "Pole Calculator JSON",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+        handle = picked || null;
+      }
+      saveFileHandle = handle;
+      await storeFileHandle(saveFileHandle);
       file = handle ? await handle.getFile() : null;
     } else {
       file = await new Promise(resolve => {
@@ -238,8 +293,75 @@
     await global.ExcelImport.importJsonFile(file);
     render();
     markClean(serializedSavePayload());
-    toast("Local JSON loaded.", "success");
+    toast("JSON loaded.", "success");
     return true;
+  }
+
+  function spanSideHasUserWork(side) {
+    return Boolean(side?.proposedHOA || side?.proposedHOAChange || side?.proposedMidspan || side?.ocalcMS || side?.notes || side?.isManualProposed);
+  }
+
+  function spanCommHasUserWork(row) {
+    return Boolean(row?.existingHOAChange || row?.notes || row?.mr || String(row?.wireId || "").startsWith("manual-"));
+  }
+
+  function mergeImportedUpdate(previous, imported) {
+    const merged = JSON.parse(JSON.stringify(imported));
+
+    Object.entries(previous.spanSides || {}).forEach(([key, oldSide]) => {
+      const newSide = merged.spanSides?.[key];
+      if (newSide) {
+        merged.spanSides[key] = {
+          ...newSide,
+          proposedHOA: oldSide.proposedHOA || newSide.proposedHOA || "",
+          proposedHOAChange: oldSide.proposedHOAChange || newSide.proposedHOAChange || "",
+          nextPoleProposedAuto: oldSide.proposedHOAChange ? oldSide.nextPoleProposedAuto : newSide.nextPoleProposedAuto,
+          proposedMidspan: oldSide.proposedMidspan || newSide.proposedMidspan || "",
+          ocalcMS: oldSide.ocalcMS || newSide.ocalcMS || "",
+          notes: oldSide.notes || newSide.notes || "",
+          isManualProposed: Boolean(oldSide.isManualProposed || newSide.isManualProposed),
+          isAdditionalProposed: Boolean(oldSide.isAdditionalProposed || newSide.isAdditionalProposed)
+        };
+        return;
+      }
+      if (!spanSideHasUserWork(oldSide)) return;
+      merged.spanSides[key] = oldSide;
+      if (!merged.spans[oldSide.spanId] && previous.spans?.[oldSide.spanId]) merged.spans[oldSide.spanId] = previous.spans[oldSide.spanId];
+    });
+
+    Object.entries(previous.spanComms || {}).forEach(([key, oldRow]) => {
+      const newRow = merged.spanComms?.[key];
+      if (newRow) {
+        merged.spanComms[key] = {
+          ...newRow,
+          existingHOAChange: oldRow.existingHOAChange || newRow.existingHOAChange || "",
+          serviceDrop: Boolean(oldRow.serviceDrop || newRow.serviceDrop),
+          downGuy: Boolean(oldRow.downGuy || newRow.downGuy),
+          notes: oldRow.notes || newRow.notes || "",
+          mr: oldRow.mr || newRow.mr || ""
+        };
+        return;
+      }
+      if (!spanCommHasUserWork(oldRow)) return;
+      merged.spanComms[key] = oldRow;
+      if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) merged.spans[oldRow.spanId] = previous.spans[oldRow.spanId];
+    });
+
+    Object.entries(previous.poles || {}).forEach(([poleId, oldPole]) => {
+      if (!merged.poles[poleId]) {
+        merged.poles[poleId] = oldPole;
+        return;
+      }
+      merged.poles[poleId] = {
+        ...merged.poles[poleId],
+        ugActive: Boolean(oldPole.ugActive),
+        pcoActive: Boolean(oldPole.pcoActive),
+        notes: oldPole.notes || merged.poles[poleId].notes || ""
+      };
+    });
+
+    merged.ui = previous.ui || merged.ui || {};
+    return merged;
   }
 
   function undoLastAction() {
@@ -974,11 +1096,10 @@
 
   function renderSpanProposedTable(poleId) {
     const spans = proposedSpansForPole(poleId);
-    if (!spans.length) return renderManualProposedSpanStarter(poleId);
-    return `${renderManualProposedSpanStarter(poleId, { compact: true })}
-    <div class="table-wrap"><table class="span-proposed-table wide-table">
+    if (!spans.length) return `<p class="muted">No spans with midspan are available to propose from this pole.</p>`;
+    return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th>
+        <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -1010,6 +1131,7 @@
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environmentClearance" value="${escapeHtml(span.environmentClearance || "")}"></td>
           <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Own notes...")}</td>
+          <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -1022,7 +1144,7 @@
       .map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`)
       .join("");
     if (!options) return `<p class="muted">No other pole is available for a proposed span.</p>`;
-    return `<div class="manual-proposed-starter">
+    return `<div class="manual-proposed-starter ${optionsConfig.compact ? "compact-starter" : ""}">
       ${optionsConfig.compact ? "" : `<span class="muted">No spans with midspan are available to propose from this pole.</span>`}
       <label>
         <span>Propose to</span>
@@ -1098,7 +1220,10 @@
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
         <section class="subsection wide" id="spans-${escapeHtml(poleId)}">
-          <h4>Proposed by Span</h4>
+          <div class="subsection-title-row">
+            <h4>Proposed by Span</h4>
+            ${renderManualProposedSpanStarter(poleId, { compact: true })}
+          </div>
           ${renderSpanProposedTable(poleId)}
         </section>
         <section class="subsection wide" id="comms-${escapeHtml(poleId)}">
@@ -1190,6 +1315,7 @@
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
+    root.querySelectorAll("[data-delete-proposed-span]").forEach(btn => btn.addEventListener("click", () => deleteProposedSpan(btn.dataset.pole, btn.dataset.span)));
   }
 
   function toggleUG(poleId) {
@@ -1256,6 +1382,38 @@
     });
     global.Calculations.recalculateSpan(span.spanId);
     renderAffectedPoles([poleId, targetPoleId]);
+    markDirty();
+  }
+
+  async function deleteProposedSpan(poleId, spanId) {
+    const side = S.getSpanSide(spanId, poleId);
+    const span = S.getSpan(spanId);
+    if (!side || !span) return;
+    const label = shortSpanLabel(span);
+    if (!(await confirmInApp("Delete Proposed Span", `Delete proposed span ${label}?`))) return;
+    recordUndoSnapshot();
+    if (!S.removeManualSpan(spanId)) {
+      S.upsertSpanSide({
+        ...side,
+        proposedHOA: "",
+        proposedHOAChange: "",
+        nextPoleProposedAuto: false,
+        proposedMidspan: "",
+        ocalcMS: "",
+        msProposed: "",
+        finalMidspan: "",
+        clearanceMSStatus: "",
+        clearanceMSMessage: "",
+        clearanceMSReason: "",
+        clearanceMSIssue: false,
+        proposedFlaggingStatus: "",
+        proposedFlaggingMessage: "",
+        endDrop: "",
+        notes: ""
+      });
+    }
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, S.getOtherPoleId(span, poleId)].filter(Boolean));
     markDirty();
   }
 
@@ -1606,8 +1764,30 @@
     }
   }
 
+  async function handleExcelUpdate(file) {
+    if (!file) return;
+    try {
+      recordUndoSnapshot();
+      const previous = cloneCurrentState();
+      await global.ExcelImport.importExcelFile(file);
+      const imported = cloneCurrentState();
+      const merged = mergeImportedUpdate(previous, imported);
+      S.setState(merged);
+      global.Calculations.recalculateAll();
+      render();
+      markDirty();
+      toast("Excel data updated. Existing movements and proposed values were preserved when IDs matched.", "success");
+    } catch (error) {
+      console.error(error);
+      toast(`Error updating Excel data: ${error.message}`, "error");
+    } finally {
+      els.updateExcelFileInput.value = "";
+    }
+  }
+
   function bindEvents() {
     els.excelFileInput.addEventListener("change", event => handleExcelImport(event.target.files[0]));
+    els.updateExcelFileInput.addEventListener("change", event => handleExcelUpdate(event.target.files[0]));
     els.exportProposedJsonBtn.addEventListener("click", () => {
       if (els.exportProposedJsonBtn.disabled) return;
       global.ProjectExport.exportProposedJson();
@@ -1679,6 +1859,7 @@
   function init() {
     Object.assign(els, {
       excelFileInput: qs("excelFileInput"),
+      updateExcelFileInput: qs("updateExcelFileInput"),
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
       saveLocalBtn: qs("saveLocalBtn"),

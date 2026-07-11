@@ -22,9 +22,11 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 ## Saving Work
 
-`Save Local` writes a full calculator JSON named from the job, for example `EXCEL_JOB_Pole_Calculator.json`. In browsers that support the File System Access API, the first save asks for a file path and later saves overwrite that same file. `Load Local` opens a `.json` save file and restores the calculator state.
+`Save` writes a full calculator JSON named from the job, for example `EXCEL_JOB_Pole_Calculator.json`. In browsers that support the File System Access API, the first save asks for a file path and later saves overwrite that same file. The selected file handle is remembered when the browser allows it, so `Save` and `Load` can reuse the same file later. `Load` opens a `.json` save file and restores the calculator state.
 
-If there are unsaved changes and the page is closed, the browser shows its native leave-page warning. Browsers do not allow custom Save/Cancel buttons during tab close, so the app keeps `Ctrl+S` and the visible `Save Local` button as the supported save path.
+`Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. Imported field data is refreshed, while matching user work such as HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans is preserved.
+
+If there are unsaved changes and the page is closed, the browser shows its native leave-page warning. Browsers do not allow custom Save/Cancel buttons during tab close, so the app keeps `Ctrl+S` and the visible `Save` button as the supported save path.
 
 ## Workflow
 
