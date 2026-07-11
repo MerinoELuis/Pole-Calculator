@@ -85,7 +85,6 @@
     const toPole = span?.toPole || "";
     return {
       label: span ? `${fromPole} -> ${toPole}` : "",
-      fromPole,
       toPole,
       type: span?.type || "",
       direction: directionFromPole(span, poleId),
@@ -194,7 +193,7 @@
         addAttachmentForPole(poleItem, attachment);
         addProposedForPole(poleItem, {
           spanLabel: spanItem.label,
-          fromPole: spanItem.fromPole,
+          fromPole: span?.fromPole || side.poleId || "",
           toPole: spanItem.toPole,
           proposed: side.proposedHOA || "",
           endDrop: side.endDrop || "",
