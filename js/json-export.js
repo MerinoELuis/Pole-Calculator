@@ -101,6 +101,26 @@
     };
   }
 
+  function hasSpanExportGeometry(span, poleId) {
+    if (!span) return false;
+    const direction = directionFromPole(span, poleId);
+    const bearing = Number(span.bearingDegrees);
+    const length = spanLengthFeet(span);
+    return Boolean(
+      direction ||
+      Number.isFinite(bearing) ||
+      span.lengthDisplay ||
+      (typeof length === "number" && length > 0)
+    );
+  }
+
+  function shouldExportSpanForPole(span, poleId) {
+    // AutoProposed is organized by the pole where work is being proposed. For
+    // that reason P29 only exports P29 -> ... spans; incoming P30 -> P29 spans
+    // belong to P30 and would duplicate/confuse the O-Calc import payload.
+    return Boolean(span && span.fromPole === poleId && hasSpanExportGeometry(span, poleId));
+  }
+
   function attachmentExportInfo(ref) {
     if (!ref) return null;
     return {
@@ -122,6 +142,7 @@
         poleId: key,
         proposedOwner: state.settings?.proposedOwner || "",
         spans: [],
+        attachments: [],
         commMakeReady: []
       });
     }
@@ -129,6 +150,7 @@
   }
 
   function ensureSpanExport(poleItem, span, poleId) {
+    if (!shouldExportSpanForPole(span, poleId)) return null;
     const info = spanExportInfo(span, poleId);
     const key = info.label || `${poleId || ""}->${info.otherPole || ""}`;
     let item = poleItem.spans.find(row => row.label === key);
@@ -142,9 +164,17 @@
     return item;
   }
 
-  function addConnectedSpansForPole(poleItem, poleId) {
+  function addOutgoingSpansForPole(poleItem, poleId) {
     S().getConnectedSpans(poleId)
+      .filter(span => shouldExportSpanForPole(span, poleId))
       .forEach(span => ensureSpanExport(poleItem, span, poleId));
+  }
+
+  function addAttachmentForPole(poleItem, attachment) {
+    if (!attachment) return;
+    const key = JSON.stringify(attachment);
+    const exists = poleItem.attachments.some(row => JSON.stringify(row) === key);
+    if (!exists) poleItem.attachments.push(attachment);
   }
 
   function exportProposedJson() {
@@ -158,9 +188,18 @@
       .forEach(side => {
         const span = S().getSpan(side.spanId);
         const poleItem = ensurePoleExport(polesById, side.poleId, state);
-        addConnectedSpansForPole(poleItem, side.poleId);
+        addOutgoingSpansForPole(poleItem, side.poleId);
         const spanItem = ensureSpanExport(poleItem, span, side.poleId);
+        if (!spanItem) return;
         const primaryAttachmentReference = makeReadyRefsForProposal(state, side.poleId, span)[0] || null;
+        const attachment = attachmentExportInfo(primaryAttachmentReference);
+        addAttachmentForPole(poleItem, attachment ? {
+          ...attachment,
+          spanLabel: spanItem.label,
+          spanDirection: spanItem.direction,
+          proposed: side.proposedHOA || "",
+          proposedFeet: heightToDecimalFeet(side.proposedHOA)
+        } : null);
         spanItem.proposed = {
           proposed: side.proposedHOA || "",
           proposedFeet: heightToDecimalFeet(side.proposedHOA),
@@ -169,7 +208,6 @@
           ocalcMS: side.ocalcMS || "",
           msProposed: side.msProposed || "",
           adjustedFinalMS: side.finalMidspan || "",
-          attachment: attachmentExportInfo(primaryAttachmentReference),
           notes: side.notes || ""
         };
       });
@@ -178,7 +216,7 @@
       const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
       if (!sc.existingHOAChange || !mrLine) return;
       const poleItem = ensurePoleExport(polesById, sc.poleId, state);
-      addConnectedSpansForPole(poleItem, sc.poleId);
+      addOutgoingSpansForPole(poleItem, sc.poleId);
       poleItem.commMakeReady.push(mrLine);
       poleItem.commMakeReady = Array.from(new Set(poleItem.commMakeReady));
     });
@@ -187,9 +225,11 @@
       .map(pole => ({
         ...pole,
         spans: pole.spans
-          .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+          .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
+        attachments: pole.attachments
+          .sort((a, b) => (a.spanLabel || "").localeCompare(b.spanLabel || "", undefined, { numeric: true }))
       }))
-      .filter(pole => pole.spans.length || pole.commMakeReady.length)
+      .filter(pole => pole.spans.length || pole.attachments.length || pole.commMakeReady.length)
       .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
     const jobName = safeJobFilePart(state.importedFileName || `pole_job_${date}`);
