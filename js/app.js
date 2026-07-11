@@ -20,6 +20,7 @@
   const FILE_HANDLE_DB = "poleCalculatorFileHandles";
   const FILE_HANDLE_STORE = "handles";
   const SAVE_HANDLE_KEY = "currentSaveFile";
+  const JSON_PICKER_ID = "pole-calculator-json";
 
 
   function qs(id) { return document.getElementById(id); }
@@ -242,6 +243,7 @@
       }
       if (!saveFileHandle) {
         saveFileHandle = await window.showSaveFilePicker({
+          id: JSON_PICKER_ID,
           suggestedName,
           types: [{
             description: "Pole Calculator JSON",
@@ -265,17 +267,14 @@
   async function loadLocalFile() {
     let file = null;
     if (window.showOpenFilePicker) {
-      let handle = saveFileHandle || await readStoredFileHandle();
-      if (!handle || !(await canUseFileHandle(handle, "read"))) {
-        const [picked] = await window.showOpenFilePicker({
-          multiple: false,
-          types: [{
-            description: "Pole Calculator JSON",
-            accept: { "application/json": [".json"] }
-          }]
-        });
-        handle = picked || null;
-      }
+      const [handle] = await window.showOpenFilePicker({
+        id: JSON_PICKER_ID,
+        multiple: false,
+        types: [{
+          description: "Pole Calculator JSON",
+          accept: { "application/json": [".json"] }
+        }]
+      });
       saveFileHandle = handle;
       await storeFileHandle(saveFileHandle);
       file = handle ? await handle.getFile() : null;
