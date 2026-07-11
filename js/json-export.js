@@ -120,10 +120,7 @@
       messenger: ref.attachmentMessenger || "",
       fiber: ref.attachmentFiber || "",
       direction: ref.attachmentDirection || "",
-      attachmentType: ref.attachmentType || "",
-      attachmentHeight: ref.attachmentHeight || "",
-      proposedMidspan: ref.proposedMidspan || "",
-      referenceNotes: ref.makeReadyNotes || ""
+      attachmentType: ref.attachmentType || ""
     };
   }
 
@@ -194,23 +191,14 @@
         if (!spanItem) return;
         const primaryAttachmentReference = makeReadyRefsForProposal(state, side.poleId, span)[0] || null;
         const attachment = attachmentExportInfo(primaryAttachmentReference);
-        addAttachmentForPole(poleItem, attachment ? {
-          ...attachment,
-          spanLabel: spanItem.label,
-          spanDirection: spanItem.direction,
-          proposed: side.proposedHOA || ""
-        } : null);
+        addAttachmentForPole(poleItem, attachment);
         addProposedForPole(poleItem, {
           spanLabel: spanItem.label,
           fromPole: spanItem.fromPole,
           toPole: spanItem.toPole,
           proposed: side.proposedHOA || "",
           endDrop: side.endDrop || "",
-          nextPoleProposed: side.proposedHOAChange || "",
-          ocalcMS: side.ocalcMS || "",
-          msProposed: side.msProposed || "",
-          adjustedFinalMS: side.finalMidspan || "",
-          notes: side.notes || ""
+          nextPoleProposed: side.proposedHOAChange || ""
         });
       });
 
