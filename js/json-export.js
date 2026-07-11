@@ -141,8 +141,9 @@
       map.set(key, {
         poleId: key,
         proposedOwner: state.settings?.proposedOwner || "",
-        spans: [],
+        proposed: [],
         attachments: [],
+        spans: [],
         commMakeReady: []
       });
     }
@@ -155,10 +156,7 @@
     const key = info.label || `${poleId || ""}->${info.otherPole || ""}`;
     let item = poleItem.spans.find(row => row.label === key);
     if (!item) {
-      item = {
-        ...info,
-        proposed: null
-      };
+      item = { ...info };
       poleItem.spans.push(item);
     }
     return item;
@@ -175,6 +173,17 @@
     const key = JSON.stringify(attachment);
     const exists = poleItem.attachments.some(row => JSON.stringify(row) === key);
     if (!exists) poleItem.attachments.push(attachment);
+  }
+
+  function addProposedForPole(poleItem, proposed) {
+    if (!proposed) return;
+    const key = proposed.spanLabel || JSON.stringify(proposed);
+    const existing = poleItem.proposed.find(row => (row.spanLabel || JSON.stringify(row)) === key);
+    if (existing) {
+      Object.assign(existing, proposed);
+    } else {
+      poleItem.proposed.push(proposed);
+    }
   }
 
   function exportProposedJson() {
@@ -200,7 +209,11 @@
           proposed: side.proposedHOA || "",
           proposedFeet: heightToDecimalFeet(side.proposedHOA)
         } : null);
-        spanItem.proposed = {
+        addProposedForPole(poleItem, {
+          spanLabel: spanItem.label,
+          fromPole: spanItem.fromPole,
+          toPole: spanItem.toPole,
+          otherPole: spanItem.otherPole,
           proposed: side.proposedHOA || "",
           proposedFeet: heightToDecimalFeet(side.proposedHOA),
           endDrop: side.endDrop || "",
@@ -209,7 +222,7 @@
           msProposed: side.msProposed || "",
           adjustedFinalMS: side.finalMidspan || "",
           notes: side.notes || ""
-        };
+        });
       });
 
     Object.values(state.spanComms || {}).forEach(sc => {
@@ -224,12 +237,14 @@
     const poles = Array.from(polesById.values())
       .map(pole => ({
         ...pole,
-        spans: pole.spans
-          .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
+        proposed: pole.proposed
+          .sort((a, b) => (a.spanLabel || "").localeCompare(b.spanLabel || "", undefined, { numeric: true })),
         attachments: pole.attachments
-          .sort((a, b) => (a.spanLabel || "").localeCompare(b.spanLabel || "", undefined, { numeric: true }))
+          .sort((a, b) => (a.spanLabel || "").localeCompare(b.spanLabel || "", undefined, { numeric: true })),
+        spans: pole.spans
+          .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
       }))
-      .filter(pole => pole.spans.length || pole.attachments.length || pole.commMakeReady.length)
+      .filter(pole => pole.proposed.length || pole.attachments.length || pole.spans.length || pole.commMakeReady.length)
       .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
     const jobName = safeJobFilePart(state.importedFileName || `pole_job_${date}`);
