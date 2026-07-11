@@ -184,7 +184,7 @@
       .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
     const jobName = safeJobFilePart(state.importedFileName || `pole_job_${date}`);
-    downloadJson(`${jobName}_Pole_Calculator_Proposed.json`, {
+    downloadJson(`${jobName}_AutoProposed.json`, {
       app: "pole-calculator",
       exportType: "proposed-for-ocalc",
       exportedAt: new Date().toISOString(),

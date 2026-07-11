@@ -604,7 +604,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .manual-proposed-starter.compact-starter {
   justify-content: flex-end;
-  margin: 0;
+  margin: 0 0 14px;
 }
 
 .manual-proposed-starter label {
