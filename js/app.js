@@ -575,9 +575,9 @@
             data-field="downGuy"
             ${sc.downGuy ? "checked" : ""}>
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value">${canEditMidspan
-          ? `<input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
-          : `<strong>${escapeHtml(midspan)}</strong>`}
+        midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}">${canEditMidspan
+          ? `<input class="input height-input remote-height-input midspan-highlight-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
+          : `<strong class="midspan-highlight-display">${escapeHtml(midspan)}</strong>`}
           ${hasStoredMidspan ? `<button class="inline-icon-action danger-action" type="button"
             data-clear-comm-midspan
             data-pole="${escapeHtml(sc.poleId)}"
@@ -1163,7 +1163,7 @@
     const showServiceDrop = (S.getState().settings || {}).showServiceDrop !== false;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Other Pole HOA</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Actions</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -1180,10 +1180,10 @@
           <td><span class="badge owner">${escapeHtml(group.owner)}</span>${group.isPof ? ` <span class="badge pof">POF</span>` : ""}</td>
           <td>${escapeHtml(group.existingHOA || "")}</td>
           <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
+          <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
           <td>${renderCommMaxHeightAtMSValues(group, poleId)}</td>
           <td>${renderCommMidspanValues(group, poleId)}</td>
-          <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommFlagging(group)}</td>
           ${showServiceDrop ? `<td>${renderCommServiceDropValues(group, poleId)}</td>` : ""}
           <td>${renderCommDownGuyValues(group, poleId)}</td>

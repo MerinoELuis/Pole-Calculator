@@ -21,7 +21,10 @@
   function safeJobFilePart(value) {
     const raw = String(value || "pole_job")
       .replace(/\.[^.]+$/, "")
+      .replace(/^excel[_\-\s]*/i, "")
+      .replace(/[_\-\s]*20\d{2}[-_]\d{2}[-_]\d{2}$/i, "")
       .replace(/_Pole_Calculator$/i, "")
+      .replace(/_AutoProposed$/i, "")
       .trim();
     return (raw || "pole_job")
       .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "_")

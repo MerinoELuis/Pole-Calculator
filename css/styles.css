@@ -833,6 +833,29 @@ tr.danger-row {
   justify-content: center;
 }
 
+.comm-midspan-value.colored-midspan {
+  gap: 6px;
+}
+
+.midspan-highlight-input,
+.midspan-highlight-display {
+  border-color: var(--span-row-color, #2563eb);
+  background: var(--span-soft-color, #eff6ff);
+  box-shadow: inset 4px 0 0 var(--span-row-color, #2563eb);
+  font-weight: 900;
+}
+
+.midspan-highlight-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  min-height: 34px;
+  border: 1px solid var(--span-row-color, #2563eb);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
 .comm-midspan-value strong {
   color: var(--text);
   white-space: nowrap;
@@ -909,11 +932,11 @@ tr.danger-row {
 }
 
 /* === v1.4 span colors, notes and recalculation UI === */
-.span-color-0 { --span-row-color: #03A8A0; }
-.span-color-1 { --span-row-color: #F16623; }
-.span-color-2 { --span-row-color: #21409A; }
-.span-color-3 { --span-row-color: #FF0984; }
-.span-color-4 { --span-row-color: #66D313; }
+.span-color-0 { --span-row-color: #03A8A0; --span-soft-color: #e6fffb; }
+.span-color-1 { --span-row-color: #F16623; --span-soft-color: #fff1e8; }
+.span-color-2 { --span-row-color: #21409A; --span-soft-color: #eef4ff; }
+.span-color-3 { --span-row-color: #FF0984; --span-soft-color: #fff0f7; }
+.span-color-4 { --span-row-color: #66D313; --span-soft-color: #efffe8; }
 
 tr.span-color-row td:first-child {
   box-shadow: inset 7px 0 0 var(--span-row-color);
