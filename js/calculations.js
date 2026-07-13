@@ -208,7 +208,18 @@
   }
 
   function getReferenceMidspansForSpanSide(spanId, poleId) {
-    const rows = poleId ? S().getSpanCommsForPole(poleId) : S().getSpanCommsForSpan(spanId);
+    const targetSpan = S().getSpan(spanId);
+    // Proposed clearance belongs to one physical connection. A pole can have
+    // several Fore/Other spans with valid midspans, but those unrelated spans
+    // must not move this Proposed. Include the exact spanId and reciprocal
+    // records that describe the same pair of poles; REF handling remains the
+    // responsibility of getMidspanInchesForComm().
+    const rows = poleId
+      ? S().getSpanCommsForPole(poleId).filter(sc => {
+          const commSpan = S().getSpan(sc.spanId);
+          return sc.spanId === spanId || samePhysicalSpan(commSpan, targetSpan);
+        })
+      : S().getSpanCommsForSpan(spanId);
     const values = rows
       .filter(countsAsTopCommReference)
       .map(getMidspanInchesForComm)

@@ -17,6 +17,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Runs Auto Calculate in repeated passes until proposed and HOA changes stop moving.
 - Separates real midspan comms from `REF` comms that only reference a connected span.
 - Validates power-comm, comm-comm and bolt-bolt clearances.
+- Adjusts each Proposed midspan only against comms on the same physical pole-to-pole connection.
 - Generates Make Ready by pole from comm movements and proposed attachments.
 - Exports/imports full JSON save points.
 - Exports a proposed JSON package intended for a future O-Calc plugin.
