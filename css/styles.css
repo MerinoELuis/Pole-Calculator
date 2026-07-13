@@ -35,7 +35,7 @@ body.pole-index-open { overflow: hidden; }
 .pole-index-toggle {
   position: fixed;
   left: 0;
-  top: 140px;
+  top: 18px;
   z-index: 49;
   border: 1px solid #bfdbfe;
   border-left: 0;
