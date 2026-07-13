@@ -1067,7 +1067,110 @@ tr.span-color-row:not(.warning-row) td:first-child {
   box-shadow: inset 7px 0 0 var(--span-row-color);
 }
 
+/* Relative pole map. Coordinates are engineering offsets calculated from each
+   span's length and bearing; the canvas intentionally has no geographic tiles. */
+.pole-map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 10px;
+}
+
+.pole-map-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.icon-btn.map-control {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.map-fit-btn {
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.pole-map-stage {
+  width: 100%;
+  height: clamp(360px, 48vh, 580px);
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  background: #fbfdff;
+}
+
+.pole-map-stage .detail-placeholder {
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.pole-map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.pole-map-svg.dragging { cursor: grabbing; }
+
+.map-edge {
+  stroke: #94a3b8;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-edge-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-edge-group.inferred .map-edge { stroke-dasharray: 6 5; }
+.map-edge-group.active .map-edge { stroke: #2563eb; stroke-width: 3 !important; }
+
+.map-node { cursor: pointer; }
+
+.map-node circle {
+  fill: #fff;
+  stroke: #2563eb;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-node.origin circle { stroke-width: 4; }
+.map-node.inferred circle { stroke-dasharray: 4 3; }
+.map-node.unknown circle { stroke: #d97706; stroke-dasharray: 4 3; }
+.map-node.active circle { fill: #2563eb; stroke: #172554; }
+
+.map-node text {
+  fill: #172033;
+  font-weight: 900;
+  letter-spacing: 0;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.map-node.active text { fill: #1d4ed8; }
+
 @media (max-width: 720px) {
+  .pole-map-toolbar { align-items: flex-start; }
+  .pole-map-toolbar > .muted { max-width: 58%; }
+  .pole-map-stage { height: 360px; }
   .clearance-settings.compact .position-row {
     grid-column: span 1;
   }

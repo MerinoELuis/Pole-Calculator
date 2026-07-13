@@ -1189,14 +1189,16 @@
     const poleIds = filteredPoles();
     els.poleSearchInput.value = S.getState().ui.search || "";
     els.warningFilterSelect.value = S.getState().ui.filter || "all";
-    els.poleSearchInputTop.value = S.getState().ui.search || "";
-    els.warningFilterSelectTop.value = S.getState().ui.filter || "all";
-    [els.polesList, els.polesListTop].forEach(list => {
-      list.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No poles match that filter.</div>`;
-      list.querySelectorAll("[data-pole-select]").forEach(btn => {
-        btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
-      });
+    els.polesList.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No poles match that filter.</div>`;
+    els.polesList.querySelectorAll("[data-pole-select]").forEach(btn => {
+      btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
     });
+  }
+
+  // The SVG map is an index backed by the actual span network. Selecting an
+  // edge focuses its originating pole so the related proposed row is visible.
+  function renderPoleMap() {
+    global.GraphView?.renderGraph(els.poleMapGraph, selectPole, selectSpan);
   }
 
   function renderMRText(poleId) {
@@ -1887,6 +1889,18 @@
     scrollToPole(poleId);
   }
 
+  function selectSpan(spanId) {
+    const state = S.getState();
+    const span = state.spans?.[spanId];
+    if (!span) return;
+    state.selectedSpanId = spanId;
+    state.selectedPoleId = span.fromPole || span.toPole || "";
+    state.ui.activeView = "calculator";
+    setPoleIndexOpen(false);
+    render();
+    if (state.selectedPoleId) scrollToPole(state.selectedPoleId);
+  }
+
   function render() {
     // One top-level render always recalculates first so every table displays the
     // newest derived values after imports, edits, undo, or local restore.
@@ -1895,6 +1909,7 @@
     renderClearanceSettings();
     renderPoleClassResults();
     renderPoleLists();
+    renderPoleMap();
     renderAllPolesWorkspace();
     renderActiveView();
     updateAutoCalculateButtonState();
@@ -1986,8 +2001,9 @@
     });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
-    els.poleSearchInputTop.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
-    els.warningFilterSelectTop.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
+    els.poleMapZoomIn.addEventListener("click", () => global.GraphView?.zoomIn(els.poleMapGraph));
+    els.poleMapZoomOut.addEventListener("click", () => global.GraphView?.zoomOut(els.poleMapGraph));
+    els.poleMapFit.addEventListener("click", () => global.GraphView?.fit(els.poleMapGraph));
     els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
@@ -2037,9 +2053,10 @@
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),
       polesList: qs("polesList"),
-      poleSearchInputTop: qs("poleSearchInputTop"),
-      warningFilterSelectTop: qs("warningFilterSelectTop"),
-      polesListTop: qs("polesListTop"),
+      poleMapGraph: qs("poleMapGraph"),
+      poleMapZoomIn: qs("poleMapZoomIn"),
+      poleMapZoomOut: qs("poleMapZoomOut"),
+      poleMapFit: qs("poleMapFit"),
       poleIndexToggle: qs("poleIndexToggle"),
       poleIndexDrawer: qs("poleIndexDrawer"),
       poleIndexClose: qs("poleIndexClose"),

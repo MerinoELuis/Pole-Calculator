@@ -57,8 +57,8 @@
         <section id="topIndexPanel" class="panel index-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
-              <p class="eyebrow">Index</p>
-              <h2>Poles</h2>
+              <p class="eyebrow">Relative Layout</p>
+              <h2>Pole Map</h2>
               <p id="projectMeta" class="muted">No file imported</p>
             </div>
             <div class="index-actions">
@@ -67,15 +67,15 @@
               <button id="exportDebugJsonBtn" class="btn" type="button">Export Debug</button>
             </div>
           </div>
-          <div class="toolbar compact-toolbar">
-            <input id="poleSearchInputTop" class="input" type="search" placeholder="Search pole or owner..." />
-            <select id="warningFilterSelectTop" class="input">
-              <option value="all">All</option>
-              <option value="warnings">Flagged only</option>
-              <option value="changed">Changed / proposed only</option>
-            </select>
+          <div class="pole-map-toolbar" aria-label="Pole map controls">
+            <span class="muted">Click a pole to open it. Drag the map to move.</span>
+            <div class="pole-map-controls">
+              <button id="poleMapZoomOut" class="icon-btn map-control" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+              <button id="poleMapFit" class="btn map-fit-btn" type="button" title="Fit all poles">Fit</button>
+              <button id="poleMapZoomIn" class="icon-btn map-control" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+            </div>
           </div>
-          <div id="polesListTop" class="pole-index-links"></div>
+          <div id="poleMapGraph" class="pole-map-stage"></div>
         </section>
 
         <section class="panel clearance-panel" data-view-panel="calculator">
@@ -147,6 +147,7 @@
   <script src="js/excel-import.js"></script>
   <script src="js/json-export.js"></script>
   <script src="js/floating-calculator.js"></script>
+  <script src="js/graph.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

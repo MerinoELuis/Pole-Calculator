@@ -11,6 +11,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Imports wires, owners, attachment heights and midspans from `Span.Wire`.
 - Imports `Attachment Size` references from the `Make Ready` sheet for proposed export data.
 - Shows all poles in one editable workspace.
+- Draws a relative pole map from span length and bearing, with every connected and disconnected pole visible.
 - Provides a collapsible left-side pole index for quick navigation without occupying workspace width.
 - Calculates max heights against Low Power.
 - Recalculates midspans when comms move up or down on either connected pole.
@@ -67,6 +68,12 @@ Used to create graph connections between poles:
 - Environment.
 
 Bearing is converted to a cardinal direction so span relationships are easier to read.
+
+## Relative Pole Map
+
+The first known pole in each connected group is used as the local `0,0` origin. Every connected pole is projected from the imported span length and bearing, where `0` is north, `90` east, `180` south and `270` west. Reciprocal Fore Span and Back Span records are drawn as one physical connection so the same line is not duplicated.
+
+Disconnected groups and individual poles are arranged beside the main network so every imported pole remains visible. A dashed connection indicates that length or bearing was missing and a deterministic visual fallback was required. The map supports zoom, fit, drag-to-pan, pole selection and span selection. The collapsible left index remains available for filtered navigation.
 
 ### Span.Wire
 
