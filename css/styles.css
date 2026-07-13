@@ -46,6 +46,15 @@ body.pole-index-open { overflow: hidden; }
   font-size: .78rem;
   font-weight: 900;
   box-shadow: 0 10px 24px rgba(37, 99, 235, .25);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity .16s ease, transform .16s ease, background .15s ease;
+}
+.pole-index-toggle.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 .pole-index-toggle:hover { background: var(--primary-dark); }
 .pole-index-drawer {

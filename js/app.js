@@ -54,6 +54,12 @@
     if (isOpen) els.poleSearchInput?.focus();
   }
 
+  function updatePoleIndexToggleVisibility() {
+    if (!els.poleIndexToggle || !els.topIndexPanel) return;
+    const panelIsAboveViewport = els.topIndexPanel.getBoundingClientRect().bottom <= 0;
+    els.poleIndexToggle.classList.toggle("visible", panelIsAboveViewport);
+  }
+
   // Native prompt/confirm dialogs ignore the app theme. These small helpers
   // build one reusable in-page dialog so data-entry actions keep the same look
   // and keyboard behavior as the rest of the calculator.
@@ -1979,6 +1985,8 @@
     els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
+    window.addEventListener("scroll", updatePoleIndexToggleVisibility, { passive: true });
+    window.addEventListener("resize", updatePoleIndexToggleVisibility);
     document.querySelectorAll("[data-view-tab]").forEach(btn => {
       btn.addEventListener("click", () => {
         S.getState().ui.activeView = btn.dataset.viewTab || "calculator";
@@ -2027,6 +2035,7 @@
       poleIndexDrawer: qs("poleIndexDrawer"),
       poleIndexClose: qs("poleIndexClose"),
       poleIndexBackdrop: qs("poleIndexBackdrop"),
+      topIndexPanel: qs("topIndexPanel"),
       polesOverview: qs("polesOverview"),
       poleClassResults: qs("poleClassResults"),
       appLayout: qs("appLayout"),
@@ -2038,6 +2047,7 @@
     global.FloatingCalculator?.setupFloatingCalculator();
     S.resetState();
     render();
+    updatePoleIndexToggleVisibility();
     markClean(serializedSavePayload());
   }
 
