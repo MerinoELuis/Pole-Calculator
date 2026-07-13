@@ -26,6 +26,8 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 `Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. Imported field data is refreshed, while matching user work such as HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans is preserved.
 
+During an update, comm rows are matched first by their complete imported identity and then by span, pole and owner. This allows a saved HOA movement to follow the same physical comm when a newer Excel changes its `Wire Id`, while stale duplicate rows are discarded before midspans are recalculated.
+
 If there are unsaved changes and the page is closed, the browser shows its native leave-page warning. Browsers do not allow custom Save/Cancel buttons during tab close, so the app keeps `Ctrl+S` and the visible `Save` button as the supported save path.
 
 ## Workflow
@@ -105,6 +107,8 @@ Used as imported reference data, not as the final generated Make Ready. The app 
 
 The Proposed JSON export preserves the raw attachment size and also breaks it into messenger, fiber and direction fields.
 
+For INTEC jobs, detected fiber counts such as `12CT`, `24CT`, `72CT` and `144CT` create a `Fiber` configuration section. The user can enter one messenger diameter and a separate fiber diameter for every detected fiber count. These values are saved with the job and exported in the top-level `attachmentSizes` object of the AutoProposed JSON.
+
 ## Calculation Rules
 
 ### Existing Comm Movements
@@ -176,12 +180,16 @@ For `Proposed` on the pole:
 The `Export Proposed` button creates a `.json` package for downstream O-Calc automation. It includes:
 
 - A compact `poles[]` list grouped by Pole ID.
-- For each pole, the related `spans[]` with span label, other pole, length, bearing and direction.
-- A clear `proposed` object inside each span with Proposed, End Drop, Next Pole Proposed, O-CALC MS, MS Proposed and Adjusted Final MS.
+- A top-level `attachmentSizes` catalog with the configured messenger size and one size per detected fiber count.
+- For each pole, sibling `proposed[]`, `attachments[]` and `spans[]` collections.
+- Proposed, End Drop and Next Pole Proposed values grouped under the pole that owns the proposal.
+- Outgoing spans with usable length, bearing or direction data.
 - Comm-only Make Ready lines grouped under the same pole.
 - Make Ready `Attachment Size` data needed by O-Calc, including messenger, fiber and direction.
 
 The proposed export intentionally omits internal app IDs such as `spanId` and avoids repeating environment or Low Power clearance fields that O-Calc does not need for placing the proposal.
+
+`Export Debug` creates a separate diagnostic JSON. It contains the full calculator state, logical duplicate groups, the result of the latest Excel reconciliation and one midspan trace per comm showing the imported value, local half-movement, selected remote comm, remote half-movement, expected result and displayed result.
 
 ## Main Files
 

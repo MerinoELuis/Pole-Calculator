@@ -49,6 +49,8 @@
       position: "TOP_COMM",
       mrCase: "LOWER",
       proposedOwner: "Wecom",
+      attachmentMessengerSize: "",
+      fiberSizes: {},
       borrowMidspanFromPhysicalSpan: false,
       proposeForeSpanWithoutMidspan: false,
       allowLowPowerMidspanAdjustment: true,
@@ -588,6 +590,9 @@
   function normalizeState(raw) {
     const next = { ...emptyState(), ...raw };
     next.settings = { ...emptyState().settings, ...(raw && raw.settings ? raw.settings : {}) };
+    next.settings.fiberSizes = next.settings.fiberSizes && typeof next.settings.fiberSizes === "object"
+      ? { ...next.settings.fiberSizes }
+      : {};
     next.poles = next.poles || {};
     next.spans = next.spans || {};
     next.spanSides = next.spanSides || {};

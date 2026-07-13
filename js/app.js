@@ -301,11 +301,84 @@
   }
 
   function spanCommHasUserWork(row) {
-    return Boolean(row?.existingHOAChange || row?.notes || row?.mr || String(row?.wireId || "").startsWith("manual-"));
+    return Boolean(
+      row?.existingHOAChange ||
+      row?.notes ||
+      row?.mr ||
+      row?.serviceDrop ||
+      row?.downGuy ||
+      String(row?.wireId || "").startsWith("manual-")
+    );
+  }
+
+  function normalizedCommOwner(value) {
+    return String(value || "")
+      .replace(/^communication\s*>\s*/i, "")
+      .replace(/century\s*link/g, "centurylink")
+      .trim()
+      .toLowerCase();
+  }
+
+  // Excel updates can change Wire Id while describing the same physical comm.
+  // Match exact keys first, then reconcile by span, pole and owner so saved HOA
+  // movements are applied to the newly imported row instead of creating a stale
+  // duplicate beside it.
+  function findImportedCommMatch(spanComms, oldKey, oldRow, claimedKeys) {
+    if (spanComms[oldKey] && !claimedKeys.has(oldKey)) {
+      return { key: oldKey, row: spanComms[oldKey], hadCandidates: true, matchType: "exact" };
+    }
+
+    const owner = normalizedCommOwner(oldRow.ownerBase || oldRow.owner);
+    const logicalCandidates = Object.entries(spanComms).filter(([, row]) =>
+      row.spanId === oldRow.spanId &&
+      row.poleId === oldRow.poleId &&
+      normalizedCommOwner(row.ownerBase || row.owner) === owner
+    );
+    const candidates = logicalCandidates.filter(([key]) => !claimedKeys.has(key));
+    if (!candidates.length) return { key: "", row: null, hadCandidates: logicalCandidates.length > 0, matchType: "" };
+
+    candidates.sort(([, a], [, b]) => {
+      const score = row =>
+        (oldRow.wireId && row.wireId === oldRow.wireId ? 100 : 0) +
+        (oldRow.wireIndex && row.wireIndex === oldRow.wireIndex ? 40 : 0) +
+        (oldRow.existingHOA && row.existingHOA === oldRow.existingHOA ? 20 : 0) +
+        (oldRow.size && row.size === oldRow.size ? 10 : 0);
+      return score(b) - score(a);
+    });
+    return { key: candidates[0][0], row: candidates[0][1], hadCandidates: true, matchType: "logical" };
+  }
+
+  function mergeCommUserWork(importedRow, oldRow) {
+    return {
+      ...importedRow,
+      existingHOAChange: oldRow.existingHOAChange || importedRow.existingHOAChange || "",
+      serviceDrop: Boolean(oldRow.serviceDrop || importedRow.serviceDrop),
+      downGuy: Boolean(oldRow.downGuy || importedRow.downGuy),
+      notes: oldRow.notes || importedRow.notes || "",
+      mr: oldRow.mr || importedRow.mr || "",
+      // These fields are calculated again from the newly imported base data.
+      remotePoleId: "",
+      remoteHOA: "",
+      calculatedMidspan: "",
+      difference: "",
+      msProposed: "",
+      finalMidspan: "",
+      clearanceMSStatus: "",
+      clearanceMSMessage: "",
+      clearanceMSIssue: false,
+      flaggingStatus: "",
+      flaggingMessage: ""
+    };
   }
 
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
+    const reconciliation = {
+      exactCommMatches: 0,
+      logicalCommMatches: 0,
+      staleDuplicateCommsDiscarded: 0,
+      unmatchedUserCommsPreserved: 0
+    };
 
     Object.entries(previous.spanSides || {}).forEach(([key, oldSide]) => {
       const newSide = merged.spanSides?.[key];
@@ -328,20 +401,24 @@
       if (!merged.spans[oldSide.spanId] && previous.spans?.[oldSide.spanId]) merged.spans[oldSide.spanId] = previous.spans[oldSide.spanId];
     });
 
+    const claimedImportedCommKeys = new Set();
     Object.entries(previous.spanComms || {}).forEach(([key, oldRow]) => {
-      const newRow = merged.spanComms?.[key];
-      if (newRow) {
-        merged.spanComms[key] = {
-          ...newRow,
-          existingHOAChange: oldRow.existingHOAChange || newRow.existingHOAChange || "",
-          serviceDrop: Boolean(oldRow.serviceDrop || newRow.serviceDrop),
-          downGuy: Boolean(oldRow.downGuy || newRow.downGuy),
-          notes: oldRow.notes || newRow.notes || "",
-          mr: oldRow.mr || newRow.mr || ""
-        };
+      if (!spanCommHasUserWork(oldRow)) return;
+      const match = findImportedCommMatch(merged.spanComms || {}, key, oldRow, claimedImportedCommKeys);
+      if (match.row) {
+        if (match.matchType === "exact") reconciliation.exactCommMatches += 1;
+        else reconciliation.logicalCommMatches += 1;
+        claimedImportedCommKeys.add(match.key);
+        merged.spanComms[match.key] = mergeCommUserWork(match.row, oldRow);
         return;
       }
-      if (!spanCommHasUserWork(oldRow)) return;
+      // A second old row with the same logical identity is stale data, not a
+      // separate cable. Preserve only truly unmatched or manually added rows.
+      if (match.hadCandidates && !String(oldRow.wireId || "").startsWith("manual-")) {
+        reconciliation.staleDuplicateCommsDiscarded += 1;
+        return;
+      }
+      reconciliation.unmatchedUserCommsPreserved += 1;
       merged.spanComms[key] = oldRow;
       if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) merged.spans[oldRow.spanId] = previous.spans[oldRow.spanId];
     });
@@ -359,6 +436,18 @@
       };
     });
 
+    merged.settings = {
+      ...(merged.settings || {}),
+      ...(previous.settings || {}),
+      fiberSizes: {
+        ...(merged.settings?.fiberSizes || {}),
+        ...(previous.settings?.fiberSizes || {})
+      }
+    };
+    merged.updateDiagnostics = {
+      updatedAt: new Date().toISOString(),
+      ...reconciliation
+    };
     merged.ui = previous.ui || merged.ui || {};
     return merged;
   }
@@ -808,6 +897,18 @@
     ];
     const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
     const proposedOwner = settings.proposedOwner || "Wecom";
+    const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
+    const detectedFibers = new Set(Object.keys(fiberSizes));
+    (S.getState().makeReadyReferences || []).forEach(ref => {
+      const source = `${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`;
+      const match = source.match(/\b(\d+)\s*CT\b/i);
+      if (match) detectedFibers.add(`${match[1]}CT Fiber`);
+    });
+    const fiberTypes = Array.from(detectedFibers).sort((a, b) => {
+      const aCount = Number((a.match(/\d+/) || [0])[0]);
+      const bCount = Number((b.match(/\d+/) || [0])[0]);
+      return aCount - bCount || a.localeCompare(b);
+    });
     const ownerOptions = ["Wecom", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"].map(owner =>
       `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
     ).join("");
@@ -853,6 +954,19 @@
           </label>`}
         </div>
       </div>
+      ${selectedProfile === "INTEC" && fiberTypes.length ? `<div class="settings-section settings-section-fiber">
+        <h3>Fiber</h3>
+        <div class="settings-grid fiber-grid">
+          <label class="clearance-row">
+            <span>Messenger Size</span>
+            <input class="input" data-scope="attachmentSettings" data-field="attachmentMessengerSize" value="${escapeHtml(settings.attachmentMessengerSize || "")}" placeholder="0.25" />
+          </label>
+          ${fiberTypes.map(fiber => `<label class="clearance-row">
+            <span>${escapeHtml(fiber)} Size</span>
+            <input class="input" data-scope="attachmentSettings" data-field="fiberSize" data-fiber="${escapeHtml(fiber)}" value="${escapeHtml(fiberSizes[fiber] || "")}" placeholder="0.51" />
+          </label>`).join("")}
+        </div>
+      </div>` : ""}
     `;
     wireEditableEvents(els.clearanceSettings);
   }
@@ -875,6 +989,10 @@
       els.exportProposedJsonBtn.disabled = !hasPoleData;
       els.exportProposedJsonBtn.classList.toggle("btn-disabled", !hasPoleData);
       els.exportProposedJsonBtn.classList.toggle("btn-success", hasPoleData);
+    }
+    if (els.exportDebugJsonBtn) {
+      els.exportDebugJsonBtn.disabled = !hasPoleData;
+      els.exportDebugJsonBtn.classList.toggle("btn-disabled", !hasPoleData);
     }
   }
 
@@ -1698,6 +1816,17 @@
       global.Calculations.recalculateAll();
     }
 
+    if (scope === "attachmentSettings") {
+      const settings = S.getState().settings || {};
+      if (field === "attachmentMessengerSize") settings.attachmentMessengerSize = String(value || "").trim();
+      if (field === "fiberSize" && el.dataset.fiber) {
+        settings.fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
+        settings.fiberSizes[el.dataset.fiber] = String(value || "").trim();
+      }
+      updateSaveButtonState();
+      return;
+    }
+
     if (scope === "poleClassCheck") {
       const rows = S.getState().poleClassChecks || [];
       const index = Number(el.dataset.index);
@@ -1776,7 +1905,7 @@
       global.Calculations.recalculateAll();
       render();
       markDirty();
-      toast("Excel data updated. Existing movements and proposed values were preserved when IDs matched.", "success");
+      toast("Excel data updated. Existing movements were reconciled and midspans recalculated.", "success");
     } catch (error) {
       console.error(error);
       toast(`Error updating Excel data: ${error.message}`, "error");
@@ -1791,6 +1920,10 @@
     els.exportProposedJsonBtn.addEventListener("click", () => {
       if (els.exportProposedJsonBtn.disabled) return;
       global.ProjectExport.exportProposedJson();
+    });
+    els.exportDebugJsonBtn.addEventListener("click", () => {
+      if (els.exportDebugJsonBtn.disabled) return;
+      global.ProjectExport.exportDebugJson();
     });
     els.autoCalculateBtn.addEventListener("click", () => {
       if (els.autoCalculateBtn.disabled) return;
@@ -1861,6 +1994,7 @@
       excelFileInput: qs("excelFileInput"),
       updateExcelFileInput: qs("updateExcelFileInput"),
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
+      exportDebugJsonBtn: qs("exportDebugJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),

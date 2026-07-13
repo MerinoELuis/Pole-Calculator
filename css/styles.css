@@ -151,6 +151,7 @@ button:disabled { cursor: not-allowed; }
 }
 .clearance-grid { grid-auto-columns: minmax(170px, 1fr); }
 .adjustments-grid { grid-auto-columns: minmax(210px, 1fr); }
+.fiber-grid { grid-auto-columns: minmax(190px, 1fr); }
 .clearance-settings.compact .clearance-row {
   grid-template-columns: minmax(0, 1fr) minmax(72px, 96px);
   gap: 6px;

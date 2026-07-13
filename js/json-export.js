@@ -31,6 +31,113 @@
       .replace(/\s+/g, "_");
   }
 
+  function normalizedFiberName(value) {
+    const match = String(value || "").match(/\b(\d+)\s*CT\b/i);
+    return match ? `${match[1]}CT Fiber` : "";
+  }
+
+  function attachmentSizeSettings(state) {
+    const configured = state.settings?.fiberSizes && typeof state.settings.fiberSizes === "object"
+      ? state.settings.fiberSizes
+      : {};
+    const names = new Set(Object.keys(configured));
+    (state.makeReadyReferences || []).forEach(ref => {
+      const name = normalizedFiberName(`${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`);
+      if (name) names.add(name);
+    });
+    return {
+      messengerSize: state.settings?.attachmentMessengerSize || "",
+      fibers: Array.from(names)
+        .sort((a, b) => Number((a.match(/\d+/) || [0])[0]) - Number((b.match(/\d+/) || [0])[0]))
+        .map(fiber => ({ fiber, size: configured[fiber] || "" }))
+    };
+  }
+
+  function normalizedOwner(value) {
+    return String(value || "")
+      .replace(/^communication\s*>\s*/i, "")
+      .replace(/century\s*link/g, "centurylink")
+      .trim()
+      .toLowerCase();
+  }
+
+  function duplicateCommGroups(state) {
+    const groups = new Map();
+    Object.values(state.spanComms || {}).forEach(row => {
+      const key = [row.spanId, row.poleId, normalizedOwner(row.ownerBase || row.owner)].join(" | ");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ owner: row.owner, wireId: row.wireId || "", existingHOA: row.existingHOA || "", midspan: row.midspan || "" });
+    });
+    return Array.from(groups.entries())
+      .filter(([, rows]) => rows.length > 1)
+      .map(([identity, rows]) => ({ identity, count: rows.length, rows }));
+  }
+
+  // This mirrors the movement formula used by calculations.js and records each
+  // input next to its matched remote comm. The debug file therefore shows when
+  // a duplicated/stale row or an unexpected remote match changes the result.
+  function midspanDebugRow(row) {
+    const span = S().getSpan(row.spanId);
+    const remote = global.Calculations.findRemoteComm(
+      row.spanId,
+      row.poleId,
+      row.ownerBase || row.owner,
+      row.wireId || ""
+    );
+    const localExisting = H().parseHeight(row.existingHOA || "");
+    const localEffectiveText = global.Calculations.getEffectiveCommHOA(row);
+    const localEffective = H().parseHeight(localEffectiveText);
+    const remoteExisting = H().parseHeight(remote?.existingHOA || "");
+    const remoteEffectiveText = remote ? global.Calculations.getEffectiveCommHOA(remote) : "";
+    const remoteEffective = H().parseHeight(remoteEffectiveText);
+    const importedText = row.midspan || row.ocalcMS || "";
+    const imported = H().parseHeight(importedText);
+    const localAdjustment = localExisting !== null && localEffective !== null ? (localEffective - localExisting) / 2 : 0;
+    const remoteAdjustment = remoteExisting !== null && remoteEffective !== null ? (remoteEffective - remoteExisting) / 2 : 0;
+    const expected = imported !== null ? Math.round(imported + localAdjustment + remoteAdjustment) : null;
+
+    return {
+      identity: {
+        spanId: row.spanId,
+        poleId: row.poleId,
+        owner: row.owner,
+        ownerBase: row.ownerBase || "",
+        wireId: row.wireId || "",
+        wireIndex: row.wireIndex || ""
+      },
+      span: span ? { fromPole: span.fromPole, toPole: span.toPole, type: span.type || "" } : null,
+      local: {
+        existingHOA: row.existingHOA || "",
+        hoaChange: row.existingHOAChange || "",
+        effectiveHOA: localEffectiveText || "",
+        halfMovement: H().formatHeight(localAdjustment),
+        halfMovementInches: localAdjustment
+      },
+      remoteMatch: remote ? {
+        spanId: remote.spanId,
+        poleId: remote.poleId,
+        owner: remote.owner,
+        wireId: remote.wireId || "",
+        existingHOA: remote.existingHOA || "",
+        hoaChange: remote.existingHOAChange || "",
+        effectiveHOA: remoteEffectiveText || "",
+        halfMovement: H().formatHeight(remoteAdjustment),
+        halfMovementInches: remoteAdjustment
+      } : null,
+      midspan: {
+        imported: importedText,
+        expectedFromFormula: expected === null ? "" : H().formatHeight(expected),
+        storedCalculated: row.calculatedMidspan || "",
+        displayed: global.Calculations.displayMidspanForComm(row) || "",
+        formula: "imported + (local change / 2) + (remote change / 2)"
+      },
+      flagging: {
+        status: row.flaggingStatus || "",
+        message: row.flaggingMessage || ""
+      }
+    };
+  }
+
   function exportJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -224,12 +331,13 @@
       .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
     const jobName = safeJobFilePart(state.importedFileName || `pole_job_${date}`);
-    downloadJson(`${jobName}_AutoProposed.json`, {
+    const payload = {
       app: "pole-calculator",
       exportType: "proposed-for-ocalc",
       exportedAt: new Date().toISOString(),
       version: state.version || S().CURRENT_VERSION,
       sourceFile: state.importedFileName || "",
+      attachmentSizes: attachmentSizeSettings(state),
       settings: {
         proposedOwner: state.settings?.proposedOwner || "",
         position: state.settings?.position || "",
@@ -239,12 +347,37 @@
         midspanCommCommClearance: state.settings?.midspanCommCommClearance || ""
       },
       poles
+    };
+    downloadJson(`${jobName}_AutoProposed.json`, payload);
+  }
+
+  function exportDebugJson() {
+    global.Calculations.recalculateAll();
+    const state = S().getState();
+    const jobName = safeJobFilePart(state.importedFileName || "pole_job");
+    const spanComms = Object.values(state.spanComms || {});
+    downloadJson(`${jobName}_Debug.json`, {
+      app: "pole-calculator",
+      exportType: "calculation-debug",
+      exportedAt: new Date().toISOString(),
+      sourceFile: state.importedFileName || "",
+      summary: {
+        poles: Object.keys(state.poles || {}).length,
+        spans: Object.keys(state.spans || {}).length,
+        spanComms: spanComms.length,
+        spanPower: Object.keys(state.spanPower || {}).length,
+        duplicateLogicalComms: duplicateCommGroups(state),
+        lastExcelUpdate: state.updateDiagnostics || null
+      },
+      midspanCalculations: spanComms.map(midspanDebugRow),
+      state
     });
   }
 
   global.ProjectExport = {
     exportJson,
     exportProposedJson,
+    exportDebugJson,
     downloadJson
   };
 })(window);
