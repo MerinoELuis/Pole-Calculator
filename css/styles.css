@@ -1067,6 +1067,10 @@ tr.span-color-row:not(.warning-row) td:first-child {
   box-shadow: inset 7px 0 0 var(--span-row-color);
 }
 
+.standalone-proposed-row td:first-child {
+  min-width: 180px;
+}
+
 @media (max-width: 720px) {
   .clearance-settings.compact .position-row {
     grid-column: span 1;

@@ -308,6 +308,19 @@
         });
       });
 
+    // A terminal pole can carry the attachment height used by the preceding
+    // pole's End Drop without owning an outgoing span or midspan.
+    Object.values(state.poles || {})
+      .filter(pole => pole.standaloneProposedHOA)
+      .forEach(pole => {
+        const poleItem = ensurePoleExport(polesById, pole.poleId, state);
+        addOutgoingSpansForPole(poleItem, pole.poleId);
+        addProposedForPole(poleItem, {
+          terminal: true,
+          proposed: pole.standaloneProposedHOA
+        });
+      });
+
     Object.values(state.spanComms || {}).forEach(sc => {
       const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
       if (!sc.existingHOAChange || !mrLine) return;

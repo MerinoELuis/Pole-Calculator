@@ -140,6 +140,7 @@
     if (isMetronetMR()) return "";
     const heights = S().getSpanSidesForPole(poleId)
       .map(side => H().parseHeight(side.proposedHOA || ""))
+      .concat(H().parseHeight(S().getPole(poleId)?.standaloneProposedHOA || ""))
       .filter(value => value !== null)
       .sort((a, b) => a - b);
     const uniqueHeights = Array.from(new Set(heights)).map(value => mrHeight(H().formatHeight(value)));

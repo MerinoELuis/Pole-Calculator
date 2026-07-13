@@ -750,8 +750,10 @@
         return Boolean(otherSide.proposedHOA && !otherSide.isAdditionalProposed && candidateSpan?.fromPole === otherPoleId);
       });
       const sourceSide = forwardProposedSide || null;
+      const standaloneProposed = H().parseHeight(S().getPole(otherPoleId)?.standaloneProposedHOA || "");
       debugSelected = sourceSide ? { spanId: sourceSide.spanId, proposedHOA: sourceSide.proposedHOA } : null;
       nextPoleProposed = H().parseHeight(sourceSide?.proposedHOA || "");
+      if (nextPoleProposed === null) nextPoleProposed = standaloneProposed;
       side = S().upsertSpanSide({
         ...side,
         proposedHOAChange: nextPoleProposed !== null ? format(nextPoleProposed) : "",
@@ -770,6 +772,7 @@
         otherPoleId: debugOtherPoleId,
         candidates: debugCandidates,
         selected: debugSelected,
+        standaloneProposed: S().getPole(debugOtherPoleId)?.standaloneProposedHOA || "",
         nextPoleProposed: nextPoleProposed !== null ? format(nextPoleProposed) : "",
         endDrop
       });

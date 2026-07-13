@@ -23,7 +23,9 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 ## Saving Work
 
-`Save` writes a full calculator JSON named from the job, for example `EXCEL_JOB_Pole_Calculator.json`. In browsers that support the File System Access API, the first save asks for a file path and later saves overwrite that same file. The selected file handle is remembered when the browser allows it, so `Save` and `Load` can reuse the same file later. `Load` opens a `.json` save file and restores the calculator state.
+`Save` writes a full calculator JSON named from the job, for example `EXCEL_JOB_Pole_Calculator.json`. In browsers that support the File System Access API, the first save of the current page session asks for a file path and later saves overwrite that same file. Reloading the page or importing a new raw Excel clears the active save destination, so the next `Save` asks for a new path instead of overwriting the previous job.
+
+`Load` always opens the `.json` file picker and restores the complete calculator state. When supported by the browser, it starts from the location of the last loaded or saved JSON. A loaded JSON becomes the active destination for later saves during that session.
 
 `Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. Imported field data is refreshed, while matching user work such as HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans is preserved.
 
@@ -40,6 +42,8 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 5. Review the generated Make Ready for each pole.
 6. Export JSON to save progress or export Proposed JSON for downstream O-Calc work.
 7. Import the saved JSON later to continue.
+
+A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 
 ## Excel Sheets Used
 

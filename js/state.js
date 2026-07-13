@@ -110,6 +110,7 @@
         maxCommHeight: trim(data.maxCommHeight || ""),
         topComm: trim(data.topComm || ""),
         lowComm: trim(data.lowComm || ""),
+        standaloneProposedHOA: trim(data.standaloneProposedHOA || ""),
         owner: trim(data.owner || ""),
         poleType: trim(data.poleType || ""),
         isGenerated: Boolean(data.isGenerated),
@@ -135,6 +136,7 @@
       maxCommHeight: trim(extra.maxCommHeight || ""),
       topComm: trim(extra.topComm || ""),
       lowComm: trim(extra.lowComm || ""),
+      standaloneProposedHOA: trim(extra.standaloneProposedHOA || ""),
       owner: trim(extra.owner || ""),
       poleType: trim(extra.poleType || ""),
       isGenerated: Boolean(extra.isGenerated),
@@ -336,7 +338,7 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
     return pole;
   }
@@ -504,7 +506,7 @@
   function poleHasChanges(poleId) {
     const sideChange = getSpanSidesForPole(poleId).some(side => side.proposedHOA || side.proposedMidspan || side.ocalcMS || side.msProposed || side.finalMidspan || side.endDrop || side.notes);
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
-    return sideChange || commChange;
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA) || sideChange || commChange;
   }
 
   function ensureUnknownPoles() {

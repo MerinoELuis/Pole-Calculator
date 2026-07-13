@@ -86,6 +86,11 @@
 
     if (pole.lowPower && !H().isValidHeight(pole.lowPower)) addWarning(warnings, poleId, "", "", "INVALID_LOW_POWER", "Invalid Low Power.", "danger");
     if (!pole.lowPower && !pole.isGenerated) addWarning(warnings, poleId, "", "", "MISSING_LOW_POWER", "Missing Low Power on pole.");
+    if (pole.standaloneProposedHOA && !H().isValidHeight(pole.standaloneProposedHOA)) {
+      addWarning(warnings, poleId, "", "", "INVALID_STANDALONE_PROPOSED", "Invalid terminal pole Proposed.", "danger");
+    } else if (pole.standaloneProposedHOA && exceedsMax(pole.standaloneProposedHOA, pole.maxCommHeight)) {
+      addWarning(warnings, poleId, "", "", "STANDALONE_PROPOSED_ABOVE_MAX", `Proposed ${pole.standaloneProposedHOA} exceeds max height ${pole.maxCommHeight}.`, "danger");
+    }
 
     pole.comms.forEach(comm => {
       if (!comm.owner) addWarning(warnings, poleId, "", "", "UNKNOWN_OWNER", "Hay un comm sin owner.");

@@ -202,13 +202,6 @@
     return handle;
   }
 
-  async function canUseFileHandle(handle, mode = "read") {
-    if (!handle?.queryPermission) return Boolean(handle);
-    const options = { mode };
-    if ((await handle.queryPermission(options)) === "granted") return true;
-    return (await handle.requestPermission(options)) === "granted";
-  }
-
   function savePayload() {
     global.Calculations.recalculateAll();
     const state = cloneCurrentState();
@@ -254,10 +247,8 @@
     const text = serializedSavePayload();
     const suggestedName = saveFileName();
     if (window.showSaveFilePicker) {
-      if (!saveFileHandle) {
-        const storedHandle = await readStoredFileHandle();
-        if (storedHandle && await canUseFileHandle(storedHandle, "readwrite")) saveFileHandle = storedHandle;
-      }
+      // A persisted handle is only a Load location hint. Reusing it here would
+      // overwrite the previous job after a reload or a new raw Excel import.
       if (!saveFileHandle) {
         saveFileHandle = await window.showSaveFilePicker({
           id: JSON_PICKER_ID,
@@ -284,14 +275,29 @@
   async function loadLocalFile() {
     let file = null;
     if (window.showOpenFilePicker) {
-      const [handle] = await window.showOpenFilePicker({
+      const pickerOptions = {
         id: JSON_PICKER_ID,
         multiple: false,
         types: [{
           description: "Pole Calculator JSON",
           accept: { "application/json": [".json"] }
         }]
-      });
+      };
+      // File System Access pickers can use the previous file handle as a
+      // starting location while still opening the picker every time.
+      const storedHandle = await readStoredFileHandle();
+      if (storedHandle) pickerOptions.startIn = storedHandle;
+      let handles;
+      try {
+        handles = await window.showOpenFilePicker(pickerOptions);
+      } catch (error) {
+        // Some browser versions support the picker but reject a file handle in
+        // startIn. Retry normally instead of making Load unusable.
+        if (!pickerOptions.startIn || error?.name !== "TypeError") throw error;
+        delete pickerOptions.startIn;
+        handles = await window.showOpenFilePicker(pickerOptions);
+      }
+      const [handle] = handles;
       saveFileHandle = handle;
       await storeFileHandle(saveFileHandle);
       file = handle ? await handle.getFile() : null;
@@ -449,6 +455,7 @@
         ...merged.poles[poleId],
         ugActive: Boolean(oldPole.ugActive),
         pcoActive: Boolean(oldPole.pcoActive),
+        standaloneProposedHOA: oldPole.standaloneProposedHOA || merged.poles[poleId].standaloneProposedHOA || "",
         notes: oldPole.notes || merged.poles[poleId].notes || ""
       };
     });
@@ -1140,8 +1147,13 @@
     const proposedIssues = S.getSpanSidesForPole(poleId)
       .filter(side => side.proposedFlaggingStatus === "PROBLEM")
       .length;
+    const standaloneIssue = pole?.standaloneProposedHOA && global.Calculations.evaluateSpanSideFlagging({
+      spanId: "",
+      poleId,
+      proposedHOA: pole.standaloneProposedHOA
+    }).status === "PROBLEM" ? 1 : 0;
     return {
-      issueCount: commIssues + proposedIssues,
+      issueCount: commIssues + proposedIssues + standaloneIssue,
       resolution: pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : ""
     };
   }
@@ -1237,14 +1249,19 @@
 
   function renderSpanProposedTable(poleId) {
     const spans = proposedSpansForPole(poleId);
-    if (!spans.length) return `<p class="muted">No spans with midspan are available to propose from this pole.</p>`;
+    const pole = S.getPole(poleId);
+    const showStandalone = !spans.length || Boolean(pole?.standaloneProposedHOA);
+    const standaloneFlagging = global.Calculations.evaluateSpanSideFlagging({
+      spanId: "",
+      poleId,
+      proposedHOA: pole?.standaloneProposedHOA || ""
+    });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
         <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>MS Proposed Clearance</th><th>Adjusted Final MS</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
-        const pole = S.getPole(poleId);
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
         const boltIssue = global.Calculations.evaluateProposedPoleClearance(side);
@@ -1274,7 +1291,13 @@
           <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Own notes...")}</td>
           <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
         </tr>`;
-      }).join("")}</tbody>
+      }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
+          <td class="span-cell"></td>
+          <td><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="standaloneProposedHOA" value="${escapeHtml(pole?.standaloneProposedHOA || "")}" aria-label="Proposed attachment on terminal pole"></td>
+          <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          <td>${renderSpanSideFlagging({ proposedFlaggingStatus: standaloneFlagging.status, proposedFlaggingMessage: standaloneFlagging.message })}</td>
+          <td></td><td></td><td></td><td></td>
+        </tr>` : ""}</tbody>
     </table></div>`;
   }
 
@@ -1519,8 +1542,10 @@
       spanId: span.spanId,
       poleId,
       isManualProposed: true,
-      isAdditionalProposed: shouldCreateAdditional
+      isAdditionalProposed: shouldCreateAdditional,
+      proposedHOA: existingSide?.proposedHOA || S.getPole(poleId)?.standaloneProposedHOA || ""
     });
+    if (S.getPole(poleId)?.standaloneProposedHOA) S.updatePoleField(poleId, "standaloneProposedHOA", "");
     global.Calculations.recalculateSpan(span.spanId);
     renderAffectedPoles([poleId, targetPoleId]);
     markDirty();
@@ -1867,7 +1892,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }
