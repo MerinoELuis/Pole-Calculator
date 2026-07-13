@@ -7,6 +7,27 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+  <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
+  <div id="poleIndexBackdrop" class="pole-index-backdrop hidden"></div>
+  <aside id="poleIndexDrawer" class="pole-index-drawer" aria-hidden="true" inert>
+    <div class="pole-index-drawer-header">
+      <div>
+        <p class="eyebrow">Index</p>
+        <h2>Pole Index</h2>
+      </div>
+      <button id="poleIndexClose" class="icon-btn" type="button" aria-label="Close pole index">&times;</button>
+    </div>
+    <div class="toolbar vertical pole-index-toolbar">
+      <input id="poleSearchInput" class="input" type="search" placeholder="Search pole or owner..." />
+      <select id="warningFilterSelect" class="input">
+        <option value="all">All</option>
+        <option value="warnings">Flagged only</option>
+        <option value="changed">Changed / proposed only</option>
+      </select>
+    </div>
+    <div id="polesList" class="pole-index-links"></div>
+  </aside>
+
   <div class="app-shell">
     <header class="topbar">
       <div>
@@ -36,7 +57,7 @@
         <section class="panel index-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
-              <p class="eyebrow">Index</p>
+              <p class="eyebrow">Job</p>
               <h2>Poles</h2>
               <p id="projectMeta" class="muted">No file imported</p>
             </div>
@@ -46,15 +67,6 @@
               <button id="exportDebugJsonBtn" class="btn" type="button">Export Debug</button>
             </div>
           </div>
-          <div class="toolbar compact-toolbar">
-            <input id="poleSearchInput" class="input" type="search" placeholder="Search pole or owner..." />
-            <select id="warningFilterSelect" class="input">
-              <option value="all">All</option>
-              <option value="warnings">Flagged only</option>
-              <option value="changed">Changed / proposed only</option>
-            </select>
-          </div>
-          <div id="polesList" class="pole-index-links"></div>
         </section>
 
         <section class="panel clearance-panel" data-view-panel="calculator">

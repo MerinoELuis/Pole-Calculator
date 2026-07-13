@@ -11,6 +11,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Imports wires, owners, attachment heights and midspans from `Span.Wire`.
 - Imports `Attachment Size` references from the `Make Ready` sheet for proposed export data.
 - Shows all poles in one editable workspace.
+- Provides a collapsible left-side pole index for quick navigation without occupying workspace width.
 - Calculates max heights against Low Power.
 - Recalculates midspans when comms move up or down on either connected pole.
 - Runs Auto Calculate in repeated passes until proposed and HOA changes stop moving.
@@ -189,7 +190,7 @@ The `Export Proposed` button creates a `.json` package for downstream O-Calc aut
 
 The proposed export intentionally omits internal app IDs such as `spanId` and avoids repeating environment or Low Power clearance fields that O-Calc does not need for placing the proposal.
 
-`Export Debug` creates a separate diagnostic JSON. It contains the full calculator state, logical duplicate groups, the result of the latest Excel reconciliation and one midspan trace per comm showing the imported value, local half-movement, selected remote comm, remote half-movement, expected result and displayed result.
+`Export Debug` creates a separate diagnostic JSON. It contains the full calculator state, multiple-wire groups for the same owner, the result of the latest Excel reconciliation and one midspan trace per comm showing the imported value, local half-movement, selected remote comm, remote half-movement, expected result and displayed result.
 
 ## Main Files
 

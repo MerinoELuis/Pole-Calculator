@@ -43,6 +43,17 @@
     setTimeout(() => div.remove(), 4200);
   }
 
+  function setPoleIndexOpen(open) {
+    const isOpen = Boolean(open);
+    document.body.classList.toggle("pole-index-open", isOpen);
+    els.poleIndexDrawer?.classList.toggle("open", isOpen);
+    els.poleIndexDrawer?.setAttribute("aria-hidden", String(!isOpen));
+    if (els.poleIndexDrawer) els.poleIndexDrawer.inert = !isOpen;
+    els.poleIndexToggle?.setAttribute("aria-expanded", String(isOpen));
+    els.poleIndexBackdrop?.classList.toggle("hidden", !isOpen);
+    if (isOpen) els.poleSearchInput?.focus();
+  }
+
   // Native prompt/confirm dialogs ignore the app theme. These small helpers
   // build one reusable in-page dialog so data-entry actions keep the same look
   // and keyboard behavior as the rest of the calculator.
@@ -1170,6 +1181,8 @@
 
   function renderPoleLists() {
     const poleIds = filteredPoles();
+    els.poleSearchInput.value = S.getState().ui.search || "";
+    els.warningFilterSelect.value = S.getState().ui.filter || "all";
     els.polesList.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No poles match that filter.</div>`;
     els.polesList.querySelectorAll("[data-pole-select]").forEach(btn => {
       btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
@@ -1859,6 +1872,7 @@
     state.selectedPoleId = poleId;
     state.selectedSpanId = "";
     state.ui.activeView = "calculator";
+    setPoleIndexOpen(false);
     render();
     scrollToPole(poleId);
   }
@@ -1962,6 +1976,9 @@
     });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
+    els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
+    els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
+    els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
     document.querySelectorAll("[data-view-tab]").forEach(btn => {
       btn.addEventListener("click", () => {
         S.getState().ui.activeView = btn.dataset.viewTab || "calculator";
@@ -1969,6 +1986,10 @@
       });
     });
     document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && els.poleIndexDrawer?.classList.contains("open")) {
+        setPoleIndexOpen(false);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
         event.preventDefault();
         undoLastAction();
@@ -2002,6 +2023,10 @@
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),
       polesList: qs("polesList"),
+      poleIndexToggle: qs("poleIndexToggle"),
+      poleIndexDrawer: qs("poleIndexDrawer"),
+      poleIndexClose: qs("poleIndexClose"),
+      poleIndexBackdrop: qs("poleIndexBackdrop"),
       polesOverview: qs("polesOverview"),
       poleClassResults: qs("poleClassResults"),
       appLayout: qs("appLayout"),

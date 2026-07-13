@@ -61,7 +61,7 @@
       .toLowerCase();
   }
 
-  function duplicateCommGroups(state) {
+  function multipleWireOwnerGroups(state) {
     const groups = new Map();
     Object.values(state.spanComms || {}).forEach(row => {
       const key = [row.spanId, row.poleId, normalizedOwner(row.ownerBase || row.owner)].join(" | ");
@@ -366,7 +366,7 @@
         spans: Object.keys(state.spans || {}).length,
         spanComms: spanComms.length,
         spanPower: Object.keys(state.spanPower || {}).length,
-        duplicateLogicalComms: duplicateCommGroups(state),
+        multipleWiresPerOwner: multipleWireOwnerGroups(state),
         lastExcelUpdate: state.updateDiagnostics || null
       },
       midspanCalculations: spanComms.map(midspanDebugRow),
