@@ -1189,9 +1189,13 @@
     const poleIds = filteredPoles();
     els.poleSearchInput.value = S.getState().ui.search || "";
     els.warningFilterSelect.value = S.getState().ui.filter || "all";
-    els.polesList.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No poles match that filter.</div>`;
-    els.polesList.querySelectorAll("[data-pole-select]").forEach(btn => {
-      btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
+    els.poleSearchInputTop.value = S.getState().ui.search || "";
+    els.warningFilterSelectTop.value = S.getState().ui.filter || "all";
+    [els.polesList, els.polesListTop].forEach(list => {
+      list.innerHTML = poleIds.map(id => renderPoleListItem(id)).join("") || `<div class="detail-placeholder">No poles match that filter.</div>`;
+      list.querySelectorAll("[data-pole-select]").forEach(btn => {
+        btn.addEventListener("click", () => selectPole(btn.dataset.poleSelect));
+      });
     });
   }
 
@@ -1982,6 +1986,8 @@
     });
     els.poleSearchInput.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
+    els.poleSearchInputTop.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
+    els.warningFilterSelectTop.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
     els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
@@ -2031,6 +2037,9 @@
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),
       polesList: qs("polesList"),
+      poleSearchInputTop: qs("poleSearchInputTop"),
+      warningFilterSelectTop: qs("warningFilterSelectTop"),
+      polesListTop: qs("polesListTop"),
       poleIndexToggle: qs("poleIndexToggle"),
       poleIndexDrawer: qs("poleIndexDrawer"),
       poleIndexClose: qs("poleIndexClose"),

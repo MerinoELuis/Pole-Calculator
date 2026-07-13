@@ -57,7 +57,7 @@
         <section id="topIndexPanel" class="panel index-panel" data-view-panel="calculator">
           <div class="panel-header split">
             <div>
-              <p class="eyebrow">Job</p>
+              <p class="eyebrow">Index</p>
               <h2>Poles</h2>
               <p id="projectMeta" class="muted">No file imported</p>
             </div>
@@ -67,6 +67,15 @@
               <button id="exportDebugJsonBtn" class="btn" type="button">Export Debug</button>
             </div>
           </div>
+          <div class="toolbar compact-toolbar">
+            <input id="poleSearchInputTop" class="input" type="search" placeholder="Search pole or owner..." />
+            <select id="warningFilterSelectTop" class="input">
+              <option value="all">All</option>
+              <option value="warnings">Flagged only</option>
+              <option value="changed">Changed / proposed only</option>
+            </select>
+          </div>
+          <div id="polesListTop" class="pole-index-links"></div>
         </section>
 
         <section class="panel clearance-panel" data-view-panel="calculator">
