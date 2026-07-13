@@ -1262,32 +1262,33 @@
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
+        const physicalSpan = span.sourceSpanId ? S.getSpan(span.sourceSpanId) || span : span;
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
         const boltIssue = global.Calculations.evaluateProposedPoleClearance(side);
         const proposedFlaggingIssue = side.proposedFlaggingStatus === "PROBLEM";
         const rowClasses = [
-          spanRowClasses(poleId, span.spanId),
+          spanRowClasses(poleId, physicalSpan.spanId),
           side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop ? "changed-row" : "",
           aboveMax || midspanIssue || !boltIssue.ok || proposedFlaggingIssue ? "warning-row" : ""
         ].filter(Boolean).join(" ");
         const autoNotes = [spanSideClearanceNote(side), boltIssue.message];
         return `<tr class="${rowClasses}">
           <td class="span-cell">
-            <strong class="span-main-line">${spanChip(poleId, span.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong>
-            ${spanLengthDisplay(span) ? `<span class="span-distance-line">${escapeHtml(spanLengthDisplay(span))}</span>` : ""}
+            <strong class="span-main-line">${spanChip(poleId, physicalSpan.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong>
+            ${spanLengthDisplay(physicalSpan) ? `<span class="span-distance-line">${escapeHtml(spanLengthDisplay(physicalSpan))}</span>` : ""}
           </td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
           <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
           <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}" placeholder="XX.XX"></td>
           <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
-          <td>${escapeHtml(span.midspanMaxCommHeight || "")}</td>
+          <td>${escapeHtml(physicalSpan.midspanMaxCommHeight || "")}</td>
           <td>${renderSpanSideMidspanStatus(side)}</td>
           <td><span class="calculated-value">${escapeHtml(side.finalMidspan || "")}</span></td>
           <td>${renderSpanSideFlagging(side)}</td>
-          <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environment">${renderEnvironmentOptions(span.environment)}</select></td>
-          <td><input class="input" data-scope="span" data-span="${escapeHtml(span.spanId)}" data-field="environmentClearance" value="${escapeHtml(span.environmentClearance || "")}"></td>
+          <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
+          <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>
           <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Own notes...")}</td>
           <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
         </tr>`;
@@ -1525,17 +1526,36 @@
     const select = root.querySelector(`[data-manual-proposed-target="${CSS.escape(poleId)}"]`);
     const targetPoleId = select?.value || "";
     if (!targetPoleId) return toast("Choose which pole the proposed span goes to.", "warning");
-    const existing = connectedSpansSorted(poleId).find(span =>
+    const matchingSpans = connectedSpansSorted(poleId).filter(span =>
       span.fromPole === poleId && span.toPole === targetPoleId
     );
+    const existing = matchingSpans.find(span =>
+      !span.sourceSpanId && !/^(manual|additional)-proposed-/i.test(span.spanId)
+    ) || matchingSpans[0] || null;
     recordUndoSnapshot();
     const existingSide = existing ? S.getSpanSide(existing.spanId, poleId) : null;
-    const shouldCreateAdditional = Boolean(existingSide);
+    const hasExistingProposal = Boolean(existingSide && (
+      existingSide.isManualProposed || existingSide.proposedHOA || existingSide.proposedHOAChange ||
+      existingSide.ocalcMS || existingSide.proposedMidspan || existingSide.notes
+    ));
+    const shouldCreateAdditional = Boolean(existing && hasExistingProposal);
     const span = shouldCreateAdditional || !existing ? S.upsertSpan({
       spanId: `${shouldCreateAdditional ? "additional" : "manual"}-proposed-${Date.now()}`,
       fromPole: poleId,
       toPole: targetPoleId,
-      type: "Other",
+      sourceSpanId: shouldCreateAdditional ? (existing.sourceSpanId || existing.spanId) : "",
+      direction: existing?.direction || "",
+      bearingDegrees: existing?.bearingDegrees ?? "",
+      type: existing?.type || "Other",
+      rawType: existing?.rawType || "",
+      spanIndex: existing?.spanIndex || "",
+      length: existing?.length || "",
+      lengthDisplay: existing?.lengthDisplay || "",
+      environment: existing?.environment || "NONE",
+      environmentClearance: existing?.environmentClearance || "",
+      midspanLowPower: existing?.midspanLowPower || "",
+      midspanMaxCommHeight: existing?.midspanMaxCommHeight || "",
+      rawSpanIds: existing?.rawSpanIds || [],
       isManualProposed: true
     }) : existing;
     S.upsertSpanSide({
@@ -1543,7 +1563,7 @@
       poleId,
       isManualProposed: true,
       isAdditionalProposed: shouldCreateAdditional,
-      proposedHOA: existingSide?.proposedHOA || S.getPole(poleId)?.standaloneProposedHOA || ""
+      proposedHOA: shouldCreateAdditional ? "" : (existingSide?.proposedHOA || S.getPole(poleId)?.standaloneProposedHOA || "")
     });
     if (S.getPole(poleId)?.standaloneProposedHOA) S.updatePoleField(poleId, "standaloneProposedHOA", "");
     global.Calculations.recalculateSpan(span.spanId);
@@ -1575,7 +1595,9 @@
         proposedFlaggingStatus: "",
         proposedFlaggingMessage: "",
         endDrop: "",
-        notes: ""
+        notes: "",
+        isManualProposed: false,
+        isAdditionalProposed: false
       });
     }
     global.Calculations.recalculateSpansForPole(poleId);

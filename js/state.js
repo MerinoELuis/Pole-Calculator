@@ -188,6 +188,7 @@
       rawType: trim(extra.rawType || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
       sourceCollectionId: trim(extra.sourceCollectionId || ""),
+      sourceSpanId: trim(extra.sourceSpanId || ""),
       isManualProposed: Boolean(extra.isManualProposed),
       isGeneratedOtherPole: Boolean(extra.isGeneratedOtherPole)
     };
@@ -526,6 +527,87 @@
     Object.values(state.spans).forEach(ensureSpanSideForSpan);
   }
 
+  function isSyntheticProposedSpan(span) {
+    return Boolean(span?.sourceSpanId || /^(manual|additional)-proposed-/i.test(trim(span?.spanId)));
+  }
+
+  function proposedSideHasSlot(side) {
+    return Boolean(side && (
+      side.isManualProposed || side.proposedHOA || side.proposedHOAChange ||
+      side.ocalcMS || side.proposedMidspan || side.notes
+    ));
+  }
+
+  function physicalSpanCandidateFor(synthetic) {
+    return Object.values(state.spans)
+      .filter(candidate => candidate.spanId !== synthetic.spanId)
+      .filter(candidate => !isSyntheticProposedSpan(candidate))
+      .filter(candidate => candidate.fromPole === synthetic.fromPole && candidate.toPole === synthetic.toPole)
+      .sort((a, b) => {
+        const score = span =>
+          getSpanPowerForSpan(span.spanId).length * 100 +
+          getSpanCommsForSpan(span.spanId).length * 20 +
+          (span.lengthDisplay ? 5 : 0) +
+          (span.bearingDegrees !== "" && span.bearingDegrees !== null ? 2 : 0);
+        return score(b) - score(a);
+      })[0] || null;
+  }
+
+  function inheritPhysicalSpanData(span, source) {
+    return {
+      ...span,
+      sourceSpanId: source.spanId,
+      direction: source.direction || span.direction || "",
+      bearingDegrees: source.bearingDegrees ?? span.bearingDegrees ?? "",
+      type: source.type || span.type || "Other",
+      rawType: source.rawType || span.rawType || "",
+      spanIndex: source.spanIndex || span.spanIndex || "",
+      length: source.length || span.length || "",
+      lengthDisplay: source.lengthDisplay || span.lengthDisplay || "",
+      environment: source.environment || span.environment || "NONE",
+      environmentClearance: source.environmentClearance || span.environmentClearance || "",
+      midspanLowPower: source.midspanLowPower || span.midspanLowPower || "",
+      midspanMaxCommHeight: source.midspanMaxCommHeight || span.midspanMaxCommHeight || "",
+      rawSpanIds: Array.from(new Set([...(source.rawSpanIds || []), ...(span.rawSpanIds || [])].filter(Boolean)))
+    };
+  }
+
+  function reconcileSyntheticProposedSpans() {
+    // Older versions created an additional span even for the first Proposed on
+    // an imported connection. Move that first proposal to the physical span;
+    // genuine later proposals keep a sourceSpanId to inherit physical data.
+    Object.values(state.spans)
+      .filter(isSyntheticProposedSpan)
+      .sort((a, b) => trim(a.spanId).localeCompare(trim(b.spanId), undefined, { numeric: true }))
+      .forEach(synthetic => {
+        const source = synthetic.sourceSpanId ? state.spans[synthetic.sourceSpanId] : physicalSpanCandidateFor(synthetic);
+        if (!source || source.spanId === synthetic.spanId) return;
+        const syntheticSide = state.spanSides[keyForSpanSide(synthetic.spanId, synthetic.fromPole)];
+        const sourceSide = state.spanSides[keyForSpanSide(source.spanId, synthetic.fromPole)] || createSpanSide({
+          spanId: source.spanId,
+          poleId: synthetic.fromPole
+        });
+
+        if (proposedSideHasSlot(syntheticSide) && !proposedSideHasSlot(sourceSide)) {
+          state.spanSides[keyForSpanSide(source.spanId, synthetic.fromPole)] = createSpanSide({
+            ...sourceSide,
+            ...syntheticSide,
+            spanId: source.spanId,
+            poleId: synthetic.fromPole,
+            isManualProposed: true,
+            isAdditionalProposed: false
+          });
+          delete state.spans[synthetic.spanId];
+          Object.keys(state.spanSides).forEach(key => {
+            if (state.spanSides[key].spanId === synthetic.spanId) delete state.spanSides[key];
+          });
+          return;
+        }
+
+        state.spans[synthetic.spanId] = inheritPhysicalSpanData(synthetic, source);
+      });
+  }
+
   function ensureSpanComms() {
     Object.values(state.poles).forEach(pole => {
       const spans = getConnectedSpans(pole.poleId);
@@ -648,6 +730,7 @@
     state = next;
     ensureUnknownPoles();
     ensureSpanSides();
+    reconcileSyntheticProposedSpans();
     if (state.autoCreateSpanComms) ensureSpanComms();
     ensureEndpointComms();
     return state;

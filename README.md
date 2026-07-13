@@ -46,6 +46,8 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 
 A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 
+When `Add Proposed Span` targets an imported connection, the first Proposed reuses that physical span and its Power, length, bearing and environment data. Additional attachments remain separate Proposed rows but reference the same physical span instead of creating an unrelated blank connection.
+
 ## Excel Sheets Used
 
 ### Collection

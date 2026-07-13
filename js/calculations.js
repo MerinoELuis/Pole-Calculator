@@ -458,8 +458,9 @@
     const side = S().getSpanSide(spanId, poleId);
     const span = S().getSpan(spanId);
     if (!side || !span) return null;
+    const calculationSpan = span.sourceSpanId ? S().getSpan(span.sourceSpanId) || span : span;
     const baseInches = calculateProposedMidspanBase(side, span);
-    const evaluation = evaluateSpanSideMidspan(baseInches, span, poleId);
+    const evaluation = evaluateSpanSideMidspan(baseInches, calculationSpan, poleId);
     const proposedFlagging = evaluateSpanSideFlagging(side);
     S().upsertSpanSide({
       ...side,
@@ -686,6 +687,21 @@
   function calculateSpanPowerDerived(spanId) {
     const span = S().getSpan(spanId);
     if (!span) return null;
+    if (span.sourceSpanId && span.sourceSpanId !== spanId) {
+      const source = calculateSpanPowerDerived(span.sourceSpanId);
+      if (!source) return span;
+      return S().upsertSpan({
+        ...span,
+        direction: source.direction || span.direction || "",
+        bearingDegrees: source.bearingDegrees ?? span.bearingDegrees ?? "",
+        length: source.length || span.length || "",
+        lengthDisplay: source.lengthDisplay || span.lengthDisplay || "",
+        environment: source.environment || span.environment || "NONE",
+        environmentClearance: source.environmentClearance || span.environmentClearance || "",
+        midspanLowPower: source.midspanLowPower || "",
+        midspanMaxCommHeight: source.midspanMaxCommHeight || ""
+      });
+    }
     const settings = S().getState().settings || {};
     const clearance = H().parseHeight(settings.midspanPowerCommClearance || "30\"");
     const powerHeights = S().getSpanPowerForSpan(spanId)
