@@ -21,10 +21,11 @@
   function safeJobFilePart(value) {
     const raw = String(value || "pole_job")
       .replace(/\.[^.]+$/, "")
+      // Strip an existing calculator/export suffix first so a preceding date
+      // becomes the end of the job name and can be removed consistently.
+      .replace(/_(?:Pole_Calculator|AutoProposed|Debug)$/i, "")
       .replace(/^excel[_\-\s]*/i, "")
       .replace(/[_\-\s]*20\d{2}[-_]\d{2}[-_]\d{2}$/i, "")
-      .replace(/_Pole_Calculator$/i, "")
-      .replace(/_AutoProposed$/i, "")
       .trim();
     return (raw || "pole_job")
       .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "_")

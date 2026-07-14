@@ -24,7 +24,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 ## Saving Work
 
-`Save` writes a full calculator JSON named from the job, for example `EXCEL_JOB_Pole_Calculator.json`. In browsers that support the File System Access API, the first save of the current page session asks for a file path and later saves overwrite that same file. Reloading the page or importing a new raw Excel clears the active save destination, so the next `Save` asks for a new path instead of overwriting the previous job.
+`Save` writes a full calculator JSON named from the job, for example `JOB_Pole_Calculator.json`. The leading `EXCEL_` label and a trailing import date such as `_2026-07-13` are removed from the suggested name. In browsers that support the File System Access API, the first save of the current page session asks for a file path and later saves overwrite that same file. Reloading the page or importing a new raw Excel clears the active save destination, so the next `Save` asks for a new path instead of overwriting the previous job.
 
 `Load` always opens the `.json` file picker and restores the complete calculator state. When supported by the browser, it starts from the location of the last loaded or saved JSON. A loaded JSON becomes the active destination for later saves during that session.
 
