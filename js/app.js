@@ -1258,7 +1258,7 @@
     });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Adjustment</th><th>Proposed Validation</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
+        <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
