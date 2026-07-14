@@ -13,6 +13,11 @@
       .replace(/\s+/g, " ");
   }
 
+  /**
+   * Parses feet/inches, decimal feet, or a numeric feet value into inches.
+   * @param {string|number|null|undefined} value
+   * @returns {number|null} Rounded integer inches, or null when invalid.
+   */
   function parseHeight(value) {
     // Users may enter 20, 20', 20'6", or 20.5; all become integer inches.
     if (value === null || value === undefined || value === "") return null;
@@ -50,6 +55,12 @@
     return null;
   }
 
+  /**
+   * Formats a numeric inch value as compact feet and inches.
+   * @param {number} inches
+   * @param {{hideZeroInches?: boolean}} [options]
+   * @returns {string}
+   */
   function formatHeight(inches, options = {}) {
     if (inches === null || inches === undefined || Number.isNaN(Number(inches))) return "";
     const rounded = Math.round(Number(inches));
@@ -116,6 +127,7 @@
     return formatHeight(b - a);
   }
 
+  /** @namespace HeightUtils */
   global.HeightUtils = {
     parseHeight,
     formatHeight,

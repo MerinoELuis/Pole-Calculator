@@ -9,6 +9,54 @@
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
   const DEFAULT_COMM_CLEARANCE = "12\"";
   const DEFAULT_BOLT_CLEARANCE = "4\"";
+
+  /**
+   * @typedef {Object} Pole
+   * @property {string} poleId Stable visible pole identifier.
+   * @property {string} lowPower Editable lowest power attachment on the pole.
+   * @property {string} maxCommHeight Derived maximum communication height.
+   * @property {string} standaloneProposedHOA Proposed height for a terminal pole.
+   */
+
+  /**
+   * @typedef {Object} Span
+   * @property {string} spanId Stable imported or generated edge identifier.
+   * @property {string} fromPole Directed source pole ID.
+   * @property {string} toPole Directed destination pole ID.
+   * @property {string} type Imported Fore Span, Back Span, or Other relation.
+   * @property {string} sourceSpanId Physical source used by an additional Proposed row.
+   */
+
+  /**
+   * @typedef {Object} SpanSide
+   * @property {string} spanId Related span identifier.
+   * @property {string} poleId Pole that owns this Proposed row.
+   * @property {string} proposedHOA Editable Proposed attachment height.
+   * @property {string} proposedHOAChange Editable or automatic Next Pole Proposed.
+   * @property {string} finalMidspan Derived Adjusted Final MS.
+   */
+
+  /**
+   * @typedef {Object} SpanComm
+   * @property {string} spanId Related span identifier.
+   * @property {string} poleId Pole endpoint that owns this row.
+   * @property {string} owner Imported communication owner.
+   * @property {string} wireId Imported wire identity used for endpoint matching.
+   * @property {string} existingHOA Imported baseline attachment height.
+   * @property {string} existingHOAChange Editable or automatic new attachment height.
+   * @property {string} midspan Imported baseline midspan for this exact row.
+   * @property {string} calculatedMidspan Derived midspan after endpoint movements.
+   */
+
+  /**
+   * @typedef {Object} AppState
+   * @property {string} version Saved-state format version.
+   * @property {Object.<string, Pole>} poles Poles keyed by poleId.
+   * @property {Object.<string, Span>} spans Spans keyed by spanId.
+   * @property {Object.<string, SpanSide>} spanSides Proposed rows keyed by span and pole.
+   * @property {Object.<string, SpanComm>} spanComms Comm rows keyed by span, pole, owner, and wire.
+   * @property {Object} settings Project profile and editable calculation settings.
+   */
   const ENVIRONMENT_OPTIONS = [
     { value: "NONE", label: "None", clearance: "15'6\"" },
     { value: "STREET", label: "Street", clearance: "15'6\"" },
@@ -31,6 +79,7 @@
 
   // Keep startup empty. Imported Excel/JSON or local saves are the only things
   // that should populate the workspace in normal use.
+  /** @returns {AppState} A new empty state with current defaults. */
   const emptyState = () => ({
     version: CURRENT_VERSION,
     importedFileName: "",
@@ -95,6 +144,14 @@
     return [spanId, poleId, owner, wireId || ""].map(v => trim(v)).join("__");
   }
 
+  /**
+   * Normalizes a pole from an imported object or individual values.
+   * @param {string|Object} poleId Pole ID or pole-shaped source object.
+   * @param {string} [poleHeight]
+   * @param {string} [notes]
+   * @param {Object} [extra]
+   * @returns {Pole}
+   */
   function createPole(poleId, poleHeight = "", notes = "", extra = {}) {
     // Constructors normalize all incoming data so later code can assume each
     // entity has the same shape, whether it came from Excel, JSON, or the UI.
@@ -166,6 +223,16 @@
     };
   }
 
+  /**
+   * Creates a normalized graph edge and a stable Unknown endpoint when needed.
+   * @param {string} spanId
+   * @param {string} fromPole
+   * @param {string} [toPole]
+   * @param {string} [direction]
+   * @param {string} [notes]
+   * @param {Object} [extra]
+   * @returns {Span}
+   */
   function createSpan(spanId, fromPole, toPole = "", direction = "", notes = "", extra = {}) {
     const id = trim(spanId);
     const fallbackToPole = trim(toPole) || `Unknown-${id || Math.random().toString(36).slice(2, 8)}`;
@@ -194,6 +261,10 @@
     };
   }
 
+  /**
+   * @param {Object} [data]
+   * @returns {SpanSide}
+   */
   function createSpanSide(data = {}) {
     return {
       spanId: trim(data.spanId || ""),
@@ -226,6 +297,10 @@
     };
   }
 
+  /**
+   * @param {Object} [data]
+   * @returns {SpanComm}
+   */
   function createSpanComm(data = {}) {
     return {
       spanId: trim(data.spanId || ""),
@@ -298,13 +373,19 @@
     };
   }
 
+  /**
+   * @param {Object} nextState
+   * @returns {AppState} Normalized current state.
+   */
   function setState(nextState) {
     state = normalizeState(nextState || emptyState());
     return state;
   }
 
+  /** @returns {AppState} Mutable application state owned by AppStore. */
   function getState() { return state; }
 
+  /** @returns {AppState} A new empty state. */
   function resetState() {
     state = emptyState();
     return state;
@@ -746,6 +827,10 @@
     return setState(JSON.parse(raw));
   }
 
+  /**
+   * Public state API. See docs/DATA_MODEL.md for entity ownership and keys.
+   * @namespace AppStore
+   */
   global.AppStore = {
     CURRENT_VERSION,
     STORAGE_KEY,

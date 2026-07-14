@@ -17,6 +17,10 @@
     return h > max;
   }
 
+  /**
+   * @param {string} spanId
+   * @returns {Array<Object>} Warnings for one span.
+   */
   function validateSpan(spanId) {
     const state = S().getState();
     const span = S().getSpan(spanId);
@@ -78,6 +82,10 @@
     return warnings;
   }
 
+  /**
+   * @param {string} poleId
+   * @returns {Array<Object>} Warnings for one pole.
+   */
   function validatePole(poleId) {
     const state = S().getState();
     const pole = S().getPole(poleId);
@@ -117,6 +125,7 @@
     return warnings;
   }
 
+  /** @returns {Array<Object>} Fresh warnings for the complete state. */
   function validateAll() {
     const state = S().getState();
     state.warnings = [];
@@ -125,6 +134,7 @@
     return state.warnings;
   }
 
+  /** @namespace Validations */
   global.Validations = {
     validatePole,
     validateSpan,

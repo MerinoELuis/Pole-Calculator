@@ -303,6 +303,12 @@
     return null;
   }
 
+  /**
+   * Calculates a comm midspan from its own imported baseline and movements at
+   * both physical endpoints. This function does not persist the result.
+   * @param {Object} spanComm
+   * @returns {{calculated:string, remote:Object|null, remoteHOA:string, localAdjustment:number, remoteAdjustment:number}}
+   */
   function calculateCommMidspanDetails(spanComm) {
     if (!spanComm) return { calculated: "", remote: null, remoteHOA: "", localAdjustment: 0, remoteAdjustment: 0 };
     const span = S().getSpan(spanComm.spanId);
@@ -332,6 +338,13 @@
     return { calculated, remote, remoteHOA, localAdjustment, remoteAdjustment };
   }
 
+  /**
+   * Evaluates Proposed MS against same-connection comms, Environment, and power.
+   * @param {number|null} baseInches Proposed/O-Calc midspan in inches.
+   * @param {Object} span Physical calculation span.
+   * @param {string} [poleId] Pole that owns the Proposed row.
+   * @returns {Object} Formatted result, status, reason, and adjustment message.
+   */
   function evaluateSpanSideMidspan(baseInches, span, poleId = "") {
     if (baseInches === null || !span) {
       return {
@@ -411,6 +424,11 @@
       .filter(item => item.poleHeight !== null && item.midspan !== null);
   }
 
+  /**
+   * Validates pole-side Proposed placement and returns one compact flagging result.
+   * @param {Object} spanSide
+   * @returns {{status:string, message:string}}
+   */
   function evaluateSpanSideFlagging(spanSide) {
     // Proposed flagging is intentionally compact: one field summarizes every
     // pole-side rule that can make a proposed attachment invalid.
@@ -511,6 +529,12 @@
     };
   }
 
+  /**
+   * Evaluates all pole and midspan rules for one existing comm row.
+   * @param {Object} sc SpanComm to validate.
+   * @param {string} calculatedMidspan Fresh calculated value when available.
+   * @returns {{flaggingStatus:string, flaggingMessage:string}}
+   */
   function evaluateCommFlagging(sc, calculatedMidspan) {
     const span = S().getSpan(sc.spanId);
     const pole = S().getPole(sc.poleId);
@@ -633,6 +657,11 @@
     };
   }
 
+  /**
+   * Checks Proposed against effective comm heights, old bolt points, and other proposals.
+   * @param {Object} spanSide
+   * @returns {{ok:boolean, message:string}}
+   */
   function evaluateProposedPoleClearance(spanSide) {
     const proposed = H().parseHeight(spanSide?.proposedHOA || "");
     if (proposed === null) return { ok: true, message: "" };
@@ -747,6 +776,12 @@
     return S().getPole(poleId);
   }
 
+  /**
+   * Resolves Next Pole Proposed and stores End Drop for one Proposed row.
+   * @param {string} spanId
+   * @param {string} poleId
+   * @returns {string} Signed feet/inches End Drop, or blank when data is missing.
+   */
   function calculateEndDropForSpanSide(spanId, poleId) {
     let side = S().getSpanSide(spanId, poleId);
     const span = S().getSpan(spanId);
@@ -811,6 +846,12 @@
     return parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
   }
 
+  /**
+   * Calculates, validates, and persists derived values for one SpanComm.
+   * REF rows are cleared of calculated midspan and remote endpoint values.
+   * @param {Object} spanComm
+   * @returns {string} Calculated midspan display value.
+   */
   function calculateMidspanForComm(spanComm) {
     if (!spanComm) return "";
     const span = S().getSpan(spanComm.spanId);
@@ -1168,6 +1209,11 @@
     return JSON.stringify({ commMoves, proposedMoves });
   }
 
+  /**
+   * Repeatedly proposes safe Top Comm movements until state converges or a
+   * repeated/max-pass safety stop is reached.
+   * @returns {{applied:number, manual:number, skipped:number, passes:number, converged:boolean, stoppedByRepeat:boolean, maxPassesReached:boolean, disabled?:boolean}}
+   */
   function autoCalculateMovements() {
     const summary = { applied: 0, manual: 0, skipped: 0, passes: 0, converged: false, stoppedByRepeat: false, maxPassesReached: false };
     if (getSettingPosition() !== "TOP_COMM") {
@@ -1357,6 +1403,7 @@
     return null;
   }
 
+  /** @param {string} spanId Recalculates one span and its endpoint-derived data. */
   function recalculateSpan(spanId) {
     const span = S().getSpan(spanId);
     calculateSpanPowerDerived(spanId);
@@ -1371,6 +1418,10 @@
     });
   }
 
+  /**
+   * Recalculates every connection affected by a pole, including reciprocal Wire IDs.
+   * @param {string} poleId
+   */
   function recalculateSpansForPole(poleId) {
     const spans = S().getConnectedSpans(poleId);
     spans.forEach(span => calculateSpanPowerDerived(span.spanId));
@@ -1419,6 +1470,7 @@
     });
   }
 
+  /** Rebuilds all derived pole, span, comm, Proposed, MR, and warning values. */
   function recalculateAll() {
     const state = S().getState();
     Object.keys(state.spans).forEach(calculateSpanPowerDerived);
@@ -1432,6 +1484,10 @@
     global.Validations.validateAll();
   }
 
+  /**
+   * Public business-calculation API. See docs/BUSINESS_RULES.md.
+   * @namespace Calculations
+   */
   global.Calculations = {
     CLEARANCE_FIX_DELAY_MS,
     updatePoleCommNewHeight,

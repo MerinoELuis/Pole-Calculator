@@ -4,6 +4,16 @@ Pole Span MR Calculator is a static web app for reviewing poles, spans, communic
 
 The calculator imports raw pole data, lets users edit existing comm heights, proposes new attachment heights by span, recalculates midspans affected by changes at either end of a span, and generates one Make Ready block per pole.
 
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): runtime modules, data flow, recalculation lifecycle, and extension points.
+- [Data Model](docs/DATA_MODEL.md): AppState, entity ownership, identities, physical spans, and REF semantics.
+- [Business Rules](docs/BUSINESS_RULES.md): formulas, matching priorities, clearances, Proposed, Auto Calculate, and Make Ready.
+- [Import and Export](docs/IMPORT_EXPORT.md): accepted Excel fields, Save/Load, Update Data, AutoProposed, and Debug JSON.
+- [Error Handling](docs/ERROR_HANDLING.md): error categories, warning codes, recovery, and diagnostic workflow.
+- [Public API Reference](docs/API_REFERENCE.md): supported global modules and cross-module methods.
+- [Test Plan](docs/TEST_PLAN.md): regression matrix, browser smoke tests, and automation still needed.
+
 ## Main Features
 
 - Imports poles from the `Collection` sheet.
@@ -19,7 +29,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Validates power-comm, comm-comm and bolt-bolt clearances.
 - Adjusts each Proposed midspan only against comms on the same physical pole-to-pole connection.
 - Generates Make Ready by pole from comm movements and proposed attachments.
-- Exports/imports full JSON save points.
+- Saves and loads complete JSON job files.
 - Exports a proposed JSON package intended for a future O-Calc plugin.
 
 ## Saving Work
@@ -41,8 +51,8 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 3. Edit `Low Power`, existing comm heights, or proposed heights by span.
 4. Review recalculated midspans, flagging and clearances.
 5. Review the generated Make Ready for each pole.
-6. Export JSON to save progress or export Proposed JSON for downstream O-Calc work.
-7. Import the saved JSON later to continue.
+6. Use `Save` to preserve progress or `Export Proposed` for downstream O-Calc work.
+7. Use `Load` later to continue from the saved JSON.
 
 A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 
@@ -214,9 +224,22 @@ The proposed export intentionally omits internal app IDs such as `spanId` and av
 - `js/validations.js`
 - `js/floating-calculator.js`
 - `libs/xlsx.full.min.js`
+- `docs/ARCHITECTURE.md`
+- `docs/DATA_MODEL.md`
+- `docs/BUSINESS_RULES.md`
+- `docs/IMPORT_EXPORT.md`
+- `docs/ERROR_HANDLING.md`
+- `docs/API_REFERENCE.md`
+- `docs/TEST_PLAN.md`
 
 ## Local Use
 
-Open `index.html` in a browser or publish the folder through GitHub Pages.
+Open `index.html` in a current browser or publish the folder through GitHub Pages. Chrome and Edge provide the complete Save/Load path through the File System Access API; other browsers fall back to JSON downloads and regular file inputs.
 
 The app does not require a backend, custom server, Node.js, npm, build step or framework.
+
+For syntax verification during development, Node.js may be used as an optional tool without becoming a runtime dependency:
+
+```powershell
+Get-ChildItem js -Filter *.js | ForEach-Object { node --check $_.FullName }
+```

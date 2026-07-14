@@ -282,6 +282,7 @@
     }
   }
 
+  /** Recalculates and downloads the compact downstream O-Calc proposal package. */
   function exportProposedJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -365,6 +366,7 @@
     downloadJson(`${jobName}_AutoProposed.json`, payload);
   }
 
+  /** Recalculates and downloads full state plus midspan diagnostic traces. */
   function exportDebugJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -388,6 +390,7 @@
     });
   }
 
+  /** @namespace ProjectExport */
   global.ProjectExport = {
     exportJson,
     exportProposedJson,

@@ -238,6 +238,11 @@
     return [...sideItems, ...commItems];
   }
 
+  /**
+   * Replaces the generated Make Ready block for one pole using current state.
+   * @param {string} poleId
+   * @returns {Array<Object>} Generated MR records for the pole.
+   */
   function generateMRForPole(poleId) {
     const state = S().getState();
     state.mr = state.mr.filter(item => item.poleId !== poleId);
@@ -281,6 +286,7 @@
     return state.mr.filter(item => item.poleId === poleId);
   }
 
+  /** @returns {Array<Object>} Fresh generated Make Ready records for all poles. */
   function generateAllMR() {
     const state = S().getState();
     state.mr = [];
@@ -292,6 +298,7 @@
     return spanComm?.existingHOAChange || spanComm?.existingHOA || "";
   }
 
+  /** @namespace MRLogic */
   global.MRLogic = {
     generateMRForPole,
     generateMRForSpan,

@@ -61,6 +61,10 @@
     return "INTEC";
   }
 
+  /**
+   * Public project-profile registry and detection helpers.
+   * @namespace ProjectProfiles
+   */
   global.ProjectProfiles = {
     PROFILES,
     normalizeProfileId,

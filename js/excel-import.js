@@ -819,6 +819,12 @@
     });
   }
 
+  /**
+   * Imports a raw field workbook into a new normalized AppState.
+   * @param {Object} workbook Parsed XLSX-compatible workbook.
+   * @param {string} fileName Source filename used for profile detection and saving.
+   * @returns {Object} Imported application state.
+   */
   function importOriginalWorkbook(workbook, fileName) {
     const state = S().resetState();
     state.importedFileName = fileName || "Excel original";
@@ -860,6 +866,11 @@
     return S().getState();
   }
 
+  /**
+   * Restores and normalizes a complete calculator JSON save.
+   * @param {File} file
+   * @returns {Promise<Object>} Restored AppState.
+   */
   async function importJsonFile(file) {
     const payload = JSON.parse(await file.text());
     const nextState = payload && payload.state ? payload.state : payload;
@@ -875,6 +886,11 @@
     return restored;
   }
 
+  /**
+   * Reads CSV/XLSX input and selects AppState, exported-table, or raw import flow.
+   * @param {File} file
+   * @returns {Promise<Object>} Imported AppState.
+   */
   async function importExcelFile(file) {
     const ext = file.name.split(".").pop().toLowerCase();
     if (ext === "csv") {
@@ -887,6 +903,7 @@
     return importAppStateSheet(workbook) || importExportedTables(workbook) || importOriginalWorkbook(workbook, file.name);
   }
 
+  /** @namespace ExcelImport */
   global.ExcelImport = {
     importExcelFile,
     importJsonFile,
