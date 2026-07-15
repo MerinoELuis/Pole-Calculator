@@ -133,6 +133,17 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `generateAllMR()` | Replace generated MR for the complete state. |
 | `detectAttach/RaiseLower/Overlash/Slack/Anchor/Riser` | Expose MR condition detectors. |
 
+## ExcelReview
+
+| Method | Purpose |
+| --- | --- |
+| `runReview()` | Clear and rebuild the complete HOA and Final review from current source/state. |
+| `reviewPole(poleId)` | Return the latest result for one Collection pole. |
+| `getResults()` | Return latest naturally sorted pole results. |
+| `getSummary()` | Return Errors, Warnings, Passed, Final Not Ready, and total counts. |
+| `getReviewState()` | Return results, global checks, summary, and review timestamp. |
+| `clearResults()` | Remove in-memory review results without changing AppState. |
+
 ## Validations
 
 | Method | Purpose |

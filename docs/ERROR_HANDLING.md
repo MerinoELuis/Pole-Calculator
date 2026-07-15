@@ -12,6 +12,7 @@ The application distinguishes operational errors, missing data, clearance flaggi
 | Clearance issue | Comm exceeds Max Height at MS | Flagging badge and explicit message | Move comm/Proposed or change approved settings. |
 | Data-integrity warning | Unknown linked pole | Warning record | Complete generated data manually or update Excel. |
 | Auto Calculate review | No safe candidate | Summary count | Resolve manually; existing data remains unchanged. |
+| Excel Review result | Missing Fore Span or mismatched final MR | Expandable Excel Review check | Correct the workbook or calculator result, then run the review again. |
 
 ## Import and Update Failures
 
@@ -23,6 +24,8 @@ Excel import and Update Data are wrapped in `try/catch/finally`:
 - Update Data keeps a pre-import snapshot for reconciliation and undo.
 
 An import fails early when no readable Collection, Span, or Span.Wire data is found.
+
+Excel Review runs only after import/update completes successfully. Every run first discards the prior in-memory result, so a failed import cannot leave a new result that appears to describe an Excel file that was not accepted. Review checks report expected and actual values without mutating AppState.
 
 ## Save and Load Failures
 
@@ -100,4 +103,3 @@ New errors should:
 4. Distinguish missing data from a true violation.
 5. Avoid changing state merely to display an error.
 6. Keep user-entered values intact when an automatic operation fails.
-

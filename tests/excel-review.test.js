@@ -1,0 +1,139 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const state = {
+  settings: { projectProfile: "METRONET", proposedOwner: "Metronet" },
+  poles: { P1: { poleId: "P1" }, P2: { poleId: "P2" } },
+  spans: {
+    F1: { spanId: "F1", fromPole: "P1", toPole: "P2", direction: "E" },
+    B1: { spanId: "B1", fromPole: "P1", toPole: "P2", direction: "W" },
+    F2: { spanId: "F2", fromPole: "P2", toPole: "P1", direction: "W" },
+    B2: { spanId: "B2", fromPole: "P2", toPole: "P1", direction: "E" }
+  },
+  spanSides: {
+    F1__P1: { spanId: "F1", poleId: "P1", proposedHOA: "23'2\"", finalMidspan: "20'1\"" }
+  },
+  spanComms: {},
+  mr: [{ poleId: "P2", text: "Attach Metronet at HOA 20'." }],
+  excelReviewSource: {}
+};
+
+function normalizeHeaderName(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function pick(row, names, options = {}) {
+  const entries = Object.entries(row || {});
+  for (const name of names) {
+    const wanted = normalizeHeaderName(name);
+    const found = entries.find(([key]) => {
+      const actual = normalizeHeaderName(key);
+      return options.contains ? actual.includes(wanted) : actual === wanted;
+    });
+    if (found) return found[1];
+  }
+  return "";
+}
+
+function parseHeight(value) {
+  const source = String(value ?? "").trim();
+  if (!source) return null;
+  if (/^-?\d+(?:\.\d+)?$/.test(source)) return Math.round(Number(source) * 12);
+  const match = source.match(/^(-?\d+)\s*'(?:\s*(\d+)\s*\")?$/);
+  return match ? (Number(match[1]) * 12) + Number(match[2] || 0) : null;
+}
+
+const AppStore = {
+  getState: () => state,
+  getSpanCommsForPole: poleId => Object.values(state.spanComms).filter(row => row.poleId === poleId),
+  getSpanSidesForPole: poleId => Object.values(state.spanSides).filter(row => row.poleId === poleId),
+  getSpan: spanId => state.spans[spanId] || null,
+  getOtherPoleId: (span, poleId) => span.fromPole === poleId ? span.toPole : span.fromPole
+};
+
+const sandbox = {
+  window: {
+    AppStore,
+    HeightUtils: { parseHeight },
+    ExcelImport: {
+      pick,
+      normalizeHeaderName,
+      isPowerWire: row => /^utility\s*>/i.test(String(row.Owner || "")),
+      isCommunicationWire: row => !/^utility\s*>/i.test(String(row.Owner || ""))
+    }
+  },
+  console,
+  Date,
+  Set,
+  Map
+};
+
+const modulePath = path.join(__dirname, "..", "js", "excel-review.js");
+vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
+const review = sandbox.window.ExcelReview;
+
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    rows: [
+      { Id: "P1", Sequence: "P1", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
+      { Id: "P2", Sequence: "P2", "Year Installed": 2011, "Low Power Attachment.display": "", "Low Power": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }
+    ]
+  },
+  spans: {
+    headers: ["Id", "Span Id", "Span Index", "Type", "Linked Collection.Title", "Environment"],
+    rows: [
+      { Id: "P1", "Span Id": "F1", "Span Index": 1, Type: "Fore Span", "Linked Collection.Title": "P2", Environment: "STREET" },
+      { Id: "P1", "Span Id": "B1", "Span Index": 2, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET" },
+      { Id: "P1", "Span Id": "O1", "Span Index": 3, Type: "Other", "Linked Collection.Title": "P2", Environment: "STREET" },
+      { Id: "P2", "Span Id": "F2", "Span Index": 4, Type: "Fore Span", "Linked Collection.Title": "P1", Environment: "STREET" },
+      { Id: "P2", "Span Id": "B2", "Span Index": 5, Type: "Back Span", "Linked Collection.Title": "P1", Environment: "STREET" }
+    ]
+  },
+  spanWires: { headers: [], rows: [] },
+  makeReady: {
+    headers: ["Id", "Attachment Size", "Attachment Height.display", "Proposed Mid Span.display"],
+    rows: [{ Id: "P1", "Attachment Size": "6.6M 24CT Fiber (E/W)", "Attachment Height.display": 23.1667, "Proposed Mid Span.display": 20.0833 }]
+  },
+  commTransfers: { headers: [], rows: [] }
+};
+
+let output = review.runReview();
+const p1 = review.reviewPole("P1");
+const p2 = review.reviewPole("P2");
+assert.equal(p1.hoaStatus, "PASS", "Other must not change exact Fore/Back counts");
+assert.equal(p1.finalStatus, "PASS", "decimal feet must match feet/inches");
+assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power fallback columns must not satisfy the exact display check");
+assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");
+assert.equal(output.summary.total, 2);
+
+state.settings.projectProfile = "INTEC";
+state.poles = { P3: { poleId: "P3" } };
+state.spans = {};
+state.spanSides = {};
+state.mr = [];
+state.excelReviewSource = {
+  collection: { headers: ["Id"], rows: [{ Id: "P3", Sequence: "P3", "Year Installed": 2010, "Low Power Attachment.display": "25'" }] },
+  spans: { headers: [], rows: [] },
+  spanWires: {
+    headers: ["Id", "Owner", "Size", "Construction", "Insulator"],
+    rows: [
+      { Id: "P3", Owner: "COMMUNICATION > Unknown Network", Size: "Fiber", Construction: " DAVIT ", Insulator: "Hook" },
+      { Id: "P3", Owner: "UTILITY > Other", Size: "Primary", Construction: "ON_POLE", Insulator: "Spool 3in" }
+    ]
+  },
+  makeReady: { headers: [], rows: [] },
+  commTransfers: { headers: [], rows: [] }
+};
+
+output = review.runReview();
+const codes = new Set(output.results[0].checks.map(item => item.code));
+["DAVIT_NOT_ALLOWED", "UNKNOWN_COMM_OWNER", "INVALID_COMM_INSULATOR", "INVALID_POWER_OWNER", "INVALID_PRIMARY_INSULATOR"].forEach(code => {
+  assert.ok(codes.has(code), `expected INTEC check ${code}`);
+});
+
+console.log("Excel Review tests passed.");

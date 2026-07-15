@@ -936,6 +936,127 @@ tr.danger-row {
   justify-content: center;
 }
 
+.excel-review-panel {
+  padding: 18px;
+}
+
+.excel-review-header {
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.excel-review-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(145px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.review-summary-item {
+  display: flex;
+  min-height: 74px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.review-summary-item strong { font-size: 1.5rem; }
+.review-summary-item span { color: var(--muted); font-weight: 700; }
+.review-summary-item.error { border-color: #fecaca; background: #fff7f7; }
+.review-summary-item.warning,
+.review-summary-item.not-ready { border-color: #fde68a; background: #fffdf2; }
+.review-summary-item.pass { border-color: #bbf7d0; background: #f4fff7; }
+
+.excel-review-global {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff7f7;
+}
+
+.excel-review-global h3 { margin: 0 0 10px; }
+.excel-review-poles { display: grid; gap: 8px; }
+
+.excel-review-pole {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-left: 5px solid #22c55e;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.excel-review-pole.review-error { border-left-color: #dc2626; }
+.excel-review-pole.review-warning { border-left-color: #d97706; }
+
+.excel-review-pole > summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(115px, .7fr));
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.excel-review-pole[open] > summary { border-bottom: 1px solid var(--line); }
+.review-pole-identity { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.review-pole-identity strong { overflow-wrap: anywhere; }
+.review-pole-identity small,
+.review-phase-status small { color: var(--muted); }
+.review-phase-status { display: flex; align-items: center; justify-content: center; gap: 7px; }
+
+.excel-review-checks {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
+}
+
+.excel-review-check {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.excel-review-check.error { border-color: #fecaca; background: #fff7f7; }
+.excel-review-check.warning,
+.excel-review-check.not_ready { border-color: #fde68a; background: #fffdf2; }
+.excel-review-check.low-level { border-style: dashed; }
+.excel-review-check-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.excel-review-check p { margin: 7px 0 0; text-align: center; color: var(--text); }
+
+.review-values {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.review-values div { display: flex; gap: 5px; }
+.review-values dt { color: var(--muted); font-weight: 700; }
+.review-values dd { margin: 0; }
+.review-source-details { display: grid; gap: 3px; margin-top: 8px; color: var(--muted); font-size: .78rem; text-align: center; }
+
+@media (max-width: 900px) {
+  .excel-review-summary { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+  .excel-review-pole > summary { grid-template-columns: 1fr 1fr; }
+  .review-pole-identity { grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  .excel-review-summary { grid-template-columns: 1fr; }
+  .excel-review-pole > summary { grid-template-columns: 1fr; }
+  .review-pole-identity { grid-column: auto; }
+  .review-phase-status { justify-content: space-between; }
+}
+
 .comm-midspan-value.colored-midspan {
   gap: 6px;
 }

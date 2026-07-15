@@ -17,9 +17,10 @@ The application is a static browser application. It has no backend, package mana
 7. `js/mr-logic.js`
 8. `js/validations.js`
 9. `js/excel-import.js`
-10. `js/json-export.js`
-11. `js/floating-calculator.js`
-12. `js/app.js`
+10. `js/excel-review.js`
+11. `js/json-export.js`
+12. `js/floating-calculator.js`
+13. `js/app.js`
 
 Changing this order can break global dependencies. For example, `calculations.js` expects `window.AppStore` and `window.HeightUtils` to exist.
 
@@ -35,6 +36,7 @@ Changing this order can break global dependencies. For example, `calculations.js
 | `mr-logic.js` | `MRLogic` | Generate ordered Make Ready text for each pole. |
 | `validations.js` | `Validations` | Generate broad data-integrity warnings. Table flagging remains in `calculations.js`. |
 | `excel-import.js` | `ExcelImport` | Convert Excel worksheets or saved data into normalized AppState entities. |
+| `excel-review.js` | `ExcelReview` | Audit preserved workbook rows against current calculated and MR state without rendering HTML. |
 | `json-export.js` | `ProjectExport` | Produce AutoProposed and diagnostic JSON downloads. |
 | `app.js` | browser event handlers | Render the UI, process edits, manage undo, Save/Load, Update Data, dialogs, and targeted refreshes. |
 
@@ -45,6 +47,7 @@ flowchart LR
     A[Raw Excel] --> B[ExcelImport]
     J[Saved JSON] --> B
     B --> C[AppStore normalized state]
+    B --> R[Preserved review source]
     C --> D[Calculations]
     D --> C
     C --> E[MRLogic]
@@ -52,6 +55,9 @@ flowchart LR
     C --> F[Validations]
     F --> C
     C --> G[app.js render]
+    R --> X[ExcelReview]
+    C --> X
+    X --> G
     G --> H[User edit]
     H --> C
     C --> I[Save / AutoProposed / Debug JSON]
@@ -67,6 +73,8 @@ The store is mutable by design. A normal edit follows this lifecycle:
 6. The job is marked dirty until Save succeeds.
 
 `render()` also calls `recalculateAll()` before drawing the full workspace. This protects imports, undo restores, and loaded JSON from displaying stale derived values.
+
+Excel Review results live in module memory rather than AppState. The store retains only the original headers and rows needed to rerun the audit. A successful raw import or Update Data recalculates the calculator, runs `ExcelReview.runReview()`, then renders without changing the active view. A failed import does not run the review.
 
 ## Graph Model
 

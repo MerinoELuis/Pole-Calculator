@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.3.0";
+  const CURRENT_VERSION = "1.4.0";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -115,6 +115,16 @@
     spanComms: {},
     spanPower: {},
     makeReadyReferences: [],
+    // Raw review source is preserved separately from normalized calculator
+    // entities. Empty IDs and duplicate source rows are meaningful to Excel
+    // Review even though they cannot be graph keys.
+    excelReviewSource: {
+      collection: { headers: [], rows: [] },
+      spans: { headers: [], rows: [] },
+      spanWires: { headers: [], rows: [] },
+      makeReady: { headers: [], rows: [] },
+      commTransfers: { headers: [], rows: [] }
+    },
     poleClassChecks: [],
     movements: [],
     mr: [],
@@ -255,6 +265,7 @@
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
       rawType: trim(extra.rawType || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
+      linkedCollectionTitle: trim(extra.linkedCollectionTitle || ""),
       sourceCollectionId: trim(extra.sourceCollectionId || ""),
       sourceSpanId: trim(extra.sourceSpanId || ""),
       isManualProposed: Boolean(extra.isManualProposed),
@@ -372,7 +383,29 @@
       attachmentHeight: trim(data.attachmentHeight || ""),
       proposedMidspan: trim(data.proposedMidspan || ""),
       makeReadyNotes: trim(data.makeReadyNotes || data.notes || ""),
+      commTransfers: trim(data.commTransfers || ""),
       raw: data.raw || {}
+    };
+  }
+
+  function normalizeReviewSheet(sheet) {
+    const source = sheet && typeof sheet === "object" ? sheet : {};
+    return {
+      headers: Array.isArray(source.headers) ? source.headers.map(trim) : [],
+      rows: Array.isArray(source.rows)
+        ? source.rows.map(row => (row && typeof row === "object" ? { ...row } : {}))
+        : []
+    };
+  }
+
+  function normalizeExcelReviewSource(source) {
+    const raw = source && typeof source === "object" ? source : {};
+    return {
+      collection: normalizeReviewSheet(raw.collection),
+      spans: normalizeReviewSheet(raw.spans),
+      spanWires: normalizeReviewSheet(raw.spanWires),
+      makeReady: normalizeReviewSheet(raw.makeReady),
+      commTransfers: normalizeReviewSheet(raw.commTransfers)
     };
   }
 
@@ -771,6 +804,7 @@
     next.makeReadyReferences = Array.isArray(next.makeReadyReferences)
       ? next.makeReadyReferences.map(createMakeReadyReference)
       : [];
+    next.excelReviewSource = normalizeExcelReviewSource(next.excelReviewSource);
     next.poleClassChecks = Array.isArray(next.poleClassChecks) ? next.poleClassChecks : [];
     next.movements = Array.isArray(next.movements) ? next.movements : [];
     next.mr = Array.isArray(next.mr) ? next.mr : [];

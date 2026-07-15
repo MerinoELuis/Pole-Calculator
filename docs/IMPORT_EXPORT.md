@@ -19,6 +19,7 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 | Low Power | `Low Power Attachment.display`, related display names, or any header containing `Low Power Attachment`, `Lowest Power`, or `Low Power` |
 | Owner | `Owner` |
 | Location reference | headers containing `Location.latitude` and `Location.longitude` |
+| Excel Review fields | exact `Year Installed`, `MRE Construction Type`, and `PLA STATUS` values are preserved in the raw review source |
 
 Source notes are stored under pole metadata and do not replace user-owned notes.
 
@@ -70,6 +71,11 @@ The importer reads attachment references, not final Make Ready:
 - Attachment height
 - Proposed midspan
 - Reference notes
+- `Comm Transfers`
+
+`Make Ready.Comm Transfers` is also preserved for Excel Review using `Id`, `Owner`, and `Height.display`.
+
+For Excel Review, original headers and row values from Collection, Span, Span.Wire, Make Ready, and Make Ready.Comm Transfers are retained alongside normalized entities. This is required to distinguish a missing column from an empty value and to review duplicate or otherwise non-graphable source rows.
 
 An attachment such as `6.6M 24CT Fiber (E/W)` is preserved raw and parsed into messenger, fiber, and direction tokens for AutoProposed export.
 
@@ -90,7 +96,7 @@ Save writes the complete state:
 {
   "app": "pole-calculator",
   "exportedAt": "2026-07-13T18:00:00.000Z",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "sourceFile": "EXCEL_JOB_2026-07-13.xlsx",
   "state": {}
 }

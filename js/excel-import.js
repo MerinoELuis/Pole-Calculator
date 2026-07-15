@@ -24,6 +24,15 @@
       });
   }
 
+  function sheetSnapshot(sheet) {
+    const rows = Array.isArray(sheet) ? sheet : [];
+    const headerRow = rows.find(row => Array.isArray(row) && row.some(value => !isBlank(value)));
+    return {
+      headers: headerRow ? headerRow.map(value => String(value ?? "").trim()).filter(Boolean) : [],
+      rows: rowsToObjects(rows)
+    };
+  }
+
   function normalizeHeaderName(name) {
     return String(name || "")
       .toLowerCase()
@@ -357,6 +366,7 @@
         attachmentHeight: heightFromRow(row, ["Attachment Height.display", "Attachment Height Display"], ["Attachment Height"]),
         proposedMidspan: heightFromRow(row, ["Proposed Mid Span.display", "Proposed Midspan.display", "Proposed Mid Span Display"], ["Proposed Mid Span", "Proposed Midspan"]),
         makeReadyNotes: pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true }),
+        commTransfers: pick(row, ["Comm Transfers"], { contains: true }),
         raw: row
       });
     }).filter(Boolean);
@@ -603,6 +613,7 @@
       attachmentHeight: pick(row, ["attachmentHeight", "Attachment Height"]),
       proposedMidspan: pick(row, ["proposedMidspan", "Proposed Midspan"]),
       makeReadyNotes: pick(row, ["makeReadyNotes", "Make Ready Notes"]),
+      commTransfers: pick(row, ["commTransfers", "Comm Transfers"]),
       raw: row
     }));
 
@@ -724,6 +735,7 @@
           bearingDegrees: record.bearingDegrees,
           rawSpanId: record.rawSpanId,
           linkedCollectionId: record.linkedCollectionId,
+          linkedCollectionTitle: record.linkedTitle,
           sourceCollectionId: record.sourceCollectionId,
           isGeneratedOtherPole: record.isGeneratedOtherPole
         }
@@ -833,11 +845,16 @@
     state.importedAt = new Date().toISOString();
     state.autoCreateSpanComms = false;
 
-    const collectionRows = rowsToObjects(findSheet(workbook, ["Collection", "Poles", "Postes"]) || []);
-    const spanRows = rowsToObjects(findSheet(workbook, ["Span", "Spans"]) || []);
-    const wireRows = rowsToObjects(findSheet(workbook, ["Span.Wire", "Span Wire", "Wires", "Comms"]) || []);
+    const collectionSheet = findSheet(workbook, ["Collection", "Poles", "Postes"]);
+    const spanSheet = findSheet(workbook, ["Span", "Spans"]);
+    const wireSheet = findSheet(workbook, ["Span.Wire", "Span Wire", "Wires", "Comms"]);
+    const makeReadySheet = findSheet(workbook, ["Make Ready", "MakeReady", "MR"]);
+    const commTransfersSheet = findSheet(workbook, ["Make Ready.Comm Transfers", "MakeReady.CommTransfers", "Make Ready Comm Transfers", "Comm Transfers"]);
+    const collectionRows = rowsToObjects(collectionSheet || []);
+    const spanRows = rowsToObjects(spanSheet || []);
+    const wireRows = rowsToObjects(wireSheet || []);
     const anchorGuyRows = rowsToObjects(findSheet(workbook, ["Anchor.Guys", "Anchor Guys", "Anchor Guy", "Guys"]) || []);
-    const makeReadyRows = rowsToObjects(findSheet(workbook, ["Make Ready", "MakeReady", "MR"]) || []);
+    const makeReadyRows = rowsToObjects(makeReadySheet || []);
 
     if (!collectionRows.length && !spanRows.length && !wireRows.length) {
       throw new Error("Could not find readable Collection, Span or Span.Wire sheets.");
@@ -847,6 +864,14 @@
       const owners = wireRows.map(row => String(pick(row, ["Owner", "owner"])).trim()).filter(Boolean);
       S().applyProjectProfile(global.ProjectProfiles.detectProfile({ fileName, owners }));
     }
+
+    state.excelReviewSource = {
+      collection: sheetSnapshot(collectionSheet),
+      spans: sheetSnapshot(spanSheet),
+      spanWires: sheetSnapshot(wireSheet),
+      makeReady: sheetSnapshot(makeReadySheet),
+      commTransfers: sheetSnapshot(commTransfersSheet)
+    };
 
     const collectionIndex = buildCollectionIndex(collectionRows);
     importPolesFromCollection(collectionRows);
@@ -917,6 +942,8 @@
     pick,
     findSheet,
     normalizeHeaderName,
+    isCommunicationWire,
+    isPowerWire,
     directionFromBearingDisplay,
     recalculatePoleClassCheck,
     ANSI_POLE_CLASSES,

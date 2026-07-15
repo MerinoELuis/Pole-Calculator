@@ -13,6 +13,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - [Error Handling](docs/ERROR_HANDLING.md): error categories, warning codes, recovery, and diagnostic workflow.
 - [Public API Reference](docs/API_REFERENCE.md): supported global modules and cross-module methods.
 - [Test Plan](docs/TEST_PLAN.md): regression matrix, browser smoke tests, and automation still needed.
+- [Excel Review](docs/EXCEL_REVIEW.md): HOA and Final PLA / MR audit stages, statuses, matching rules, and exclusions.
 
 ## Main Features
 
@@ -31,6 +32,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Generates Make Ready by pole from comm movements and proposed attachments.
 - Saves and loads complete JSON job files.
 - Exports a proposed JSON package intended for a future O-Calc plugin.
+- Audits the imported workbook in an `Excel Review` tab after raw import or Update Data.
 
 ## Saving Work
 
@@ -53,6 +55,12 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 5. Review the generated Make Ready for each pole.
 6. Use `Save` to preserve progress or `Export Proposed` for downstream O-Calc work.
 7. Use `Load` later to continue from the saved JSON.
+
+## Excel Review
+
+`Excel Review` is a read-only workbook audit built from the imported source rows and the current calculated state. It runs automatically after `Import Raw Excel` and `Update Data` without changing the active tab. `Re-run Review` recalculates the job and replaces the previous review results.
+
+Every Collection row receives an HOA Review and, when final work exists, a Final PLA / MR Review. HOA Review checks required Collection values, exact Fore/Back counts, reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
 
 A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 

@@ -11,6 +11,14 @@ This document defines regression coverage for the current behavior. The applicat
 
 Node is optional development tooling only. It is not a runtime requirement for GitHub Pages.
 
+Run the dependency-free Excel Review regression test with:
+
+```powershell
+node tests/excel-review.test.js
+```
+
+It covers decimal-height equivalence, exact Low Power source selection, Fore/Back counting with Other rows, generated-MR readiness, and the INTEC wire rules.
+
 ## Required Calculation Cases
 
 ### Heights
@@ -113,6 +121,25 @@ Node is optional development tooling only. It is not a runtime requirement for G
 8. Ctrl+Z restores the previous state-changing action.
 9. Unsaved changes activate the browser leave-page warning.
 
+## Excel Review Cases
+
+1. Successful raw import and Update Data each replace the prior review without changing the active tab.
+2. Re-run Review uses current Calculator movements, Proposed values, midspans, and generated MR.
+3. A Collection row with no Id errors; a missing Id header creates a global error.
+4. Low Power checks only `Low Power Attachment.display`; a populated fallback column does not satisfy it.
+5. Missing Year Installed warns, while a populated value produces no warning.
+6. Exactly one Fore and one Back are required; any number of Other rows does not affect those counts.
+7. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.
+8. Missing or unknown Linked Collection.Title produces a low-level warning.
+9. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.
+10. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
+11. Calculator-only work errors; Excel-only final data warns.
+12. Proposed and final Proposed midspan compare through integer inches, including decimal-feet equivalence.
+13. UG requires Underground construction and structural UG notes without requiring aerial attachment heights.
+14. Expected structured transfers match normalized owner aliases and heights.
+15. Attachment Size is Not applicable when Calculator lacks reliable per-Proposed fiber/messenger identity.
+16. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.
+
 ## Browser Layout Smoke Tests
 
 Verify at wide desktop, narrow desktop, and mobile widths:
@@ -125,6 +152,7 @@ Verify at wide desktop, narrow desktop, and mobile widths:
 - Left pole index opens, closes, and does not cover the top index unnecessarily.
 - Floating calculator button opens and closes the calculator.
 - In-app dialogs replace native prompt/confirm flows for supported actions.
+- Excel Review summaries wrap cleanly and each pole's problems expand without overlap.
 
 ## Definition of Done for a Calculation Change
 

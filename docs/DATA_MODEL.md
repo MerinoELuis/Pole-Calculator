@@ -16,10 +16,13 @@
 | `spanComms` | object map | Physical comm rows keyed by span, pole, owner, and Wire ID. |
 | `spanPower` | object map | Imported power wires used to derive Low Power at MS. |
 | `makeReadyReferences` | array | Imported Make Ready attachment references. |
+| `excelReviewSource` | object | Original headers and rows from Collection, Span, Span.Wire, Make Ready, and Make Ready.Comm Transfers. |
 | `poleClassChecks` | array | Pole height/class comparison data. |
 | `mr` | array | Generated Make Ready blocks. |
 | `warnings` | array | Broad validation and data-integrity warnings. |
 | `updateDiagnostics` | object | Latest Update Data reconciliation summary when available. |
+
+`excelReviewSource` is separate from normalized graph entities because empty Collection IDs, duplicate Span rows, and unused Span.Wire rows still matter during auditing. Review results and timestamps are not saved in AppState; they are regenerated from this source and current calculator work.
 
 ## Settings
 

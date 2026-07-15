@@ -321,6 +321,8 @@
     if (!file) return false;
     recordUndoSnapshot();
     await global.ExcelImport.importJsonFile(file);
+    global.ExcelReview.clearResults();
+    if (S.getState().excelReviewSource?.collection?.rows?.length) global.ExcelReview.runReview();
     render();
     markClean(serializedSavePayload());
     toast("JSON loaded.", "success");
@@ -1135,6 +1137,78 @@
     return "warning";
   }
 
+  function reviewStatusBadge(status) {
+    const normalized = String(status || "PASS").toUpperCase();
+    const badgeClass = normalized === "ERROR" ? "danger"
+      : normalized === "WARNING" || normalized === "NOT_READY" ? "warning"
+        : "changed";
+    const label = normalized === "NOT_READY" ? "NOT READY" : normalized;
+    return `<span class="badge ${badgeClass}">${label}</span>`;
+  }
+
+  function renderReviewCheck(item) {
+    return `<li class="excel-review-check ${String(item.status || "").toLowerCase()} ${item.level === "low" ? "low-level" : ""}">
+      <div class="excel-review-check-heading">
+        ${reviewStatusBadge(item.status)}
+        <strong>${escapeHtml(item.section || "Review")} · ${escapeHtml(item.title || item.code || "Check")}</strong>
+        ${item.level === "low" ? `<span class="badge">Low</span>` : ""}
+      </div>
+      <p>${escapeHtml(item.message || "")}</p>
+      ${item.expected || item.actual ? `<dl class="review-values">
+        ${item.expected ? `<div><dt>Expected</dt><dd>${escapeHtml(item.expected)}</dd></div>` : ""}
+        ${item.actual ? `<div><dt>Found</dt><dd>${escapeHtml(item.actual)}</dd></div>` : ""}
+      </dl>` : ""}
+      ${item.details?.length ? `<div class="review-source-details">${item.details.map(detail => (
+        `<span>Span Index: ${escapeHtml(detail.spanIndex || "—")} · Span Id: ${escapeHtml(detail.spanId || "—")} · Type: ${escapeHtml(detail.type || "—")} · Linked: ${escapeHtml(detail.linkedCollectionTitle || "—")}</span>`
+      )).join("")}</div>` : ""}
+    </li>`;
+  }
+
+  function renderExcelReviewResults() {
+    if (!els.excelReviewResults || !global.ExcelReview) return;
+    const review = global.ExcelReview.getReviewState();
+    const summary = review.summary || {};
+    if (els.excelReviewTimestamp) {
+      els.excelReviewTimestamp.textContent = review.reviewedAt
+        ? `Last reviewed ${new Date(review.reviewedAt).toLocaleString()}`
+        : "No review has been run.";
+    }
+    if (els.rerunExcelReviewBtn) {
+      const hasCollectionSource = Boolean(S.getState().excelReviewSource?.collection?.rows?.length);
+      els.rerunExcelReviewBtn.disabled = !hasCollectionSource;
+      els.rerunExcelReviewBtn.classList.toggle("btn-disabled", !hasCollectionSource);
+    }
+    if (!review.reviewedAt) {
+      els.excelReviewResults.innerHTML = `<div class="detail-placeholder">Import a raw Excel file to prepare HOA and Final PLA / MR review results.</div>`;
+      return;
+    }
+
+    const globalChecks = review.globalChecks || [];
+    els.excelReviewResults.innerHTML = `
+      <div class="excel-review-summary" aria-label="Excel Review summary">
+        <div class="review-summary-item error"><strong>${Number(summary.errors || 0)}</strong><span>Errors</span></div>
+        <div class="review-summary-item warning"><strong>${Number(summary.warnings || 0)}</strong><span>Warnings</span></div>
+        <div class="review-summary-item pass"><strong>${Number(summary.passed || 0)}</strong><span>Passed</span></div>
+        <div class="review-summary-item not-ready"><strong>${Number(summary.finalNotReady || 0)}</strong><span>Final Review Not Ready</span></div>
+      </div>
+      ${globalChecks.length ? `<section class="excel-review-global">
+        <h3>Workbook Issues</h3>
+        <ul class="excel-review-checks">${globalChecks.map(renderReviewCheck).join("")}</ul>
+      </section>` : ""}
+      <div class="excel-review-poles">${(review.results || []).map(result => {
+        const visibleChecks = result.checks.filter(item => item.status !== "PASS" || item.applicable === false || item.code === "ALL_APPLICABLE_CHECKS_PASSED");
+        return `<details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}">
+          <summary>
+            <span class="review-pole-identity"><strong>${escapeHtml(result.poleId)}</strong>${result.sequence ? `<small>Sequence ${escapeHtml(result.sequence)}</small>` : ""}</span>
+            <span class="review-phase-status"><small>HOA Review</small>${reviewStatusBadge(result.hoaStatus)}</span>
+            <span class="review-phase-status"><small>Final Review</small>${reviewStatusBadge(result.finalStatus)}</span>
+            <span class="review-phase-status overall"><small>Overall</small>${reviewStatusBadge(result.overallStatus)}</span>
+          </summary>
+          <ul class="excel-review-checks">${visibleChecks.map(renderReviewCheck).join("")}</ul>
+        </details>`;
+      }).join("") || `<div class="detail-placeholder">No Collection rows were available for review.</div>`}</div>`;
+  }
+
   // Height discrepancies are operationally more important than class-only
   // differences. Keep this lookup independent from comm/proposed flagging so
   // the warning remains visible even when a pole is marked UG or PCO.
@@ -1206,7 +1280,8 @@
       panel.classList.toggle("hidden", panel.dataset.viewPanel !== activeView);
     });
     document.body.classList.toggle("pole-class-view", isPoleClassView);
-    if (isPoleClassView) setPoleIndexOpen(false);
+    document.body.classList.toggle("excel-review-view", activeView === "excelReview");
+    if (activeView !== "calculator") setPoleIndexOpen(false);
     updatePoleIndexToggleVisibility();
   }
 
@@ -2055,6 +2130,7 @@
     renderSummary();
     renderClearanceSettings();
     renderPoleClassResults();
+    renderExcelReviewResults();
     renderPoleLists();
     renderAllPolesWorkspace();
     renderActiveView();
@@ -2067,6 +2143,8 @@
       recordUndoSnapshot();
       saveFileHandle = null;
       await global.ExcelImport.importExcelFile(file);
+      global.Calculations.recalculateAll();
+      global.ExcelReview.runReview();
       render();
       markDirty();
       toast("Raw Excel imported. Available sheets were loaded.", "success");
@@ -2088,6 +2166,7 @@
       const merged = mergeImportedUpdate(previous, imported);
       S.setState(merged);
       global.Calculations.recalculateAll();
+      global.ExcelReview.runReview();
       render();
       markDirty();
       toast("Excel data updated. Existing movements were reconciled and midspans recalculated.", "success");
@@ -2126,6 +2205,14 @@
           ? " Repeated state detected."
           : "";
       toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged${passText}.${stopText}`, result.applied ? "success" : "warning");
+    });
+    els.rerunExcelReviewBtn.addEventListener("click", () => {
+      if (els.rerunExcelReviewBtn.disabled) return;
+      global.Calculations.recalculateAll();
+      global.ExcelReview.clearResults();
+      global.ExcelReview.runReview();
+      renderExcelReviewResults();
+      toast("Excel Review completed.", "success");
     });
     els.saveLocalBtn.addEventListener("click", async () => {
       try {
@@ -2210,6 +2297,9 @@
       poleClassResults: qs("poleClassResults"),
       poleClassTabWarning: qs("poleClassTabWarning"),
       poleClassTabWarningCount: qs("poleClassTabWarningCount"),
+      excelReviewResults: qs("excelReviewResults"),
+      excelReviewTimestamp: qs("excelReviewTimestamp"),
+      rerunExcelReviewBtn: qs("rerunExcelReviewBtn"),
       appLayout: qs("appLayout"),
       clearanceSettings: qs("clearanceSettings"),
       toastHost: qs("toastHost")

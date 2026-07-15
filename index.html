@@ -49,12 +49,13 @@
 
     <main class="layout" id="appLayout">
       <section class="content">
-        <nav class="view-tabs" aria-label="Vistas de la calculadora">
+        <nav class="view-tabs" aria-label="Calculator views">
           <button class="view-tab active" type="button" data-view-tab="calculator">Calculator</button>
           <button class="view-tab" type="button" data-view-tab="poleClass">
             <span>Pole Type Check</span>
             <span id="poleClassTabWarning" class="view-tab-warning hidden" title="Critical pole height issues" aria-label="Critical pole height issues">&#9888; <span id="poleClassTabWarningCount">0</span></span>
           </button>
+          <button class="view-tab" type="button" data-view-tab="excelReview">Excel Review</button>
         </nav>
 
         <section id="topIndexPanel" class="panel index-panel" data-view-panel="calculator">
@@ -107,6 +108,18 @@
           <div id="poleClassResults"></div>
         </section>
 
+        <section class="panel excel-review-panel hidden" data-view-panel="excelReview">
+          <div class="panel-header split excel-review-header">
+            <div>
+              <p class="eyebrow">Workbook audit</p>
+              <h2>Excel Review</h2>
+              <p id="excelReviewTimestamp" class="muted">No review has been run.</p>
+            </div>
+            <button id="rerunExcelReviewBtn" class="btn btn-primary" type="button">Re-run Review</button>
+          </div>
+          <div id="excelReviewResults"></div>
+        </section>
+
       </section>
     </main>
   </div>
@@ -148,6 +161,7 @@
   <script src="js/mr-logic.js"></script>
   <script src="js/validations.js"></script>
   <script src="js/excel-import.js"></script>
+  <script src="js/excel-review.js"></script>
   <script src="js/json-export.js"></script>
   <script src="js/floating-calculator.js"></script>
   <script src="js/app.js"></script>
