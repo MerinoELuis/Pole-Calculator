@@ -554,6 +554,8 @@
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
         serviceDrop: truthyCell(pick(row, ["serviceDrop", "Service Drop"])),
         downGuy: truthyCell(pick(row, ["downGuy", "DG", "Down Guy", "Has DG"])),
+        transferToNewPole: truthyCell(pick(row, ["transferToNewPole", "Transfer to New Pole", "Pole Transfer"])),
+        resagServiceDrop: truthyCell(pick(row, ["resagServiceDrop", "Re-sag Service Drop", "Resag Service Drop"])),
         difference: pick(row, ["difference", "Difference"]),
         remotePoleId: pick(row, ["remotePoleId", "Remote Pole"]),
         remoteHOA: pick(row, ["remoteHOA", "Remote HOA"]),

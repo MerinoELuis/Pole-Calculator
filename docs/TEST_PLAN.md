@@ -81,6 +81,11 @@ Node is optional development tooling only. It is not a runtime requirement for G
 9. Existing manual HOA changes are not overwritten.
 10. A candidate introducing a new violation is rejected.
 
+### Make Ready Controls
+
+1. Transfer to New Pole replaces normal movement wording and includes `with DG` only when DG is checked.
+2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"`, preserves other clearance checks, and is not applied for Metronet.
+
 ## Import Cases
 
 1. Flexible Low Power header containing `Low Power Attachment`.
@@ -135,4 +140,3 @@ A business-rule change is complete when:
 ## Automation Still Needed
 
 The highest-priority future work is a small, dependency-light regression harness for HeightUtils and Calculations, followed by browser automation for the critical import/edit/save workflow. Test implementation must not add a runtime build requirement to the GitHub Pages application.
-

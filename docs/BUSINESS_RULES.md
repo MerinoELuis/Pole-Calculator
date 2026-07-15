@@ -106,6 +106,20 @@ One compact comm flagging field combines these checks:
 
 A same-owner Service Drop may reuse exactly the same bolt height. This exception applies only when the separation is zero; nearby nonzero placements still use Bolt-bolt clearance.
 
+### Transfer and Re-sag Controls
+
+`Transfer to New Pole` is available for every project profile and is stored per comm/span. When a row has an HOA movement, it replaces the normal raise/lower or relocate instruction with:
+
+```text
+Transfer <owner> to new pole at HOA <HOA Change> [with DG].
+```
+
+`Re-sag Service Drop` is available only for INTEC and only applies to a row marked `Service Drop`. If its original calculated midspan is below `15'6"`, the effective midspan used by display and validation becomes `15'6"` without overwriting the imported baseline. Other Power, Comm-comm, and crossing checks still apply at the adjusted height. The generated Make Ready line is:
+
+```text
+Re-sag <owner> comm drop <direction>, ensure 15'6" at midspan.
+```
+
 Comm-comm MS comparisons are restricted to the same `spanId`. The message includes the physical span label, both owners, both midspans, calculated separation, and required minimum.
 
 ## Proposed on the Pole

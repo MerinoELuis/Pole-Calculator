@@ -144,6 +144,22 @@
     return false;
   }
 
+  const RESAG_SERVICE_DROP_HEIGHT_INCHES = 15 * 12 + 6;
+
+  // INTEC can resolve a low service-drop midspan by explicitly re-sagging it
+  // to 15'6". Keep the imported/calculated value untouched; this helper only
+  // changes the effective value used by display, clearances and ordering.
+  function applyResagServiceDropHeight(sc, parsedMidspan) {
+    if (parsedMidspan === null || !sc?.serviceDrop || !sc?.resagServiceDrop) return parsedMidspan;
+    const settings = S().getState().settings || {};
+    if (settings.showResagServiceDrop === false || String(settings.projectProfile || "INTEC").toUpperCase() !== "INTEC") {
+      return parsedMidspan;
+    }
+    return parsedMidspan < RESAG_SERVICE_DROP_HEIGHT_INCHES
+      ? RESAG_SERVICE_DROP_HEIGHT_INCHES
+      : parsedMidspan;
+  }
+
   function displayMidspanForComm(sc) {
     if (!sc) return "";
     if (isReferenceSpanComm(sc)) {
@@ -152,13 +168,15 @@
     }
     const value = sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "";
     const parsed = parseMidspanValue(value);
-    return parsed === null ? value : format(parsed);
+    const effective = applyResagServiceDropHeight(sc, parsed);
+    return effective === null ? value : format(effective);
   }
 
   function getMidspanInchesForComm(sc) {
     if (!sc) return null;
     if (isReferenceSpanComm(sc)) return null;
-    return parseMidspanValue(sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
+    const parsed = parseMidspanValue(sc.finalMidspan || sc.msProposed || sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
+    return applyResagServiceDropHeight(sc, parsed);
   }
 
   function commMidspanValueDetails(sc, calculatedOverride = "") {
@@ -177,11 +195,12 @@
     for (const [source, raw] of candidates) {
       const parsed = parseMidspanValue(raw || "");
       if (parsed !== null) {
+        const effective = applyResagServiceDropHeight(sc, parsed);
         return {
-          source,
+          source: effective !== parsed ? "resagServiceDrop" : source,
           raw: raw || "",
-          inches: parsed,
-          display: format(parsed)
+          inches: effective,
+          display: format(effective)
         };
       }
     }
@@ -491,7 +510,7 @@
 
   function evaluateCommMidspanClearance(sc, calculatedMidspan) {
     const span = S().getSpan(sc.spanId);
-    const midspan = H().parseHeight(calculatedMidspan || displayMidspanForComm(sc));
+    const midspan = commMidspanValueDetails(sc, calculatedMidspan).inches;
     const maxMS = H().parseHeight(span?.midspanMaxCommHeight || "");
 
     if (midspan === null) {
@@ -1350,10 +1369,11 @@
   }
 
   function updateSpanCommField(spanId, poleId, owner, wireId, field, value) {
-    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "ocalcMS", "midspan", "notes", "mr"];
+    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "ocalcMS", "midspan", "notes", "mr"];
     if (!allowed.includes(field)) return null;
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
     const next = { ...sc, [field]: value || "" };
+    if (field === "serviceDrop" && !value) next.resagServiceDrop = false;
     if (field === "existingHOAChange") {
       next.autoCalcStatus = "";
       next.autoCalcMessage = "";

@@ -115,6 +115,7 @@ Preserved user work includes matching:
 - Proposed values and Next Pole Proposed overrides
 - Notes
 - Service Drop and DG edits
+- Transfer to New Pole and INTEC Re-sag Service Drop edits
 - Manual/additional Proposed rows
 - UG/PCO pole state
 - attachment diameter settings
@@ -191,4 +192,3 @@ Export Debug is intentionally verbose. It contains:
 - Current flagging status and message
 
 Use Debug JSON when a visible midspan does not match the expected endpoint movements or when duplicate/stale imported data is suspected.
-

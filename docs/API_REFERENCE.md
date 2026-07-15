@@ -80,7 +80,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | Method | Purpose |
 | --- | --- |
 | `updateExistingHOAChange(...)` | Store a new HOA and recalculate both endpoints. |
-| `updateSpanCommField(...)` | Update an allowed SpanComm field and recalculate. |
+| `updateSpanCommField(...)` | Update an allowed SpanComm field, including Service Drop, DG, transfer and re-sag controls, then recalculate. |
 | `clearSpanCommMidspan(...)` | Clear only the selected midspan and its derived fields. |
 | `updateSpanSideField(...)` | Update Proposed, Next Pole Proposed, O-CALC MS, End Drop, or notes. |
 | `updateSpanField(...)` | Update an allowed physical span field and recalculate. |
@@ -126,6 +126,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | Method | Purpose |
 | --- | --- |
 | `generateMRForComm(spanComm)` | Generate one movement line. |
+| `generateResagServiceDropMR(spanComm)` | Generate the INTEC re-sag instruction when its conditions apply. |
 | `generateMRForSpanSide(spanSide)` | Generate Proposed/anchor/riser/slack lines. |
 | `generateMRForSpan(spanId)` | Generate all lines related to one span. |
 | `generateMRForPole(poleId)` | Replace one pole's ordered MR block. |
@@ -152,4 +153,3 @@ The application does not use ES modules. Public APIs are attached to `window` an
 ## UI Boundary
 
 `app.js` intentionally does not publish a broad global API. It owns DOM rendering and events. Business logic needed by another module should be exposed through the relevant domain module rather than by calling an `app.js` function.
-

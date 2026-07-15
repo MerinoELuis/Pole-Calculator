@@ -338,6 +338,8 @@
       row?.mr ||
       row?.serviceDrop ||
       row?.downGuy ||
+      row?.transferToNewPole ||
+      row?.resagServiceDrop ||
       String(row?.wireId || "").startsWith("manual-")
     );
   }
@@ -385,6 +387,8 @@
       existingHOAChange: oldRow.existingHOAChange || importedRow.existingHOAChange || "",
       serviceDrop: Boolean(oldRow.serviceDrop || importedRow.serviceDrop),
       downGuy: Boolean(oldRow.downGuy || importedRow.downGuy),
+      transferToNewPole: Boolean(oldRow.transferToNewPole),
+      resagServiceDrop: Boolean(oldRow.resagServiceDrop),
       notes: oldRow.notes || importedRow.notes || "",
       mr: oldRow.mr || importedRow.mr || "",
       // These fields are calculated again from the newly imported base data.
@@ -661,6 +665,13 @@
       // Backspans are reference-only here, but Fore/Other rows without an
       // imported midspan must stay editable so the user can create the MS.
       const canEditMidspan = !isBackspan && (!midspanLocked || !ownMidspan);
+      const rawMidspan = H.parseHeight(sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
+      const resagTarget = H.parseHeight("15'6\"");
+      const canResagServiceDrop = Boolean(
+        !isReferenceSpan
+        && sc.serviceDrop
+        && (sc.resagServiceDrop || (rawMidspan !== null && resagTarget !== null && rawMidspan < resagTarget))
+      );
       entries.push({
         spanHtml: `<div class="comm-span-row">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
@@ -694,6 +705,31 @@
             data-wire-id="${escapeHtml(sc.wireId || "")}"
             data-field="downGuy"
             ${sc.downGuy ? "checked" : ""}>
+        </div>`,
+        transferHtml: `<div class="comm-midspan-value">
+          <input type="checkbox"
+            data-scope="spanComm"
+            data-pole="${escapeHtml(sc.poleId)}"
+            data-span="${escapeHtml(sc.spanId)}"
+            data-owner="${escapeHtml(sc.owner)}"
+            data-wire-id="${escapeHtml(sc.wireId || "")}"
+            data-field="transferToNewPole"
+            title="Replace raise/lower MR with a transfer to the new pole"
+            aria-label="Transfer this comm to the new pole on this span"
+            ${sc.transferToNewPole ? "checked" : ""}>
+        </div>`,
+        resagHtml: `<div class="comm-midspan-value">
+          <input type="checkbox"
+            data-scope="spanComm"
+            data-pole="${escapeHtml(sc.poleId)}"
+            data-span="${escapeHtml(sc.spanId)}"
+            data-owner="${escapeHtml(sc.owner)}"
+            data-wire-id="${escapeHtml(sc.wireId || "")}"
+            data-field="resagServiceDrop"
+            title="Re-sag this service drop to 15'6&quot; at midspan"
+            aria-label="Re-sag this service drop to 15 feet 6 inches at midspan"
+            ${sc.resagServiceDrop ? "checked" : ""}
+            ${canResagServiceDrop ? "" : "disabled"}>
         </div>`,
         midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}">${canEditMidspan
           ? `<input class="input height-input remote-height-input midspan-highlight-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
@@ -730,6 +766,16 @@
   function renderCommDownGuyValues(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
     return `<div class="comm-midspan-list">${entries.map(entry => entry.downGuyHtml).join("")}</div>`;
+  }
+
+  function renderCommTransferValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.transferHtml).join("")}</div>`;
+  }
+
+  function renderCommResagValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.resagHtml).join("")}</div>`;
   }
 
   function renderCommMidspanValues(group, poleId) {
@@ -1367,16 +1413,21 @@
   function renderCommMovementTable(poleId) {
     const groups = groupedCommsForPole(poleId);
     if (!groups.length) return `<p class="muted">No comms imported from Span.Wire for this pole.</p>`;
-    const showServiceDrop = (S.getState().settings || {}).showServiceDrop !== false;
+    const settings = S.getState().settings || {};
+    const showServiceDrop = settings.showServiceDrop !== false;
+    const showResagServiceDrop = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC"
+      && settings.showResagServiceDrop !== false;
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Actions</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Transfer to New Pole</th>${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}<th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
         const effective = group.existingHOAChange || group.existingHOA;
         const aboveMax = effective && H.compareHeights(effective, pole?.maxCommHeight) === 1;
-        const changed = Boolean(group.existingHOAChange || group.rows.some(row => row.mr));
+        const changed = Boolean(group.existingHOAChange || group.rows.some(row => (
+          row.mr || row.transferToNewPole || row.resagServiceDrop
+        )));
         const flaggingIssue = group.rows.some(row => row.flaggingStatus === "PROBLEM");
         const flaggingMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
         const rowClasses = [
@@ -1394,6 +1445,8 @@
           <td>${renderCommFlagging(group)}</td>
           ${showServiceDrop ? `<td>${renderCommServiceDropValues(group, poleId)}</td>` : ""}
           <td>${renderCommDownGuyValues(group, poleId)}</td>
+          <td>${renderCommTransferValues(group, poleId)}</td>
+          ${showResagServiceDrop ? `<td>${renderCommResagValues(group, poleId)}</td>` : ""}
           <td><div class="row-actions">
             <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm" aria-label="Edit comm">&#9998;</button>
             <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm spans" aria-label="Edit comm spans">&#8644;</button>
@@ -1668,7 +1721,9 @@
       "mrCase",
       "proposedOwner",
       "serviceDrop",
-      "downGuy"
+      "downGuy",
+      "transferToNewPole",
+      "resagServiceDrop"
     ].includes(field);
   }
 
@@ -1787,6 +1842,8 @@
         existingHOAChange: group.existingHOAChange || "",
         serviceDrop: Boolean(group.rows[0].serviceDrop),
         downGuy: Boolean(group.rows[0].downGuy),
+        transferToNewPole: false,
+        resagServiceDrop: false,
         midspan,
         wireId
       });

@@ -325,10 +325,10 @@
 
     Object.values(state.spanComms || {}).forEach(sc => {
       const mrLine = global.MRLogic?.generateMRForComm(sc) || "";
-      if (!sc.existingHOAChange || !mrLine) return;
+      if (!mrLine) return;
       const poleItem = ensurePoleExport(polesById, sc.poleId, state);
       addOutgoingSpansForPole(poleItem, sc.poleId);
-      poleItem.commMakeReady.push(mrLine);
+      poleItem.commMakeReady.push(...String(mrLine).split(/\n+/).filter(Boolean));
       poleItem.commMakeReady = Array.from(new Set(poleItem.commMakeReady));
     });
 

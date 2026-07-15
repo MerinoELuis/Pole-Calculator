@@ -108,8 +108,10 @@ Update Data performs a fresh Excel import and then reconciles previous user work
 
 Current profiles:
 
-- INTEC: Top Comm, proposed owner visible, Service Drop visible, low-power Proposed MS adjustment enabled.
-- Metronet: Low Comm, proposed owner hidden, Service Drop hidden, low-power Proposed MS adjustment disabled.
+- INTEC: Top Comm, proposed owner visible, Service Drop and Re-sag Service Drop visible, low-power Proposed MS adjustment enabled.
+- Metronet: Low Comm, proposed owner hidden, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled.
+
+Transfer to New Pole remains visible for both profiles because it is a manual movement outcome rather than an imported project-specific attribute.
 
 ## Architectural Invariants
 
@@ -132,4 +134,3 @@ These invariants should remain true after future changes:
 - Add a business rule in `calculations.js`, then expose it through the existing compact flagging field.
 - Add Make Ready wording in `mr-logic.js` without changing the calculation that produced the movement.
 - Add output fields in `json-export.js` without leaking internal IDs unless the downstream consumer needs them.
-

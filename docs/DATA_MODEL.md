@@ -37,6 +37,7 @@ Important settings and defaults:
 | `proposedOwner` | `Wecom` | Owner used for INTEC attachment Make Ready. |
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
+| `showResagServiceDrop` | `true` | Whether INTEC exposes the Re-sag Service Drop control. |
 | `attachmentMessengerSize` | blank | Messenger diameter exported to AutoProposed. |
 | `fiberSizes` | `{}` | Fiber diameter by detected count, such as `24CT Fiber`. |
 
@@ -117,6 +118,8 @@ An additional Proposed uses its own SpanSide and may point to a physical span th
 | `remotePoleId`, `remoteHOA` | derived | Selected opposite endpoint and effective height. |
 | `flaggingStatus`, `flaggingMessage` | derived | Combined pole and midspan issues. |
 | `serviceDrop`, `downGuy` | imported/editable | Make Ready modifiers. |
+| `transferToNewPole` | editable | Replaces normal raise/lower wording with a transfer instruction. |
+| `resagServiceDrop` | editable | INTEC-only resolution that treats a low service-drop midspan as 15'6". |
 | `size`, `construction`, `insulator` | imported reference | Source wire details. |
 
 ## REF Semantics
@@ -182,4 +185,3 @@ Accepted examples:
 ```
 
 Constructors in `state.js` fill missing fields during `normalizeState()`. Consumers should not assume this abbreviated example is the complete serialized shape.
-

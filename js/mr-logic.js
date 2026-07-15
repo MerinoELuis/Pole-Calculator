@@ -95,23 +95,51 @@
     return `Pl new ${size}${sidewalk} ANC ${distance} and pl new DG at HOA ${hoa}.`;
   }
 
+  function directionForSpanComm(spanComm) {
+    const span = S().getSpan(spanComm?.spanId || "");
+    if (!span) return "";
+    return span.fromPole === spanComm.poleId
+      ? (span.direction || "")
+      : oppositeDirection(span.direction || "");
+  }
+
+  function generateResagServiceDropMR(spanComm) {
+    if (!spanComm?.serviceDrop || !spanComm?.resagServiceDrop || isMetronetMR()) return "";
+    const span = S().getSpan(spanComm.spanId || "");
+    if (/back\s*span|backspan/i.test(`${span?.type || ""} ${span?.rawType || ""}`)) return "";
+    const originalMidspan = H().parseHeight(spanComm.calculatedMidspan || spanComm.midspan || spanComm.ocalcMS || "");
+    const target = H().parseHeight("15'6\"");
+    if (originalMidspan === null || target === null || originalMidspan >= target) return "";
+    const direction = directionForSpanComm(spanComm);
+    return `Re-sag ${ownerForMR(spanComm)} comm drop${direction ? ` ${direction}` : ""}, ensure 15'6\" at midspan.`;
+  }
+
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
     if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
+    const resag = generateResagServiceDropMR(spanComm);
     const action = detectRaiseLower(spanComm);
-    if (!action) return "";
+    if (!action) return resag;
     const owner = ownerForMR(spanComm);
+    const dg = spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " with DG" : "";
+    if (spanComm.transferToNewPole) {
+      const transfer = `Transfer ${owner} to new pole at HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+      return [transfer, resag].filter(Boolean).join("\n");
+    }
     if (isMetronetMR()) {
       const verb = action === "Lower" ? "lower" : "raise";
-      const dg = spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " with DG" : "";
-      return `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+      const movement = `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+      return [movement, resag].filter(Boolean).join("\n");
     }
     // Service drops use different MR wording than regular comm movement.
     const settings = S().getState().settings || {};
-    if (spanComm.serviceDrop && settings.showServiceDrop !== false) return `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
+    if (spanComm.serviceDrop && settings.showServiceDrop !== false) {
+      const relocation = `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
+      return [relocation, resag].filter(Boolean).join("\n");
+    }
     const verb = action === "Lower" ? "lower" : "raise";
-    const dg = spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " with DG" : "";
-    return `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${ownerForIntecMovementMR(spanComm)} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+    const movement = `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${ownerForIntecMovementMR(spanComm)} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+    return [movement, resag].filter(Boolean).join("\n");
   }
 
   function generateMRForSpanSide(spanSide) {
@@ -234,7 +262,9 @@
 
   function generateMRForSpan(spanId) {
     const sideItems = S().getSpanSidesForSpan(spanId).map(generateMRForSpanSide).filter(Boolean);
-    const commItems = S().getSpanCommsForSpan(spanId).map(generateMRForComm).filter(Boolean);
+    const commItems = S().getSpanCommsForSpan(spanId)
+      .map(generateMRForComm)
+      .flatMap(text => String(text || "").split(/\n+/).filter(Boolean));
     return [...sideItems, ...commItems];
   }
 
@@ -274,8 +304,10 @@
       .forEach(sc => {
       const text = generateMRForComm(sc);
       if (!text) return;
-      if (sc.serviceDrop) dropMoves.push(text);
-      else commMoves.push(text);
+      text.split(/\n+/).filter(Boolean).forEach(line => {
+        if (/^Re-sag\b/i.test(line) || (sc.serviceDrop && !sc.transferToNewPole)) dropMoves.push(line);
+        else commMoves.push(line);
+      });
     });
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
@@ -303,6 +335,7 @@
     generateMRForPole,
     generateMRForSpan,
     generateMRForComm,
+    generateResagServiceDropMR,
     generateMRForSpanSide,
     generateAllMR,
     detectAttach: detectAttachFromSpanSide,

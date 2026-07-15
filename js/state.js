@@ -104,6 +104,7 @@
       proposeForeSpanWithoutMidspan: false,
       allowLowPowerMidspanAdjustment: true,
       showServiceDrop: true,
+      showResagServiceDrop: true,
       hideProposedOwner: false,
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
@@ -311,6 +312,8 @@
       existingHOAChange: trim(data.existingHOAChange || ""),
       serviceDrop: Boolean(data.serviceDrop),
       downGuy: Boolean(data.downGuy),
+      transferToNewPole: Boolean(data.transferToNewPole),
+      resagServiceDrop: Boolean(data.resagServiceDrop),
       difference: trim(data.difference || ""),
       remotePoleId: trim(data.remotePoleId || ""),
       remoteHOA: trim(data.remoteHOA || ""),
@@ -743,6 +746,8 @@
               existingHOAChange: "",
               serviceDrop: Boolean(row.serviceDrop),
               downGuy: Boolean(row.downGuy),
+              transferToNewPole: false,
+              resagServiceDrop: false,
               rawOwner: row.rawOwner || row.owner,
               size: row.size || "",
               wireId: row.wireId || ""
