@@ -706,18 +706,6 @@
             data-field="downGuy"
             ${sc.downGuy ? "checked" : ""}>
         </div>`,
-        transferHtml: `<div class="comm-midspan-value">
-          <input type="checkbox"
-            data-scope="spanComm"
-            data-pole="${escapeHtml(sc.poleId)}"
-            data-span="${escapeHtml(sc.spanId)}"
-            data-owner="${escapeHtml(sc.owner)}"
-            data-wire-id="${escapeHtml(sc.wireId || "")}"
-            data-field="transferToNewPole"
-            title="Replace raise/lower MR with a transfer to the new pole"
-            aria-label="Transfer this comm to the new pole on this span"
-            ${sc.transferToNewPole ? "checked" : ""}>
-        </div>`,
         resagHtml: `<div class="comm-midspan-value">
           <input type="checkbox"
             data-scope="spanComm"
@@ -769,8 +757,20 @@
   }
 
   function renderCommTransferValues(group, poleId) {
-    const entries = commMidspanEntries(group, poleId);
-    return `<div class="comm-midspan-list">${entries.map(entry => entry.transferHtml).join("")}</div>`;
+    // Transfer belongs to the physical comm at this pole, not to each span
+    // touching it. Existing files may still have the flag on only one span,
+    // so any checked relation makes the single grouped control active.
+    const checked = group.rows.some(row => row.transferToNewPole);
+    return `<div class="comm-group-checkbox">
+      <input type="checkbox"
+        data-scope="commGroup"
+        data-pole="${escapeHtml(poleId)}"
+        data-group-key="${escapeHtml(group.key)}"
+        data-field="transferToNewPole"
+        title="Replace raise/lower MR with one transfer to the new pole"
+        aria-label="Transfer ${escapeHtml(group.owner)} to the new pole"
+        ${checked ? "checked" : ""}>
+    </div>`;
   }
 
   function renderCommResagValues(group, poleId) {
@@ -845,6 +845,11 @@
     if (!els.polesOverview || !poleId || !S.getPole(poleId)) return false;
     const oldCard = els.polesOverview.querySelector(`[data-pole-card="${CSS.escape(poleId)}"]`);
     if (!oldCard || !oldCard.isConnected || !oldCard.parentNode) return false;
+    // Replacing a card after a checkbox change used to reset every wide table
+    // to its left edge. Keep each table viewport so controls on the right stay
+    // under the pointer while the recalculated card is rendered.
+    const tableScrollPositions = Array.from(oldCard.querySelectorAll(".table-wrap"))
+      .map(wrapper => ({ left: wrapper.scrollLeft, top: wrapper.scrollTop }));
     const template = document.createElement("template");
     template.innerHTML = renderPoleWorkspace(poleId).trim();
     const nextCard = template.content.firstElementChild;
@@ -852,6 +857,12 @@
     const parent = oldCard.parentNode;
     if (!parent || !parent.contains(oldCard)) return false;
     parent.replaceChild(nextCard, oldCard);
+    Array.from(nextCard.querySelectorAll(".table-wrap")).forEach((wrapper, index) => {
+      const position = tableScrollPositions[index];
+      if (!position) return;
+      wrapper.scrollLeft = position.left;
+      wrapper.scrollTop = position.top;
+    });
     wireEditableEvents(nextCard);
     bindScrollLinks(nextCard);
     bindLocalActions(nextCard);
@@ -1728,12 +1739,15 @@
   }
 
   function updateCommGroupField(poleId, groupKey, field, value) {
-    if (!["existingHOAChange"].includes(field)) return [poleId].filter(Boolean);
+    if (!["existingHOAChange", "transferToNewPole"].includes(field)) return [poleId].filter(Boolean);
+    const nextValue = field === "transferToNewPole" ? Boolean(value) : value;
     const affected = new Set([poleId].filter(Boolean));
     S.getSpanCommsForPole(poleId)
       .filter(sc => commGroupKey(sc) === groupKey)
       .forEach(sc => {
-        global.Calculations.updateSpanCommField(sc.spanId, sc.poleId, sc.owner, sc.wireId || "", field, value);
+        // SpanComm remains the persistence unit, but a comm-level field must
+        // be identical on every relationship represented by this table row.
+        global.Calculations.updateSpanCommField(sc.spanId, sc.poleId, sc.owner, sc.wireId || "", field, nextValue);
         poleIdsForSpan(sc.spanId).forEach(id => affected.add(id));
       });
     return Array.from(affected);
@@ -1842,7 +1856,7 @@
         existingHOAChange: group.existingHOAChange || "",
         serviceDrop: Boolean(group.rows[0].serviceDrop),
         downGuy: Boolean(group.rows[0].downGuy),
-        transferToNewPole: false,
+        transferToNewPole: group.rows.some(row => row.transferToNewPole),
         resagServiceDrop: false,
         midspan,
         wireId

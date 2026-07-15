@@ -108,7 +108,7 @@ A same-owner Service Drop may reuse exactly the same bolt height. This exception
 
 ### Transfer and Re-sag Controls
 
-`Transfer to New Pole` is available for every project profile and is stored per comm/span. When a row has an HOA movement, it replaces the normal raise/lower or relocate instruction with:
+`Transfer to New Pole` is available for every project profile and is controlled once per physical comm at a pole. The value is synchronized across that comm's span relationships for persistence, but it generates only one Make Ready instruction. When the comm has an HOA movement, it replaces the normal raise/lower or relocate instruction with:
 
 ```text
 Transfer <owner> to new pole at HOA <HOA Change> [with DG].

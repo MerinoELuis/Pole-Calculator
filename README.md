@@ -114,7 +114,7 @@ When all three match, Make Ready movement lines can include `with DG`.
 
 `Service Drop` is shown for INTEC projects and hidden for Metronet projects. Wecom remains an INTEC proposed owner, not a separate project profile. `DG` remains available for every profile because it depends on the imported anchor/guy relationship, not on the service-drop workflow.
 
-`Transfer to New Pole` is a manual per-span option for every profile. It changes a normal movement into a transfer instruction at the entered HOA Change. INTEC also provides `Re-sag Service Drop`: for a checked service drop below `15'6"`, the calculator validates that span at `15'6"` and adds the corresponding re-sag instruction without changing the imported midspan baseline.
+`Transfer to New Pole` is one manual option per physical comm at a pole, even when that comm is related to several spans. It changes the normal movement into one transfer instruction at the entered HOA Change. INTEC also provides `Re-sag Service Drop` per span: for a checked service drop below `15'6"`, the calculator validates that span at `15'6"` and adds the corresponding re-sag instruction without changing the imported midspan baseline.
 
 ### Make Ready
 

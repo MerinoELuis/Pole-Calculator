@@ -114,6 +114,23 @@
     return `Re-sag ${ownerForMR(spanComm)} comm drop${direction ? ` ${direction}` : ""}, ensure 15'6\" at midspan.`;
   }
 
+  function commRowsInSamePoleGroup(spanComm) {
+    const owner = ownerForMR(spanComm).toLowerCase();
+    const existingHOA = H().parseHeight(spanComm?.existingHOA || "");
+    return S().getSpanCommsForPole(spanComm?.poleId || "").filter(row => {
+      const rowHOA = H().parseHeight(row?.existingHOA || "");
+      return ownerForMR(row).toLowerCase() === owner && rowHOA === existingHOA;
+    });
+  }
+
+  function commGroupTransferContext(spanComm) {
+    const rows = commRowsInSamePoleGroup(spanComm);
+    return {
+      enabled: rows.some(row => row.transferToNewPole),
+      downGuy: rows.some(row => row.downGuy || detectDownGuy(`${row.notes || ""} ${row.mr || ""}`))
+    };
+  }
+
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
     if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
@@ -121,8 +138,11 @@
     const action = detectRaiseLower(spanComm);
     if (!action) return resag;
     const owner = ownerForMR(spanComm);
-    const dg = spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`) ? " with DG" : "";
-    if (spanComm.transferToNewPole) {
+    const transferContext = commGroupTransferContext(spanComm);
+    const dg = (transferContext.enabled ? transferContext.downGuy : (
+      spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`)
+    )) ? " with DG" : "";
+    if (transferContext.enabled) {
       const transfer = `Transfer ${owner} to new pole at HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
       return [transfer, resag].filter(Boolean).join("\n");
     }

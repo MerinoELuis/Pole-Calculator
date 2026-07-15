@@ -929,6 +929,13 @@ tr.danger-row {
   justify-content: center;
 }
 
+.comm-group-checkbox {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+}
+
 .comm-midspan-value.colored-midspan {
   gap: 6px;
 }

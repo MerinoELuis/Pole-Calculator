@@ -118,7 +118,7 @@ An additional Proposed uses its own SpanSide and may point to a physical span th
 | `remotePoleId`, `remoteHOA` | derived | Selected opposite endpoint and effective height. |
 | `flaggingStatus`, `flaggingMessage` | derived | Combined pole and midspan issues. |
 | `serviceDrop`, `downGuy` | imported/editable | Make Ready modifiers. |
-| `transferToNewPole` | editable | Replaces normal raise/lower wording with a transfer instruction. |
+| `transferToNewPole` | editable | Comm-level transfer flag synchronized across the comm's `SpanComm` rows; generates one transfer instruction. |
 | `resagServiceDrop` | editable | INTEC-only resolution that treats a low service-drop midspan as 15'6". |
 | `size`, `construction`, `insulator` | imported reference | Source wire details. |
 

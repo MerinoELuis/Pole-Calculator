@@ -83,7 +83,7 @@ Node is optional development tooling only. It is not a runtime requirement for G
 
 ### Make Ready Controls
 
-1. Transfer to New Pole replaces normal movement wording and includes `with DG` only when DG is checked.
+1. Transfer to New Pole appears once per grouped comm, synchronizes all related spans, generates one movement line, and includes `with DG` when any related span has DG checked.
 2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"`, preserves other clearance checks, and is not applied for Metronet.
 
 ## Import Cases
@@ -119,6 +119,7 @@ Verify at wide desktop, narrow desktop, and mobile widths:
 
 - Configuration controls wrap without overlap.
 - Proposed and comm tables remain horizontally scrollable.
+- Checking or unchecking a control in a horizontally scrolled comm table preserves its horizontal position.
 - Span labels remain on one line.
 - Midspan color boxes align with their span rows.
 - Left pole index opens, closes, and does not cover the top index unnecessarily.
