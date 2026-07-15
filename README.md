@@ -68,6 +68,7 @@ Used to create poles and read general pole data:
 - Pole height / type.
 - Low Power.
 - Tip and Circumference for the Pole Type Check tab.
+- Critical height discrepancies are highlighted on the Pole Type Check tab and beside the affected pole in the calculator index.
 
 Low Power is matched flexibly. The app accepts headers containing `Low Power Attachment`, plus fallbacks such as `Lowest Power` or `Low Power`.
 

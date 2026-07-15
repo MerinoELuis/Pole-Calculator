@@ -25,6 +25,10 @@ Max Height at MS = Low Power at MS - Midspan Power-comm clearance
 
 If no power midspan exists, `Max Height at MS` remains blank and the status reports missing power data rather than inventing a limit.
 
+## Pole Type Check Severity
+
+Pole height issues are critical when the imported row has a missing Tip, a calculated height without a reference-table row, or a calculated height that differs from the imported pole type. Class-only differences remain review warnings. Critical height issues appear on the `Pole Type Check` tab and beside the affected pole in the calculator index; they are also included by the `Flagged only` filter.
+
 ## Existing Comm Midspan
 
 The baseline belongs to the current SpanComm row:
@@ -192,4 +196,3 @@ Normal ordering:
 UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. UG and PCO are mutually exclusive.
 
 INTEC and Metronet wording is selected by `mrTemplate`/`projectProfile`; case is applied after text generation.
-

@@ -51,7 +51,10 @@
       <section class="content">
         <nav class="view-tabs" aria-label="Vistas de la calculadora">
           <button class="view-tab active" type="button" data-view-tab="calculator">Calculator</button>
-          <button class="view-tab" type="button" data-view-tab="poleClass">Pole Type Check</button>
+          <button class="view-tab" type="button" data-view-tab="poleClass">
+            <span>Pole Type Check</span>
+            <span id="poleClassTabWarning" class="view-tab-warning hidden" title="Critical pole height issues" aria-label="Critical pole height issues">&#9888; <span id="poleClassTabWarningCount">0</span></span>
+          </button>
         </nav>
 
         <section id="topIndexPanel" class="panel index-panel" data-view-panel="calculator">
@@ -98,7 +101,7 @@
             <div>
               <p class="eyebrow">Pole Type Check</p>
               <h2>Height / Class Review</h2>
-              <p class="muted">Uses Collection Tip, Circumference and Type against ANSI O5.1-2015.</p>
+              <p class="muted">Uses Collection Tip, Circumference and Type to review pole height and class.</p>
             </div>
           </div>
           <div id="poleClassResults"></div>

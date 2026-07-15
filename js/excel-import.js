@@ -240,7 +240,7 @@
     if (!data.tip) issues.push("Missing Tip");
     if (circumference === null) issues.push("Missing Circumference");
     if (!importedType) issues.push("Missing Type");
-    if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No ANSI height row");
+    if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No reference height row");
     if (data.tip && circumference !== null && !tableMatch) issues.push("No table match");
     if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
     if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");

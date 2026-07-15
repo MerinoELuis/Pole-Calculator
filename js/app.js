@@ -56,6 +56,10 @@
 
   function updatePoleIndexToggleVisibility() {
     if (!els.poleIndexToggle || !els.topIndexPanel) return;
+    if ((S.getState().ui.activeView || "calculator") !== "calculator") {
+      els.poleIndexToggle.classList.remove("visible");
+      return;
+    }
     const panelIsAboveViewport = els.topIndexPanel.getBoundingClientRect().bottom <= 0;
     els.poleIndexToggle.classList.toggle("visible", panelIsAboveViewport);
   }
@@ -1027,6 +1031,7 @@
   function renderPoleClassResults() {
     if (!els.poleClassResults) return;
     const rows = S.getState().poleClassChecks || [];
+    renderPoleClassTabWarning();
     if (!rows.length) {
       els.poleClassResults.innerHTML = `<div class="detail-placeholder">Import an Excel file with Collection data to review Height / Class.</div>`;
       return;
@@ -1069,8 +1074,31 @@
   function poleClassSeverity(row) {
     const status = String(row?.status || "");
     if (status === "OK") return "ok";
-    if (/Height mismatch|Missing Tip|No ANSI height row/i.test(status)) return "critical";
+    if (/Height mismatch|Missing Tip|No (?:ANSI|reference) height row/i.test(status)) return "critical";
     return "warning";
+  }
+
+  // Height discrepancies are operationally more important than class-only
+  // differences. Keep this lookup independent from comm/proposed flagging so
+  // the warning remains visible even when a pole is marked UG or PCO.
+  function hasCriticalPoleHeightIssue(poleId) {
+    const normalizedPoleId = String(poleId || "").trim().toUpperCase();
+    return (S.getState().poleClassChecks || []).some(row => (
+      String(row?.poleId || "").trim().toUpperCase() === normalizedPoleId
+      && poleClassSeverity(row) === "critical"
+    ));
+  }
+
+  function renderPoleClassTabWarning() {
+    if (!els.poleClassTabWarning || !els.poleClassTabWarningCount) return;
+    const criticalCount = (S.getState().poleClassChecks || [])
+      .filter(row => poleClassSeverity(row) === "critical")
+      .length;
+    els.poleClassTabWarningCount.textContent = String(criticalCount);
+    els.poleClassTabWarning.classList.toggle("hidden", criticalCount === 0);
+    els.poleClassTabWarning.title = criticalCount === 1
+      ? "1 pole has a critical height issue"
+      : `${criticalCount} poles have critical height issues`;
   }
 
   function poleClassRowClass(severity) {
@@ -1095,7 +1123,7 @@
     const groundline = global.ExcelImport?.ANSI_APPROX_GROUNDLINE_DISTANCE || {};
     const heights = Object.keys(table).map(Number).sort((a, b) => a - b);
     return `<details class="reference-table-panel" open>
-      <summary>ANSI O5.1-2015 Reference Table</summary>
+      <summary>Pole Height and Class Reference Table</summary>
       <div class="table-wrap"><table class="ansi-reference-table">
         <thead>
           <tr><th>Length of Pole (ft)</th><th>Approx. Groundline Distance from Butt (ft)</th>${classes.map(item => `<th>${escapeHtml(item)}</th>`).join("")}</tr>
@@ -1113,12 +1141,16 @@
 
   function renderActiveView() {
     const activeView = S.getState().ui.activeView || "calculator";
+    const isPoleClassView = activeView === "poleClass";
     document.querySelectorAll("[data-view-tab]").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.viewTab === activeView);
     });
     document.querySelectorAll("[data-view-panel]").forEach(panel => {
       panel.classList.toggle("hidden", panel.dataset.viewPanel !== activeView);
     });
+    document.body.classList.toggle("pole-class-view", isPoleClassView);
+    if (isPoleClassView) setPoleIndexOpen(false);
+    updatePoleIndexToggleVisibility();
   }
 
   function renderEnvironmentOptions(selected) {
@@ -1156,8 +1188,12 @@
       poleId,
       proposedHOA: pole.standaloneProposedHOA
     }).status === "PROBLEM" ? 1 : 0;
+    const calculationIssueCount = commIssues + proposedIssues + standaloneIssue;
+    const heightCritical = hasCriticalPoleHeightIssue(poleId);
     return {
-      issueCount: commIssues + proposedIssues + standaloneIssue,
+      calculationIssueCount,
+      heightCritical,
+      issueCount: calculationIssueCount + (heightCritical ? 1 : 0),
       resolution: pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : ""
     };
   }
@@ -1181,7 +1217,7 @@
       const comms = Array.isArray(pole.comms) ? pole.comms : [];
       const text = `${poleId} ${pole.sequence || ""} ${pole.poleHeight || ""} ${pole.lowPower || ""} ${pole.maxCommHeight || ""} ${comms.map(c => `${c.owner || ""} ${c.existingHOA || ""}`).join(" ")}`.toLowerCase();
       if (search && !text.includes(search)) return false;
-      if (filter === "warnings" && summary.warnings.length === 0) return false;
+      if (filter === "warnings" && summary.warnings.length === 0 && poleFlaggingSummary(poleId).issueCount === 0) return false;
       if (filter === "changed" && !summary.hasChanges) return false;
       return true;
     }).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -1196,7 +1232,8 @@
       <span>${escapeHtml(poleId)}</span>
       ${pole.isGenerated ? `<span class="mini-dot warning">Gen</span>` : ""}
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
-      ${!flagging.resolution && flagging.issueCount ? `<span class="mini-dot danger">Flag ${flagging.issueCount}</span>` : ""}
+      ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="mini-dot danger">Flag ${flagging.calculationIssueCount}</span>` : ""}
+      ${flagging.heightCritical ? `<span class="mini-dot danger" title="Critical pole height issue">&#9888; Height</span>` : ""}
       ${hasChanges ? `<span class="mini-dot changed">Changed</span>` : ""}
     </button>`;
   }
@@ -1240,7 +1277,8 @@
           <span class="badge">Spans ${spans.length}</span>
           <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
-          ${!flagging.resolution && flagging.issueCount ? `<span class="badge danger">Flagging ${flagging.issueCount}</span>` : ""}
+          ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="badge danger">Flagging ${flagging.calculationIssueCount}</span>` : ""}
+          ${flagging.heightCritical ? `<span class="badge danger" title="Critical pole height issue">&#9888; Height Critical</span>` : ""}
           ${hasChanges ? `<span class="badge changed">Changed</span>` : ""}
         </div>
       </div>
@@ -1908,6 +1946,7 @@
         rows[index] = global.ExcelImport.recalculatePoleClassCheck({ ...rows[index], [field]: value });
       }
       renderPoleClassResults();
+      renderPoleLists();
       return;
     }
 
@@ -2098,6 +2137,8 @@
       topIndexPanel: qs("topIndexPanel"),
       polesOverview: qs("polesOverview"),
       poleClassResults: qs("poleClassResults"),
+      poleClassTabWarning: qs("poleClassTabWarning"),
+      poleClassTabWarningCount: qs("poleClassTabWarningCount"),
       appLayout: qs("appLayout"),
       clearanceSettings: qs("clearanceSettings"),
       toastHost: qs("toastHost")
