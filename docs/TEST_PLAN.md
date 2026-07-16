@@ -1,6 +1,6 @@
 # Test Plan
 
-This document defines regression coverage for the current behavior. The application does not yet include an automated test suite, so these cases are the source for future executable tests and current manual verification.
+This document defines regression coverage for the current behavior. Dependency-free Node tests cover Excel Review and Update Data merging; the remaining cases are the source for broader future automation and current manual verification.
 
 ## Verification Levels
 
@@ -15,9 +15,10 @@ Run the dependency-free Excel Review regression test with:
 
 ```powershell
 node tests/excel-review.test.js
+node tests/update-merge.test.js
 ```
 
-It covers decimal-height equivalence, exact Low Power source selection, Fore/Back counting with Other rows, generated-MR readiness, and the INTEC wire rules.
+These tests cover decimal-height equivalence, exact Low Power source selection, Fore/Back counting with Other rows, generated-MR readiness, the INTEC wire rules, and non-destructive Update Data reconciliation.
 
 ## Required Calculation Cases
 
@@ -118,8 +119,9 @@ It covers decimal-height equivalence, exact Low Power source selection, Fore/Bac
 5. Load always opens the picker and starts near the previous handle when supported.
 6. Update Data preserves matching movements and manual Proposed rows.
 7. Update Data removes stale duplicates and recalculates before rendering.
-8. Ctrl+Z restores the previous state-changing action.
-9. Unsaved changes activate the browser leave-page warning.
+8. Empty replacement cells and omitted non-duplicate rows retain their prior calculator values.
+9. Ctrl+Z restores the previous state-changing action.
+10. Unsaved changes activate the browser leave-page warning.
 
 ## Excel Review Cases
 
@@ -128,7 +130,7 @@ It covers decimal-height equivalence, exact Low Power source selection, Fore/Bac
 3. A Collection row with no Id errors; a missing Id header creates a global error.
 4. Low Power checks only `Low Power Attachment.display`; a populated fallback column does not satisfy it.
 5. Missing Year Installed warns, while a populated value produces no warning.
-6. Exactly one Fore and one Back are required; any number of Other rows does not affect those counts.
+6. Exactly one Fore is required; zero or one Back is valid, more than one Back errors, and Other rows do not affect those counts.
 7. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.
 8. Missing or unknown Linked Collection.Title produces a low-level warning.
 9. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.

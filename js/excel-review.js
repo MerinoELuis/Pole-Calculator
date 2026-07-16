@@ -249,16 +249,24 @@
   }
 
   function addSpanCountChecks(result, poleSpans) {
-    [["FORE", "Fore Span"], ["BACK", "Back Span"]].forEach(([type, label]) => {
-      const found = poleSpans.filter(span => span.type === type);
-      if (found.length === 1) return;
-      const code = found.length ? `MULTIPLE_${type}_SPANS` : `MISSING_${type}_SPAN`;
-      const listed = found.map(span => span.spanIndex || span.spanId || `row ${span.sourceRow}`).join(", ");
+    const foreSpans = poleSpans.filter(span => span.type === "FORE");
+    if (foreSpans.length !== 1) {
+      const listed = foreSpans.map(span => span.spanIndex || span.spanId || `row ${span.sourceRow}`).join(", ");
       add(result, {
-        phase: "HOA", section: "Span", code, status: "ERROR", title: label,
-        message: `Expected exactly one ${label}. Found ${found.length}${listed ? `: ${listed}` : ""}.`,
-        expected: "1", actual: String(found.length), details: found.map(span => span.details)
+        phase: "HOA", section: "Span", code: foreSpans.length ? "MULTIPLE_FORE_SPANS" : "MISSING_FORE_SPAN",
+        status: "ERROR", title: "Fore Span",
+        message: `Expected exactly one Fore Span. Found ${foreSpans.length}${listed ? `: ${listed}` : ""}.`,
+        expected: "1", actual: String(foreSpans.length), details: foreSpans.map(span => span.details)
       });
+    }
+
+    const backSpans = poleSpans.filter(span => span.type === "BACK");
+    if (backSpans.length <= 1) return;
+    const listed = backSpans.map(span => span.spanIndex || span.spanId || `row ${span.sourceRow}`).join(", ");
+    add(result, {
+      phase: "HOA", section: "Span", code: "MULTIPLE_BACK_SPANS", status: "ERROR", title: "Back Span",
+      message: `Expected zero or one Back Span. Found ${backSpans.length}: ${listed}.`,
+      expected: "0 or 1", actual: String(backSpans.length), details: backSpans.map(span => span.details)
     });
   }
 

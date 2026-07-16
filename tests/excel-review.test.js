@@ -10,7 +10,6 @@ const state = {
   poles: { P1: { poleId: "P1" }, P2: { poleId: "P2" } },
   spans: {
     F1: { spanId: "F1", fromPole: "P1", toPole: "P2", direction: "E" },
-    B1: { spanId: "B1", fromPole: "P1", toPole: "P2", direction: "W" },
     F2: { spanId: "F2", fromPole: "P2", toPole: "P1", direction: "W" },
     B2: { spanId: "B2", fromPole: "P2", toPole: "P1", direction: "E" }
   },
@@ -88,7 +87,6 @@ state.excelReviewSource = {
     headers: ["Id", "Span Id", "Span Index", "Type", "Linked Collection.Title", "Environment"],
     rows: [
       { Id: "P1", "Span Id": "F1", "Span Index": 1, Type: "Fore Span", "Linked Collection.Title": "P2", Environment: "STREET" },
-      { Id: "P1", "Span Id": "B1", "Span Index": 2, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET" },
       { Id: "P1", "Span Id": "O1", "Span Index": 3, Type: "Other", "Linked Collection.Title": "P2", Environment: "STREET" },
       { Id: "P2", "Span Id": "F2", "Span Index": 4, Type: "Fore Span", "Linked Collection.Title": "P1", Environment: "STREET" },
       { Id: "P2", "Span Id": "B2", "Span Index": 5, Type: "Back Span", "Linked Collection.Title": "P1", Environment: "STREET" }
@@ -105,11 +103,20 @@ state.excelReviewSource = {
 let output = review.runReview();
 const p1 = review.reviewPole("P1");
 const p2 = review.reviewPole("P2");
-assert.equal(p1.hoaStatus, "PASS", "Other must not change exact Fore/Back counts");
+assert.equal(p1.hoaStatus, "PASS", "Other must not count as Fore/Back and zero Back must be valid");
+assert.ok(!p1.checks.some(item => item.code === "MISSING_BACK_SPAN"), "zero Back Span must not create an error");
 assert.equal(p1.finalStatus, "PASS", "decimal feet must match feet/inches");
 assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power fallback columns must not satisfy the exact display check");
 assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");
 assert.equal(output.summary.total, 2);
+
+state.excelReviewSource.spans.rows.push({
+  Id: "P1", "Span Id": "B-EXTRA-1", "Span Index": 6, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET"
+}, {
+  Id: "P1", "Span Id": "B-EXTRA-2", "Span Index": 7, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET"
+});
+output = review.runReview();
+assert.ok(review.reviewPole("P1").checks.some(item => item.code === "MULTIPLE_BACK_SPANS"), "more than one Back Span must error");
 
 state.settings.projectProfile = "INTEC";
 state.poles = { P3: { poleId: "P3" } };

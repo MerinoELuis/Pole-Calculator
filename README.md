@@ -40,7 +40,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 `Load` always opens the `.json` file picker and restores the complete calculator state. When supported by the browser, it starts from the location of the last loaded or saved JSON. A loaded JSON becomes the active destination for later saves during that session.
 
-`Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. Imported field data is refreshed, while matching user work such as HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans is preserved.
+`Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. A populated value from the new workbook refreshes the calculator; an empty replacement keeps the prior known value. Existing rows and matching user work such as HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans are preserved.
 
 During an update, comm rows are matched first by their complete imported identity and then by span, pole and owner. This allows a saved HOA movement to follow the same physical comm when a newer Excel changes its `Wire Id`, while stale duplicate rows are discarded before midspans are recalculated.
 
@@ -60,7 +60,7 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 
 `Excel Review` is a read-only workbook audit built from the imported source rows and the current calculated state. It runs automatically after `Import Raw Excel` and `Update Data` without changing the active tab. `Re-run Review` recalculates the job and replaces the previous review results.
 
-Every Collection row receives an HOA Review and, when final work exists, a Final PLA / MR Review. HOA Review checks required Collection values, exact Fore/Back counts, reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
+Every Collection row receives an HOA Review and, when final work exists, a Final PLA / MR Review. HOA Review requires exactly one Fore Span and permits zero or one Back Span; more than one Back Span is an error. It also checks reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
 
 A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 

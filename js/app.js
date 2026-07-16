@@ -329,10 +329,6 @@
     return true;
   }
 
-  function spanSideHasUserWork(side) {
-    return Boolean(side?.proposedHOA || side?.proposedHOAChange || side?.proposedMidspan || side?.ocalcMS || side?.notes || side?.isManualProposed);
-  }
-
   function spanCommHasUserWork(row) {
     return Boolean(
       row?.existingHOAChange ||
@@ -408,71 +404,205 @@
     };
   }
 
+  function isBlankUpdatedValue(value) {
+    return value === undefined || value === null || (typeof value === "string" && !value.trim());
+  }
+
+  function hasStoredValue(value) {
+    if (isBlankUpdatedValue(value)) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === "object") return Object.keys(value).length > 0;
+    return true;
+  }
+
+  // Update Data is additive. A populated cell from the new workbook replaces
+  // the old value, while an empty imported cell keeps the last known value.
+  // The raw Excel Review snapshot is intentionally excluded and always
+  // describes the newly selected workbook exactly as it arrived.
+  function preserveValuesMissingFromUpdate(importedEntity, oldEntity, reconciliation) {
+    const next = { ...(importedEntity || {}) };
+    Object.entries(oldEntity || {}).forEach(([field, oldValue]) => {
+      if (!isBlankUpdatedValue(next[field]) || !hasStoredValue(oldValue)) return;
+      next[field] = oldValue && typeof oldValue === "object"
+        ? JSON.parse(JSON.stringify(oldValue))
+        : oldValue;
+      reconciliation.blankValuesPreserved += 1;
+    });
+    return next;
+  }
+
+  function findImportedPowerMatch(spanPower, oldKey, oldRow, claimedKeys) {
+    if (spanPower[oldKey] && !claimedKeys.has(oldKey)) return { key: oldKey, row: spanPower[oldKey] };
+    const oldOwner = normalizedCommOwner(oldRow.owner);
+    const oldSize = String(oldRow.size || "").trim().toLowerCase();
+    if (!oldOwner && !oldSize) return { key: "", row: null };
+    const candidates = Object.entries(spanPower).filter(([key, row]) => (
+      !claimedKeys.has(key)
+      && row.spanId === oldRow.spanId
+      && row.poleId === oldRow.poleId
+      && normalizedCommOwner(row.owner) === oldOwner
+      && String(row.size || "").trim().toLowerCase() === oldSize
+    ));
+    return candidates.length ? { key: candidates[0][0], row: candidates[0][1] } : { key: "", row: null };
+  }
+
+  function referenceMatchScore(importedRef, oldRef) {
+    if (String(importedRef.poleId || "").trim() !== String(oldRef.poleId || "").trim()) return -1;
+    let score = 0;
+    if (oldRef.makeReadyId && importedRef.makeReadyId === oldRef.makeReadyId) score += 100;
+    if (oldRef.makeReadyIndex && importedRef.makeReadyIndex === oldRef.makeReadyIndex) score += 80;
+    if (oldRef.attachmentSizeRaw && importedRef.attachmentSizeRaw === oldRef.attachmentSizeRaw) score += 40;
+    if (oldRef.attachmentDirection && importedRef.attachmentDirection === oldRef.attachmentDirection) score += 20;
+    if (oldRef.attachmentHeight && importedRef.attachmentHeight === oldRef.attachmentHeight) score += 10;
+    return score;
+  }
+
+  function mergeMakeReadyReferences(previousRows, importedRows, reconciliation) {
+    const mergedRows = Array.isArray(importedRows) ? importedRows.map(row => ({ ...row })) : [];
+    const claimed = new Set();
+    (previousRows || []).forEach(oldRef => {
+      const candidates = mergedRows
+        .map((row, index) => ({ row, index, score: claimed.has(index) ? -1 : referenceMatchScore(row, oldRef) }))
+        .filter(item => item.score >= 0)
+        .sort((a, b) => b.score - a.score);
+      const selected = candidates.find(item => item.score > 0) || (candidates.length === 1 ? candidates[0] : null);
+      if (!selected) {
+        mergedRows.push(oldRef);
+        reconciliation.missingRowsPreserved += 1;
+        return;
+      }
+      claimed.add(selected.index);
+      mergedRows[selected.index] = preserveValuesMissingFromUpdate(selected.row, oldRef, reconciliation);
+    });
+    return mergedRows;
+  }
+
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
+    merged.poles = merged.poles || {};
+    merged.spans = merged.spans || {};
+    merged.spanSides = merged.spanSides || {};
+    merged.spanComms = merged.spanComms || {};
+    merged.spanPower = merged.spanPower || {};
     const reconciliation = {
       exactCommMatches: 0,
       logicalCommMatches: 0,
       staleDuplicateCommsDiscarded: 0,
-      unmatchedUserCommsPreserved: 0
+      unmatchedUserCommsPreserved: 0,
+      unmatchedImportedCommsPreserved: 0,
+      blankValuesPreserved: 0,
+      missingRowsPreserved: 0
     };
+
+    Object.entries(previous.spans || {}).forEach(([spanId, oldSpan]) => {
+      if (merged.spans?.[spanId]) {
+        merged.spans[spanId] = preserveValuesMissingFromUpdate(merged.spans[spanId], oldSpan, reconciliation);
+        return;
+      }
+      merged.spans[spanId] = oldSpan;
+      reconciliation.missingRowsPreserved += 1;
+    });
 
     Object.entries(previous.spanSides || {}).forEach(([key, oldSide]) => {
       const newSide = merged.spanSides?.[key];
       if (newSide) {
+        const preservedSide = preserveValuesMissingFromUpdate(newSide, oldSide, reconciliation);
         merged.spanSides[key] = {
-          ...newSide,
-          proposedHOA: oldSide.proposedHOA || newSide.proposedHOA || "",
-          proposedHOAChange: oldSide.proposedHOAChange || newSide.proposedHOAChange || "",
-          nextPoleProposedAuto: oldSide.proposedHOAChange ? oldSide.nextPoleProposedAuto : newSide.nextPoleProposedAuto,
-          proposedMidspan: oldSide.proposedMidspan || newSide.proposedMidspan || "",
-          ocalcMS: oldSide.ocalcMS || newSide.ocalcMS || "",
-          notes: oldSide.notes || newSide.notes || "",
-          isManualProposed: Boolean(oldSide.isManualProposed || newSide.isManualProposed),
-          isAdditionalProposed: Boolean(oldSide.isAdditionalProposed || newSide.isAdditionalProposed)
+          ...preservedSide,
+          proposedHOA: oldSide.proposedHOA || preservedSide.proposedHOA || "",
+          proposedHOAChange: oldSide.proposedHOAChange || preservedSide.proposedHOAChange || "",
+          nextPoleProposedAuto: oldSide.proposedHOAChange ? oldSide.nextPoleProposedAuto : preservedSide.nextPoleProposedAuto,
+          proposedMidspan: oldSide.proposedMidspan || preservedSide.proposedMidspan || "",
+          ocalcMS: oldSide.ocalcMS || preservedSide.ocalcMS || "",
+          notes: oldSide.notes || preservedSide.notes || "",
+          isManualProposed: Boolean(oldSide.isManualProposed || preservedSide.isManualProposed),
+          isAdditionalProposed: Boolean(oldSide.isAdditionalProposed || preservedSide.isAdditionalProposed)
         };
         return;
       }
-      if (!spanSideHasUserWork(oldSide)) return;
       merged.spanSides[key] = oldSide;
+      reconciliation.missingRowsPreserved += 1;
       if (!merged.spans[oldSide.spanId] && previous.spans?.[oldSide.spanId]) merged.spans[oldSide.spanId] = previous.spans[oldSide.spanId];
     });
 
     const claimedImportedCommKeys = new Set();
     Object.entries(previous.spanComms || {}).forEach(([key, oldRow]) => {
-      if (!spanCommHasUserWork(oldRow)) return;
       const match = findImportedCommMatch(merged.spanComms || {}, key, oldRow, claimedImportedCommKeys);
       if (match.row) {
         if (match.matchType === "exact") reconciliation.exactCommMatches += 1;
         else reconciliation.logicalCommMatches += 1;
         claimedImportedCommKeys.add(match.key);
-        merged.spanComms[match.key] = mergeCommUserWork(match.row, oldRow);
+        const preservedRow = preserveValuesMissingFromUpdate(match.row, oldRow, reconciliation);
+        merged.spanComms[match.key] = spanCommHasUserWork(oldRow)
+          ? mergeCommUserWork(preservedRow, oldRow)
+          : preservedRow;
         return;
       }
       // A second old row with the same logical identity is stale data, not a
-      // separate cable. Preserve only truly unmatched or manually added rows.
+      // separate cable. Truly unmatched rows are retained so Update Data does
+      // not silently delete a previously imported cable.
       if (match.hadCandidates && !String(oldRow.wireId || "").startsWith("manual-")) {
         reconciliation.staleDuplicateCommsDiscarded += 1;
         return;
       }
-      reconciliation.unmatchedUserCommsPreserved += 1;
+      if (spanCommHasUserWork(oldRow)) reconciliation.unmatchedUserCommsPreserved += 1;
+      else reconciliation.unmatchedImportedCommsPreserved += 1;
       merged.spanComms[key] = oldRow;
+      reconciliation.missingRowsPreserved += 1;
       if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) merged.spans[oldRow.spanId] = previous.spans[oldRow.spanId];
+    });
+
+    const claimedImportedPowerKeys = new Set();
+    Object.entries(previous.spanPower || {}).forEach(([key, oldRow]) => {
+      const match = findImportedPowerMatch(merged.spanPower, key, oldRow, claimedImportedPowerKeys);
+      if (match.row) {
+        claimedImportedPowerKeys.add(match.key);
+        merged.spanPower[match.key] = preserveValuesMissingFromUpdate(match.row, oldRow, reconciliation);
+        return;
+      }
+      merged.spanPower[key] = oldRow;
+      reconciliation.missingRowsPreserved += 1;
     });
 
     Object.entries(previous.poles || {}).forEach(([poleId, oldPole]) => {
       if (!merged.poles[poleId]) {
         merged.poles[poleId] = oldPole;
+        reconciliation.missingRowsPreserved += 1;
         return;
       }
+      const preservedPole = preserveValuesMissingFromUpdate(merged.poles[poleId], oldPole, reconciliation);
       merged.poles[poleId] = {
-        ...merged.poles[poleId],
+        ...preservedPole,
         ugActive: Boolean(oldPole.ugActive),
         pcoActive: Boolean(oldPole.pcoActive),
-        standaloneProposedHOA: oldPole.standaloneProposedHOA || merged.poles[poleId].standaloneProposedHOA || "",
-        notes: oldPole.notes || merged.poles[poleId].notes || ""
+        standaloneProposedHOA: oldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",
+        notes: oldPole.notes || preservedPole.notes || ""
       };
     });
+
+    merged.makeReadyReferences = mergeMakeReadyReferences(
+      previous.makeReadyReferences || [],
+      merged.makeReadyReferences || [],
+      reconciliation
+    );
+
+    const importedPoleClassById = new Map((merged.poleClassChecks || []).map(row => [row.poleId, row]));
+    (previous.poleClassChecks || []).forEach(oldRow => {
+      const importedRow = importedPoleClassById.get(oldRow.poleId);
+      if (!importedRow) {
+        importedPoleClassById.set(oldRow.poleId, oldRow);
+        reconciliation.missingRowsPreserved += 1;
+        return;
+      }
+      const preserved = preserveValuesMissingFromUpdate(importedRow, oldRow, reconciliation);
+      importedPoleClassById.set(
+        oldRow.poleId,
+        global.ExcelImport?.recalculatePoleClassCheck
+          ? global.ExcelImport.recalculatePoleClassCheck(preserved)
+          : preserved
+      );
+    });
+    merged.poleClassChecks = Array.from(importedPoleClassById.values());
 
     merged.settings = {
       ...(merged.settings || {}),
