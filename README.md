@@ -44,6 +44,8 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 During an update, comm rows are matched first by their complete imported identity and then by span, pole and owner. This allows a saved HOA movement to follow the same physical comm when a newer Excel changes its `Wire Id`, while stale duplicate rows are discarded before midspans are recalculated.
 
+Pole identity uses the Collection name as the visible ID. Trailing `STEEL`, `UG`, and `PCO` tokens are ignored only while matching, so variants such as `P01-LX339927`, `P01-LX339927 STEEL`, and `P01-LX339927 STEEL UG` resolve to one physical pole instead of creating duplicate cards.
+
 If there are unsaved changes and the page is closed, the browser shows its native leave-page warning. Browsers do not allow custom Save/Cancel buttons during tab close, so the app keeps `Ctrl+S` and the visible `Save` button as the supported save path.
 
 ## Workflow

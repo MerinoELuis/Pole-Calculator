@@ -12,7 +12,15 @@ const appSource = fs.readFileSync(appPath, "utf8").replace(
 );
 const sandbox = {
   window: {
-    AppStore: {},
+    AppStore: {
+      canonicalPoleIdentity(value) {
+        const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+        while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
+        return parts.join(" ").toUpperCase();
+      },
+      keyForSpanSide: (spanId, poleId) => `${spanId}__${poleId}`,
+      keyForSpanComm: (spanId, poleId, owner, wireId) => `${spanId}__${poleId}__${owner}__${wireId || ""}`
+    },
     HeightUtils: {},
     ExcelImport: { recalculatePoleClassCheck: row => row }
   },
@@ -71,5 +79,29 @@ assert.equal(result.spanComms.C2, undefined, "an omitted comm without user work 
 assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must retain the prior value");
 assert.equal(result.excelReviewSource.collection.rows[0].Id, "NEW", "raw review source must remain the new workbook snapshot");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
+
+const aliasPrevious = {
+  poles: {
+    "P01-LX339927 STEEL UG": { poleId: "P01-LX339927 STEEL UG", ugActive: true, pcoActive: false, notes: "UG work" }
+  },
+  spans: { SA: { spanId: "SA", fromPole: "P01-LX339927 STEEL UG", toPole: "P02-X339926 STEEL" } },
+  spanSides: {
+    "SA__P01-LX339927 STEEL UG": { spanId: "SA", poleId: "P01-LX339927 STEEL UG", proposedHOA: "22'", isManualProposed: true }
+  },
+  spanComms: {}, spanPower: {}, makeReadyReferences: [], poleClassChecks: [], settings: {}, ui: {}
+};
+const aliasImported = {
+  poles: {
+    "P01-LX339927": { poleId: "P01-LX339927", ugActive: false, pcoActive: false },
+    "P02-X339926 STEEL": { poleId: "P02-X339926 STEEL", ugActive: false, pcoActive: false }
+  },
+  spans: { SA: { spanId: "SA", fromPole: "P01-LX339927", toPole: "P02-X339926 STEEL" } },
+  spanSides: { "SA__P01-LX339927": { spanId: "SA", poleId: "P01-LX339927", proposedHOA: "" } },
+  spanComms: {}, spanPower: {}, makeReadyReferences: [], poleClassChecks: [], settings: {}, ui: {}, excelReviewSource: {}
+};
+const aliasResult = merge(aliasPrevious, aliasImported);
+assert.deepEqual(Object.keys(aliasResult.poles).sort(), ["P01-LX339927", "P02-X339926 STEEL"], "UG/STEEL aliases must not create a second pole");
+assert.equal(aliasResult.poles["P01-LX339927"].ugActive, true, "UG state must move to the Collection pole identity");
+assert.equal(aliasResult.spanSides["SA__P01-LX339927"].proposedHOA, "22'", "manual Proposed must follow the canonical pole identity");
 
 console.log("Update Data non-destructive merge tests passed.");

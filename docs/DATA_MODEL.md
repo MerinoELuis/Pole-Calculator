@@ -57,6 +57,8 @@ Imported, editable, and derived values live together but have different ownershi
 | `lowPower` | imported/editable | Lowest power attachment on the pole. |
 | `maxCommHeight` | derived | `lowPower - Pole Power-comms clearance`. |
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |
+
+`canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The `poleId` stored from Collection remains unchanged for display and export.
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `notes` | editable | User-owned pole notes. |

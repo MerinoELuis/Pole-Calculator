@@ -16,9 +16,10 @@ Run the dependency-free Excel Review regression test with:
 ```powershell
 node tests/excel-review.test.js
 node tests/update-merge.test.js
+node tests/pole-identity.test.js
 ```
 
-These tests cover decimal-height equivalence, exact Low Power source selection, Fore/Back counting with Other rows, generated-MR readiness, the INTEC wire rules, and non-destructive Update Data reconciliation.
+These tests cover decimal-height equivalence, exact Low Power source selection, Fore/Back counting with Other rows, generated-MR readiness, the INTEC wire rules, non-destructive Update Data reconciliation, and canonical pole identity across STEEL/UG/PCO suffix variants.
 
 ## Required Calculation Cases
 

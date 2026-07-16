@@ -48,6 +48,11 @@ function parseHeight(value) {
 
 const AppStore = {
   getState: () => state,
+  canonicalPoleIdentity(value) {
+    const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+    while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
+    return parts.join(" ").toUpperCase();
+  },
   getSpanCommsForPole: poleId => Object.values(state.spanComms).filter(row => row.poleId === poleId),
   getSpanSidesForPole: poleId => Object.values(state.spanSides).filter(row => row.poleId === poleId),
   getSpan: spanId => state.spans[spanId] || null,

@@ -353,7 +353,7 @@
 
   function importMakeReadyReferences(makeReadyRows) {
     return makeReadyRows.map(row => {
-      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])).trim();
+      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
       const attachmentSize = parseAttachmentSize(pick(row, ["Attachment Size"], { contains: true }));
       if (!poleId && !attachmentSize.attachmentSizeRaw) return null;
       return S().createMakeReadyReference({
@@ -623,21 +623,41 @@
   function buildCollectionIndex(collectionRows) {
     const byCollectionId = {};
     const byPoleId = {};
+    const byCanonicalPoleId = {};
 
     collectionRows.forEach(row => {
       const collectionId = String(pick(row, ["collectionId", "Collection ID"])).trim();
       const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
       const sequence = String(pick(row, ["Sequence", "Seq"])).trim();
       if (collectionId && poleId) byCollectionId[collectionId] = poleId;
-      if (poleId) byPoleId[poleId] = { collectionId, sequence };
+      if (poleId) {
+        byPoleId[poleId] = { collectionId, sequence };
+        const canonical = S().canonicalPoleIdentity(poleId);
+        if (canonical && !byCanonicalPoleId[canonical]) byCanonicalPoleId[canonical] = poleId;
+      }
     });
 
-    return { byCollectionId, byPoleId };
+    return { byCollectionId, byPoleId, byCanonicalPoleId };
   }
 
-  function importPolesFromCollection(collectionRows) {
+  function resolveCollectionPoleId(value, collectionIndex) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (collectionIndex.byPoleId[raw]) return raw;
+    return collectionIndex.byCanonicalPoleId[S().canonicalPoleIdentity(raw)] || raw;
+  }
+
+  function resolveImportedPoleId(value) {
+    const raw = String(value || "").trim();
+    if (!raw || S().getPole(raw)) return raw;
+    const canonical = S().canonicalPoleIdentity(raw);
+    const matches = Object.keys(S().getState().poles || {}).filter(poleId => S().canonicalPoleIdentity(poleId) === canonical);
+    return matches.length === 1 ? matches[0] : raw;
+  }
+
+  function importPolesFromCollection(collectionRows, collectionIndex) {
     collectionRows.forEach(row => {
-      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
+      const poleId = resolveCollectionPoleId(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"]), collectionIndex);
       if (!poleId) return;
 
       const poleType = String(pick(row, ["Type", "Pole Type"])).trim();
@@ -675,11 +695,14 @@
     // still created so the user can finish the missing data manually.
     return spanRows.map((row, index) => {
       const rawSpanId = String(pick(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"])).trim() || `SPAN-${index + 1}`;
-      const currentPole = String(pick(row, ["Id", "Pole ID", "Pole", "From Pole"])).trim()
+      const currentPoleRaw = String(pick(row, ["Id", "Pole ID", "Pole", "From Pole"])).trim();
+      const currentPole = resolveCollectionPoleId(currentPoleRaw, collectionIndex)
         || collectionIndex.byCollectionId[String(pick(row, ["collectionId"])).trim()] || "";
       const linkedCollectionId = String(pick(row, ["Linked Collection.ID", "Linked Collection ID"], { contains: true })).trim();
       const linkedTitle = String(pick(row, ["Linked Collection.Title", "Linked Collection Title", "Other Pole", "To Pole", "Remote Pole"], { contains: true })).trim();
-      const linkedPole = linkedTitle || collectionIndex.byCollectionId[linkedCollectionId] || `Unknown-${rawSpanId}`;
+      const linkedPole = resolveCollectionPoleId(linkedTitle, collectionIndex)
+        || collectionIndex.byCollectionId[linkedCollectionId]
+        || `Unknown-${rawSpanId}`;
       const type = String(pick(row, ["Type"])).trim();
       const length = pick(row, ["Span Length"]);
       const lengthDisplay = heightFromRow(row, ["Span Length.display", "Span Length Display"], ["Span Length"]);
@@ -752,7 +775,7 @@
       if (!spanId) return;
 
       let span = S().getSpan(spanId);
-      const poleId = String(pick(row, ["Id", "Pole ID", "Pole", "CollectionId", "Structure Number"])).trim();
+      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "Pole", "CollectionId", "Structure Number"]));
       if (!poleId) return;
 
       if (!span) {
@@ -818,7 +841,7 @@
 
   function importAnchorGuys(anchorRows) {
     anchorRows.forEach(row => {
-      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])).trim();
+      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
       const owner = String(pick(row, ["Owner", "owner"])).trim();
       const attachmentHeight = heightFromRow(row, ["Attachment Height.display", "Attachment Height Display", "Existing HOA", "HOA"], ["Attachment Height", "Height"]);
       const attachmentInches = H().parseHeight(attachmentHeight);
@@ -874,7 +897,7 @@
     };
 
     const collectionIndex = buildCollectionIndex(collectionRows);
-    importPolesFromCollection(collectionRows);
+    importPolesFromCollection(collectionRows, collectionIndex);
     state.poleClassChecks = buildPoleClassChecks(collectionRows);
 
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);
@@ -934,6 +957,7 @@
   global.ExcelImport = {
     importExcelFile,
     importJsonFile,
+    importOriginalWorkbook,
     importDataFile: file => {
       const ext = file.name.split(".").pop().toLowerCase();
       return ext === "json" || file.type === "application/json" ? importJsonFile(file) : importExcelFile(file);

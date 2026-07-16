@@ -142,11 +142,16 @@
   function collectionMaps(entries) {
     const byPole = new Map();
     const byCollection = new Map();
+    const byCanonicalPole = new Map();
     entries.forEach(entry => {
-      if (entry.poleId) byPole.set(normalizedText(entry.poleId), entry.poleId);
+      if (entry.poleId) {
+        byPole.set(normalizedText(entry.poleId), entry.poleId);
+        const canonical = S().canonicalPoleIdentity(entry.poleId);
+        if (canonical && !byCanonicalPole.has(canonical)) byCanonicalPole.set(canonical, entry.poleId);
+      }
       if (entry.collectionId && entry.poleId) byCollection.set(normalizedText(entry.collectionId), entry.poleId);
     });
-    return { byPole, byCollection };
+    return { byPole, byCollection, byCanonicalPole };
   }
 
   function resolvePole(value, maps) {
@@ -154,6 +159,8 @@
     if (!candidate) return "";
     if (maps.byPole.has(candidate)) return maps.byPole.get(candidate);
     if (maps.byCollection.has(candidate)) return maps.byCollection.get(candidate);
+    const canonical = S().canonicalPoleIdentity(value);
+    if (maps.byCanonicalPole.has(canonical)) return maps.byCanonicalPole.get(canonical);
     for (const [key, poleId] of maps.byPole.entries()) {
       if (candidate.includes(key) || key.includes(candidate)) return poleId;
     }

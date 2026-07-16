@@ -17,6 +17,8 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 | Pole height | Parsed from Type, then `Pole Height.display`, `Height.display`, `Length.display` |
 | Tip | `Tip.display`, `Tip Display`, or a header containing `Tip` |
 | Low Power | `Low Power Attachment.display`, related display names, or any header containing `Low Power Attachment`, `Lowest Power`, or `Low Power` |
+
+Collection supplies the preferred visible Pole ID. During relationship matching, trailing `STEEL`, `UG`, and `PCO` tokens are ignored. This normalization applies to Collection aliases, Span endpoints, Span.Wire rows, Anchor.Guys, Make Ready references, and Update Data reconciliation.
 | Owner | `Owner` |
 | Location reference | headers containing `Location.latitude` and `Location.longitude` |
 | Excel Review fields | exact `Year Installed`, `MRE Construction Type`, and `PLA STATUS` values are preserved in the raw review source |

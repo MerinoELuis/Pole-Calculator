@@ -477,6 +477,37 @@
     return mergedRows;
   }
 
+  function buildPoleAliasMap(previousPoles, importedPoles) {
+    const importedByCanonical = new Map();
+    Object.keys(importedPoles || {}).forEach(poleId => {
+      const canonical = S.canonicalPoleIdentity(poleId);
+      if (!importedByCanonical.has(canonical)) importedByCanonical.set(canonical, []);
+      importedByCanonical.get(canonical).push(poleId);
+    });
+    const aliases = new Map();
+    Object.keys(previousPoles || {}).forEach(oldPoleId => {
+      if (importedPoles?.[oldPoleId]) {
+        aliases.set(oldPoleId, oldPoleId);
+        return;
+      }
+      const candidates = importedByCanonical.get(S.canonicalPoleIdentity(oldPoleId)) || [];
+      if (candidates.length === 1) aliases.set(oldPoleId, candidates[0]);
+    });
+    return aliases;
+  }
+
+  function remapPoleId(poleId, aliases) {
+    return aliases.get(poleId) || poleId;
+  }
+
+  function remapSpanEndpoints(span, aliases) {
+    return {
+      ...span,
+      fromPole: remapPoleId(span.fromPole, aliases),
+      toPole: remapPoleId(span.toPole, aliases)
+    };
+  }
+
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
     merged.poles = merged.poles || {};
@@ -492,14 +523,18 @@
       blankValuesPreserved: 0,
       missingRowsPreserved: 0
     };
+    const poleAliases = buildPoleAliasMap(previous.poles || {}, merged.poles);
 
     Object.entries(previous.spans || {}).forEach(([spanId, oldSpan]) => {
+      const mappedOldSpan = remapSpanEndpoints(oldSpan, poleAliases);
       if (merged.spans?.[spanId]) {
-        merged.spans[spanId] = preserveValuesMissingFromUpdate(merged.spans[spanId], oldSpan, reconciliation);
+        merged.spans[spanId] = preserveValuesMissingFromUpdate(merged.spans[spanId], mappedOldSpan, reconciliation);
       }
     });
 
-    Object.entries(previous.spanSides || {}).forEach(([key, oldSide]) => {
+    Object.values(previous.spanSides || {}).forEach(oldSideSource => {
+      const oldSide = { ...oldSideSource, poleId: remapPoleId(oldSideSource.poleId, poleAliases) };
+      const key = S.keyForSpanSide(oldSide.spanId, oldSide.poleId);
       const newSide = merged.spanSides?.[key];
       if (newSide) {
         const preservedSide = preserveValuesMissingFromUpdate(newSide, oldSide, reconciliation);
@@ -519,11 +554,19 @@
       if (!spanSideHasUserWork(oldSide)) return;
       merged.spanSides[key] = oldSide;
       reconciliation.missingRowsPreserved += 1;
-      if (!merged.spans[oldSide.spanId] && previous.spans?.[oldSide.spanId]) merged.spans[oldSide.spanId] = previous.spans[oldSide.spanId];
+      if (!merged.spans[oldSide.spanId] && previous.spans?.[oldSide.spanId]) {
+        merged.spans[oldSide.spanId] = remapSpanEndpoints(previous.spans[oldSide.spanId], poleAliases);
+      }
     });
 
     const claimedImportedCommKeys = new Set();
-    Object.entries(previous.spanComms || {}).forEach(([key, oldRow]) => {
+    Object.values(previous.spanComms || {}).forEach(oldRowSource => {
+      const oldRow = {
+        ...oldRowSource,
+        poleId: remapPoleId(oldRowSource.poleId, poleAliases),
+        remotePoleId: remapPoleId(oldRowSource.remotePoleId, poleAliases)
+      };
+      const key = S.keyForSpanComm(oldRow.spanId, oldRow.poleId, oldRow.owner, oldRow.wireId || "");
       const match = findImportedCommMatch(merged.spanComms || {}, key, oldRow, claimedImportedCommKeys);
       if (match.row) {
         if (match.matchType === "exact") reconciliation.exactCommMatches += 1;
@@ -546,11 +589,14 @@
       reconciliation.unmatchedUserCommsPreserved += 1;
       merged.spanComms[key] = oldRow;
       reconciliation.missingRowsPreserved += 1;
-      if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) merged.spans[oldRow.spanId] = previous.spans[oldRow.spanId];
+      if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) {
+        merged.spans[oldRow.spanId] = remapSpanEndpoints(previous.spans[oldRow.spanId], poleAliases);
+      }
     });
 
     const claimedImportedPowerKeys = new Set();
-    Object.entries(previous.spanPower || {}).forEach(([key, oldRow]) => {
+    Object.entries(previous.spanPower || {}).forEach(([key, oldRowSource]) => {
+      const oldRow = { ...oldRowSource, poleId: remapPoleId(oldRowSource.poleId, poleAliases) };
       const match = findImportedPowerMatch(merged.spanPower, key, oldRow, claimedImportedPowerKeys);
       if (match.row) {
         claimedImportedPowerKeys.add(match.key);
@@ -559,29 +605,33 @@
     });
 
     Object.entries(previous.poles || {}).forEach(([poleId, oldPole]) => {
-      if (!merged.poles[poleId]) {
-        merged.poles[poleId] = oldPole;
+      const targetPoleId = remapPoleId(poleId, poleAliases);
+      const mappedOldPole = { ...oldPole, poleId: targetPoleId };
+      if (!merged.poles[targetPoleId]) {
+        merged.poles[targetPoleId] = mappedOldPole;
         reconciliation.missingRowsPreserved += 1;
         return;
       }
-      const preservedPole = preserveValuesMissingFromUpdate(merged.poles[poleId], oldPole, reconciliation);
-      merged.poles[poleId] = {
+      const preservedPole = preserveValuesMissingFromUpdate(merged.poles[targetPoleId], mappedOldPole, reconciliation);
+      merged.poles[targetPoleId] = {
         ...preservedPole,
-        ugActive: Boolean(oldPole.ugActive),
-        pcoActive: Boolean(oldPole.pcoActive),
-        standaloneProposedHOA: oldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",
-        notes: oldPole.notes || preservedPole.notes || ""
+        poleId: targetPoleId,
+        ugActive: Boolean(mappedOldPole.ugActive || preservedPole.ugActive),
+        pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
+        standaloneProposedHOA: mappedOldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",
+        notes: mappedOldPole.notes || preservedPole.notes || ""
       };
     });
 
     merged.makeReadyReferences = mergeMakeReadyReferences(
-      previous.makeReadyReferences || [],
+      (previous.makeReadyReferences || []).map(row => ({ ...row, poleId: remapPoleId(row.poleId, poleAliases) })),
       merged.makeReadyReferences || [],
       reconciliation
     );
 
     const importedPoleClassById = new Map((merged.poleClassChecks || []).map(row => [row.poleId, row]));
-    (previous.poleClassChecks || []).forEach(oldRow => {
+    (previous.poleClassChecks || []).forEach(oldRowSource => {
+      const oldRow = { ...oldRowSource, poleId: remapPoleId(oldRowSource.poleId, poleAliases) };
       const importedRow = importedPoleClassById.get(oldRow.poleId);
       if (!importedRow) return;
       const preserved = preserveValuesMissingFromUpdate(importedRow, oldRow, reconciliation);

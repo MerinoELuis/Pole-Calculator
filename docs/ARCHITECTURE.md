@@ -80,6 +80,8 @@ Excel Review results live in module memory rather than AppState. The store retai
 
 Poles are graph nodes and spans are directed imported edges. Direction is useful for Fore/Back/Other semantics, but calculations may also compare the unordered pole pair to recognize two records that describe the same physical connection.
 
+Collection owns the visible Pole ID. Import and Update Data use `AppStore.canonicalPoleIdentity()` to resolve relationship labels that differ only by trailing `STEEL`, `UG`, or `PCO` descriptors. This prevents status/material text in Span or Span.Wire from creating a second graph node.
+
 Important identities:
 
 - Pole: `poleId`

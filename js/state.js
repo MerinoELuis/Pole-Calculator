@@ -141,6 +141,15 @@
     return String(value ?? "").trim();
   }
 
+  // STEEL describes construction and UG/PCO describe engineering state; none
+  // of them changes the physical pole identity. Collection keeps the preferred
+  // display name while import/update matching uses this stable comparison key.
+  function canonicalPoleIdentity(value) {
+    const parts = trim(value).replace(/\s+/g, " ").split(" ").filter(Boolean);
+    while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
+    return parts.join(" ").toUpperCase();
+  }
+
   function defaultEnvironmentClearance(environment) {
     const env = trim(environment || "NONE") || "NONE";
     const option = ENVIRONMENT_OPTIONS.find(item => item.value === env);
@@ -885,6 +894,7 @@
     createSpanComm,
     createSpanPower,
     createMakeReadyReference,
+    canonicalPoleIdentity,
     keyForSpanSide,
     keyForSpanComm,
     getPole,
