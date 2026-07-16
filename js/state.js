@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.4.0";
+  const CURRENT_VERSION = "1.4.1";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -126,6 +126,9 @@
       makeReady: { headers: [], rows: [] },
       commTransfers: { headers: [], rows: [] }
     },
+    // Keys are stable identities for review findings the user has explicitly
+    // accepted for this job. Results are still regenerated from the workbook.
+    excelReviewIgnoredChecks: {},
     poleClassChecks: [],
     movements: [],
     mr: [],
@@ -819,6 +822,9 @@
       ? next.makeReadyReferences.map(createMakeReadyReference)
       : [];
     next.excelReviewSource = normalizeExcelReviewSource(next.excelReviewSource);
+    next.excelReviewIgnoredChecks = next.excelReviewIgnoredChecks && typeof next.excelReviewIgnoredChecks === "object"
+      ? { ...next.excelReviewIgnoredChecks }
+      : {};
     next.poleClassChecks = Array.isArray(next.poleClassChecks) ? next.poleClassChecks : [];
     next.movements = Array.isArray(next.movements) ? next.movements : [];
     next.mr = Array.isArray(next.mr) ? next.mr : [];

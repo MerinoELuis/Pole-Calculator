@@ -231,14 +231,23 @@ assert.equal(noteChecks.some(item => item.code === "ADDITIONAL_MR_INSTRUCTION"),
 assert.equal(noteChecks.some(item => ["MISSING_COMM_TRANSFER", "TRANSFER_HEIGHT_MISMATCH", "UNEXPECTED_COMM_TRANSFER"].includes(item.code)), false, "TELCO must match CenturyLink/CTL transfers");
 
 state.poles = { PMISMATCH: { poleId: "PMISMATCH" } };
+state.spans = {};
+state.spanSides = {};
 state.spanComms = {};
+state.excelReviewIgnoredChecks = {};
 state.mr = [{ poleId: "PMISMATCH", text: "Backspan to go UG S due to existing pole overloaded.\nPl riser S at HOA 18'." }];
 state.excelReviewSource = {
   collection: {
     headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
-    rows: [{ Id: "PMISMATCH", Sequence: "PMISMATCH", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Underground", "PLA STATUS": "Complete" }]
+    rows: [{ Id: "PMISMATCH", Sequence: "PMISMATCH", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }]
   },
-  spans: { headers: [], rows: [] },
+  spans: {
+    headers: ["Id", "Span Id", "Span Index", "Type", "Linked Collection.Title", "Environment"],
+    rows: [
+      { Id: "PMISMATCH", "Span Id": "PM-F", "Span Index": 1, Type: "Fore Span", "Linked Collection.Title": "PMISMATCH", Environment: "STREET" },
+      { Id: "PMISMATCH", "Span Id": "PM-B", "Span Index": 2, Type: "Back Span", "Linked Collection.Title": "PMISMATCH", Environment: "STREET" }
+    ]
+  },
   spanWires: { headers: [], rows: [] },
   makeReady: {
     headers: ["Id", "Make Ready Notes"],
@@ -251,5 +260,14 @@ output = review.runReview();
 const mismatchChecks = review.reviewPole("PMISMATCH").checks.filter(item => item.section === "Make Ready");
 assert.equal(mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").length, 2, "UG direction and riser height must remain separate paired mismatches");
 assert.equal(mismatchChecks.some(item => ["MISSING_MR_INSTRUCTION", "ADDITIONAL_MR_INSTRUCTION"].includes(item.code)), false, "paired MR mismatches must not be duplicated as missing/additional results");
+
+mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").forEach(item => review.setCheckIgnored(item.ignoreKey, true));
+const ignoredResult = review.reviewPole("PMISMATCH");
+assert.equal(ignoredResult.checks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH" && item.ignored).length, 2, "ignored findings must remain visible in review details");
+assert.equal(ignoredResult.finalStatus, "PASS", "ignored findings must not affect the phase status");
+assert.equal(review.getSummary().errors, 0, "ignored findings must not be counted in the review summary");
+const restoredKey = ignoredResult.checks.find(item => item.code === "MR_INSTRUCTION_MISMATCH").ignoreKey;
+review.setCheckIgnored(restoredKey, false);
+assert.equal(review.reviewPole("PMISMATCH").finalStatus, "ERROR", "restored findings must affect review status again");
 
 console.log("Excel Review tests passed.");

@@ -17,12 +17,13 @@
 | `spanPower` | object map | Imported power wires used to derive Low Power at MS. |
 | `makeReadyReferences` | array | Imported Make Ready attachment references. |
 | `excelReviewSource` | object | Original headers and rows from Collection, Span, Span.Wire, Make Ready, and Make Ready.Comm Transfers. |
+| `excelReviewIgnoredChecks` | object map | Stable review finding keys explicitly ignored by the user for this job. |
 | `poleClassChecks` | array | Pole height/class comparison data. |
 | `mr` | array | Generated Make Ready blocks. |
 | `warnings` | array | Broad validation and data-integrity warnings. |
 | `updateDiagnostics` | object | Latest Update Data reconciliation summary when available. |
 
-`excelReviewSource` is separate from normalized graph entities because empty Collection IDs, duplicate Span rows, and unused Span.Wire rows still matter during auditing. Review results and timestamps are not saved in AppState; they are regenerated from this source and current calculator work.
+`excelReviewSource` is separate from normalized graph entities because empty Collection IDs, duplicate Span rows, and unused Span.Wire rows still matter during auditing. Review results and timestamps are regenerated from this source and current calculator work. Only the user's ignored-finding keys are saved so accepted exceptions remain inactive after Save, Load, Undo, and Update Data.
 
 ## Settings
 

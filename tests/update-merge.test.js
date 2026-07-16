@@ -49,6 +49,7 @@ const previous = {
   poleClassChecks: [],
   settings: { projectProfile: "INTEC", fiberSizes: {} },
   ui: {},
+  excelReviewIgnoredChecks: { "review-known-exception": true },
   excelReviewSource: { collection: { rows: [{ Id: "OLD" }] } }
 };
 
@@ -82,6 +83,7 @@ assert.equal(
 );
 assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must retain the prior value");
 assert.equal(result.excelReviewSource.collection.rows[0].Id, "NEW", "raw review source must remain the new workbook snapshot");
+assert.equal(result.excelReviewIgnoredChecks["review-known-exception"], true, "Update Data must preserve ignored review findings");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
 
 const aliasPrevious = {

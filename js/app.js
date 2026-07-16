@@ -728,6 +728,8 @@
         ...(previous.settings?.fiberSizes || {})
       }
     };
+    // Review decisions belong to the job, not to one workbook snapshot.
+    merged.excelReviewIgnoredChecks = { ...(previous.excelReviewIgnoredChecks || {}) };
     merged.updateDiagnostics = {
       updatedAt: new Date().toISOString(),
       ...reconciliation
@@ -809,6 +811,7 @@
     delayedMidspanRenderPoleIds.clear();
     S.setState(previous.snapshot);
     global.Calculations.recalculateAll();
+    if (S.getState().excelReviewSource?.collection?.rows?.length) global.ExcelReview.runReview();
     render();
     restoringUndo = false;
     markDirty();
@@ -1451,15 +1454,17 @@
     const normalized = String(status || "PASS").toUpperCase();
     const badgeClass = normalized === "ERROR" ? "danger"
       : normalized === "WARNING" || normalized === "NOT_READY" ? "warning"
+        : normalized === "IGNORED" ? "ignored"
         : "changed";
     const label = normalized === "NOT_READY" ? "NOT READY" : normalized;
     return `<span class="badge ${badgeClass}">${label}</span>`;
   }
 
   function renderReviewCheck(item) {
-    return `<li class="excel-review-check ${String(item.status || "").toLowerCase()} ${item.level === "low" ? "low-level" : ""}">
+    const canIgnore = item.poleId && item.status !== "PASS";
+    return `<li class="excel-review-check ${String(item.status || "").toLowerCase()} ${item.level === "low" ? "low-level" : ""} ${item.ignored ? "ignored" : ""}">
       <div class="excel-review-check-heading">
-        ${reviewStatusBadge(item.status)}
+        ${reviewStatusBadge(item.ignored ? "IGNORED" : item.status)}
         <strong>${escapeHtml(item.section || "Review")} · ${escapeHtml(item.title || item.code || "Check")}</strong>
         ${item.level === "low" ? `<span class="badge">Low</span>` : ""}
       </div>
@@ -1471,11 +1476,14 @@
       ${item.details?.length ? `<div class="review-source-details">${item.details.map(detail => (
         `<span>Span Index: ${escapeHtml(detail.spanIndex || "—")} · Span Id: ${escapeHtml(detail.spanId || "—")} · Type: ${escapeHtml(detail.type || "—")} · Linked: ${escapeHtml(detail.linkedCollectionTitle || "—")}</span>`
       )).join("")}</div>` : ""}
+      ${canIgnore ? `<div class="review-check-actions"><button class="btn review-ignore-btn" type="button" data-review-ignore-key="${escapeHtml(item.ignoreKey)}" data-review-ignore-value="${item.ignored ? "false" : "true"}">${item.ignored ? "Restore" : "Ignore"}</button></div>` : ""}
     </li>`;
   }
 
   function renderExcelReviewResults() {
     if (!els.excelReviewResults || !global.ExcelReview) return;
+    const openPoleIds = new Set(Array.from(els.excelReviewResults.querySelectorAll("details[open][data-review-result-pole]"))
+      .map(details => details.dataset.reviewResultPole));
     const review = global.ExcelReview.getReviewState();
     const summary = review.summary || {};
     if (els.excelReviewTimestamp) {
@@ -1507,7 +1515,7 @@
       </section>` : ""}
       <div class="excel-review-poles">${(review.results || []).map(result => {
         const visibleChecks = result.checks.filter(item => item.status !== "PASS" || item.applicable === false || item.code === "ALL_APPLICABLE_CHECKS_PASSED");
-        return `<details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}">
+        return `<details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}" data-review-result-pole="${escapeHtml(result.poleId)}">
           <summary>
             <span class="review-pole-identity"><button class="review-pole-link" type="button" data-review-pole="${escapeHtml(result.poleId)}" title="Open this pole in Calculator"><strong>${escapeHtml(result.poleId)}</strong></button>${result.sequence ? `<small>Sequence ${escapeHtml(result.sequence)}</small>` : ""}</span>
             <span class="review-phase-status"><small>HOA Review</small>${reviewStatusBadge(result.hoaStatus)}</span>
@@ -1517,6 +1525,9 @@
           <ul class="excel-review-checks">${visibleChecks.map(renderReviewCheck).join("")}</ul>
         </details>`;
       }).join("") || `<div class="detail-placeholder">No Collection rows were available for review.</div>`}</div>`;
+    els.excelReviewResults.querySelectorAll("details[data-review-result-pole]").forEach(details => {
+      if (openPoleIds.has(details.dataset.reviewResultPole)) details.open = true;
+    });
     els.excelReviewResults.querySelectorAll("[data-review-pole]").forEach(button => {
       button.addEventListener("click", event => {
         event.preventDefault();
@@ -1526,6 +1537,15 @@
           S.canonicalPoleIdentity(id) === S.canonicalPoleIdentity(requested)
         ) || requested;
         selectPole(poleId);
+      });
+    });
+    els.excelReviewResults.querySelectorAll("[data-review-ignore-key]").forEach(button => {
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        recordUndoSnapshot();
+        global.ExcelReview.setCheckIgnored(button.dataset.reviewIgnoreKey, button.dataset.reviewIgnoreValue === "true");
+        renderExcelReviewResults();
       });
     });
   }

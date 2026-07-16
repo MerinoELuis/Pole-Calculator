@@ -73,6 +73,8 @@ Structured comm transfers compare Make Ready.Comm Transfers Owner and Height aga
 
 Review cards remain in natural Collection sequence/pole order regardless of severity. Only the pole-name text navigates to the matching Calculator card; clicking elsewhere on the summary row expands or collapses its checks. An `Other` span with no linked pole is allowed and does not create a Linked Collection warning.
 
+Each pole-level non-PASS finding has an `Ignore` control. Ignored findings remain visible in gray inside the expanded pole, but they do not affect HOA, Final, Overall, or summary counts. `Restore` activates the finding again. These job-specific decisions are saved in Calculator JSON and preserved by Update Data.
+
 ## Not Applicable
 
 Attachment Size exact matching is marked Not applicable when Calculator does not contain a reliable per-Proposed fiber/messenger identity. Comm Transfers is Not applicable when no transfer is expected or the structured sheet is unavailable.

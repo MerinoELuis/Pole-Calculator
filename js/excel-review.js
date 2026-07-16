@@ -61,6 +61,36 @@
     return clean;
   }
 
+  function stableReviewHash(value) {
+    let hash = 2166136261;
+    const source = String(value || "");
+    for (let index = 0; index < source.length; index += 1) {
+      hash ^= source.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  function checkIdentity(data) {
+    const details = (Array.isArray(data.details) ? data.details : []).map(detail => [
+      detail.spanIndex,
+      detail.spanId,
+      detail.type,
+      detail.linkedCollectionTitle
+    ].map(text).join("|")).join(";");
+    const identity = [
+      data.poleId,
+      data.phase,
+      data.section,
+      data.code,
+      data.title,
+      data.expected,
+      data.actual,
+      details
+    ].map(normalizedText).join("||");
+    return `review-${stableReviewHash(identity)}`;
+  }
+
   function normalizeSpanType(value) {
     const clean = normalizedText(value).replace(/[^a-z]/g, "");
     if (clean === "forespan") return "FORE";
@@ -70,6 +100,8 @@
   }
 
   function check(data) {
+    const ignoreKey = checkIdentity(data);
+    const ignored = Boolean(S().getState().excelReviewIgnoredChecks?.[ignoreKey]);
     return {
       poleId: text(data.poleId),
       phase: data.phase === "FINAL" ? "FINAL" : "HOA",
@@ -82,7 +114,9 @@
       expected: text(data.expected),
       actual: text(data.actual),
       applicable: data.applicable !== false,
-      details: Array.isArray(data.details) ? data.details : []
+      details: Array.isArray(data.details) ? data.details : [],
+      ignoreKey,
+      ignored
     };
   }
 
@@ -208,7 +242,7 @@
   }
 
   function statusFromChecks(checks, phase) {
-    const applicable = checks.filter(item => item.phase === phase && item.applicable !== false);
+    const applicable = checks.filter(item => item.phase === phase && item.applicable !== false && !item.ignored);
     if (applicable.some(item => item.status === "ERROR")) return "ERROR";
     if (applicable.some(item => item.status === "WARNING")) return "WARNING";
     if (applicable.some(item => item.status === "NOT_READY")) return "NOT_READY";
@@ -927,7 +961,7 @@
     result.finalStatus = statusFromChecks(result.checks, "FINAL");
     const statuses = [result.hoaStatus, result.finalStatus].filter(status => status !== "NOT_READY");
     result.overallStatus = statuses.includes("ERROR") ? "ERROR" : statuses.includes("WARNING") ? "WARNING" : "PASS";
-    const applicableProblems = result.checks.filter(item => item.applicable !== false && ["ERROR", "WARNING"].includes(item.status));
+    const applicableProblems = result.checks.filter(item => item.applicable !== false && !item.ignored && ["ERROR", "WARNING"].includes(item.status));
     if (!applicableProblems.length) {
       result.checks.push(check({
         poleId: result.poleId, phase: "HOA", section: "Review", code: "ALL_APPLICABLE_CHECKS_PASSED", status: "PASS",
@@ -948,9 +982,10 @@
   }
 
   function buildSummary(results, globalChecks) {
+    const activeGlobalChecks = globalChecks.filter(item => !item.ignored);
     return {
-      errors: results.filter(result => result.overallStatus === "ERROR").length + globalChecks.filter(item => item.status === "ERROR").length,
-      warnings: results.filter(result => result.overallStatus === "WARNING").length + globalChecks.filter(item => item.status === "WARNING").length,
+      errors: results.filter(result => result.overallStatus === "ERROR").length + activeGlobalChecks.filter(item => item.status === "ERROR").length,
+      warnings: results.filter(result => result.overallStatus === "WARNING").length + activeGlobalChecks.filter(item => item.status === "WARNING").length,
       passed: results.filter(result => result.overallStatus === "PASS").length,
       finalNotReady: results.filter(result => result.finalStatus === "NOT_READY").length,
       total: results.length
@@ -1020,6 +1055,16 @@
     current = emptyResults();
   }
 
+  function setCheckIgnored(ignoreKey, ignored) {
+    const key = text(ignoreKey);
+    if (!key) return current;
+    const state = S().getState();
+    state.excelReviewIgnoredChecks = state.excelReviewIgnoredChecks || {};
+    if (ignored) state.excelReviewIgnoredChecks[key] = true;
+    else delete state.excelReviewIgnoredChecks[key];
+    return runReview();
+  }
+
   /** @namespace ExcelReview */
   global.ExcelReview = {
     runReview,
@@ -1027,6 +1072,7 @@
     getResults,
     getSummary,
     getReviewState,
+    setCheckIgnored,
     clearResults
   };
 })(window);

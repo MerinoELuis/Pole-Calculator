@@ -399,6 +399,7 @@ button:disabled { cursor: not-allowed; }
 .badge.pco { background: #e0f2fe; color: #0369a1; }
 .badge.backspan { background: #ede9fe; color: #6d28d9; }
 .badge.pof { background: #f1f5f9; color: #475569; }
+.badge.ignored { background: #e2e8f0; color: #475569; }
 .pole-list { display: grid; gap: 10px; }
 .pole-list-item { text-align: left; width: 100%; }
 .pole-index-links { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1033,8 +1034,12 @@ tr.danger-row {
 .excel-review-check.warning,
 .excel-review-check.not_ready { border-color: #fde68a; background: #fffdf2; }
 .excel-review-check.low-level { border-style: dashed; }
+.excel-review-check.ignored { border-color: #cbd5e1; background: #f1f5f9; color: #64748b; }
+.excel-review-check.ignored p { color: #64748b; }
 .excel-review-check-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; text-align: center; }
 .excel-review-check p { margin: 7px 0 0; text-align: center; color: var(--text); }
+.review-check-actions { display: flex; justify-content: center; margin-top: 9px; }
+.review-ignore-btn { min-height: 32px; padding: 5px 11px; font-size: .78rem; }
 
 .review-values {
   display: flex;

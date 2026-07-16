@@ -148,6 +148,8 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 17. Review cards stay in natural sequence order rather than moving errors ahead of lower-numbered poles.
 18. Duplicate identical MR rows and model-only slack/anchor/split instructions do not create unmatched-instruction warnings.
 19. A height or required-direction difference, including UG direction, pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results.
+20. Ignore keeps a finding visible in gray but removes it from phase and summary status; Restore activates it again.
+21. Save/Load and Update Data preserve ignored finding keys.
 
 ## Browser Layout Smoke Tests
 

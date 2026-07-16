@@ -68,6 +68,8 @@ Review results stay in natural pole/sequence order. The pole name itself is the 
 
 Make Ready comparison removes duplicate source instructions, recognizes CenturyLink, CTL and TELCO as the same owner, and accepts PLA/model-only slack, anchor and split-anchor instructions as supplemental work. Those model instructions are not required to have a Calculator equivalent.
 
+Known job exceptions can be marked `Ignore` from an expanded pole review. They remain visible in gray for traceability but stop affecting review badges and summary totals; `Restore` turns the finding back on. Ignored findings are retained in the saved job JSON and through Update Data.
+
 A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 
 When `Add Proposed Span` targets an imported connection, the first Proposed reuses that physical span and its Power, length, bearing and environment data. Additional attachments remain separate Proposed rows but reference the same physical span instead of creating an unrelated blank connection.
