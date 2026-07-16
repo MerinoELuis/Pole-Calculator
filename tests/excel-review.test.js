@@ -116,6 +116,14 @@ assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "
 assert.equal(output.summary.total, 2);
 assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
 
+state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "O1")["Linked Collection.Title"] = "P14-NOT-IN-COLLECTION";
+output = review.runReview();
+assert.equal(
+  review.reviewPole("P1").checks.some(item => item.code === "UNKNOWN_LINKED_COLLECTION" && item.details.some(detail => /Span Id: O1/.test(detail))),
+  false,
+  "Other linked to an unknown collection must not create a review warning"
+);
+
 state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "O1")["Linked Collection.Title"] = "";
 output = review.runReview();
 assert.equal(
@@ -241,7 +249,7 @@ state.excelReviewSource = {
 
 output = review.runReview();
 const mismatchChecks = review.reviewPole("PMISMATCH").checks.filter(item => item.section === "Make Ready");
-assert.equal(mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").length, 2, "direction and riser height must be two paired mismatches");
+assert.equal(mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").length, 1, "UG direction guidance must be ignored while riser height remains a mismatch");
 assert.equal(mismatchChecks.some(item => ["MISSING_MR_INSTRUCTION", "ADDITIONAL_MR_INSTRUCTION"].includes(item.code)), false, "paired MR mismatches must not be duplicated as missing/additional results");
 
 console.log("Excel Review tests passed.");

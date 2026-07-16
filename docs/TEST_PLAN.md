@@ -136,7 +136,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 5. Missing Year Installed warns, while a populated value produces no warning.
 6. Exactly one Fore is required; one Back passes, zero Back warns, more than one Back errors, and Other rows do not affect those counts.
 7. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.
-8. Missing or unknown Linked Collection.Title produces a low-level warning except for an `Other` span with no linked pole.
+8. Missing or unknown Linked Collection.Title produces a low-level warning except for an `Other` span with no valid linked pole.
 9. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.
 10. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
 11. Calculator-only work errors; Excel-only final data warns.
@@ -147,7 +147,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 16. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.
 17. Review cards stay in natural sequence order rather than moving errors ahead of lower-numbered poles.
 18. Duplicate identical MR rows and model-only slack/anchor/split instructions do not create unmatched-instruction warnings.
-19. A direction or height difference pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results.
+19. A height or required-direction difference pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results; UG direction wording is ignored.
 
 ## Browser Layout Smoke Tests
 
