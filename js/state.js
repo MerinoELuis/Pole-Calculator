@@ -46,6 +46,7 @@
    * @property {string} existingHOAChange Editable or automatic new attachment height.
    * @property {string} midspan Imported baseline midspan for this exact row.
    * @property {string} calculatedMidspan Derived midspan after endpoint movements.
+   * @property {boolean} isEndpointPlaceholder True only for a synthetic owner row copied to an otherwise empty endpoint.
    */
 
   /**
@@ -360,6 +361,7 @@
       insulator: trim(data.insulator || ""),
       wireId: trim(data.wireId || ""),
       wireIndex: trim(data.wireIndex || ""),
+      isEndpointPlaceholder: Boolean(data.isEndpointPlaceholder),
       updatedAt: data.updatedAt || ""
     };
   }
@@ -792,7 +794,10 @@
               resagServiceDrop: false,
               rawOwner: row.rawOwner || row.owner,
               size: row.size || "",
-              wireId: row.wireId || ""
+              wireId: row.wireId || "",
+              // This is not a Span.Wire measurement. It only keeps the arriving
+              // owner visible until that endpoint receives its own field data.
+              isEndpointPlaceholder: true
             });
           });
       });

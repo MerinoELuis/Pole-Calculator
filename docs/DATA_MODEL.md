@@ -126,6 +126,7 @@ An additional Proposed uses its own SpanSide and may point to a physical span th
 | `transferToNewPole` | editable | Comm-level transfer flag synchronized across the comm's `SpanComm` rows; generates one transfer instruction. |
 | `resagServiceDrop` | editable | INTEC-only resolution that treats a low service-drop midspan as 15'6". |
 | `size`, `construction`, `insulator` | imported reference | Source wire details. |
+| `isEndpointPlaceholder` | normalized | Marks an owner-only helper copied to an otherwise empty endpoint; it is not a Span.Wire measurement. |
 
 ## REF Semantics
 

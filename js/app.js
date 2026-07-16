@@ -346,6 +346,20 @@
     );
   }
 
+  // Imported HOA and midspan values remain calculation inputs even when the
+  // user has not edited the row. Update Data must not delete those baselines
+  // merely because a later workbook omits the corresponding Span.Wire row.
+  function spanCommHasCalculationData(row) {
+    return Boolean(
+      row?.existingHOA ||
+      row?.midspan ||
+      row?.ocalcMS ||
+      row?.calculatedMidspan ||
+      row?.msProposed ||
+      row?.finalMidspan
+    );
+  }
+
   function normalizedCommOwner(value) {
     return String(value || "")
       .replace(/^communication\s*>\s*/i, "")
@@ -508,6 +522,62 @@
     };
   }
 
+  function physicalSpanKey(span, aliases) {
+    if (!span) return "";
+    const endpoints = [
+      remapPoleId(span.fromPole, aliases),
+      remapPoleId(span.toPole, aliases)
+    ].filter(Boolean).map(value => S.canonicalPoleIdentity(value)).sort();
+    return endpoints.length === 2 ? endpoints.join("<->") : "";
+  }
+
+  function endpointPlaceholderGroupKey(row, spans, aliases) {
+    const spanKey = physicalSpanKey(spans?.[row.spanId], aliases);
+    const poleKey = S.canonicalPoleIdentity(remapPoleId(row.poleId, aliases));
+    const ownerKey = normalizedCommOwner(row.ownerBase || row.owner);
+    return spanKey && poleKey && ownerKey ? `${poleKey}|${spanKey}|${ownerKey}` : "";
+  }
+
+  // normalizeState() creates owner-only rows at a completely empty endpoint.
+  // During Update Data those helpers must not become new blank cables when the
+  // previous state already owns the same physical connection. Match exact wire
+  // IDs first, then reconcile remaining rows one-for-one within the same pole,
+  // physical span and owner. Extra new wires remain available to import.
+  function discardSupersededEndpointPlaceholders(previous, merged, aliases, reconciliation) {
+    const oldGroups = new Map();
+    Object.values(previous.spanComms || {}).forEach(source => {
+      if (source.isEndpointPlaceholder && !spanCommHasCalculationData(source) && !spanCommHasUserWork(source)) return;
+      const row = { ...source, poleId: remapPoleId(source.poleId, aliases) };
+      const groupKey = endpointPlaceholderGroupKey(row, previous.spans || {}, aliases);
+      if (!groupKey) return;
+      if (!oldGroups.has(groupKey)) oldGroups.set(groupKey, []);
+      oldGroups.get(groupKey).push(row);
+    });
+
+    const placeholderGroups = new Map();
+    Object.entries(merged.spanComms || {}).forEach(([key, row]) => {
+      if (!row.isEndpointPlaceholder) return;
+      const groupKey = endpointPlaceholderGroupKey(row, merged.spans || {}, aliases);
+      if (!groupKey) return;
+      if (!placeholderGroups.has(groupKey)) placeholderGroups.set(groupKey, []);
+      placeholderGroups.get(groupKey).push({ key, row });
+    });
+
+    placeholderGroups.forEach((placeholders, groupKey) => {
+      const oldRows = [...(oldGroups.get(groupKey) || [])];
+      if (!oldRows.length) return;
+      placeholders.forEach(placeholder => {
+        if (!oldRows.length) return;
+        const exactIndex = placeholder.row.wireId
+          ? oldRows.findIndex(row => row.wireId && row.wireId === placeholder.row.wireId)
+          : -1;
+        oldRows.splice(exactIndex >= 0 ? exactIndex : 0, 1);
+        delete merged.spanComms[placeholder.key];
+        reconciliation.endpointPlaceholdersDiscarded += 1;
+      });
+    });
+  }
+
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
     merged.poles = merged.poles || {};
@@ -519,11 +589,14 @@
       exactCommMatches: 0,
       logicalCommMatches: 0,
       staleDuplicateCommsDiscarded: 0,
+      endpointPlaceholdersDiscarded: 0,
       unmatchedUserCommsPreserved: 0,
+      baselineCommRowsPreserved: 0,
       blankValuesPreserved: 0,
       missingRowsPreserved: 0
     };
     const poleAliases = buildPoleAliasMap(previous.poles || {}, merged.poles);
+    discardSupersededEndpointPlaceholders(previous, merged, poleAliases, reconciliation);
 
     Object.entries(previous.spans || {}).forEach(([spanId, oldSpan]) => {
       const mappedOldSpan = remapSpanEndpoints(oldSpan, poleAliases);
@@ -585,8 +658,11 @@
         reconciliation.staleDuplicateCommsDiscarded += 1;
         return;
       }
-      if (!spanCommHasUserWork(oldRow)) return;
-      reconciliation.unmatchedUserCommsPreserved += 1;
+      const hasUserWork = spanCommHasUserWork(oldRow);
+      const hasCalculationData = spanCommHasCalculationData(oldRow);
+      if (!hasUserWork && !hasCalculationData) return;
+      if (hasUserWork) reconciliation.unmatchedUserCommsPreserved += 1;
+      else reconciliation.baselineCommRowsPreserved += 1;
       merged.spanComms[key] = oldRow;
       reconciliation.missingRowsPreserved += 1;
       if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) {

@@ -834,7 +834,8 @@
         construction,
         insulator,
         wireId,
-        wireIndex
+        wireIndex,
+        isEndpointPlaceholder: false
       });
     });
   }

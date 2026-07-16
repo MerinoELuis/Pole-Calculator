@@ -19,6 +19,8 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 | Low Power | `Low Power Attachment.display`, related display names, or any header containing `Low Power Attachment`, `Lowest Power`, or `Low Power` |
 
 Collection supplies the preferred visible Pole ID. During relationship matching, trailing `STEEL`, `UG`, and `PCO` tokens are ignored. This normalization applies to Collection aliases, Span endpoints, Span.Wire rows, Anchor.Guys, Make Ready references, and Update Data reconciliation.
+
+Endpoint owner placeholders are marked separately from measured `Span.Wire` rows. During Update Data, a blank inverse-span placeholder is discarded when the previous state already contains the same owner on the same physical connection. Existing HOA and midspan baselines are retained when a later workbook omits them, so a partial update cannot silently change calculations.
 | Owner | `Owner` |
 | Location reference | headers containing `Location.latitude` and `Location.longitude` |
 | Excel Review fields | exact `Year Installed`, `MRE Construction Type`, and `PLA STATUS` values are preserved in the raw review source |
