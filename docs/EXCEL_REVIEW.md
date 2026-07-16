@@ -65,7 +65,7 @@ Duplicate source instructions are collapsed before comparison, and an exact norm
 
 When Calculator and Excel contain the same kind of instruction but differ in direction, height, owner, or a required modifier, the review reports one paired mismatch. It does not also report the Excel line as an additional warning.
 
-UG direction wording is advisory and is ignored during Make Ready comparison, so `S` and `SE` do not create a review result. Riser, anchor and slack directions remain significant. Missing or unknown Linked Collection values are also ignored for `Other` spans; Fore and Back relationships still require a valid Collection.
+UG, riser, anchor and slack directions remain significant during Make Ready comparison. Missing or unknown Linked Collection values are ignored for `Other` spans; Fore and Back relationships still require a valid Collection.
 
 For UG work, the audit requires Underground construction and a UG instruction. Aerial attachment height and midspan are not required.
 

@@ -147,7 +147,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 16. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.
 17. Review cards stay in natural sequence order rather than moving errors ahead of lower-numbered poles.
 18. Duplicate identical MR rows and model-only slack/anchor/split instructions do not create unmatched-instruction warnings.
-19. A height or required-direction difference pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results; UG direction wording is ignored.
+19. A height or required-direction difference, including UG direction, pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results.
 
 ## Browser Layout Smoke Tests
 

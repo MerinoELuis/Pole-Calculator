@@ -249,7 +249,7 @@ state.excelReviewSource = {
 
 output = review.runReview();
 const mismatchChecks = review.reviewPole("PMISMATCH").checks.filter(item => item.section === "Make Ready");
-assert.equal(mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").length, 1, "UG direction guidance must be ignored while riser height remains a mismatch");
+assert.equal(mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").length, 2, "UG direction and riser height must remain separate paired mismatches");
 assert.equal(mismatchChecks.some(item => ["MISSING_MR_INSTRUCTION", "ADDITIONAL_MR_INSTRUCTION"].includes(item.code)), false, "paired MR mismatches must not be duplicated as missing/additional results");
 
 console.log("Excel Review tests passed.");

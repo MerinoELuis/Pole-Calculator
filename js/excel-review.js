@@ -674,9 +674,7 @@
     if (expected.slack && !actual.slack) return false;
     if (expected.anchor && !actual.anchor) return false;
     if (expected.riser && !actual.riser) return false;
-    // UG octants are guidance from the model. S and SE (or similar nearby
-    // direction wording) do not make the Make Ready instruction invalid.
-    if (expected.direction && ["anchor", "riser", "slack"].includes(expected.action) && expected.direction !== actual.direction) return false;
+    if (expected.direction && ["ug", "anchor", "riser", "slack"].includes(expected.action) && expected.direction !== actual.direction) return false;
     return true;
   }
 
