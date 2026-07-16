@@ -103,8 +103,8 @@ state.excelReviewSource = {
 let output = review.runReview();
 const p1 = review.reviewPole("P1");
 const p2 = review.reviewPole("P2");
-assert.equal(p1.hoaStatus, "PASS", "Other must not count as Fore/Back and zero Back must be valid");
-assert.ok(!p1.checks.some(item => item.code === "MISSING_BACK_SPAN"), "zero Back Span must not create an error");
+assert.equal(p1.hoaStatus, "WARNING", "Other must not count as Fore/Back and zero Back must warn");
+assert.ok(p1.checks.some(item => item.code === "MISSING_BACK_SPAN" && item.status === "WARNING"), "zero Back Span must create a warning, not an error");
 assert.equal(p1.finalStatus, "PASS", "decimal feet must match feet/inches");
 assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power fallback columns must not satisfy the exact display check");
 assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");

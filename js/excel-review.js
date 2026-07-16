@@ -261,7 +261,15 @@
     }
 
     const backSpans = poleSpans.filter(span => span.type === "BACK");
-    if (backSpans.length <= 1) return;
+    if (backSpans.length === 1) return;
+    if (backSpans.length === 0) {
+      add(result, {
+        phase: "HOA", section: "Span", code: "MISSING_BACK_SPAN", status: "WARNING", title: "Back Span",
+        message: "No Back Span was found. Zero is allowed, but the pole connection should be reviewed.",
+        expected: "0 or 1; 1 preferred", actual: "0"
+      });
+      return;
+    }
     const listed = backSpans.map(span => span.spanIndex || span.spanId || `row ${span.sourceRow}`).join(", ");
     add(result, {
       phase: "HOA", section: "Span", code: "MULTIPLE_BACK_SPANS", status: "ERROR", title: "Back Span",

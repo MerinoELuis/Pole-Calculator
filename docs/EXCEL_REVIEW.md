@@ -25,7 +25,7 @@ Collection checks require Id, matching Sequence, and a non-empty `Low Power Atta
 Span checks operate on original rows:
 
 - Exactly one Fore Span per pole.
-- Zero or one Back Span per pole; more than one is an error.
+- One Back Span passes, zero produces a warning, and more than one is an error.
 - Zero or more Other rows; Other never satisfies Fore or Back.
 - Reciprocal Fore/Back relationships are warnings when inconsistent.
 - Missing or unknown Linked Collection.Title is a low-level warning.
