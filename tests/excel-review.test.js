@@ -116,6 +116,15 @@ assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "
 assert.equal(output.summary.total, 2);
 assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
 
+state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "F1")["Linked Collection.Title"] = "P11-EXTERNAL-JOB";
+output = review.runReview();
+assert.equal(
+  review.reviewPole("P1").checks.some(item => item.code === "UNKNOWN_LINKED_COLLECTION"),
+  false,
+  "a populated linked pole outside this job must not create a review warning"
+);
+state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "F1")["Linked Collection.Title"] = "P2";
+
 state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "O1")["Linked Collection.Title"] = "P14-NOT-IN-COLLECTION";
 output = review.runReview();
 assert.equal(

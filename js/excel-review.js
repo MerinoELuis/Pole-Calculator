@@ -329,14 +329,8 @@
         });
         return;
       }
-      if (!resolvePole(span.linkedTitle, maps)) {
-        if (span.type === "OTHER") return;
-        add(result, {
-          phase: "HOA", section: "Span", code: "UNKNOWN_LINKED_COLLECTION", status: "WARNING", level: "low",
-          title: "Linked Collection", message: `Linked Collection.Title ${span.linkedTitle} does not match an Id in Collection.`,
-          expected: "Existing Collection Id", actual: span.linkedTitle, details: [span.details]
-        });
-      }
+      // A populated linked title can legitimately point to a pole maintained
+      // in another job. Only an empty Fore/Back link is reviewable here.
     });
   }
 

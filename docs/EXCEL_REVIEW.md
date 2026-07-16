@@ -65,7 +65,7 @@ Duplicate source instructions are collapsed before comparison, and an exact norm
 
 When Calculator and Excel contain the same kind of instruction but differ in direction, height, owner, or a required modifier, the review reports one paired mismatch. It does not also report the Excel line as an additional warning.
 
-UG, riser, anchor and slack directions remain significant during Make Ready comparison. Missing or unknown Linked Collection values are ignored for `Other` spans; Fore and Back relationships still require a valid Collection.
+UG, riser, anchor and slack directions remain significant during Make Ready comparison. A populated Linked Collection may point to a pole in another job and is not required to match this workbook's Collection. Empty Fore/Back links remain reviewable; empty Other links are ignored.
 
 For UG work, the audit requires Underground construction and a UG instruction. Aerial attachment height and midspan are not required.
 
@@ -74,6 +74,8 @@ Structured comm transfers compare Make Ready.Comm Transfers Owner and Height aga
 Review cards remain in natural Collection sequence/pole order regardless of severity. Only the pole-name text navigates to the matching Calculator card; clicking elsewhere on the summary row expands or collapses its checks. An `Other` span with no linked pole is allowed and does not create a Linked Collection warning.
 
 Each pole-level non-PASS finding has an `Ignore` control. Ignored findings remain visible in gray inside the expanded pole, but they do not affect HOA, Final, Overall, or summary counts. `Restore` activates the finding again. These job-specific decisions are saved in Calculator JSON and preserved by Update Data.
+
+The `Excel Review` view tab shows the number of poles with active Error or Warning status. Ignored findings do not contribute to this badge.
 
 ## Not Applicable
 

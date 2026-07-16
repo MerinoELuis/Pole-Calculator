@@ -1480,12 +1480,24 @@
     </li>`;
   }
 
+  function renderExcelReviewTabWarning(review) {
+    if (!els.excelReviewTabWarning || !els.excelReviewTabWarningCount) return;
+    const summary = review?.summary || {};
+    const activeCount = Number(summary.errors || 0) + Number(summary.warnings || 0);
+    els.excelReviewTabWarningCount.textContent = String(activeCount);
+    els.excelReviewTabWarning.classList.toggle("hidden", activeCount === 0);
+    els.excelReviewTabWarning.title = activeCount === 1
+      ? "1 pole has active Excel Review findings"
+      : `${activeCount} poles have active Excel Review findings`;
+  }
+
   function renderExcelReviewResults() {
     if (!els.excelReviewResults || !global.ExcelReview) return;
     const openPoleIds = new Set(Array.from(els.excelReviewResults.querySelectorAll("details[open][data-review-result-pole]"))
       .map(details => details.dataset.reviewResultPole));
     const review = global.ExcelReview.getReviewState();
     const summary = review.summary || {};
+    renderExcelReviewTabWarning(review);
     if (els.excelReviewTimestamp) {
       els.excelReviewTimestamp.textContent = review.reviewedAt
         ? `Last reviewed ${new Date(review.reviewedAt).toLocaleString()}`
@@ -2639,6 +2651,8 @@
       poleClassResults: qs("poleClassResults"),
       poleClassTabWarning: qs("poleClassTabWarning"),
       poleClassTabWarningCount: qs("poleClassTabWarningCount"),
+      excelReviewTabWarning: qs("excelReviewTabWarning"),
+      excelReviewTabWarningCount: qs("excelReviewTabWarningCount"),
       excelReviewResults: qs("excelReviewResults"),
       excelReviewTimestamp: qs("excelReviewTimestamp"),
       rerunExcelReviewBtn: qs("rerunExcelReviewBtn"),
