@@ -40,7 +40,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 
 `Load` always opens the `.json` file picker and restores the complete calculator state. When supported by the browser, it starts from the location of the last loaded or saved JSON. A loaded JSON becomes the active destination for later saves during that session.
 
-`Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. A populated value from the new workbook refreshes the calculator; an empty replacement keeps the prior known value. Existing rows and matching user work such as HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans are preserved.
+`Update Data` imports a newer raw Excel file for the same job and merges it over the current workspace. A populated value from the new workbook refreshes the calculator; an empty replacement keeps the prior known value when the imported entity matches. Rows omitted by the new workbook are not recreated unless they contain actual manual user work. Matching HOA changes, proposed values, notes, service-drop/DG checks and manually added proposed spans are preserved.
 
 During an update, comm rows are matched first by their complete imported identity and then by span, pole and owner. This allows a saved HOA movement to follow the same physical comm when a newer Excel changes its `Wire Id`, while stale duplicate rows are discarded before midspans are recalculated.
 

@@ -62,15 +62,14 @@ assert.equal(result.poles.P1.lowPower, "30'", "blank updated pole value must ret
 assert.equal(result.poles.P1.poleHeight, "45'", "non-empty updated pole value must win");
 assert.equal(result.spans.S1.lengthDisplay, "100'", "blank updated span value must retain the prior value");
 assert.equal(result.spans.S1.environment, "ALLEY", "non-empty updated span value must win");
-assert.ok(result.spans.S2, "a span omitted by Update Data must be retained");
+assert.equal(result.spans.S2, undefined, "a span omitted by Update Data must not be recreated");
 assert.equal(result.spanSides.S1__P1.proposedHOA, "22'", "saved Proposed must be retained");
 assert.equal(result.spanComms.C1.existingHOA, "20'", "blank Existing HOA must retain the prior value");
 assert.equal(result.spanComms.C1.midspan, "16'", "blank imported midspan must retain the prior value");
 assert.equal(result.spanComms.C1.size, "New size", "new non-empty comm data must win");
-assert.ok(result.spanComms.C2, "a comm omitted by Update Data must be retained");
+assert.equal(result.spanComms.C2, undefined, "an omitted comm without user work must not create an empty row");
 assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must retain the prior value");
 assert.equal(result.excelReviewSource.collection.rows[0].Id, "NEW", "raw review source must remain the new workbook snapshot");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
-assert.ok(result.updateDiagnostics.missingRowsPreserved > 0);
 
 console.log("Update Data non-destructive merge tests passed.");

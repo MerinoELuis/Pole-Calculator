@@ -329,6 +329,10 @@
     return true;
   }
 
+  function spanSideHasUserWork(side) {
+    return Boolean(side?.proposedHOA || side?.proposedHOAChange || side?.proposedMidspan || side?.ocalcMS || side?.notes || side?.isManualProposed);
+  }
+
   function spanCommHasUserWork(row) {
     return Boolean(
       row?.existingHOAChange ||
@@ -466,11 +470,7 @@
         .filter(item => item.score >= 0)
         .sort((a, b) => b.score - a.score);
       const selected = candidates.find(item => item.score > 0) || (candidates.length === 1 ? candidates[0] : null);
-      if (!selected) {
-        mergedRows.push(oldRef);
-        reconciliation.missingRowsPreserved += 1;
-        return;
-      }
+      if (!selected) return;
       claimed.add(selected.index);
       mergedRows[selected.index] = preserveValuesMissingFromUpdate(selected.row, oldRef, reconciliation);
     });
@@ -489,7 +489,6 @@
       logicalCommMatches: 0,
       staleDuplicateCommsDiscarded: 0,
       unmatchedUserCommsPreserved: 0,
-      unmatchedImportedCommsPreserved: 0,
       blankValuesPreserved: 0,
       missingRowsPreserved: 0
     };
@@ -497,10 +496,7 @@
     Object.entries(previous.spans || {}).forEach(([spanId, oldSpan]) => {
       if (merged.spans?.[spanId]) {
         merged.spans[spanId] = preserveValuesMissingFromUpdate(merged.spans[spanId], oldSpan, reconciliation);
-        return;
       }
-      merged.spans[spanId] = oldSpan;
-      reconciliation.missingRowsPreserved += 1;
     });
 
     Object.entries(previous.spanSides || {}).forEach(([key, oldSide]) => {
@@ -520,6 +516,7 @@
         };
         return;
       }
+      if (!spanSideHasUserWork(oldSide)) return;
       merged.spanSides[key] = oldSide;
       reconciliation.missingRowsPreserved += 1;
       if (!merged.spans[oldSide.spanId] && previous.spans?.[oldSide.spanId]) merged.spans[oldSide.spanId] = previous.spans[oldSide.spanId];
@@ -545,8 +542,8 @@
         reconciliation.staleDuplicateCommsDiscarded += 1;
         return;
       }
-      if (spanCommHasUserWork(oldRow)) reconciliation.unmatchedUserCommsPreserved += 1;
-      else reconciliation.unmatchedImportedCommsPreserved += 1;
+      if (!spanCommHasUserWork(oldRow)) return;
+      reconciliation.unmatchedUserCommsPreserved += 1;
       merged.spanComms[key] = oldRow;
       reconciliation.missingRowsPreserved += 1;
       if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) merged.spans[oldRow.spanId] = previous.spans[oldRow.spanId];
@@ -558,10 +555,7 @@
       if (match.row) {
         claimedImportedPowerKeys.add(match.key);
         merged.spanPower[match.key] = preserveValuesMissingFromUpdate(match.row, oldRow, reconciliation);
-        return;
       }
-      merged.spanPower[key] = oldRow;
-      reconciliation.missingRowsPreserved += 1;
     });
 
     Object.entries(previous.poles || {}).forEach(([poleId, oldPole]) => {
@@ -589,11 +583,7 @@
     const importedPoleClassById = new Map((merged.poleClassChecks || []).map(row => [row.poleId, row]));
     (previous.poleClassChecks || []).forEach(oldRow => {
       const importedRow = importedPoleClassById.get(oldRow.poleId);
-      if (!importedRow) {
-        importedPoleClassById.set(oldRow.poleId, oldRow);
-        reconciliation.missingRowsPreserved += 1;
-        return;
-      }
+      if (!importedRow) return;
       const preserved = preserveValuesMissingFromUpdate(importedRow, oldRow, reconciliation);
       importedPoleClassById.set(
         oldRow.poleId,

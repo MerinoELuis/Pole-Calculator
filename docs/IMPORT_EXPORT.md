@@ -126,7 +126,7 @@ Preserved user work includes matching:
 - UG/PCO pole state
 - attachment diameter settings
 
-Fresh non-empty imported geometry, owners, wires, power, Environment, and source references replace their previous imported equivalents. Empty replacement cells retain the prior known calculator value, and rows omitted by the update remain available. Logical duplicate comm rows are still reconciled to one physical row. Derived values are cleared and recalculated.
+Fresh non-empty imported geometry, owners, wires, power, Environment, and source references replace their previous imported equivalents. Empty replacement cells retain the prior known calculator value only after the old and new entities match. Rows omitted by the update are not recreated unless they contain manual user work. This prevents removed spans from generating empty endpoint comm rows. Logical duplicate comm rows are still reconciled to one physical row. Derived values are cleared and recalculated.
 
 `excelReviewSource` is the exception: it always stores the newly selected workbook exactly as imported. This lets Excel Review report a blank or missing value even when the calculator retains an older value to avoid destructive data loss.
 

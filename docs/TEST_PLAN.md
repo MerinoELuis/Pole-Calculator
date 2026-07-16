@@ -119,7 +119,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 5. Load always opens the picker and starts near the previous handle when supported.
 6. Update Data preserves matching movements and manual Proposed rows.
 7. Update Data removes stale duplicates and recalculates before rendering.
-8. Empty replacement cells and omitted non-duplicate rows retain their prior calculator values.
+8. Empty replacement cells retain prior values only on matched entities; omitted rows without user work do not recreate empty spans or comms.
 9. Ctrl+Z restores the previous state-changing action.
 10. Unsaved changes activate the browser leave-page warning.
 
