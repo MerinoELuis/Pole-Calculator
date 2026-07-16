@@ -677,6 +677,21 @@
     return true;
   }
 
+  function instructionMismatchScore(expected, actual) {
+    if (expected.action !== actual.action) return Infinity;
+    // "other" has no reliable action identity and could pair unrelated prose.
+    if (expected.action === "other") return Infinity;
+    if (expected.owners.length && actual.owners.length
+      && !expected.owners.some(owner => actual.owners.includes(owner))) return Infinity;
+    const expectedHeight = expected.heights[0];
+    const actualHeight = actual.heights[0];
+    const heightDistance = expectedHeight === undefined || actualHeight === undefined
+      ? 0
+      : Math.abs(expectedHeight - actualHeight);
+    const directionPenalty = expected.direction && actual.direction && expected.direction !== actual.direction ? 120 : 0;
+    return heightDistance + directionPenalty;
+  }
+
   function addMakeReadyNotesComparison(result, poleId, makeReadyRows) {
     const generated = S().getState().mr.find(item => normalizedText(item.poleId) === normalizedText(poleId));
     const expectedLines = uniqueInstructions(splitInstructions(generated?.text || ""));
@@ -692,6 +707,27 @@
       }
       if (matchIndex >= 0) {
         used.add(matchIndex);
+        return;
+      }
+      // Pair a near instruction with the same action/owner before reporting a
+      // mismatch. This avoids showing one missing error plus one additional
+      // warning for the same UG, riser, movement, or transfer instruction.
+      const mismatchCandidates = actualLines
+        .map((actualLine, index) => ({
+          actualLine,
+          index,
+          score: used.has(index) ? Infinity : instructionMismatchScore(expected, instructionSignature(actualLine, poleId))
+        }))
+        .filter(candidate => Number.isFinite(candidate.score))
+        .sort((a, b) => a.score - b.score);
+      if (mismatchCandidates.length) {
+        const mismatch = mismatchCandidates[0];
+        used.add(mismatch.index);
+        add(result, {
+          phase: "FINAL", section: "Make Ready", code: "MR_INSTRUCTION_MISMATCH", status: "ERROR",
+          title: "Make Ready Notes", message: "Calculator and Excel instructions differ.",
+          expected: line, actual: mismatch.actualLine
+        });
         return;
       }
       add(result, {

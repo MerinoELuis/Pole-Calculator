@@ -63,6 +63,8 @@ Make Ready Notes are compared as instructions rather than as exact strings. Acti
 
 Duplicate source instructions are collapsed before comparison, and an exact normalized instruction is consumed before semantic fallback matching. PLA/model-owned instructions such as Proposed slack spans, new anchors/down guys, transfers to a new comm anchor, and split power anchors are accepted as supplemental model work instead of producing an unmatched Calculator warning.
 
+When Calculator and Excel contain the same kind of instruction but differ in direction, height, owner, or a required modifier, the review reports one paired mismatch. It does not also report the Excel line as an additional warning.
+
 For UG work, the audit requires Underground construction and a UG instruction. Aerial attachment height and midspan are not required.
 
 Structured comm transfers compare Make Ready.Comm Transfers Owner and Height against Calculator transfer groups. Century Link, CTL and TELCO are treated as the same owner.

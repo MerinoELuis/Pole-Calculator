@@ -50,6 +50,7 @@ const p1Text = state.mr.find(item => item.poleId === "P1").text;
 assert.match(p1Text, /Backspan to go UG SE due to existing pole overloaded\./);
 assert.match(p1Text, /Pl riser S at HOA 18'\./);
 assert.match(p1Text, /Transfer CATV to new pole at HOA 20'10" and 21'2" with DG\./);
+assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser S at HOA 18'.", "riser must be the final MR instruction");
 
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, "Unable to attach due to proposed pole overloaded.");

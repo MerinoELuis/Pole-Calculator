@@ -222,4 +222,26 @@ const noteChecks = review.reviewPole("PNOTE").checks;
 assert.equal(noteChecks.some(item => item.code === "ADDITIONAL_MR_INSTRUCTION"), false, "duplicate and model-only MR instructions must not warn");
 assert.equal(noteChecks.some(item => ["MISSING_COMM_TRANSFER", "TRANSFER_HEIGHT_MISMATCH", "UNEXPECTED_COMM_TRANSFER"].includes(item.code)), false, "TELCO must match CenturyLink/CTL transfers");
 
+state.poles = { PMISMATCH: { poleId: "PMISMATCH" } };
+state.spanComms = {};
+state.mr = [{ poleId: "PMISMATCH", text: "Backspan to go UG S due to existing pole overloaded.\nPl riser S at HOA 18'." }];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    rows: [{ Id: "PMISMATCH", Sequence: "PMISMATCH", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Underground", "PLA STATUS": "Complete" }]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: { headers: [], rows: [] },
+  makeReady: {
+    headers: ["Id", "Make Ready Notes"],
+    rows: [{ Id: "PMISMATCH", "Make Ready Notes": "Backspan to go UG SE due to existing pole overloaded.\nPl riser S at HOA 18'8\"." }]
+  },
+  commTransfers: { headers: [], rows: [] }
+};
+
+output = review.runReview();
+const mismatchChecks = review.reviewPole("PMISMATCH").checks.filter(item => item.section === "Make Ready");
+assert.equal(mismatchChecks.filter(item => item.code === "MR_INSTRUCTION_MISMATCH").length, 2, "direction and riser height must be two paired mismatches");
+assert.equal(mismatchChecks.some(item => ["MISSING_MR_INSTRUCTION", "ADDITIONAL_MR_INSTRUCTION"].includes(item.code)), false, "paired MR mismatches must not be duplicated as missing/additional results");
+
 console.log("Excel Review tests passed.");

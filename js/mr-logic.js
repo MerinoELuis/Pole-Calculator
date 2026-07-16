@@ -342,6 +342,7 @@
     const dropMoves = [];
     const proposed = [];
     const ensure = [];
+    const risers = [];
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
       const lines = pole.ugActive ? ugReplacementMR() : pcoReplacementMR();
@@ -349,7 +350,12 @@
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
-    ug.push(...connectedUGInstructions(poleId));
+    connectedUGInstructions(poleId).forEach(line => {
+      // Riser work is always the final instruction crews read in the pole MR.
+      // Keep the UG relation at the top, but defer its separate riser line.
+      if (/^pl\s+(?:new\s+)?riser\b/i.test(line)) risers.push(line);
+      else ug.push(line);
+    });
     commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
@@ -377,7 +383,7 @@
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
 
-    const lines = [...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure].map(applyCase);
+    const lines = [...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
     const unique = Array.from(new Set(lines.map(line => line.trim()).filter(Boolean)));
     if (unique.length) state.mr.push({ poleId, spanId: "", owner: "MR", text: unique.join("\n"), imported: false });
     return state.mr.filter(item => item.poleId === poleId);
