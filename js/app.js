@@ -736,6 +736,70 @@
     return merged;
   }
 
+  function updateLogValue(value) {
+    if (value === undefined) return "(missing)";
+    if (value === null) return "null";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function collectUpdateMapChanges(previousMap, finalMap, entity, fields) {
+    const changes = [];
+    const keys = new Set([...Object.keys(previousMap || {}), ...Object.keys(finalMap || {})]);
+    keys.forEach(key => {
+      const before = previousMap?.[key];
+      const after = finalMap?.[key];
+      if (!before && after) {
+        changes.push({ entity, key, action: "Added", field: "(row)", before: "", after: "Present" });
+        return;
+      }
+      if (before && !after) {
+        changes.push({ entity, key, action: "Removed", field: "(row)", before: "Present", after: "" });
+        return;
+      }
+      fields.forEach(field => {
+        const beforeValue = updateLogValue(before?.[field]);
+        const afterValue = updateLogValue(after?.[field]);
+        if (beforeValue === afterValue) return;
+        changes.push({ entity, key, action: "Changed", field, before: beforeValue, after: afterValue });
+      });
+    });
+    return changes;
+  }
+
+  // Update Data is intentionally observable in DevTools. The summary explains
+  // reconciliation decisions; the table lists final field-level state changes
+  // after aliases, preserved baselines and recalculated values are applied.
+  function logExcelUpdateChanges(fileName, previous, finalState) {
+    const specs = [
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "pcoActive"]],
+      ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
+      ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
+      ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
+      ["Power", "spanPower", ["attachmentHeight", "midspan", "owner", "size"]]
+    ];
+    const changes = specs.flatMap(([entity, mapName, fields]) =>
+      collectUpdateMapChanges(previous?.[mapName], finalState?.[mapName], entity, fields)
+    );
+    const counts = mapName => ({
+      before: Object.keys(previous?.[mapName] || {}).length,
+      after: Object.keys(finalState?.[mapName] || {}).length
+    });
+
+    console.groupCollapsed(`[PoleCalc Update Data] ${fileName || "Excel update"}`);
+    console.info("Reconciliation summary", finalState.updateDiagnostics || {});
+    console.table({
+      Poles: counts("poles"),
+      Spans: counts("spans"),
+      Proposed: counts("spanSides"),
+      Comms: counts("spanComms"),
+      Power: counts("spanPower")
+    });
+    if (changes.length) console.table(changes);
+    else console.info("No final state fields changed.");
+    console.groupEnd();
+  }
+
   function undoLastAction() {
     const previous = undoHistory.pop();
     if (!previous) return toast("No changes to undo.", "info");
@@ -2412,6 +2476,7 @@
       const merged = mergeImportedUpdate(previous, imported);
       S.setState(merged);
       global.Calculations.recalculateAll();
+      logExcelUpdateChanges(file.name, previous, cloneCurrentState());
       global.ExcelReview.runReview();
       render();
       markDirty();

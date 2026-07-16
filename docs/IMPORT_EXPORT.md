@@ -134,6 +134,8 @@ Fresh non-empty imported geometry, owners, wires, power, Environment, and source
 
 `excelReviewSource` is the exception: it always stores the newly selected workbook exactly as imported. This lets Excel Review report a blank or missing value even when the calculator retains an older value to avoid destructive data loss.
 
+Every update writes a collapsed `[PoleCalc Update Data]` group to the browser console. It includes entity counts, reconciliation diagnostics, and a field-level before/after table for poles, spans, Proposed rows, comms, and power.
+
 ## AutoProposed JSON
 
 Export Proposed recalculates first and creates:

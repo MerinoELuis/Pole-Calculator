@@ -148,4 +148,37 @@ const codes = new Set(output.results[0].checks.map(item => item.code));
   assert.ok(codes.has(code), `expected INTEC check ${code}`);
 });
 
+state.poles = { PUG: { poleId: "PUG", ugActive: true } };
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {};
+state.mr = [{
+  poleId: "PUG",
+  text: "Unable to attach due to (reasoning).\nRed tag\nInability to place ANC\nTDU replace required\nExisting neutral / multiplex above 26'9\"\nPCO neutral / multiplex exceeds 26'9\""
+}];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    rows: [{ Id: "PUG", Sequence: "PUG", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Underground", "PLA STATUS": "Complete" }]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: { headers: [], rows: [] },
+  makeReady: {
+    headers: ["Id", "Make Ready Notes"],
+    rows: [{ Id: "PUG", "Make Ready Notes": "Unable to attach due to proposed pole overloaded." }]
+  },
+  commTransfers: { headers: [], rows: [] }
+};
+
+output = review.runReview();
+let ugChecks = review.reviewPole("PUG").checks.filter(item => item.section === "Make Ready");
+assert.ok(ugChecks.some(item => item.code === "VALID_UG_INSTRUCTION" && item.status === "PASS"), "a specific unable-to-attach reason must be valid UG MR");
+assert.equal(ugChecks.filter(item => item.status === "ERROR").length, 0, "valid UG MR must not create template-line errors");
+
+state.excelReviewSource.makeReady.rows[0]["Make Ready Notes"] = "Unable to attach due to (reasoning).";
+output = review.runReview();
+ugChecks = review.reviewPole("PUG").checks.filter(item => item.section === "Make Ready" && item.status === "ERROR");
+assert.equal(ugChecks.length, 1, "invalid UG MR must create one consolidated error");
+assert.equal(ugChecks[0].code, "MISSING_UG_INSTRUCTION");
+
 console.log("Excel Review tests passed.");

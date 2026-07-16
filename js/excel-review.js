@@ -682,6 +682,15 @@
     });
   }
 
+  function validUndergroundMakeReady(value) {
+    const notes = text(value);
+    if (/underground|\bgoing\s+ug\b|\bgo\s+ug\b|\bug\s+transfer\b/i.test(notes)) return true;
+    const unableToAttach = notes.match(/\bunable\s+to\s+attach\s+due\s+to\s+([^\r\n.]+)/i);
+    if (!unableToAttach) return false;
+    const reason = normalizedText(unableToAttach[1]).replace(/[()[\]]/g, "").trim();
+    return Boolean(reason && !/^(reason|reasoning|specify reason|insert reason)$/.test(reason));
+  }
+
   function expectedTransfers(poleId) {
     const seen = new Set();
     return S().getSpanCommsForPole(poleId).filter(row => row.transferToNewPole && text(row.existingHOAChange)).reduce((items, row) => {
@@ -817,14 +826,22 @@
     const makeReadyRows = excelFinalRowsForPole(entry.poleId);
     if (pole?.ugActive) {
       const notes = makeReadyRows.map(row => text(pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true }))).join("\n");
-      if (!/underground|\bgoing\s+ug\b|\bgo\s+ug\b|\bug\s+transfer\b/i.test(notes)) {
+      if (!validUndergroundMakeReady(notes)) {
         add(result, {
           phase: "FINAL", section: "Make Ready", code: "MISSING_UG_INSTRUCTION", status: "ERROR",
-          title: "Underground Make Ready", message: "Calculator is UG, but Excel Make Ready Notes do not contain a UG instruction.",
-          expected: "UG instruction", actual: notes || "Empty"
+          title: "Underground Make Ready", message: "Calculator is UG, but Excel does not contain one valid underground resolution instruction.",
+          expected: "UG instruction or Unable to attach due to a specific reason", actual: notes || "Empty"
+        });
+      } else {
+        add(result, {
+          phase: "FINAL", section: "Make Ready", code: "VALID_UG_INSTRUCTION", status: "PASS",
+          title: "Underground Make Ready", message: "Excel contains a valid underground resolution instruction.",
+          expected: "One valid UG resolution", actual: notes
         });
       }
-      addMakeReadyNotesComparison(result, entry.poleId, makeReadyRows);
+      // UG replacement text describes alternative reasons, not six mandatory
+      // instructions. The semantic check above therefore produces at most one
+      // problem instead of comparing every generated template line literally.
       addTransferComparisons(result, entry.poleId);
       return;
     }

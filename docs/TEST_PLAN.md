@@ -138,7 +138,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 10. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
 11. Calculator-only work errors; Excel-only final data warns.
 12. Proposed and final Proposed midspan compare through integer inches, including decimal-feet equivalence.
-13. UG requires Underground construction and structural UG notes without requiring aerial attachment heights.
+13. UG requires Underground construction and one valid UG resolution note without requiring aerial attachment heights; `Unable to attach due to <specific reason>` passes, while an unresolved placeholder produces one error.
 14. Expected structured transfers match normalized owner aliases and heights.
 15. Attachment Size is Not applicable when Calculator lacks reliable per-Proposed fiber/messenger identity.
 16. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.

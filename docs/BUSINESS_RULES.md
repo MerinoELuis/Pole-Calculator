@@ -209,4 +209,6 @@ Normal ordering:
 
 UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. UG and PCO are mutually exclusive.
 
+Excel Review treats the UG replacement reasons as alternatives, not cumulative instructions. One explicit underground instruction or one `Unable to attach due to <specific reason>` statement is valid. A missing or unresolved UG reason produces one consolidated Make Ready error.
+
 INTEC and Metronet wording is selected by `mrTemplate`/`projectProfile`; case is applied after text generation.
