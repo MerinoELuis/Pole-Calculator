@@ -204,11 +204,17 @@ Normal ordering:
 2. Power section when applicable.
 3. Regular comm movements, ordered from highest effective HOA to lowest.
 4. Service Drop relocations.
-5. Attach/proposed/anchor/riser/slack instructions.
+5. Attach/proposed/anchor/riser instructions.
 6. Low-power midspan reminder.
 
 UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. UG and PCO are mutually exclusive.
 
+For INTEC, an active UG pole replaces its normal block with `Unable to attach due to proposed pole overloaded.` When an adjacent pole is UG, the current pole receives one relation-specific instruction such as `Backspan to go UG SE due to existing pole overloaded.` A Backspan UG also places one riser 12 inches below the current pole's primary Proposed. The span bearing supplies the direction; diagonal bearings use the corresponding pole face (`SE` uses `S`, for example).
+
+`Transfer to New Pole` uses HOA Change when populated and otherwise uses Existing HOA. Transfer rows for the same normalized owner are combined into one instruction, their unique heights are ordered from lowest to highest, and `with DG` is appended when any related transfer has DG. For example: `Transfer CATV to new pole at HOA 20'10" and 21'2" with DG.` CenturyLink, CTL and TELCO resolve to the same MR owner.
+
 Excel Review treats the UG replacement reasons as alternatives, not cumulative instructions. One explicit underground instruction or one `Unable to attach due to <specific reason>` statement is valid. A missing or unresolved UG reason produces one consolidated Make Ready error.
+
+Slack spans are selected by the PLA model. The Calculator does not infer or generate `Proposed slack span` from notes; Excel Review accepts that instruction as supplemental model work.
 
 INTEC and Metronet wording is selected by `mrTemplate`/`projectProfile`; case is applied after text generation.

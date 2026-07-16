@@ -21,10 +21,6 @@
     return /overlash/i.test(`${spanComm.notes || ""} ${spanComm.mr || ""}`);
   }
 
-  function detectSlack(spanSide) {
-    return /slack/i.test(`${spanSide.notes || ""}`);
-  }
-
   function detectAnchor(spanSide) {
     return /\banc\b|anchor/i.test(`${spanSide.notes || ""}`);
   }
@@ -131,21 +127,49 @@
     };
   }
 
+  function generateTransferMRForPole(poleId) {
+    const groups = new Map();
+    S().getSpanCommsForPole(poleId).forEach(row => {
+      const context = commGroupTransferContext(row);
+      const height = H().parseHeight(row.existingHOAChange || row.existingHOA || "");
+      if (!context.enabled || height === null) return;
+      const owner = ownerForMR(row);
+      const key = owner.toLowerCase();
+      if (!groups.has(key)) groups.set(key, { owner, heights: new Set(), downGuy: false });
+      const group = groups.get(key);
+      group.heights.add(height);
+      group.downGuy = group.downGuy || context.downGuy;
+    });
+
+    return Array.from(groups.values())
+      .map(group => {
+        const heights = Array.from(group.heights).sort((a, b) => a - b);
+        return {
+          minimum: heights[0] ?? Infinity,
+          text: `Transfer ${group.owner} to new pole at HOA ${heights.map(value => H().formatHeight(value)).join(" and ")}${group.downGuy ? " with DG" : ""}.`
+        };
+      })
+      .sort((a, b) => a.minimum - b.minimum)
+      .map(item => item.text);
+  }
+
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
     if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
     const resag = generateResagServiceDropMR(spanComm);
-    const action = detectRaiseLower(spanComm);
-    if (!action) return resag;
     const owner = ownerForMR(spanComm);
     const transferContext = commGroupTransferContext(spanComm);
     const dg = (transferContext.enabled ? transferContext.downGuy : (
       spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`)
     )) ? " with DG" : "";
     if (transferContext.enabled) {
-      const transfer = `Transfer ${owner} to new pole at HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
+      const transferHeight = spanComm.existingHOAChange || spanComm.existingHOA;
+      if (!transferHeight) return resag;
+      const transfer = `Transfer ${owner} to new pole at HOA ${mrHeight(transferHeight)}${dg}.`;
       return [transfer, resag].filter(Boolean).join("\n");
     }
+    const action = detectRaiseLower(spanComm);
+    if (!action) return resag;
     if (isMetronetMR()) {
       const verb = action === "Lower" ? "lower" : "raise";
       const movement = `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
@@ -178,7 +202,8 @@
       if (detectRiser(spanSide)) items.push(`Pl new riser${dir}.`.replace("  ", " "));
       return items.join("\n");
     }
-    if (detectSlack(spanSide)) items.push(`Proposed slack span${dir}.`.replace("  ", " "));
+    // Slack is selected in the PLA model, not inferred by the calculator from
+    // free-form notes. Excel Review accepts that model-owned instruction.
     if (detectAnchor(spanSide)) items.push(`PL NEW ANC${dir}.`.replace("  ", " "));
     if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));
     return items.join("\n");
@@ -203,14 +228,7 @@
         "Suggest going UG due to [clearance violation / 2 span aerial requirement]."
       ];
     }
-    return [
-      "Unable to attach due to (reasoning).",
-      "Red tag",
-      "Inability to place ANC",
-      "TDU replace required",
-      "Existing neutral / multiplex above 26'9\"",
-      "PCO neutral / multiplex exceeds 26'9\""
-    ];
+    return ["Unable to attach due to proposed pole overloaded."];
   }
 
   function pcoReplacementMR() {
@@ -264,19 +282,40 @@
       const directionFromThisPole = span.fromPole === poleId
         ? span.direction
         : oppositeDirection(span.direction);
-      const candidate = { relation, direction: directionFromThisPole || "" };
-      if (!current || (current.relation === "Backspan" && relation !== "Backspan")) {
+      const candidate = { relation, direction: directionFromThisPole || "", spanId: span.spanId, otherPoleId };
+      // A physical connection can appear twice in Span. Prefer the Back Span
+      // row because it is the relation owned by this pole for the UG handoff.
+      if (!current || (current.relation !== "Backspan" && relation === "Backspan")) {
         byOtherPole.set(otherPoleId, candidate);
       }
     });
 
-    return Array.from(byOtherPole.values()).map(item => {
+    return Array.from(byOtherPole.values()).flatMap(item => {
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
-        return `${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`;
+        return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`];
       }
-      return `${item.relation} to go UG${direction} due to (Red tag / TDU Replace required / PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9" / inability to place ANC).`;
+      const lines = [`${item.relation} to go UG${direction} due to existing pole overloaded.`];
+      if (item.relation !== "Backspan") return lines;
+
+      const proposedSides = S().getSpanSidesForPole(poleId)
+        .filter(side => side.proposedHOA)
+        .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)));
+      const proposedSide = proposedSides.find(side => {
+        if (!side.proposedHOA) return false;
+        if (side.spanId === item.spanId) return true;
+        const sideSpan = S().getSpan(side.spanId);
+        return Boolean(sideSpan && [sideSpan.fromPole, sideSpan.toPole].includes(item.otherPoleId));
+      }) || proposedSides[0];
+      const proposed = H().parseHeight(proposedSide?.proposedHOA || S().getPole(poleId)?.standaloneProposedHOA || "");
+      if (proposed !== null) {
+        // The riser uses a pole-face cardinal. Keep the full octant on the UG
+        // line, but use the first component for diagonals (SE -> S, NW -> N).
+        const riserDirection = (item.direction || "").charAt(0).toUpperCase();
+        lines.push(`Pl riser${riserDirection ? ` ${riserDirection}` : ""} at HOA ${H().formatHeight(proposed - 12)}.`);
+      }
+      return lines;
     });
   }
 
@@ -311,6 +350,7 @@
       return state.mr.filter(item => item.poleId === poleId);
     }
     ug.push(...connectedUGInstructions(poleId));
+    commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
       if (text) text.split(/\n+/).filter(Boolean).forEach(line => {
@@ -322,6 +362,11 @@
       .slice()
       .sort((a, b) => (H().parseHeight(getEffectiveCommHOAForMR(b)) ?? -Infinity) - (H().parseHeight(getEffectiveCommHOAForMR(a)) ?? -Infinity))
       .forEach(sc => {
+      if (commGroupTransferContext(sc).enabled) {
+        const resag = generateResagServiceDropMR(sc);
+        if (resag) dropMoves.push(resag);
+        return;
+      }
       const text = generateMRForComm(sc);
       if (!text) return;
       text.split(/\n+/).filter(Boolean).forEach(line => {
@@ -361,7 +406,6 @@
     detectAttach: detectAttachFromSpanSide,
     detectRaiseLower,
     detectOverlash,
-    detectSlack,
     detectAnchor,
     detectRiser
   };

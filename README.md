@@ -64,6 +64,10 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 
 Every Collection row receives an HOA Review and, when final work exists, a Final PLA / MR Review. HOA Review requires exactly one Fore Span. One Back Span passes, zero produces a warning, and more than one is an error. It also checks reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
 
+Review results stay in natural pole/sequence order. The pole name itself is the navigation link back to its Calculator card; the rest of the review row only expands or collapses review details.
+
+Make Ready comparison removes duplicate source instructions, recognizes CenturyLink, CTL and TELCO as the same owner, and accepts PLA/model-only slack, anchor and split-anchor instructions as supplemental work. Those model instructions are not required to have a Calculator equivalent.
+
 A terminal pole can keep a Proposed attachment even when it has no outgoing span or midspan. Its Span cell remains empty, and that Proposed is available to the preceding pole as `Next Pole Proposed` for End Drop calculation.
 
 When `Add Proposed Span` targets an imported connection, the first Proposed reuses that physical span and its Power, length, bearing and environment data. Additional attachments remain separate Proposed rows but reference the same physical span instead of creating an unrelated blank connection.

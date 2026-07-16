@@ -1509,7 +1509,7 @@
         const visibleChecks = result.checks.filter(item => item.status !== "PASS" || item.applicable === false || item.code === "ALL_APPLICABLE_CHECKS_PASSED");
         return `<details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}">
           <summary>
-            <span class="review-pole-identity"><strong>${escapeHtml(result.poleId)}</strong>${result.sequence ? `<small>Sequence ${escapeHtml(result.sequence)}</small>` : ""}</span>
+            <span class="review-pole-identity"><button class="review-pole-link" type="button" data-review-pole="${escapeHtml(result.poleId)}" title="Open this pole in Calculator"><strong>${escapeHtml(result.poleId)}</strong></button>${result.sequence ? `<small>Sequence ${escapeHtml(result.sequence)}</small>` : ""}</span>
             <span class="review-phase-status"><small>HOA Review</small>${reviewStatusBadge(result.hoaStatus)}</span>
             <span class="review-phase-status"><small>Final Review</small>${reviewStatusBadge(result.finalStatus)}</span>
             <span class="review-phase-status overall"><small>Overall</small>${reviewStatusBadge(result.overallStatus)}</span>
@@ -1517,6 +1517,17 @@
           <ul class="excel-review-checks">${visibleChecks.map(renderReviewCheck).join("")}</ul>
         </details>`;
       }).join("") || `<div class="detail-placeholder">No Collection rows were available for review.</div>`}</div>`;
+    els.excelReviewResults.querySelectorAll("[data-review-pole]").forEach(button => {
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const requested = button.dataset.reviewPole || "";
+        const poleId = Object.keys(S.getState().poles || {}).find(id =>
+          S.canonicalPoleIdentity(id) === S.canonicalPoleIdentity(requested)
+        ) || requested;
+        selectPole(poleId);
+      });
+    });
   }
 
   // Height discrepancies are operationally more important than class-only

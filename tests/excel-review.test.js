@@ -114,6 +114,15 @@ assert.equal(p1.finalStatus, "PASS", "decimal feet must match feet/inches");
 assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power fallback columns must not satisfy the exact display check");
 assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");
 assert.equal(output.summary.total, 2);
+assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
+
+state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "O1")["Linked Collection.Title"] = "";
+output = review.runReview();
+assert.equal(
+  review.reviewPole("P1").checks.some(item => item.code === "MISSING_LINKED_COLLECTION_TITLE" && item.details.some(detail => /Span Id: O1/.test(detail))),
+  false,
+  "Other without a linked pole must not create a review warning"
+);
 
 state.excelReviewSource.spans.rows.push({
   Id: "P1", "Span Id": "B-EXTRA-1", "Span Index": 6, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET"
@@ -180,5 +189,37 @@ output = review.runReview();
 ugChecks = review.reviewPole("PUG").checks.filter(item => item.section === "Make Ready" && item.status === "ERROR");
 assert.equal(ugChecks.length, 1, "invalid UG MR must create one consolidated error");
 assert.equal(ugChecks[0].code, "MISSING_UG_INSTRUCTION");
+
+state.poles = { PNOTE: { poleId: "PNOTE" } };
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {
+  T1: { poleId: "PNOTE", spanId: "", owner: "Century Link Communications", ownerBase: "Century Link Communications", rawOwner: "COMMUNICATION > Century Link Communications", existingHOA: "18'4\"", transferToNewPole: true }
+};
+state.mr = [{ poleId: "PNOTE", text: "At HOA 18'10\" lower CATV to HOA 16'8\".\nTransfer CTL to new pole at HOA 18'4\"." }];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    rows: [{ Id: "PNOTE", Sequence: "PNOTE", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: { headers: [], rows: [] },
+  makeReady: {
+    headers: ["Id", "Make Ready Notes"],
+    rows: [
+      { Id: "PNOTE", "Make Ready Notes": "At HOA 18'10\" lower CATV to HOA 16'8\".\nTransfer CTL to new pole at HOA 18'4\".\nProposed slack span S.\nPl new ANC 19' S and pl new DG at HOA 22'2\"." },
+      { Id: "PNOTE", "Make Ready Notes": "At HOA 18'10\" lower CATV to HOA 16'8\"." }
+    ]
+  },
+  commTransfers: {
+    headers: ["Id", "Owner", "Height.display"],
+    rows: [{ Id: "PNOTE", Owner: "TELCO", "Height.display": "18'4\"" }]
+  }
+};
+
+output = review.runReview();
+const noteChecks = review.reviewPole("PNOTE").checks;
+assert.equal(noteChecks.some(item => item.code === "ADDITIONAL_MR_INSTRUCTION"), false, "duplicate and model-only MR instructions must not warn");
+assert.equal(noteChecks.some(item => ["MISSING_COMM_TRANSFER", "TRANSFER_HEIGHT_MISMATCH", "UNEXPECTED_COMM_TRANSFER"].includes(item.code)), false, "TELCO must match CenturyLink/CTL transfers");
 
 console.log("Excel Review tests passed.");

@@ -8,7 +8,6 @@
   const H = () => global.HeightUtils;
   const I = () => global.ExcelImport;
 
-  const STATUS_PRIORITY = { ERROR: 0, WARNING: 1, PASS: 2, NOT_READY: 3 };
   const ALLOWED_COMM_OWNERS = new Set([
     "communication",
     "3j communications",
@@ -53,7 +52,7 @@
 
   function normalizedOwner(value) {
     const clean = normalizedText(value).replace(/^communication\s*>\s*/i, "").trim();
-    if (/century\s*link|centurylink|\bctl\b/.test(clean)) return "ctl";
+    if (/century\s*link|centurylink|\bctl\b|\btelco\b/.test(clean)) return "ctl";
     if (/cable\s*one/.test(clean)) return clean.includes("show low") ? "cable one show low" : "cable one";
     if (/cox/.test(clean)) return "cox";
     if (/\bcatv\b/.test(clean)) return "catv";
@@ -288,6 +287,7 @@
   function addLinkedCollectionChecks(result, poleSpans, maps) {
     poleSpans.forEach(span => {
       if (!span.linkedTitle) {
+        if (span.type === "OTHER") return;
         add(result, {
           phase: "HOA", section: "Span", code: "MISSING_LINKED_COLLECTION_TITLE", status: "WARNING", level: "low",
           title: "Linked Collection", message: "Linked Collection.Title is empty. Review the span connection.",
@@ -597,6 +597,31 @@
       .filter(Boolean);
   }
 
+  function instructionTextKey(value) {
+    return normalizedText(text(value).replace(/[’‘]/g, "'").replace(/[“”]/g, "\""))
+      .replace(/\s+/g, " ")
+      .replace(/[.!]+$/, "")
+      .trim();
+  }
+
+  function uniqueInstructions(lines) {
+    const seen = new Set();
+    return lines.filter(line => {
+      const key = instructionTextKey(line);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function isModelOnlyInstruction(value) {
+    const clean = normalizedText(value);
+    return /\b(?:pl|pla)\s+new\s+anc\b/.test(clean)
+      || /\bnew\s+comm\s+anc\b/.test(clean)
+      || /\bsplit\b.*\bpwr\s+anc\b/.test(clean)
+      || /\bproposed\s+slack\s+span\b/.test(clean);
+  }
+
   function instructionSignature(value, poleId) {
     const raw = text(value).replace(/[’‘]/g, "'").replace(/[“”]/g, "\"");
     const clean = normalizedText(raw).replace(/[^a-z0-9'\".\s/-]/g, " ").replace(/\s+/g, " ");
@@ -617,7 +642,7 @@
       .concat([S().getState().settings?.proposedOwner, "CTL", "CATV", "TELCO", "FIBER"])
       .filter(Boolean);
     const ownerIsMentioned = owner => {
-      if (owner === "ctl") return /century\s*link|centurylink|\bctl\b/.test(clean);
+      if (owner === "ctl") return /century\s*link|centurylink|\bctl\b|\btelco\b/.test(clean);
       if (owner === "cable one" || owner === "cable one show low") return /cable\s*one/.test(clean);
       if (owner === "cox") return /\bcox\b/.test(clean);
       if (owner === "catv") return /\bcatv\b/.test(clean);
@@ -654,13 +679,17 @@
 
   function addMakeReadyNotesComparison(result, poleId, makeReadyRows) {
     const generated = S().getState().mr.find(item => normalizedText(item.poleId) === normalizedText(poleId));
-    const expectedLines = splitInstructions(generated?.text || "");
-    const actualLines = makeReadyRows.flatMap(row => splitInstructions(pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true })));
+    const expectedLines = uniqueInstructions(splitInstructions(generated?.text || ""));
+    const actualLines = uniqueInstructions(makeReadyRows.flatMap(row => splitInstructions(pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true }))));
     const used = new Set();
 
     expectedLines.forEach(line => {
       const expected = instructionSignature(line, poleId);
-      const matchIndex = actualLines.findIndex((actualLine, index) => !used.has(index) && instructionMatches(expected, instructionSignature(actualLine, poleId)));
+      const exactKey = instructionTextKey(line);
+      let matchIndex = actualLines.findIndex((actualLine, index) => !used.has(index) && instructionTextKey(actualLine) === exactKey);
+      if (matchIndex < 0) {
+        matchIndex = actualLines.findIndex((actualLine, index) => !used.has(index) && instructionMatches(expected, instructionSignature(actualLine, poleId)));
+      }
       if (matchIndex >= 0) {
         used.add(matchIndex);
         return;
@@ -674,6 +703,10 @@
 
     actualLines.forEach((line, index) => {
       if (used.has(index)) return;
+      // Anchor placement and split-pole directives are proposed by the model,
+      // outside the calculator's current deterministic inputs. They are valid
+      // supplemental MR and are not reported as unmatched instructions.
+      if (isModelOnlyInstruction(line)) return;
       add(result, {
         phase: "FINAL", section: "Make Ready", code: "ADDITIONAL_MR_INSTRUCTION", status: "WARNING",
         title: "Make Ready Notes", message: `Excel instruction has no Calculator equivalent: ${line}`,
@@ -693,13 +726,14 @@
 
   function expectedTransfers(poleId) {
     const seen = new Set();
-    return S().getSpanCommsForPole(poleId).filter(row => row.transferToNewPole && text(row.existingHOAChange)).reduce((items, row) => {
+    return S().getSpanCommsForPole(poleId).filter(row => row.transferToNewPole && text(row.existingHOAChange || row.existingHOA)).reduce((items, row) => {
       const owner = normalizedOwner(row.rawOwner || row.ownerBase || row.owner);
-      const height = H().parseHeight(row.existingHOAChange);
+      const heightDisplay = row.existingHOAChange || row.existingHOA;
+      const height = H().parseHeight(heightDisplay);
       const key = `${owner}|${height}`;
       if (!owner || height === null || seen.has(key)) return items;
       seen.add(key);
-      items.push({ owner, ownerDisplay: text(row.rawOwner || row.ownerBase || row.owner), height, heightDisplay: row.existingHOAChange });
+      items.push({ owner, ownerDisplay: text(row.rawOwner || row.ownerBase || row.owner), height, heightDisplay });
       return items;
     }, []);
   }
@@ -871,11 +905,9 @@
   }
 
   function sortResults(results) {
-    return results.sort((a, b) => {
-      const status = STATUS_PRIORITY[a.overallStatus] - STATUS_PRIORITY[b.overallStatus];
-      if (status) return status;
-      return naturalCompare(a.sequence || a.poleId, b.sequence || b.poleId);
-    });
+    // Review order follows the job sequence at all times. Severity remains
+    // visible in badges and borders but never rearranges the physical route.
+    return results.sort((a, b) => naturalCompare(a.sequence || a.poleId, b.sequence || b.poleId));
   }
 
   function buildSummary(results, globalChecks) {

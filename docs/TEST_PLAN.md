@@ -95,6 +95,9 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 
 1. Transfer to New Pole appears once per grouped comm, synchronizes all related spans, generates one movement line, and includes `with DG` when any related span has DG checked.
 2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"`, preserves other clearance checks, and is not applied for Metronet.
+3. A transfer without HOA Change uses Existing HOA; multiple heights for the same owner produce one ascending-height instruction.
+4. An adjacent Backspan UG creates one relation/direction line and one riser 12 inches below the primary Proposed.
+5. An active INTEC UG pole replaces normal MR with the single final overload instruction.
 
 ## Import Cases
 
@@ -133,15 +136,17 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 5. Missing Year Installed warns, while a populated value produces no warning.
 6. Exactly one Fore is required; one Back passes, zero Back warns, more than one Back errors, and Other rows do not affect those counts.
 7. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.
-8. Missing or unknown Linked Collection.Title produces a low-level warning.
+8. Missing or unknown Linked Collection.Title produces a low-level warning except for an `Other` span with no linked pole.
 9. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.
 10. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
 11. Calculator-only work errors; Excel-only final data warns.
 12. Proposed and final Proposed midspan compare through integer inches, including decimal-feet equivalence.
 13. UG requires Underground construction and one valid UG resolution note without requiring aerial attachment heights; `Unable to attach due to <specific reason>` passes, while an unresolved placeholder produces one error.
-14. Expected structured transfers match normalized owner aliases and heights.
+14. Expected structured transfers match normalized owner aliases and heights, including CenturyLink/CTL/TELCO equivalence.
 15. Attachment Size is Not applicable when Calculator lacks reliable per-Proposed fiber/messenger identity.
 16. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.
+17. Review cards stay in natural sequence order rather than moving errors ahead of lower-numbered poles.
+18. Duplicate identical MR rows and model-only slack/anchor/split instructions do not create unmatched-instruction warnings.
 
 ## Browser Layout Smoke Tests
 
@@ -154,6 +159,8 @@ Verify at wide desktop, narrow desktop, and mobile widths:
 - Midspan color boxes align with their span rows.
 - Left pole index opens, closes, and does not cover the top index unnecessarily.
 - Floating calculator button opens and closes the calculator.
+- Floating up-arrow button scrolls to the top without opening the calculator.
+- The one-line calculator converts a height by itself and evaluates `+`/`-` expressions without layout overlap.
 - In-app dialogs replace native prompt/confirm flows for supported actions.
 - Excel Review summaries wrap cleanly and each pole's problems expand without overlap.
 

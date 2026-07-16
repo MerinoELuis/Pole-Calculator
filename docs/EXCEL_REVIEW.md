@@ -61,9 +61,13 @@ Rows are ranked by span identity or physical connection when those fields exist,
 
 Make Ready Notes are compared as instructions rather than as exact strings. Action, owner aliases, heights, direction, DG, slack, anchor, and riser markers are normalized. Punctuation, case, whitespace, and line breaks are ignored.
 
+Duplicate source instructions are collapsed before comparison, and an exact normalized instruction is consumed before semantic fallback matching. PLA/model-owned instructions such as Proposed slack spans, new anchors/down guys, transfers to a new comm anchor, and split power anchors are accepted as supplemental model work instead of producing an unmatched Calculator warning.
+
 For UG work, the audit requires Underground construction and a UG instruction. Aerial attachment height and midspan are not required.
 
-Structured comm transfers compare Make Ready.Comm Transfers Owner and Height against Calculator transfer groups. Century Link and CTL are treated as the same owner.
+Structured comm transfers compare Make Ready.Comm Transfers Owner and Height against Calculator transfer groups. Century Link, CTL and TELCO are treated as the same owner.
+
+Review cards remain in natural Collection sequence/pole order regardless of severity. Only the pole-name text navigates to the matching Calculator card; clicking elsewhere on the summary row expands or collapses its checks. An `Other` span with no linked pole is allowed and does not create a Linked Collection warning.
 
 ## Not Applicable
 
