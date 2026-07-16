@@ -1519,7 +1519,6 @@
         <div class="review-summary-item error"><strong>${Number(summary.errors || 0)}</strong><span>Errors</span></div>
         <div class="review-summary-item warning"><strong>${Number(summary.warnings || 0)}</strong><span>Warnings</span></div>
         <div class="review-summary-item pass"><strong>${Number(summary.passed || 0)}</strong><span>Passed</span></div>
-        <div class="review-summary-item not-ready"><strong>${Number(summary.finalNotReady || 0)}</strong><span>Final Review Not Ready</span></div>
       </div>
       ${globalChecks.length ? `<section class="excel-review-global">
         <h3>Workbook Issues</h3>

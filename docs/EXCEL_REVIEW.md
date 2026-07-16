@@ -75,7 +75,7 @@ Review cards remain in natural Collection sequence/pole order regardless of seve
 
 Each pole-level non-PASS finding has an `Ignore` control. Ignored findings remain visible in gray inside the expanded pole, but they do not affect HOA, Final, Overall, or summary counts. `Restore` activates the finding again. These job-specific decisions are saved in Calculator JSON and preserved by Update Data.
 
-The `Excel Review` view tab shows the number of poles with active Error or Warning status. Ignored findings do not contribute to this badge.
+The `Excel Review` view tab shows the number of poles with active Error or Warning status. Ignored findings do not contribute to this badge. The visible summary shows only Errors, Warnings, and Passed; internal Not Ready status is not displayed as a separate counter.
 
 ## Not Applicable
 
