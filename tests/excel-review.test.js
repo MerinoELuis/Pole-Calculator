@@ -355,6 +355,16 @@ assert.ok(collectionChecks.some(item => item.code === "UNEXPECTED_MIDAM_COLLECTI
 state.excelReviewSource.collection.rows[0] = { Id: "051B 12919312", Sequence: "51b", Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" };
 review.runReview();
 collectionChecks = review.reviewPole("051B 12919312").checks;
-assert.equal(collectionChecks.some(item => ["INVALID_MIDAM_SEQUENCE", "SEQUENCE_ID_MISMATCH"].includes(item.code)), false, "MidAm Sequence 51b must normalize to 051B and match the Id");
+assert.equal(collectionChecks.some(item => ["INVALID_MIDAM_SEQUENCE", "INVALID_MIDAM_ID_SEQUENCE", "SEQUENCE_ID_MISMATCH"].includes(item.code)), false, "MidAm Sequence 51b must normalize to 051B and equal the first Id block");
+
+state.excelReviewSource.collection.rows[0] = { Id: "058A 14998783", Sequence: 58, Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" };
+review.runReview();
+collectionChecks = review.reviewPole("058A 14998783").checks;
+assert.ok(collectionChecks.some(item => item.code === "SEQUENCE_ID_MISMATCH"), "MidAm Sequence 058 must not match Id sequence 058A");
+
+state.excelReviewSource.collection.rows[0] = { Id: "58 14998783", Sequence: 58, Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" };
+review.runReview();
+collectionChecks = review.reviewPole("58 14998783").checks;
+assert.ok(collectionChecks.some(item => item.code === "INVALID_MIDAM_ID_SEQUENCE"), "the first MidAm Id block must itself contain three digits");
 
 console.log("Excel Review tests passed.");

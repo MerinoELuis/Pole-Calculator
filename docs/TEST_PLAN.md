@@ -139,7 +139,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 3. A Collection row with no Id errors; a missing Id header creates a global error.
 4. Low Power checks accept `Lowest Power.display` and the legacy `Low Power Attachment.display` source.
 5. Missing Year Installed warns for INTEC but is not required for Metronet/MidAm.
-6. MidAm Sequence normalizes numeric `58` to `058` and suffix value `51b` to `051B`, then matches the beginning of Id.
+6. MidAm Sequence normalizes numeric `58` to `058` and suffix value `51b` to `051B`; the first Id block uses the same format and must equal it exactly.
 7. MidAm Collection Owner `UTILITY > MidAm` passes; empty errors; another populated owner warns.
 8. Exactly one Fore is required; one Back passes, zero Back warns, more than one Back errors, and Other rows do not affect those counts.
 9. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.

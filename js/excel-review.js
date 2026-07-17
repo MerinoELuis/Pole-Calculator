@@ -185,6 +185,10 @@
     return match ? `${match[1].padStart(3, "0")}${match[2] || ""}` : "";
   }
 
+  function midAmIdSequence(value) {
+    return text(value).toUpperCase().split(/\s+/).filter(Boolean)[0] || "";
+  }
+
   function collectionEntries() {
     return rows("collection").map((row, index) => {
       const poleId = collectionPoleId(row);
@@ -296,11 +300,22 @@
         title: "Sequence", message: `Sequence ${entry.sequence} must contain three digits and may end with one letter.`,
         expected: "000 or 000A", actual: entry.sequence
       });
-    } else if (entry.poleId && !normalizedText(entry.poleId).startsWith(normalizedText(expectedSequence))) {
+    } else if (isMidAmProject() && entry.poleId && !/^\d{3}[A-Z]?$/.test(midAmIdSequence(entry.poleId))) {
+      add(result, {
+        phase: "HOA", section: "Collection", code: "INVALID_MIDAM_ID_SEQUENCE", status: "ERROR",
+        title: "Id / Sequence", message: `The first block of Id ${entry.poleId} must contain three digits and may end with one letter.`,
+        expected: expectedSequence || "000 or 000A", actual: midAmIdSequence(entry.poleId) || "Empty"
+      });
+    } else if (entry.poleId && (isMidAmProject()
+      ? midAmIdSequence(entry.poleId) !== expectedSequence
+      : !normalizedText(entry.poleId).startsWith(normalizedText(expectedSequence)))) {
       add(result, {
         phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
-        title: "Sequence", message: `Sequence ${expectedSequence || entry.sequence} does not match the start of Id ${entry.poleId}.`,
-        expected: `${expectedSequence || entry.sequence}...`, actual: entry.poleId
+        title: "Sequence", message: isMidAmProject()
+          ? `Sequence ${expectedSequence} must equal the first block of Id ${entry.poleId}.`
+          : `Sequence ${expectedSequence || entry.sequence} does not match the start of Id ${entry.poleId}.`,
+        expected: isMidAmProject() ? expectedSequence : `${expectedSequence || entry.sequence}...`,
+        actual: isMidAmProject() ? midAmIdSequence(entry.poleId) : entry.poleId
       });
     }
 
