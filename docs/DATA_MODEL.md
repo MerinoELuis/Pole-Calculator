@@ -67,7 +67,9 @@ Imported, editable, and derived values live together but have different ownershi
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `notes` | editable | User-owned pole notes. |
-| `metadata` | imported reference | Source notes, location, status, and other non-authoritative fields. MidAm stores normalized streetlight and utility-guy constraints here. |
+| `metadata` | imported reference | Source notes, location, status, and other non-authoritative fields. `powerEquipment` stores normalized power-owned Streetlights, Transformers, and Risers; MidAm also retains project constraints here. |
+
+Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. It is read-only calculator reference data.
 
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 

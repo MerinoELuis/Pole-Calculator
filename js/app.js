@@ -1924,6 +1924,29 @@
     </table></div>`;
   }
 
+  function renderEquipmentTable(poleId) {
+    const pole = S.getPole(poleId);
+    const rows = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
+    if (!rows.length) return `<p class="muted">No Power Equipment was imported for this pole.</p>`;
+    const labels = {
+      STREETLIGHT: "Streetlight",
+      TRANSFORMER: "Transformer",
+      RISER: "Power Riser"
+    };
+    return `<div class="table-wrap"><table class="power-table equipment-table">
+      <thead><tr><th>Equipment</th><th>Owner</th><th>Attachment Height</th><th>Bottom Height</th><th>Drip Loop Height</th><th>Orientation</th><th>Max Comm Height</th></tr></thead>
+      <tbody>${rows.map(row => `<tr>
+        <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
+        <td>${escapeHtml(row.owner || "")}</td>
+        <td>${escapeHtml(row.attachmentHeight || "")}</td>
+        <td>${escapeHtml(row.bottomHeight || "")}</td>
+        <td>${escapeHtml(row.dripLoopHeight || "")}</td>
+        <td>${escapeHtml(row.orientation || "")}</td>
+        <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
+      </tr>`).join("")}</tbody>
+    </table></div>`;
+  }
+
   function renderPoleWorkspace(poleId) {
     const pole = S.getPole(poleId);
     return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""} ${pole?.pcoActive ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
@@ -1947,6 +1970,10 @@
         <section class="subsection wide">
           <h4>Imported Power / Clearance</h4>
           ${renderPowerTable(poleId)}
+        </section>
+        <section class="subsection wide">
+          <h4>Equipment</h4>
+          ${renderEquipmentTable(poleId)}
         </section>
         <section class="subsection make-ready-section" id="warnings-${escapeHtml(poleId)}">
           <div class="subsection-title-row">

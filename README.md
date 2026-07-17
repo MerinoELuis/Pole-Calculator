@@ -118,6 +118,16 @@ The visible Owner/Comm value comes from the `Owner` column.
 
 For INTEC, `Size` values containing `Self-Supporting Fiber` are treated as POF. They remain visible in the Existing Comm Movements table with a `POF` badge, but they do not define the Top Comm reference and are not moved by Auto Calculate.
 
+### Equipment
+
+Imported as a read-only Power Equipment section on each pole. The calculator includes power-owned:
+
+- Streetlights.
+- Transformers.
+- Risers.
+
+Communication-owned risers are excluded. Equipment heights can lower `Max Height on Pole`. INTEC applies the normal Pole Power-comms clearance to the equipment's lowest physical height. MidAm applies its dedicated streetlight bracket and uncovered drip-loop rules to streetlights, while transformers and power risers use Pole Power-comms clearance.
+
 ### Anchor.Guys
 
 Used to pre-check the `DG` box on existing comm movements. The importer matches:
@@ -185,7 +195,7 @@ Editable clearance values control these checks:
 - `Pole · Streetlight bracket-comm` (`20\"`).
 - `Pole · Streetlight drip loop-comm` (`12\"`, treating drip loops as uncovered).
 
-The MidAm pole maximum is the lowest ceiling produced by Low Power, streetlight bottom/bracket, and streetlight drip-loop data. MidAm crossing defaults are `23'6\"` for railroad, `15'6\"` for truck/vehicular areas, `9'6\"` for pedestrian areas, and `14'` over water not suitable for sailboats.
+The pole maximum is the lowest ceiling produced by Low Power and supported Power Equipment. MidAm crossing defaults are `23'6\"` for railroad, `15'6\"` for truck/vehicular areas, `9'6\"` for pedestrian areas, and `14'` over water not suitable for sailboats.
 
 Between comms on the pole:
 

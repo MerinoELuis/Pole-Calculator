@@ -119,6 +119,15 @@ One compact comm flagging field combines these checks:
 
 MidAm environment defaults are profile-specific: railroad `23'6\"`; truck traffic, parking lots, alleys, farms and along-road spans `15'6\"`; pedestrian-only areas `9'6\"`; and water without sailboats `14'`.
 
+## Power Equipment and Pole Maximum
+
+The `Equipment` sheet contributes only rows owned by Utility/Power and categorized as Streetlight, Transformer, or Riser. Communication risers do not participate.
+
+1. INTEC subtracts Pole Power-comms clearance from the equipment's lowest imported physical height.
+2. MidAm Streetlights use `Bottom Height - Streetlight bracket-comm` and `Drip Loop Height - Streetlight drip loop-comm`; the lower result controls.
+3. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
+4. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
+
 A same-owner Service Drop may reuse exactly the same bolt height. This exception applies only when the separation is zero; nearby nonzero placements still use Bolt-bolt clearance.
 
 ### Transfer and Re-sag Controls

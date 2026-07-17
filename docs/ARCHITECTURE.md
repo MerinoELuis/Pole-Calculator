@@ -119,7 +119,9 @@ Update Data performs a fresh Excel import and then reconciles previous user work
 Current profiles:
 
 - INTEC: Top Comm, proposed owner visible, Service Drop and Re-sag Service Drop visible, low-power Proposed MS adjustment enabled.
-- Metronet: Low Comm, a dedicated `WI` selector with `MidAm`, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled. MidAm also supplies crossing defaults, streetlight/guy clearances, wire audit rules, and calculated measured Back Span midspans.
+- Metronet: Low Comm, a dedicated `WI` selector with `MidAm`, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled. MidAm also supplies crossing defaults, streetlight clearances, wire audit rules, and calculated measured Back Span midspans.
+
+The importer normalizes Utility/Power Streetlights, Transformers, and Risers into `Pole.metadata.powerEquipment` for both profiles. `calculations.js` converts each supported row into a candidate pole-height ceiling; the UI only renders those normalized rows and never reads raw Equipment-sheet data directly.
 
 Transfer to New Pole remains visible for both profiles because it is a manual movement outcome rather than an imported project-specific attribute.
 

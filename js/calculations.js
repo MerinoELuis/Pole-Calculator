@@ -776,6 +776,39 @@
     return S().getSpan(spanId);
   }
 
+  // Returns the comm-height ceiling imposed by one imported Power Equipment
+  // row. MidAm streetlights use their project-specific bracket and uncovered
+  // drip-loop rules. Every other supported equipment type uses the normal
+  // pole Power-to-comms clearance against its lowest physical height.
+  function powerEquipmentCeilingInches(equipment) {
+    if (!equipment) return null;
+    const settings = S().getState().settings || {};
+    const genericClearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
+    const attachment = H().parseHeight(equipment.attachmentHeight || "");
+    const bottom = H().parseHeight(equipment.bottomHeight || "");
+    const dripLoop = H().parseHeight(equipment.dripLoopHeight || "");
+    const category = String(equipment.category || equipment.type || "").toUpperCase();
+
+    if (isMidAmProfile() && category.includes("STREETLIGHT")) {
+      const specialCeilings = [];
+      const bracketClearance = H().parseHeight(settings.streetlightBracketCommClearance || "");
+      const dripLoopClearance = H().parseHeight(settings.streetlightDripLoopCommClearance || "");
+      if (bottom !== null && bracketClearance !== null) specialCeilings.push(bottom - bracketClearance);
+      if (dripLoop !== null && dripLoopClearance !== null) specialCeilings.push(dripLoop - dripLoopClearance);
+      if (specialCeilings.length) return Math.min(...specialCeilings);
+    }
+
+    const physicalHeights = [attachment, bottom, dripLoop].filter(value => value !== null);
+    return physicalHeights.length && genericClearance !== null
+      ? Math.min(...physicalHeights) - genericClearance
+      : null;
+  }
+
+  function getPowerEquipmentCeiling(equipment) {
+    const ceiling = powerEquipmentCeilingInches(equipment);
+    return ceiling === null ? "" : format(ceiling);
+  }
+
   function calculatePoleDerived(poleId) {
     const pole = S().getPole(poleId);
     if (!pole) return null;
@@ -793,15 +826,19 @@
     const clearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
     const ceilings = [];
     if (lowPower !== null && clearance !== null) ceilings.push(lowPower - clearance);
-    if (isMidAmProfile()) {
-      const constraints = pole.metadata?.midAmConstraints || {};
-      const bracketClearance = H().parseHeight(settings.streetlightBracketCommClearance || "");
-      const dripLoopClearance = H().parseHeight(settings.streetlightDripLoopCommClearance || "");
-      (constraints.streetlights || []).forEach(streetlight => {
-        const bracket = H().parseHeight(streetlight.bottomHeight || "");
-        const dripLoop = H().parseHeight(streetlight.dripLoopHeight || "");
-        if (bracket !== null && bracketClearance !== null) ceilings.push(bracket - bracketClearance);
-        if (dripLoop !== null && dripLoopClearance !== null) ceilings.push(dripLoop - dripLoopClearance);
+    const equipment = pole.metadata?.powerEquipment || [];
+    equipment.forEach(item => {
+      const equipmentCeiling = powerEquipmentCeilingInches(item);
+      if (equipmentCeiling !== null) ceilings.push(equipmentCeiling);
+    });
+
+    // Saved JSON files created before Equipment was normalized still carry
+    // MidAm streetlights in the legacy metadata location. Keep those saves
+    // calculating correctly until their next Excel update.
+    if (!equipment.length && isMidAmProfile()) {
+      (pole.metadata?.midAmConstraints?.streetlights || []).forEach(streetlight => {
+        const equipmentCeiling = powerEquipmentCeilingInches({ ...streetlight, category: "STREETLIGHT" });
+        if (equipmentCeiling !== null) ceilings.push(equipmentCeiling);
       });
     }
     const maxCommHeight = ceilings.length ? format(Math.min(...ceilings)) : "";
@@ -1564,6 +1601,7 @@
     evaluateCommFlagging,
     evaluateSpanSideFlagging,
     evaluateProposedPoleClearance,
+    getPowerEquipmentCeiling,
     commOwnerLabel,
     isPofComm,
     displayMidspanForComm,

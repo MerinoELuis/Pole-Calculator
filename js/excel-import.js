@@ -861,55 +861,80 @@
     });
   }
 
-  // MidAm streetlight and guy clearances depend on source data that is not a
-  // Span.Wire. Keep a normalized copy on the pole so normal calculator
-  // flagging can use it without reading raw workbook rows after import.
-  function importMidAmPoleConstraints(equipmentRows, anchorGuyRows) {
-    if (String(S().getState().settings?.projectProfile || "").toUpperCase() !== "METRONET") return;
-    const constraintsByPole = new Map();
-    const constraintsFor = poleId => {
-      if (!constraintsByPole.has(poleId)) constraintsByPole.set(poleId, { streetlights: [], powerGuys: [] });
-      return constraintsByPole.get(poleId);
+  // Equipment is normalized for every project so it can be displayed and can
+  // participate in Max Height on Pole without reading raw workbook rows. Only
+  // Utility/Power equipment is included; communication risers are deliberately
+  // excluded from this power-clearance model.
+  function importPoleEquipment(equipmentRows, anchorGuyRows) {
+    const isMidAm = String(S().getState().settings?.projectProfile || "").toUpperCase() === "METRONET";
+    const metadataByPole = new Map();
+    const metadataFor = poleId => {
+      if (!metadataByPole.has(poleId)) {
+        metadataByPole.set(poleId, {
+          powerEquipment: [],
+          midAmConstraints: { streetlights: [], powerGuys: [] }
+        });
+      }
+      return metadataByPole.get(poleId);
     };
 
     equipmentRows.forEach(row => {
       const type = String(pick(row, ["Type"])).trim();
-      if (!/street\s*light|streetlight/i.test(type)) return;
+      const owner = String(pick(row, ["Owner"])).trim();
+      const category = /street\s*light|streetlight/i.test(type)
+        ? "STREETLIGHT"
+        : /transformer/i.test(type)
+          ? "TRANSFORMER"
+          : /riser/i.test(type)
+            ? "RISER"
+            : "";
+      if (!category || !/^(?:utility|power)(?:\s*>|$)/i.test(owner)) return;
       const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
       if (!poleId || !S().getPole(poleId)) return;
-      constraintsFor(poleId).streetlights.push({
+      const equipment = {
         equipmentId: String(pick(row, ["Equipment Id", "Equipment ID"])).trim(),
-        owner: String(pick(row, ["Owner"])).trim(),
+        equipmentIndex: String(pick(row, ["Equipment Index", "Index"])).trim(),
+        owner,
         type,
+        category,
+        orientation: String(pick(row, ["Orientation"])).trim(),
+        quantity: String(pick(row, ["Quantity"])).trim(),
         attachmentHeight: heightFromRow(row, ["Attachment Height.display"], ["Attachment Height"]),
         bottomHeight: heightFromRow(row, ["Bottom Height.display"], ["Bottom Height"]),
         dripLoopHeight: heightFromRow(row, ["Drip Loop Height.display"], ["Drip Loop Height"]),
-        uncoveredDripLoop: true,
-        groundingRequired: true
-      });
+        uncoveredDripLoop: category === "STREETLIGHT",
+        groundingRequired: category === "STREETLIGHT" && isMidAm
+      };
+      metadataFor(poleId).powerEquipment.push(equipment);
+      if (isMidAm && category === "STREETLIGHT") {
+        metadataFor(poleId).midAmConstraints.streetlights.push(equipment);
+      }
     });
 
-    anchorGuyRows.forEach(row => {
-      const owner = String(pick(row, ["Owner"])).trim();
-      if (!/^utility\s*>\s*midam$/i.test(owner)) return;
-      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
-      const attachmentHeight = heightFromRow(row, ["Attachment Height.display"], ["Attachment Height"]);
-      if (!poleId || !S().getPole(poleId) || H().parseHeight(attachmentHeight) === null) return;
-      constraintsFor(poleId).powerGuys.push({
-        guyId: String(pick(row, ["Guys Id", "Guy Id", "Guys ID", "Guy ID"])).trim(),
-        owner,
-        size: String(pick(row, ["Size"])).trim(),
-        attachmentHeight
+    if (isMidAm) {
+      anchorGuyRows.forEach(row => {
+        const owner = String(pick(row, ["Owner"])).trim();
+        if (!/^utility\s*>\s*midam$/i.test(owner)) return;
+        const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
+        const attachmentHeight = heightFromRow(row, ["Attachment Height.display"], ["Attachment Height"]);
+        if (!poleId || !S().getPole(poleId) || H().parseHeight(attachmentHeight) === null) return;
+        metadataFor(poleId).midAmConstraints.powerGuys.push({
+          guyId: String(pick(row, ["Guys Id", "Guy Id", "Guys ID", "Guy ID"])).trim(),
+          owner,
+          size: String(pick(row, ["Size"])).trim(),
+          attachmentHeight
+        });
       });
-    });
+    }
 
-    constraintsByPole.forEach((constraints, poleId) => {
+    metadataByPole.forEach((metadata, poleId) => {
       const pole = S().getPole(poleId);
       S().upsertPole({
         ...pole,
         metadata: {
           ...(pole.metadata || {}),
-          midAmConstraints: constraints
+          powerEquipment: metadata.powerEquipment,
+          ...(isMidAm ? { midAmConstraints: metadata.midAmConstraints } : {})
         }
       });
     });
@@ -962,7 +987,7 @@
 
     const collectionIndex = buildCollectionIndex(collectionRows);
     importPolesFromCollection(collectionRows, collectionIndex);
-    importMidAmPoleConstraints(equipmentRows, anchorGuyRows);
+    importPoleEquipment(equipmentRows, anchorGuyRows);
     state.poleClassChecks = buildPoleClassChecks(collectionRows);
 
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);

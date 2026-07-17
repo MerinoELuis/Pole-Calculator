@@ -14,7 +14,7 @@ assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 STEEL UG"), "P01-LX339
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 PCO STEEL"), "P01-LX339927");
 
 const workbook = {
-  SheetNames: ["Collection", "Span", "Span.Wire", "Make Ready"],
+  SheetNames: ["Collection", "Span", "Span.Wire", "Equipment", "Make Ready"],
   Sheets: {
     Collection: [
       ["collectionId", "Id", "Sequence", "Lowest Power.display", "Low Power Attachment.display"],
@@ -30,6 +30,13 @@ const workbook = {
       ["Id", "Span Id", "Owner", "Size", "Attachment Height.display", "Mid Span Height.display", "Wire Id"],
       ["P01-LX339927 UG", "S1", "COMMUNICATION > CATV", "CATV Bundle", "20'", "16'", "W1"]
     ],
+    Equipment: [
+      ["Id", "Equipment Id", "Type", "Owner", "Orientation", "Attachment Height.display", "Bottom Height.display", "Drip Loop Height.display"],
+      ["P01-LX339927 STEEL", "E1", "Transformer_Single Phase", "UTILITY > APS", "E", "27'", "", ""],
+      ["P01-LX339927 STEEL", "E2", "Streetlight > SMALL", "UTILITY > APS", "S", "25'", "24'6\"", "24'4\""],
+      ["P01-LX339927 STEEL", "E3", "Generic Equipment > Riser 90.0°", "UTILITY > APS", "N", "19'", "", ""],
+      ["P01-LX339927 STEEL", "E4", "Generic Equipment > Riser 90.0°", "COMMUNICATION > CATV", "W", "18'", "", ""]
+    ],
     "Make Ready": [
       ["Id", "Attachment Size", "Attachment Height.display"],
       ["P01-LX339927 PCO", "6.6M 24CT Fiber (E/W)", "22'"]
@@ -41,6 +48,11 @@ const state = ExcelImport.importOriginalWorkbook(workbook, "identity-test.xlsx")
 assert.deepEqual(Object.keys(state.poles).sort(), ["P01-LX339927 STEEL", "P02-X339926 STEEL"]);
 assert.equal(state.poles["P01-LX339927 STEEL"].lowPower, "30'", "new MidAm Lowest Power.display must import");
 assert.equal(state.poles["P02-X339926 STEEL"].lowPower, "29'", "legacy Low Power Attachment.display must remain supported");
+assert.deepEqual(
+  state.poles["P01-LX339927 STEEL"].metadata.powerEquipment.map(row => row.category),
+  ["TRANSFORMER", "STREETLIGHT", "RISER"],
+  "power Equipment must include transformers, streetlights and Utility risers but exclude communication risers"
+);
 assert.equal(state.spans.S1.fromPole, "P01-LX339927 STEEL");
 assert.equal(state.spans.S1.toPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.fromPole, "P02-X339926 STEEL");

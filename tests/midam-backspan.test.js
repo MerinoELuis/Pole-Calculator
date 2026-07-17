@@ -26,6 +26,10 @@ S.upsertPole(S.createPole({
   poleId: "P2",
   lowPower: "30'",
   metadata: {
+    powerEquipment: [
+      { category: "STREETLIGHT", bottomHeight: "25'", dripLoopHeight: "24'6\"" },
+      { category: "TRANSFORMER", attachmentHeight: "28'" }
+    ],
     midAmConstraints: {
       streetlights: [{ bottomHeight: "25'", dripLoopHeight: "24'6\"" }],
       powerGuys: []
@@ -77,5 +81,17 @@ S.upsertSpanComm({ ...back, existingHOAChange: "19'2\"" });
 C.recalculateSpansForPole("P2");
 back = S.getSpanComm("BACK", "P2", "COMMUNICATION > Fiber", "BACK-WIRE");
 assert.equal(back.calculatedMidspan, "17'10\"", "movements at both endpoints must each contribute half their change exactly once");
+
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({
+  poleId: "INTEC-EQUIPMENT",
+  lowPower: "30'",
+  metadata: {
+    powerEquipment: [{ category: "TRANSFORMER", attachmentHeight: "25'" }]
+  }
+}));
+C.recalculateAll();
+assert.equal(S.getPole("INTEC-EQUIPMENT").maxCommHeight, "21'8\"", "INTEC Power Equipment must constrain Max Height on Pole using Power-comms clearance");
 
 console.log("MidAm Back Span calculation tests passed.");

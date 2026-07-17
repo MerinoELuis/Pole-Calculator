@@ -113,9 +113,11 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 10. INTEC Self-Supporting Fiber remains visible as POF.
 11. Metronet markers select the Metronet profile.
 12. Selecting Metronet exposes the WI selector and applies `MidAm` as Proposed owner.
-13. `UTILITY > MidAm` automatically selects Metronet/MidAm and applies its crossing, streetlight, and power-guy defaults.
+13. `UTILITY > MidAm` automatically selects Metronet/MidAm and applies its crossing and streetlight defaults.
 14. A MidAm Back Span with its own imported midspan responds to half the movement at each endpoint even when reciprocal Span/Wire IDs differ.
-12. Fore/Back rows with different IDs keep each imported midspan on its own row.
+15. Fore/Back rows with different IDs keep each imported midspan on its own row.
+16. Equipment imports Utility/Power Streetlights, Transformers, and Risers for both profiles while excluding communication risers.
+17. Supported Equipment can lower Max Height on Pole using the active project rules.
 
 ## Persistence Cases
 
