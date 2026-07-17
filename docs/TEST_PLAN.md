@@ -115,9 +115,10 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 12. Selecting Metronet exposes the WI selector and applies `MidAm` as Proposed owner.
 13. `UTILITY > MidAm` automatically selects Metronet/MidAm and applies its crossing and streetlight defaults.
 14. A MidAm Back Span with its own imported midspan responds to half the movement at each endpoint even when reciprocal Span/Wire IDs differ.
-15. Fore/Back rows with different IDs keep each imported midspan on its own row.
-16. Equipment imports Utility/Power Streetlights, Transformers, and Risers for both profiles while excluding communication risers.
-17. Supported Equipment can lower Max Height on Pole using the active project rules.
+15. Wecom and MidAm Proposed MS uses the highest same-span comm midspan plus `12\"`; without a comm midspan it subtracts sag after rounding span length to the nearest `50 ft`, while manual O-CALC remains authoritative.
+16. Fore/Back rows with different IDs keep each imported midspan on its own row.
+17. Equipment imports Utility/Power Streetlights, Transformers, and Risers for both profiles while excluding communication risers.
+18. Supported Equipment can lower Max Height on Pole using the active project rules.
 
 ## Persistence Cases
 

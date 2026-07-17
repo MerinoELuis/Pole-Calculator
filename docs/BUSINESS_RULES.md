@@ -171,6 +171,13 @@ Proposed Flagging checks:
 
 The Proposed MS base is `O-CALC MS`, with imported `proposedMidspan` as fallback. The value is evaluated only against comm midspans from the same physical pole-to-pole connection. Unrelated spans on the same pole are excluded.
 
+When both fields are blank and Proposed owner is Wecom or MidAm, the base is calculated automatically:
+
+1. If the physical span contains one or more comm midspans, use the highest comm midspan plus `12\"`.
+2. Otherwise, subtract estimated sag from Proposed HOA.
+3. Round span length to the nearest `50 ft` before estimating sag at `1 ft` per `100 ft`: `100 ft -> 12\"`, `150 ft -> 18\"`, `200 ft -> 24\"`, and `250 ft -> 30\"`.
+4. Existing MS adjustment and flagging rules run after this base is obtained.
+
 In Top Comm mode:
 
 ```text

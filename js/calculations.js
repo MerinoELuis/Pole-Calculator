@@ -34,7 +34,10 @@
     const lengthFeet = getSpanLengthFeet(span);
     const sagPer100 = H().parseHeight(state.settings.sagPer100Ft || "1'") ?? 12;
     if (!Number.isFinite(lengthFeet)) return 0;
-    return Math.round((lengthFeet / 100) * sagPer100);
+    // Proposed sag uses the nearest 50-foot design bucket. For example, a
+    // 148-foot span is treated as 150 feet and receives 18 inches of sag.
+    const roundedLengthFeet = Math.round(lengthFeet / 50) * 50;
+    return Math.round((roundedLengthFeet / 100) * sagPer100);
   }
 
   function getSettingPosition() {
@@ -510,7 +513,7 @@
     const span = S().getSpan(spanId);
     if (!side || !span) return null;
     const calculationSpan = span.sourceSpanId ? S().getSpan(span.sourceSpanId) || span : span;
-    const baseInches = calculateProposedMidspanBase(side, span);
+    const baseInches = calculateProposedMidspanBase(side, calculationSpan);
     const evaluation = evaluateSpanSideMidspan(baseInches, calculationSpan, poleId);
     const proposedFlagging = evaluateSpanSideFlagging(side);
     S().upsertSpanSide({
@@ -925,8 +928,29 @@
     return endDrop;
   }
 
+  function supportsAutomaticProposedMidspan() {
+    const owner = String(S().getState().settings?.proposedOwner || "").trim().toUpperCase();
+    return owner === "WECOM" || owner === "MIDAM";
+  }
+
   function calculateProposedMidspanBase(side, span) {
-    return parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
+    // A manually entered/imported O-CALC value remains authoritative.
+    const explicit = parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
+    if (explicit !== null || !side || !span || !supportsAutomaticProposedMidspan()) return explicit;
+
+    // Automatic Proposed MS only uses comm midspans on this physical span.
+    // When several comms are present, the highest measured/calculated MS is
+    // the reference and the Proposed is placed 12 inches above it.
+    const references = getReferenceMidspansForSpanSide(span.spanId, side.poleId);
+    if (references.length) return Math.max(...references) + 12;
+
+    // With no comm midspan, estimate Proposed MS from its pole attachment and
+    // the span sag. Length is rounded to the nearest 50 feet before applying
+    // one foot of sag per 100 feet (100 -> 12", 150 -> 18", etc.).
+    const proposed = H().parseHeight(side.proposedHOA || "");
+    const lengthFeet = getSpanLengthFeet(span);
+    if (proposed === null || !Number.isFinite(lengthFeet)) return null;
+    return proposed - getEstimatedSagInches(span);
   }
 
   /**

@@ -1239,7 +1239,7 @@
   }
 
   function spanSideClearanceNote(side) {
-    if (!side.ocalcMS && !side.proposedMidspan) return "Missing O-CALC MS.";
+    if (!side.msProposed && !side.finalMidspan) return "Missing O-CALC MS or automatic Proposed MS inputs.";
     const settings = S.getState().settings || {};
     if (side.clearanceMSReason === "LOW_POWER" && side.clearanceMSIssue && settings.allowLowPowerMidspanAdjustment !== false) return `Ensure min 30" to low power at midspan.`;
     if (side.clearanceMSStatus === "PENDING") {
@@ -1260,7 +1260,7 @@
 
   function renderSpanSideMidspanStatus(side) {
     const status = side.clearanceMSStatus || "";
-    if (!side.ocalcMS && !side.proposedMidspan) return `<span class="badge warning">Missing Data</span>`;
+    if (!side.msProposed && !side.finalMidspan) return `<span class="badge warning">Missing Data</span>`;
     if (status === "PENDING") return `<span class="badge danger pulse-badge">Clearance Issue</span>`;
     if (status === "PROBLEM") return `<span class="badge danger">Clearance Issue</span>`;
     if (status === "ADJUSTED") return `<span class="badge warning">Adjusted</span>`;

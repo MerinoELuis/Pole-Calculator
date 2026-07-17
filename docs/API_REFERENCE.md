@@ -94,7 +94,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `findRemoteComm(...)` | Select the opposite comm using Wire ID/span/owner ranking. |
 | `displayMidspanForComm(spanComm)` | Return the same value source used by the comm UI. |
 | `calculateSpanPowerDerived(spanId)` | Derive Low Power and Max Height at MS. |
-| `calculateSpanSideMidspan(spanId, poleId)` | Derive MS Proposed, Adjusted Final MS, and MS Flagging. |
+| `calculateSpanSideMidspan(spanId, poleId)` | Derive MS Proposed, Adjusted Final MS, and MS Flagging, including the Wecom/MidAm same-span or estimated-sag fallback. |
 | `calculateEndDropForSpanSide(spanId, poleId)` | Resolve Next Pole Proposed and End Drop. |
 | `evaluateCommFlagging(...)` | Evaluate combined comm pole/midspan rules. |
 | `evaluateSpanSideFlagging(...)` | Evaluate compact Proposed Flagging. |
