@@ -22,6 +22,8 @@ Pole results are ordered by Overall severity and then naturally by Sequence or I
 
 Collection checks require Id, matching Sequence, and a non-empty Low Power display value. `Lowest Power.display` is preferred for MidAm and `Low Power Attachment.display` remains supported for older workbooks. Low Power format is not interpreted. Missing Year Installed is a warning for INTEC; Metronet/MidAm does not require that column.
 
+MidAm Sequence is normalized to `000` or `000A` before comparison with the beginning of Id. This prevents formatted values such as `058` from failing when the workbook reader exposes them as numeric `58`. MidAm Collection Owner must equal `UTILITY > MidAm`; empty produces an error and another populated owner produces a warning.
+
 Span checks operate on original rows:
 
 - Exactly one Fore Span per pole.

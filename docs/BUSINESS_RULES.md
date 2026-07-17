@@ -128,6 +128,14 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 3. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
 4. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
 
+## MidAm Collection Identity
+
+1. Sequence contains three digits and may end with one letter.
+2. Numeric Excel values are left-padded before validation, so `58` is treated as `058`.
+3. Letter suffixes are case-insensitive and normalized to uppercase, so `51b` is treated as `051B`.
+4. The normalized Sequence must match the beginning of Collection `Id`.
+5. Collection Owner must be `UTILITY > MidAm`; empty is an error and another populated owner is a warning.
+
 A same-owner Service Drop may reuse exactly the same bolt height. This exception applies only when the separation is zero; nearby nonzero placements still use Bolt-bolt clearance.
 
 ### Transfer and Re-sag Controls

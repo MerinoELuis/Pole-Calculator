@@ -176,6 +176,15 @@
     return text(pick(row, ["Sequence", "Seq"]));
   }
 
+  // Excel can expose a formatted MidAm Sequence such as 058 as the number 58.
+  // Normalize the numeric part back to three digits and retain one optional
+  // route suffix letter before comparing it with the pole Id.
+  function normalizeMidAmSequence(value) {
+    const raw = text(value).toUpperCase().replace(/\s+/g, "");
+    const match = raw.match(/^(\d{1,3})([A-Z])?$/);
+    return match ? `${match[1].padStart(3, "0")}${match[2] || ""}` : "";
+  }
+
   function collectionEntries() {
     return rows("collection").map((row, index) => {
       const poleId = collectionPoleId(row);
@@ -275,17 +284,42 @@
       });
     }
 
+    const expectedSequence = isMidAmProject() ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
     if (!entry.sequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_SEQUENCE", status: "ERROR",
         title: "Sequence", message: "Sequence is empty.", expected: "Sequence matching the start of Id", actual: "Empty"
       });
-    } else if (entry.poleId && !normalizedText(entry.poleId).startsWith(normalizedText(entry.sequence))) {
+    } else if (isMidAmProject() && !expectedSequence) {
+      add(result, {
+        phase: "HOA", section: "Collection", code: "INVALID_MIDAM_SEQUENCE", status: "ERROR",
+        title: "Sequence", message: `Sequence ${entry.sequence} must contain three digits and may end with one letter.`,
+        expected: "000 or 000A", actual: entry.sequence
+      });
+    } else if (entry.poleId && !normalizedText(entry.poleId).startsWith(normalizedText(expectedSequence))) {
       add(result, {
         phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
-        title: "Sequence", message: `Sequence ${entry.sequence} does not match the start of Id ${entry.poleId}.`,
-        expected: `${entry.sequence}...`, actual: entry.poleId
+        title: "Sequence", message: `Sequence ${expectedSequence || entry.sequence} does not match the start of Id ${entry.poleId}.`,
+        expected: `${expectedSequence || entry.sequence}...`, actual: entry.poleId
       });
+    }
+
+    if (isMidAmProject()) {
+      const owner = text(pick(entry.row, ["Owner"], { contains: false }));
+      const normalizedOwner = normalizedText(owner).replace(/\s*>\s*/g, ">");
+      if (!owner) {
+        add(result, {
+          phase: "HOA", section: "Collection", code: "MISSING_MIDAM_COLLECTION_OWNER", status: "ERROR",
+          title: "Owner", message: "Collection Owner is empty. MidAm requires UTILITY > MidAm.",
+          expected: "UTILITY > MidAm", actual: "Empty"
+        });
+      } else if (normalizedOwner !== "utility>midam") {
+        add(result, {
+          phase: "HOA", section: "Collection", code: "UNEXPECTED_MIDAM_COLLECTION_OWNER", status: "WARNING",
+          title: "Owner", message: `Collection Owner ${owner} differs from the MidAm project owner.`,
+          expected: "UTILITY > MidAm", actual: owner
+        });
+      }
     }
 
     const lowPower = exactDisplayLowPower(entry.row);

@@ -88,6 +88,8 @@ Used to create poles and read general pole data:
 
 Low Power is matched flexibly. The app accepts headers containing `Low Power Attachment`, plus fallbacks such as `Lowest Power` or `Low Power`.
 
+For Metronet/MidAm, Collection `Sequence` is normalized to three digits plus one optional letter (`58` becomes `058`, and `51b` becomes `051B`) and must match the beginning of the pole `Id`. Collection `Owner` must be `UTILITY > MidAm`: an empty value is an error, while a different populated owner is a warning.
+
 ### Span
 
 Used to create graph connections between poles:

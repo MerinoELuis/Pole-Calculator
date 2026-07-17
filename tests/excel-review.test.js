@@ -288,8 +288,8 @@ state.mr = [];
 state.excelReviewIgnoredChecks = {};
 state.excelReviewSource = {
   collection: {
-    headers: ["Id", "Sequence", "Lowest Power.display"],
-    rows: [{ Id: "PMIDAM", Sequence: "PMIDAM", "Lowest Power.display": "27'" }]
+    headers: ["Id", "Sequence", "Owner", "Lowest Power.display"],
+    rows: [{ Id: "PMIDAM", Sequence: "PMIDAM", Owner: "UTILITY > MidAm", "Lowest Power.display": "27'" }]
   },
   spans: { headers: [], rows: [] },
   spanWires: {
@@ -328,5 +328,33 @@ const midAmCodes = new Set(review.reviewPole("PMIDAM").checks.map(item => item.c
 ].forEach(code => assert.ok(midAmCodes.has(code), `expected MidAm review check ${code}`));
 assert.equal(midAmCodes.has("MISSING_LOW_POWER"), false, "MidAm review must accept Lowest Power.display");
 assert.equal(midAmCodes.has("MISSING_YEAR_INSTALLED"), false, "MidAm review must not require Year Installed");
+
+state.excelReviewSource.collection = {
+  headers: ["Id", "Sequence", "Owner", "Lowest Power.display"],
+  rows: [{ Id: "058 14998783", Sequence: 58, Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" }]
+};
+state.excelReviewSource.spans = { headers: [], rows: [] };
+state.excelReviewSource.spanWires = { headers: [], rows: [] };
+state.excelReviewSource.equipment = { headers: [], rows: [] };
+state.excelReviewSource.anchorGuys = { headers: [], rows: [] };
+review.runReview();
+let collectionChecks = review.reviewPole("058 14998783").checks;
+assert.equal(collectionChecks.some(item => ["INVALID_MIDAM_SEQUENCE", "SEQUENCE_ID_MISMATCH"].includes(item.code)), false, "numeric 58 must normalize to MidAm Sequence 058");
+assert.equal(collectionChecks.some(item => item.code.includes("MIDAM_COLLECTION_OWNER")), false, "UTILITY > MidAm must pass the Collection Owner rule");
+
+state.excelReviewSource.collection.rows[0].Owner = "";
+review.runReview();
+collectionChecks = review.reviewPole("058 14998783").checks;
+assert.ok(collectionChecks.some(item => item.code === "MISSING_MIDAM_COLLECTION_OWNER" && item.status === "ERROR"), "empty MidAm Collection Owner must error");
+
+state.excelReviewSource.collection.rows[0].Owner = "UTILITY > Other";
+review.runReview();
+collectionChecks = review.reviewPole("058 14998783").checks;
+assert.ok(collectionChecks.some(item => item.code === "UNEXPECTED_MIDAM_COLLECTION_OWNER" && item.status === "WARNING"), "a different MidAm Collection Owner must warn");
+
+state.excelReviewSource.collection.rows[0] = { Id: "051B 12919312", Sequence: "51b", Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" };
+review.runReview();
+collectionChecks = review.reviewPole("051B 12919312").checks;
+assert.equal(collectionChecks.some(item => ["INVALID_MIDAM_SEQUENCE", "SEQUENCE_ID_MISMATCH"].includes(item.code)), false, "MidAm Sequence 51b must normalize to 051B and match the Id");
 
 console.log("Excel Review tests passed.");
