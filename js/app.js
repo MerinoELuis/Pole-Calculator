@@ -1313,7 +1313,7 @@
       const bCount = Number((b.match(/\d+/) || [0])[0]);
       return aCount - bCount || a.localeCompare(b);
     });
-    const ownerOptions = ["Wecom", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"].map(owner =>
+    const ownerOptions = ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"].map(owner =>
       `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
     ).join("");
     const renderRow = ([field, label, value]) => `
@@ -1350,7 +1350,12 @@
               <option value="UPPER" ${settings.mrCase === "UPPER" ? "selected" : ""}>Uppercase</option>
             </select>
           </label>
-          ${settings.hideProposedOwner ? "" : `<label class="clearance-row position-row">
+          ${selectedProfile === "METRONET" ? `<label class="clearance-row position-row">
+            <span>WI</span>
+            <select class="input position-select" data-scope="settings" data-field="proposedOwner">
+              <option value="MidAm" selected>MidAm</option>
+            </select>
+          </label>` : settings.hideProposedOwner ? "" : `<label class="clearance-row position-row">
             <span>Proposed Owner</span>
             <select class="input position-select" data-scope="settings" data-field="proposedOwner">
               ${ownerOptions}

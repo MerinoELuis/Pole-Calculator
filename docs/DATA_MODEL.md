@@ -38,7 +38,7 @@ Important settings and defaults:
 | `boltClearance` | `4"` | Same-owner and bolt-point spacing on the pole. |
 | `midspanPowerCommClearance` | `30"` | Power-to-comm spacing at midspan. |
 | `midspanCommCommClearance` | `4"` | Comm-to-comm spacing at midspan. |
-| `proposedOwner` | `Wecom` | Owner used for INTEC attachment Make Ready. |
+| `proposedOwner` | `Wecom` | Proposed owner; INTEC exposes the normal owner selector and Metronet exposes it as WI with `MidAm`. |
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
 | `showResagServiceDrop` | `true` | Whether INTEC exposes the Re-sag Service Drop control. |

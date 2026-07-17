@@ -27,7 +27,9 @@
       settings: {
         position: "LOW_COMM",
         mrCase: "UPPER",
-        proposedOwner: "METRONET",
+        // Metronet uses a separate WI selector. MidAm is the currently
+        // supported work issuer and is exported as the Proposed owner.
+        proposedOwner: "MidAm",
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: true,
         allowLowPowerMidspanAdjustment: false,

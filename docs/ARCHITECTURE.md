@@ -119,7 +119,7 @@ Update Data performs a fresh Excel import and then reconciles previous user work
 Current profiles:
 
 - INTEC: Top Comm, proposed owner visible, Service Drop and Re-sag Service Drop visible, low-power Proposed MS adjustment enabled.
-- Metronet: Low Comm, proposed owner hidden, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled.
+- Metronet: Low Comm, a dedicated `WI` selector with `MidAm`, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled.
 
 Transfer to New Pole remains visible for both profiles because it is a manual movement outcome rather than an imported project-specific attribute.
 

@@ -810,6 +810,11 @@
   function normalizeState(raw) {
     const next = { ...emptyState(), ...raw };
     next.settings = { ...emptyState().settings, ...(raw && raw.settings ? raw.settings : {}) };
+    // Migrate Metronet saves created before the WI selector existed.
+    if (String(next.settings.projectProfile || "").toUpperCase() === "METRONET"
+      && (!next.settings.proposedOwner || String(next.settings.proposedOwner).toUpperCase() === "METRONET")) {
+      next.settings.proposedOwner = "MidAm";
+    }
     next.settings.fiberSizes = next.settings.fiberSizes && typeof next.settings.fiberSizes === "object"
       ? { ...next.settings.fiberSizes }
       : {};

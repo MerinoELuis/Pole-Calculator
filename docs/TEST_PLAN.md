@@ -112,6 +112,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 9. Anchor.Guys matches pole, owner, and exact attachment height for DG.
 10. INTEC Self-Supporting Fiber remains visible as POF.
 11. Metronet markers select the Metronet profile.
+12. Selecting Metronet exposes the WI selector and applies `MidAm` as Proposed owner.
 12. Fore/Back rows with different IDs keep each imported midspan on its own row.
 
 ## Persistence Cases
