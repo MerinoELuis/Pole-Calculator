@@ -22,7 +22,7 @@ Pole results are ordered by Overall severity and then naturally by Sequence or I
 
 Collection checks require Id, matching Sequence, and a non-empty Low Power display value. `Lowest Power.display` is preferred for MidAm and `Low Power Attachment.display` remains supported for older workbooks. Low Power format is not interpreted. Missing Year Installed is a warning for INTEC; Metronet/MidAm does not require that column.
 
-MidAm Sequence is normalized to `000` or `000A`. The first Id block must independently follow the same format and equal Sequence exactly. This prevents formatted values such as `058` from failing when the workbook reader exposes them as numeric `58`, while still rejecting `058` versus `058A`. MidAm Collection Owner must equal `UTILITY > MidAm`; empty produces an error and another populated owner produces a warning.
+For MidAm, the first Collection Id block is the authoritative Sequence and must use `000` or `000A`. The Sequence cell is normalized to the same format and must equal the ID-derived value exactly. This prevents `058` from failing when the workbook reader exposes Sequence as numeric `58`, while still rejecting `058` versus `058A`. MidAm Collection Owner must equal `UTILITY > MidAm`; empty produces an error and another populated owner produces a warning.
 
 Span checks operate on original rows:
 
@@ -36,6 +36,8 @@ Span checks operate on original rows:
 For INTEC, Span.Wire also checks DAVIT construction, permitted communication owners, APS ownership for Primary/Secondary/Neutral, and the configured insulator lists. Duplicate wire detection is intentionally excluded.
 
 For Metronet/MidAm, Span.Wire checks `UTILITY > MidAm`, the configured Primary/Secondary/Neutral sizes, communication versus power insulator families, and Anchor.Guys sizes (`1/2\"` utility, `3/8\"` communication). Streetlight rows require MidAm ownership plus Bottom Height and Drip Loop Height so the calculator can apply the project-specific pole ceiling. The workbook does not expose a reliable completed-grounding field, so the grounding requirement is retained as project metadata rather than reported as a false pass.
+
+The `Anchor` worksheet is audited independently from `Anchor.Guys`. Each existing Anchor row must contain Collection Id, Id, Anchor Index, Anchor Id, Type, Lead Length, Lead Length provider, bearing, pitch, Owner, and Guys. The audit emits one error per incomplete row and lists all missing fields. Rows without an Id remain visible as global findings instead of being silently dropped. `Anchor.Guys` continues to drive DG matching and the MidAm utility/communication guy-size checks.
 
 ## Final Readiness
 

@@ -288,38 +288,43 @@
       });
     }
 
-    const expectedSequence = isMidAmProject() ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
+    const midAm = isMidAmProject();
+    const normalizedSequence = midAm ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
+    const idSequence = midAm ? midAmIdSequence(entry.poleId) : "";
     if (!entry.sequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_SEQUENCE", status: "ERROR",
         title: "Sequence", message: "Sequence is empty.", expected: "Sequence matching the start of Id", actual: "Empty"
       });
-    } else if (isMidAmProject() && !expectedSequence) {
+    } else if (midAm && !normalizedSequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "INVALID_MIDAM_SEQUENCE", status: "ERROR",
         title: "Sequence", message: `Sequence ${entry.sequence} must contain three digits and may end with one letter.`,
         expected: "000 or 000A", actual: entry.sequence
       });
-    } else if (isMidAmProject() && entry.poleId && !/^\d{3}[A-Z]?$/.test(midAmIdSequence(entry.poleId))) {
+    }
+
+    if (midAm && entry.poleId && !/^\d{3}[A-Z]?$/.test(idSequence)) {
       add(result, {
         phase: "HOA", section: "Collection", code: "INVALID_MIDAM_ID_SEQUENCE", status: "ERROR",
         title: "Id / Sequence", message: `The first block of Id ${entry.poleId} must contain three digits and may end with one letter.`,
-        expected: expectedSequence || "000 or 000A", actual: midAmIdSequence(entry.poleId) || "Empty"
+        expected: "000 or 000A", actual: idSequence || "Empty"
       });
-    } else if (entry.poleId && (isMidAmProject()
-      ? midAmIdSequence(entry.poleId) !== expectedSequence
-      : !normalizedText(entry.poleId).startsWith(normalizedText(expectedSequence)))) {
+    } else if (midAm && entry.poleId && normalizedSequence && idSequence !== normalizedSequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
-        title: "Sequence", message: isMidAmProject()
-          ? `Sequence ${expectedSequence} must equal the first block of Id ${entry.poleId}.`
-          : `Sequence ${expectedSequence || entry.sequence} does not match the start of Id ${entry.poleId}.`,
-        expected: isMidAmProject() ? expectedSequence : `${expectedSequence || entry.sequence}...`,
-        actual: isMidAmProject() ? midAmIdSequence(entry.poleId) : entry.poleId
+        title: "Sequence", message: `Sequence must equal ${idSequence}, derived from Id ${entry.poleId}.`,
+        expected: idSequence, actual: normalizedSequence
+      });
+    } else if (!midAm && entry.poleId && !normalizedText(entry.poleId).startsWith(normalizedText(normalizedSequence))) {
+      add(result, {
+        phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
+        title: "Sequence", message: `Sequence ${entry.sequence} does not match the start of Id ${entry.poleId}.`,
+        expected: `${entry.sequence}...`, actual: entry.poleId
       });
     }
 
-    if (isMidAmProject()) {
+    if (midAm) {
       const owner = text(pick(entry.row, ["Owner"], { contains: false }));
       const normalizedOwner = normalizedText(owner).replace(/\s*>\s*/g, ">");
       if (!owner) {
@@ -353,6 +358,58 @@
         expected: "Non-empty value", actual: "Empty"
       });
     }
+  }
+
+  function missingAnchorFields(row) {
+    const firstValue = names => {
+      for (const name of names) {
+        const value = pick(row, [name], { contains: false });
+        if (text(value)) return value;
+      }
+      return "";
+    };
+    const required = [
+      ["Collection Id", pick(row, ["collectionId", "Collection ID"], { contains: false })],
+      ["Id", pick(row, ["Id", "Pole ID"], { contains: false })],
+      ["Anchor Index", pick(row, ["Anchor Index"], { contains: false })],
+      ["Anchor Id", pick(row, ["Anchor Id", "Anchor ID"], { contains: false })],
+      ["Type", pick(row, ["Type"], { contains: false })],
+      ["Lead Length", firstValue(["Lead Length.display", "Lead Length"])],
+      ["Lead Length provider", pick(row, ["Lead Length.provider", "Lead Length Provider"], { contains: false })],
+      ["Lead Length bearing", firstValue(["Lead Length.bearing.display", "Lead Length.bearing"])],
+      ["Lead Length pitch", firstValue(["Lead Length.pitch.display", "Lead Length.pitch"])],
+      ["Owner", pick(row, ["Owner"], { contains: false })],
+      ["Guys", pick(row, ["Guys"], { contains: false })]
+    ];
+    return required.filter(([, value]) => !text(value)).map(([label]) => label);
+  }
+
+  function addAnchorChecks(result, poleId) {
+    const wanted = normalizedText(poleId);
+    rows("anchors").forEach((row, index) => {
+      const rowPoleId = text(pick(row, ["Id", "Pole ID"], { contains: false }));
+      if (!rowPoleId || normalizedText(rowPoleId) !== wanted) return;
+      const missing = missingAnchorFields(row);
+      if (!missing.length) return;
+      add(result, {
+        phase: "HOA", section: "Anchor", code: "ANCHOR_MISSING_REQUIRED_DATA", status: "ERROR",
+        title: "Required Fields", message: `Anchor row ${index + 2} has empty required fields: ${missing.join(", ")}.`,
+        expected: "All required Anchor fields populated", actual: `Missing: ${missing.join(", ")}`
+      });
+    });
+  }
+
+  function addUnassignedAnchorChecks(globalChecks) {
+    rows("anchors").forEach((row, index) => {
+      const poleId = text(pick(row, ["Id", "Pole ID"], { contains: false }));
+      if (poleId) return;
+      const missing = missingAnchorFields(row);
+      globalChecks.push(check({
+        phase: "HOA", section: "Anchor", code: "ANCHOR_MISSING_REQUIRED_DATA", status: "ERROR",
+        title: "Required Fields", message: `Anchor row ${index + 2} has no Id and cannot be assigned to a pole.`,
+        expected: "All required Anchor fields populated", actual: `Missing: ${missing.join(", ") || "Id"}`
+      }));
+    });
   }
 
   function addSpanCountChecks(result, poleSpans) {
@@ -1158,6 +1215,7 @@
         title: "Collection Id Column", message: "Collection is missing the Id column.", expected: "Id column", actual: "Missing"
       }));
     }
+    addUnassignedAnchorChecks(current.globalChecks);
 
     current.results = entries.map(entry => {
       const result = {
@@ -1172,6 +1230,7 @@
       };
       const poleSpans = spans.filter(span => normalizedText(span.fromPole) === normalizedText(entry.poleId));
       addCollectionChecks(result, entry);
+      addAnchorChecks(result, entry.poleId);
       addSpanCountChecks(result, poleSpans);
       addLinkedCollectionChecks(result, poleSpans, maps);
       addReciprocalChecks(result, poleSpans, spans);

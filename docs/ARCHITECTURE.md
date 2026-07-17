@@ -74,7 +74,7 @@ The store is mutable by design. A normal edit follows this lifecycle:
 
 `render()` also calls `recalculateAll()` before drawing the full workspace. This protects imports, undo restores, and loaded JSON from displaying stale derived values.
 
-Excel Review results live in module memory rather than AppState. The store retains only the original headers and rows needed to rerun the audit. A successful raw import or Update Data recalculates the calculator, runs `ExcelReview.runReview()`, then renders without changing the active view. A failed import does not run the review.
+Excel Review results live in module memory rather than AppState. The store retains only the original headers and rows needed to rerun the audit. Raw `Anchor` and `Anchor.Guys` snapshots remain separate: the first supports row-completeness checks, while the second supports DG matching and project guy-size rules. A successful raw import or Update Data recalculates the calculator, runs `ExcelReview.runReview()`, then renders without changing the active view. A failed import does not run the review.
 
 ## Graph Model
 

@@ -367,4 +367,24 @@ review.runReview();
 collectionChecks = review.reviewPole("58 14998783").checks;
 assert.ok(collectionChecks.some(item => item.code === "INVALID_MIDAM_ID_SEQUENCE"), "the first MidAm Id block must itself contain three digits");
 
+state.excelReviewSource.collection.rows[0] = { collectionId: "C058", Id: "058 14998783", Sequence: 58, Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" };
+state.excelReviewSource.anchors = {
+  headers: ["collectionId", "Id", "Anchor Index", "Anchor Id", "Type", "Lead Length.display", "Lead Length.provider", "Lead Length.bearing.display", "Lead Length.pitch.display", "Owner", "Guys"],
+  rows: [{
+    collectionId: "C058", Id: "058 14998783", "Anchor Index": 1, "Anchor Id": "A1", Type: "",
+    "Lead Length.display": "7'11\"", "Lead Length.provider": "pointtopoint", "Lead Length.bearing.display": "255.5°",
+    "Lead Length.pitch.display": "-18.1°", Owner: "", Guys: ""
+  }]
+};
+review.runReview();
+let anchorChecks = review.reviewPole("058 14998783").checks;
+const missingAnchor = anchorChecks.find(item => item.code === "ANCHOR_MISSING_REQUIRED_DATA");
+assert.ok(missingAnchor, "Anchor rows with blank required values must error");
+assert.match(missingAnchor.message, /Type, Owner, Guys/, "Anchor error must identify every blank required field");
+
+Object.assign(state.excelReviewSource.anchors.rows[0], { Type: "Single - 14\" - Soil Class 4", Owner: "UTILITY > MidAm", Guys: 1 });
+review.runReview();
+anchorChecks = review.reviewPole("058 14998783").checks;
+assert.equal(anchorChecks.some(item => item.code === "ANCHOR_MISSING_REQUIRED_DATA"), false, "a complete Anchor row must pass the integrity audit");
+
 console.log("Excel Review tests passed.");

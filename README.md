@@ -88,7 +88,7 @@ Used to create poles and read general pole data:
 
 Low Power is matched flexibly. The app accepts headers containing `Low Power Attachment`, plus fallbacks such as `Lowest Power` or `Low Power`.
 
-For Metronet/MidAm, Collection `Sequence` is normalized to three digits plus one optional letter (`58` becomes `058`, and `51b` becomes `051B`). The first block of pole `Id` follows the same format and must equal Sequence exactly. Collection `Owner` must be `UTILITY > MidAm`: an empty value is an error, while a different populated owner is a warning.
+For Metronet/MidAm, the first block of Collection `Id` is the authoritative sequence and must contain three digits plus one optional letter (`058` or `051B`). Collection `Sequence` is normalized to that format (`58` becomes `058`, and `51b` becomes `051B`) and must equal the value derived from `Id` exactly. Collection `Owner` must be `UTILITY > MidAm`: an empty value is an error, while a different populated owner is a warning.
 
 ### Span
 
@@ -129,6 +129,10 @@ Imported as a read-only Power Equipment section on each pole. The calculator inc
 - Risers.
 
 Communication-owned risers are excluded. Equipment heights can lower `Max Height on Pole`. INTEC applies the normal Pole Power-comms clearance to the equipment's lowest physical height. MidAm applies its dedicated streetlight bracket and uncovered drip-loop rules to streetlights, while transformers and power risers use Pole Power-comms clearance.
+
+### Anchor
+
+The `Anchor` worksheet is preserved separately for Excel Review. Each existing row is checked for non-empty Collection Id, Id, Anchor Index, Anchor Id, Type, Lead Length, Lead Length provider, bearing, pitch, Owner, and Guys. Display and raw Lead Length values are treated as alternatives for the same measurement. One review error lists every required field missing from a row.
 
 ### Anchor.Guys
 

@@ -20,6 +20,8 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 
 Collection supplies the preferred visible Pole ID. During relationship matching, trailing `STEEL`, `UG`, and `PCO` tokens are ignored. This normalization applies to Collection aliases, Span endpoints, Span.Wire rows, Anchor.Guys, Make Ready references, and Update Data reconciliation.
 
+For Metronet/MidAm, the first block of `Id` is the source of truth for Sequence. It must be `000` or `000A`. The imported `Sequence` cell is normalized to the same shape and audited against that ID-derived value.
+
 Endpoint owner placeholders are marked separately from measured `Span.Wire` rows. During Update Data, a blank inverse-span placeholder is discarded when the previous state already contains the same owner on the same physical connection. Existing HOA and midspan baselines are retained when a later workbook omits them, so a partial update cannot silently change calculations.
 | Owner | `Owner` |
 | Location reference | headers containing `Location.latitude` and `Location.longitude` |
@@ -60,6 +62,10 @@ Bearing is normalized to one of eight cardinal directions. A missing linked pole
 Power classification is evaluated before comm creation. Communication owners come from the `Owner` column; missing owners receive stable UNKNOWN labels instead of being discarded.
 
 `Size` values containing Communication Drop/Service Drop mark that span relationship as a Service Drop. INTEC `Self-Supporting Fiber` is marked as POF by calculation logic.
+
+## Anchor
+
+The `Anchor` worksheet is captured as an independent raw review source. Excel Review checks every existing row for Collection Id, Id, Anchor Index, Anchor Id, Type, Lead Length, Lead Length provider, bearing, pitch, Owner, and Guys. A populated display value may satisfy its corresponding raw Lead Length, bearing, or pitch field. `Anchor` rows do not set the comm `DG` control.
 
 ## Anchor.Guys
 
@@ -133,7 +139,7 @@ Preserved user work includes matching:
 
 Fresh non-empty imported geometry, owners, wires, power, Environment, and source references replace their previous imported equivalents. Empty replacement cells retain the prior known calculator value only after the old and new entities match. Rows omitted by the update are not recreated unless they contain manual user work. This prevents removed spans from generating empty endpoint comm rows. Logical duplicate comm rows are still reconciled to one physical row. Derived values are cleared and recalculated.
 
-`excelReviewSource` is the exception: it always stores the newly selected workbook exactly as imported. This lets Excel Review report a blank or missing value even when the calculator retains an older value to avoid destructive data loss.
+`excelReviewSource` is the exception: it always stores the newly selected workbook exactly as imported, including Collection, Span, Span.Wire, Equipment, Anchor, Anchor.Guys, Make Ready, and Make Ready.Comm Transfers. This lets Excel Review report a blank or missing value even when the calculator retains an older value to avoid destructive data loss.
 
 Every update writes a collapsed `[PoleCalc Update Data]` group to the browser console. It includes entity counts, reconciliation diagnostics, and a field-level before/after table for poles, spans, Proposed rows, comms, and power.
 

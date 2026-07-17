@@ -14,7 +14,7 @@ assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 STEEL UG"), "P01-LX339
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 PCO STEEL"), "P01-LX339927");
 
 const workbook = {
-  SheetNames: ["Collection", "Span", "Span.Wire", "Equipment", "Make Ready"],
+  SheetNames: ["Collection", "Span", "Span.Wire", "Equipment", "Anchor", "Make Ready"],
   Sheets: {
     Collection: [
       ["collectionId", "Id", "Sequence", "Lowest Power.display", "Low Power Attachment.display"],
@@ -37,6 +37,10 @@ const workbook = {
       ["P01-LX339927 STEEL", "E3", "Generic Equipment > Riser 90.0°", "UTILITY > APS", "N", "19'", "", ""],
       ["P01-LX339927 STEEL", "E4", "Generic Equipment > Riser 90.0°", "COMMUNICATION > CATV", "W", "18'", "", ""]
     ],
+    Anchor: [
+      ["collectionId", "Id", "Anchor Index", "Anchor Id", "Type", "Lead Length.display", "Lead Length.provider", "Lead Length.bearing.display", "Lead Length.pitch.display", "Owner", "Guys"],
+      ["C1", "P01-LX339927 STEEL", 1, "A1", "Single - 14\" - Soil Class 4", "20'", "manual", "90°", "-10°", "UTILITY > APS", 1]
+    ],
     "Make Ready": [
       ["Id", "Attachment Size", "Attachment Height.display"],
       ["P01-LX339927 PCO", "6.6M 24CT Fiber (E/W)", "22'"]
@@ -53,6 +57,7 @@ assert.deepEqual(
   ["TRANSFORMER", "STREETLIGHT", "RISER"],
   "power Equipment must include transformers, streetlights and Utility risers but exclude communication risers"
 );
+assert.equal(state.excelReviewSource.anchors.rows.length, 1, "Anchor and Anchor.Guys must be preserved as separate review sheets");
 assert.equal(state.spans.S1.fromPole, "P01-LX339927 STEEL");
 assert.equal(state.spans.S1.toPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.fromPole, "P02-X339926 STEEL");

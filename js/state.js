@@ -130,6 +130,7 @@
       spans: { headers: [], rows: [] },
       spanWires: { headers: [], rows: [] },
       equipment: { headers: [], rows: [] },
+      anchors: { headers: [], rows: [] },
       anchorGuys: { headers: [], rows: [] },
       makeReady: { headers: [], rows: [] },
       commTransfers: { headers: [], rows: [] }
@@ -429,6 +430,7 @@
       spans: normalizeReviewSheet(raw.spans),
       spanWires: normalizeReviewSheet(raw.spanWires),
       equipment: normalizeReviewSheet(raw.equipment),
+      anchors: normalizeReviewSheet(raw.anchors),
       anchorGuys: normalizeReviewSheet(raw.anchorGuys),
       makeReady: normalizeReviewSheet(raw.makeReady),
       commTransfers: normalizeReviewSheet(raw.commTransfers)

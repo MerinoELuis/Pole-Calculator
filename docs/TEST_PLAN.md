@@ -139,25 +139,26 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 3. A Collection row with no Id errors; a missing Id header creates a global error.
 4. Low Power checks accept `Lowest Power.display` and the legacy `Low Power Attachment.display` source.
 5. Missing Year Installed warns for INTEC but is not required for Metronet/MidAm.
-6. MidAm Sequence normalizes numeric `58` to `058` and suffix value `51b` to `051B`; the first Id block uses the same format and must equal it exactly.
+6. MidAm derives the expected Sequence from the first Id block (`000` or `000A`); Sequence normalizes numeric `58` to `058` and suffix value `51b` to `051B`, then must equal the ID-derived value exactly.
 7. MidAm Collection Owner `UTILITY > MidAm` passes; empty errors; another populated owner warns.
 8. Exactly one Fore is required; one Back passes, zero Back warns, more than one Back errors, and Other rows do not affect those counts.
 9. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.
 10. Empty Fore/Back Linked Collection.Title produces a low-level warning. Populated external-job links and empty Other links do not warn.
-11. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.
-12. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
-13. Calculator-only work errors; Excel-only final data warns.
-14. Proposed and final Proposed midspan compare through integer inches, including decimal-feet equivalence.
-15. UG requires Underground construction and one valid UG resolution note without requiring aerial attachment heights; `Unable to attach due to <specific reason>` passes, while an unresolved placeholder produces one error.
-16. Expected structured transfers match normalized owner aliases and heights, including CenturyLink/CTL/TELCO equivalence.
-17. Attachment Size is Not applicable when Calculator lacks reliable per-Proposed fiber/messenger identity.
-18. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.
-19. Review cards stay in natural sequence order rather than moving errors ahead of lower-numbered poles.
-20. Duplicate identical MR rows and model-only slack/anchor/split instructions do not create unmatched-instruction warnings.
-21. A height or required-direction difference, including UG direction, pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results.
-22. Ignore keeps a finding visible in gray but removes it from phase and summary status; Restore activates it again.
-23. Save/Load and Update Data preserve ignored finding keys.
-24. The Excel Review tab badge counts poles with active Error or Warning status and excludes ignored findings.
+11. An incomplete Anchor row produces one error listing all missing required fields; a complete row passes. Anchor and Anchor.Guys remain independent snapshots.
+12. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.
+13. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
+14. Calculator-only work errors; Excel-only final data warns.
+15. Proposed and final Proposed midspan compare through integer inches, including decimal-feet equivalence.
+16. UG requires Underground construction and one valid UG resolution note without requiring aerial attachment heights; `Unable to attach due to <specific reason>` passes, while an unresolved placeholder produces one error.
+17. Expected structured transfers match normalized owner aliases and heights, including CenturyLink/CTL/TELCO equivalence.
+18. Attachment Size is Not applicable when Calculator lacks reliable per-Proposed fiber/messenger identity.
+19. Excel Review never emits clearance, Pole Type, loading, AutoQC, or O-Calc checks.
+20. Review cards stay in natural sequence order rather than moving errors ahead of lower-numbered poles.
+21. Duplicate identical MR rows and model-only slack/anchor/split instructions do not create unmatched-instruction warnings.
+22. A height or required-direction difference, including UG direction, pairs the Calculator and Excel instructions into one mismatch instead of separate missing and additional results.
+23. Ignore keeps a finding visible in gray but removes it from phase and summary status; Restore activates it again.
+24. Save/Load and Update Data preserve ignored finding keys.
+25. The Excel Review tab badge counts poles with active Error or Warning status and excludes ignored findings.
 
 ## Browser Layout Smoke Tests
 

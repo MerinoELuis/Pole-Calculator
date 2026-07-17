@@ -961,6 +961,7 @@
     const spanRows = rowsToObjects(spanSheet || []);
     const wireRows = rowsToObjects(wireSheet || []);
     const equipmentSheet = findSheet(workbook, ["Equipment"]);
+    const anchorSheet = findSheet(workbook, ["Anchor"]);
     const anchorGuySheet = findSheet(workbook, ["Anchor.Guys", "Anchor Guys", "Anchor Guy", "Guys"]);
     const equipmentRows = rowsToObjects(equipmentSheet || []);
     const anchorGuyRows = rowsToObjects(anchorGuySheet || []);
@@ -980,6 +981,7 @@
       spans: sheetSnapshot(spanSheet),
       spanWires: sheetSnapshot(wireSheet),
       equipment: sheetSnapshot(equipmentSheet),
+      anchors: sheetSnapshot(anchorSheet),
       anchorGuys: sheetSnapshot(anchorGuySheet),
       makeReady: sheetSnapshot(makeReadySheet),
       commTransfers: sheetSnapshot(commTransfersSheet)
