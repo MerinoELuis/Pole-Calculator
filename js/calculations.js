@@ -801,10 +801,6 @@
     const settings = S().getState().settings || {};
     const genericClearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
     const category = String(equipment.category || equipment.type || "").toUpperCase();
-    // Once the required streetlight grounding work is selected, the
-    // streetlight no longer supplies the communication-height ceiling. Other
-    // Low Power and Power Equipment limits on the pole still apply normally.
-    if (category.includes("STREETLIGHT") && equipment.actionActive) return null;
     const actionHeight = validEquipmentActionHeightInches(equipment);
     const attachment = category.includes("RISER") && actionHeight !== null
       ? actionHeight

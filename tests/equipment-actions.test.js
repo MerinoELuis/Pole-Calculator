@@ -78,8 +78,6 @@ S.upsertPole(S.createPole({
     powerEquipment: [{
       category: "STREETLIGHT",
       attachmentHeight: "26'",
-      bottomHeight: "21'",
-      dripLoopHeight: "21'",
       actionActive: true,
       actionHeight: ""
     }]
@@ -87,11 +85,6 @@ S.upsertPole(S.createPole({
 }));
 C.recalculateAll();
 assert.equal(S.getPole("STREETLIGHT").lowPower, "25'", "grounding has no vertical target and must not invent a Low Power height");
-assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "21'8\"", "a grounded Streetlight must stop limiting Max Height on Pole");
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
-
-S.updatePowerEquipmentField("STREETLIGHT", 0, "actionActive", false);
-C.recalculateAll();
-assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "19'4\"", "an ungrounded MidAm Streetlight must enforce bracket clearance");
 
 console.log("Power Equipment action tests passed.");

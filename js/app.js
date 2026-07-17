@@ -1996,9 +1996,6 @@
       <tbody>${rows.map((row, index) => {
         const category = String(row.category || "").toUpperCase();
         const needsHeight = category === "TRANSFORMER" || category === "RISER";
-        const equipmentCeiling = category === "STREETLIGHT" && row.actionActive
-          ? "Grounded"
-          : (global.Calculations.getPowerEquipmentCeiling(row) || "");
         return `<tr>
         <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
         <td>${escapeHtml(row.owner || "")}</td>
@@ -2011,7 +2008,7 @@
           <span>${escapeHtml(actionLabels[category] || "Apply")}</span>
         </label></td>
         <td>${needsHeight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionHeight" value="${escapeHtml(row.actionHeight || "")}" placeholder="New HOA" ${row.actionActive ? "" : "disabled"}>` : `<span class="muted">&mdash;</span>`}</td>
-        <td><strong>${escapeHtml(equipmentCeiling)}</strong></td>
+        <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
       </tr>`;
       }).join("")}</tbody>
     </table></div>`;
