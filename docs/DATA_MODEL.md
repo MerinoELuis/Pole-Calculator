@@ -43,7 +43,6 @@ Important settings and defaults:
 | `environmentClearances` | `{}` | Optional project-specific environment-to-clearance map. |
 | `streetlightBracketCommClearance` | profile default | MidAm spacing below the streetlight bottom/bracket. |
 | `streetlightDripLoopCommClearance` | profile default | MidAm spacing below an uncovered drip loop. |
-| `powerGuyCommClearance` | profile default | MidAm spacing between utility guy attachment and comm/proposed. |
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
 | `showResagServiceDrop` | `true` | Whether INTEC exposes the Re-sag Service Drop control. |

@@ -135,8 +135,8 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 1. Successful raw import and Update Data each replace the prior review without changing the active tab.
 2. Re-run Review uses current Calculator movements, Proposed values, midspans, and generated MR.
 3. A Collection row with no Id errors; a missing Id header creates a global error.
-4. Low Power checks only `Low Power Attachment.display`; a populated fallback column does not satisfy it.
-5. Missing Year Installed warns, while a populated value produces no warning.
+4. Low Power checks accept `Lowest Power.display` and the legacy `Low Power Attachment.display` source.
+5. Missing Year Installed warns for INTEC but is not required for Metronet/MidAm.
 6. Exactly one Fore is required; one Back passes, zero Back warns, more than one Back errors, and Other rows do not affect those counts.
 7. Incorrect reciprocal Fore/Back relationships warn and mismatched reciprocal Environments error.
 8. Empty Fore/Back Linked Collection.Title produces a low-level warning. Populated external-job links and empty Other links do not warn.

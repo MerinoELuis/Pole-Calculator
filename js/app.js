@@ -1303,8 +1303,7 @@
     if (selectedProfile === "METRONET" && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM") {
       clearanceRows.push(
         ["streetlightBracketCommClearance", "Pole · Streetlight bracket-comm", settings.streetlightBracketCommClearance || "20\""],
-        ["streetlightDripLoopCommClearance", "Pole · Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""],
-        ["powerGuyCommClearance", "Pole · Power guy-comm", settings.powerGuyCommClearance || "3\""]
+        ["streetlightDripLoopCommClearance", "Pole · Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""]
       );
     }
     const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";

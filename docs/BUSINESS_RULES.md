@@ -116,7 +116,6 @@ One compact comm flagging field combines these checks:
 7. Different owners keep Pole Comm-comm clearance.
 8. Same owners keep Pole Bolt-bolt clearance.
 9. New movement bolts keep Bolt-bolt clearance from previous Existing HOA points.
-10. MidAm comms keep Power guy-comm clearance from imported utility guy attachment points.
 
 MidAm environment defaults are profile-specific: railroad `23'6\"`; truck traffic, parking lots, alleys, farms and along-road spans `15'6\"`; pedestrian-only areas `9'6\"`; and water without sailboats `14'`.
 

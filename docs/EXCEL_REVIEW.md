@@ -20,7 +20,7 @@ Pole results are ordered by Overall severity and then naturally by Sequence or I
 
 ## HOA Review
 
-Collection checks require Id, matching Sequence, and a non-empty `Low Power Attachment.display`. Low Power format is not interpreted. Missing Year Installed is a warning with a reminder to review project loading manually.
+Collection checks require Id, matching Sequence, and a non-empty Low Power display value. `Lowest Power.display` is preferred for MidAm and `Low Power Attachment.display` remains supported for older workbooks. Low Power format is not interpreted. Missing Year Installed is a warning for INTEC; Metronet/MidAm does not require that column.
 
 Span checks operate on original rows:
 

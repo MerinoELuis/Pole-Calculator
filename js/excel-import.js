@@ -102,18 +102,21 @@
     const keys = Object.keys(row);
     const wanted = displayNames.map(normalizeHeaderName).filter(Boolean);
 
-    const exactDisplay = keys.find(k => wanted.includes(normalizeHeaderName(k)) && normalizeHeaderName(k).includes("display"));
-    if (exactDisplay && !isBlank(row[exactDisplay])) return row[exactDisplay];
+    const exactDisplay = keys.find(k => wanted.includes(normalizeHeaderName(k))
+      && normalizeHeaderName(k).includes("display")
+      && !isBlank(row[k]));
+    if (exactDisplay) return row[exactDisplay];
 
     const partialDisplay = keys.find(k => {
       const normalizedKey = normalizeHeaderName(k);
       if (!normalizedKey.includes("display")) return false;
+      if (isBlank(row[k])) return false;
       return wanted.some(w => {
         const base = w.replace(/display/g, "");
         return normalizedKey.includes(base) || base.includes(normalizedKey.replace(/display/g, ""));
       });
     });
-    return partialDisplay && !isBlank(row[partialDisplay]) ? row[partialDisplay] : "";
+    return partialDisplay ? row[partialDisplay] : "";
   }
 
   function heightFromRow(row, displayNames, decimalNames) {
@@ -664,8 +667,8 @@
       const poleType = String(pick(row, ["Type", "Pole Type"])).trim();
       const lowPower = heightFromRow(
         row,
-        ["Low Power Attachment.display", "Low Power Attachment Display", "Low Power Attachment", "Lowest Power.display", "Low Power.display"],
-        ["Low Power Attachment", "Lowest Power", "Low Power"]
+        ["Lowest Power.display", "Low Power Attachment.display", "Low Power Attachment Display", "Low Power Attachment", "Low Power.display"],
+        ["Lowest Power", "Low Power Attachment", "Low Power"]
       );
       const tipHeight = heightFromRow(row, ["Tip.display", "Tip Display"], ["Tip"]);
       const poleHeight = parsePoleHeightFromType(poleType) || heightFromRow(row, ["Pole Height.display", "Height.display", "Length.display"], ["Pole Height", "Height", "Length"]);

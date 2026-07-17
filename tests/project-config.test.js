@@ -20,7 +20,7 @@ assert.equal(metronet.environmentClearances.RAILROAD, "23'6\"", "MidAm railroad 
 assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "MidAm non-sailboat water crossing must use 14 feet");
 assert.equal(metronet.streetlightBracketCommClearance, "20\"", "MidAm streetlight bracket clearance must be configured");
 assert.equal(metronet.streetlightDripLoopCommClearance, "12\"", "MidAm uncovered drip-loop clearance must be configured");
-assert.equal(metronet.powerGuyCommClearance, "3\"", "MidAm power guy clearance must be configured");
+assert.equal(metronet.powerGuyCommClearance, "", "MidAm must not apply the removed power guy-to-comm clearance");
 assert.equal(profiles.detectProfile({ owners: ["UTILITY > MidAm"] }), "METRONET", "MidAm utility ownership must select Metronet automatically");
 assert.equal(profiles.normalizeProfileId("WI"), "INTEC", "WI is a Metronet field, not a separate project profile");
 

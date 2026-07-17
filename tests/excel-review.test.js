@@ -288,8 +288,8 @@ state.mr = [];
 state.excelReviewIgnoredChecks = {};
 state.excelReviewSource = {
   collection: {
-    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display"],
-    rows: [{ Id: "PMIDAM", Sequence: "PMIDAM", "Year Installed": 2010, "Low Power Attachment.display": "27'" }]
+    headers: ["Id", "Sequence", "Lowest Power.display"],
+    rows: [{ Id: "PMIDAM", Sequence: "PMIDAM", "Lowest Power.display": "27'" }]
   },
   spans: { headers: [], rows: [] },
   spanWires: {
@@ -326,5 +326,7 @@ const midAmCodes = new Set(review.reviewPole("PMIDAM").checks.map(item => item.c
   "INVALID_MIDAM_STREETLIGHT_OWNER",
   "MISSING_MIDAM_STREETLIGHT_HEIGHT"
 ].forEach(code => assert.ok(midAmCodes.has(code), `expected MidAm review check ${code}`));
+assert.equal(midAmCodes.has("MISSING_LOW_POWER"), false, "MidAm review must accept Lowest Power.display");
+assert.equal(midAmCodes.has("MISSING_YEAR_INSTALLED"), false, "MidAm review must not require Year Installed");
 
 console.log("Excel Review tests passed.");

@@ -128,7 +128,7 @@ Used to pre-check the `DG` box on existing comm movements. The importer matches:
 
 When all three match, Make Ready movement lines can include `with DG`.
 
-For `Metronet > MidAm`, utility guys must be `1/2\"` and communication guys must be `3/8\"`. Utility guy attachment heights also participate in the editable `Pole · Power guy-comm` clearance.
+For `Metronet > MidAm`, utility guys must be `1/2\"` and communication guys must be `3/8\"`. Guy sizes are audited, but guy attachment heights do not impose a comm clearance rule.
 
 `Service Drop` is shown for INTEC projects and hidden for Metronet projects. Wecom remains an INTEC proposed owner, not a separate project profile. `DG` remains available for every profile because it depends on the imported anchor/guy relationship, not on the service-drop workflow.
 
@@ -184,7 +184,6 @@ Editable clearance values control these checks:
 
 - `Pole · Streetlight bracket-comm` (`20\"`).
 - `Pole · Streetlight drip loop-comm` (`12\"`, treating drip loops as uncovered).
-- `Pole · Power guy-comm` (`3\"`).
 
 The MidAm pole maximum is the lowest ceiling produced by Low Power, streetlight bottom/bracket, and streetlight drip-loop data. MidAm crossing defaults are `23'6\"` for railroad, `15'6\"` for truck/vehicular areas, `9'6\"` for pedestrian areas, and `14'` over water not suitable for sailboats.
 

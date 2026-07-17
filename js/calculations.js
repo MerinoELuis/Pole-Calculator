@@ -577,21 +577,6 @@
     const owner = commOwnerLabel(sc);
     const issues = [];
 
-    if (isMidAmProfile() && poleHeight !== null) {
-      const guyClearance = H().parseHeight(S().getState().settings?.powerGuyCommClearance || "");
-      const powerGuys = pole?.metadata?.midAmConstraints?.powerGuys || [];
-      if (guyClearance !== null) {
-        powerGuys.forEach(guy => {
-          const guyHeight = H().parseHeight(guy.attachmentHeight || "");
-          if (guyHeight === null) return;
-          const separation = Math.abs(poleHeight - guyHeight);
-          if (separation < guyClearance) {
-            issues.push(`Power guy: ${format(separation)} separation; minimum ${format(guyClearance)}.`);
-          }
-        });
-      }
-    }
-
     const envMin = getEnvironmentMinimum(span);
     if (midspan !== null && envMin !== null && midspan < envMin) {
       issues.push(`Environment: ${format(midspan)} < ${format(envMin)}.`);
@@ -716,21 +701,6 @@
     const boltRequired = getPoleBoltBoltClearance();
     const commRequired = getPoleCommCommClearance();
     const issues = [];
-
-    if (isMidAmProfile()) {
-      const pole = S().getPole(spanSide.poleId);
-      const guyRequired = H().parseHeight(S().getState().settings?.powerGuyCommClearance || "");
-      if (guyRequired !== null) {
-        (pole?.metadata?.midAmConstraints?.powerGuys || []).forEach(guy => {
-          const guyHeight = H().parseHeight(guy.attachmentHeight || "");
-          if (guyHeight === null) return;
-          const diff = Math.abs(proposed - guyHeight);
-          if (diff < guyRequired) {
-            issues.push(`Proposed ${format(proposed)} does not respect Pole · Power guy-comm ${format(guyRequired)} against ${format(guyHeight)}.`);
-          }
-        });
-      }
-    }
 
     S().getSpanCommsForPole(spanSide.poleId)
       .map(sc => ({

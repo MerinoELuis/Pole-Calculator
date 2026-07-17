@@ -17,9 +17,9 @@ const workbook = {
   SheetNames: ["Collection", "Span", "Span.Wire", "Make Ready"],
   Sheets: {
     Collection: [
-      ["collectionId", "Id", "Sequence", "Low Power Attachment.display"],
-      ["C1", "P01-LX339927 STEEL", "P01", "30'"],
-      ["C2", "P02-X339926 STEEL", "P02", "29'"]
+      ["collectionId", "Id", "Sequence", "Lowest Power.display", "Low Power Attachment.display"],
+      ["C1", "P01-LX339927 STEEL", "P01", "30'", ""],
+      ["C2", "P02-X339926 STEEL", "P02", "", "29'"]
     ],
     Span: [
       ["Id", "Span Id", "Type", "Linked Collection.Title", "Environment"],
@@ -39,6 +39,8 @@ const workbook = {
 
 const state = ExcelImport.importOriginalWorkbook(workbook, "identity-test.xlsx");
 assert.deepEqual(Object.keys(state.poles).sort(), ["P01-LX339927 STEEL", "P02-X339926 STEEL"]);
+assert.equal(state.poles["P01-LX339927 STEEL"].lowPower, "30'", "new MidAm Lowest Power.display must import");
+assert.equal(state.poles["P02-X339926 STEEL"].lowPower, "29'", "legacy Low Power Attachment.display must remain supported");
 assert.equal(state.spans.S1.fromPole, "P01-LX339927 STEEL");
 assert.equal(state.spans.S1.toPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.fromPole, "P02-X339926 STEEL");

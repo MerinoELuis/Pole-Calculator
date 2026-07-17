@@ -153,8 +153,19 @@
   }
 
   function exactDisplayLowPower(row) {
-    const key = Object.keys(row || {}).find(header => I().normalizeHeaderName(header) === "lowpowerattachmentdisplay");
-    return key ? row[key] : "";
+    const accepted = ["lowestpowerdisplay", "lowpowerattachmentdisplay"];
+    const entries = Object.entries(row || {});
+    for (const normalizedName of accepted) {
+      const match = entries.find(([header]) => I().normalizeHeaderName(header) === normalizedName);
+      if (match && text(match[1])) return match[1];
+    }
+    return "";
+  }
+
+  function isMidAmProject() {
+    const settings = S().getState().settings || {};
+    return text(settings.projectProfile).toUpperCase() === "METRONET"
+      && text(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
   }
 
   function collectionPoleId(row) {
@@ -286,7 +297,7 @@
     }
 
     const year = pick(entry.row, ["Year Installed"], { contains: false });
-    if (!text(year)) {
+    if (!isMidAmProject() && !text(year)) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_YEAR_INSTALLED", status: "WARNING",
         title: "Year Installed", message: "Year Installed is missing. Review the required project loading manually.",

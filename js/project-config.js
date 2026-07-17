@@ -51,7 +51,7 @@
         commClearance: "12\"",
         streetlightBracketCommClearance: "20\"",
         streetlightDripLoopCommClearance: "12\"",
-        powerGuyCommClearance: "3\"",
+        powerGuyCommClearance: "",
         streetlightGroundingRequired: true,
         environmentClearances: {
           NONE: "15'6\"",
