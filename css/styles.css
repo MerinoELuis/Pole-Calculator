@@ -1073,6 +1073,11 @@ tr.danger-row {
 
 .midspan-highlight-input,
 .midspan-highlight-display {
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+  flex: 0 0 110px;
+  box-sizing: border-box;
   border-color: var(--span-row-color, #2563eb);
   background: var(--span-soft-color, #eff6ff);
   box-shadow: inset 4px 0 0 var(--span-row-color, #2563eb);
@@ -1083,7 +1088,6 @@ tr.danger-row {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 88px;
   min-height: 34px;
   border: 1px solid var(--span-row-color, #2563eb);
   border-radius: 10px;

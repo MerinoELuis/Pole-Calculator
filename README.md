@@ -203,7 +203,7 @@ Editable clearance values control these checks:
 
 The pole maximum is the lowest ceiling produced by Low Power and supported Power Equipment. MidAm crossing defaults are `23'6\"` for railroad, `15'6\"` for truck/vehicular areas, `9'6\"` for pedestrian areas, and `14'` over water not suitable for sailboats.
 
-For Wecom and MidAm, a blank O-CALC MS receives an automatic Proposed midspan base. If that physical span has comm midspans, the calculator uses the highest comm midspan plus `12\"`. If it has none, it subtracts estimated sag from Proposed HOA using `1 ft` per `100 ft` of span after rounding length to the nearest `50 ft` (`100 ft -> 12\"`, `150 ft -> 18\"`, `200 ft -> 24\"`, `250 ft -> 30\"`). A manually entered O-CALC MS remains authoritative.
+For Wecom and MidAm, a blank O-CALC MS receives an automatic Proposed midspan base. If that physical span has comm midspans on either directed side of the same pole pair, the calculator uses the highest comm midspan plus `12\"`. If it has none, it subtracts estimated sag from Proposed HOA using `1 ft` per `100 ft` of span after rounding length to the nearest `50 ft` (`100 ft -> 12\"`, `150 ft -> 18\"`, `200 ft -> 24\"`, `250 ft -> 30\"`). A manually entered O-CALC MS remains authoritative.
 
 Between comms on the pole:
 

@@ -247,11 +247,12 @@
     const targetSpan = S().getSpan(spanId);
     // Proposed clearance belongs to one physical connection. A pole can have
     // several Fore/Other spans with valid midspans, but those unrelated spans
-    // must not move this Proposed. Include the exact spanId and reciprocal
-    // records that describe the same pair of poles; REF handling remains the
-    // responsibility of getMidspanInchesForComm().
+    // must not move this Proposed. Search both endpoints because MidAm can
+    // store the measured MS on the reciprocal Back/Other row rather than on
+    // the current Fore row. REF handling remains the responsibility of
+    // getMidspanInchesForComm().
     const rows = poleId
-      ? S().getSpanCommsForPole(poleId).filter(sc => {
+      ? Object.values(S().getState().spanComms || {}).filter(sc => {
           const commSpan = S().getSpan(sc.spanId);
           return sc.spanId === spanId || samePhysicalSpan(commSpan, targetSpan);
         })

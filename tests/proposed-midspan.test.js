@@ -76,4 +76,27 @@ S.upsertSpanSide({ ...side, ocalcMS: "19.25" });
 side = S.getSpanSide("NO-MS", "P1");
 assert.equal(C.calculateProposedMidspanBase(side, span), 19 * 12 + 3, "manual O-CALC MS must override the automatic Proposed calculation");
 
+seedSpan("METRONET", "FORE", "101'6\"", "20'");
+S.upsertSpan(S.createSpan("BACK", "P2", "P1", "W", "", {
+  type: "Back Span",
+  rawType: "Back Span",
+  lengthDisplay: "101'6\""
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "FORE",
+  poleId: "P1",
+  owner: "COMMUNICATION > Fiber",
+  existingHOA: "19'"
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "BACK",
+  poleId: "P2",
+  owner: "COMMUNICATION > Fiber",
+  existingHOA: "20'2\"",
+  midspan: "18'10\""
+}));
+side = S.getSpanSide("FORE", "P1");
+span = S.getSpan("FORE");
+assert.equal(C.calculateProposedMidspanBase(side, span), 19 * 12 + 10, "MidAm must use the reciprocal same-connection midspan before falling back to span sag");
+
 console.log("Proposed midspan fallback tests passed.");
