@@ -886,11 +886,30 @@
 
     const topComm = heights.length ? format(Math.max(...heights)) : "";
     const lowComm = heights.length ? format(Math.min(...heights)) : "";
-    const equipment = pole.metadata?.powerEquipment || [];
-    if (!Object.prototype.hasOwnProperty.call(pole.metadata || {}, "lowPowerBaseline")) {
+    let equipment = pole.metadata?.powerEquipment || [];
+    if (isMidAmProfile()) {
+      const requiresGrounding = equipment.some(item =>
+        String(item.category || item.type || "").toUpperCase().includes("STREETLIGHT")
+        && !item.actionActive
+      );
+      if (requiresGrounding) {
+        // Migrate old Save files and imported states to the mandatory MidAm
+        // rule. Grounding generates MR but does not remove either Streetlight
+        // physical clearance from Max Height on Pole.
+        equipment = equipment.map(item => String(item.category || item.type || "").toUpperCase().includes("STREETLIGHT")
+          ? { ...item, groundingRequired: true, actionActive: true }
+          : item);
+        S().upsertPole({
+          ...pole,
+          metadata: { ...(pole.metadata || {}), powerEquipment: equipment }
+        });
+      }
+    }
+    const currentPole = S().getPole(poleId);
+    if (!Object.prototype.hasOwnProperty.call(currentPole.metadata || {}, "lowPowerBaseline")) {
       S().upsertPole({
-        ...pole,
-        metadata: { ...(pole.metadata || {}), lowPowerBaseline: pole.lowPower || "" }
+        ...currentPole,
+        metadata: { ...(currentPole.metadata || {}), lowPowerBaseline: currentPole.lowPower || "" }
       });
     }
     const lowPower = effectivePoleLowPowerInches(S().getPole(poleId), equipment);

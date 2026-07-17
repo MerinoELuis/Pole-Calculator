@@ -74,17 +74,21 @@ S.upsertPole(S.createPole({
   poleId: "STREETLIGHT",
   lowPower: "25'",
   metadata: {
-    lowPowerBaseline: "25'",
     powerEquipment: [{
       category: "STREETLIGHT",
       attachmentHeight: "26'",
-      actionActive: true,
+      bottomHeight: "21'",
+      dripLoopHeight: "21'",
+      actionActive: false,
       actionHeight: ""
     }]
   }
 }));
 C.recalculateAll();
+assert.equal(S.getPole("STREETLIGHT").metadata.powerEquipment[0].actionActive, true, "MidAm must automatically ground every Streetlight");
+assert.equal(S.getPole("STREETLIGHT").metadata.lowPowerBaseline, "25'", "old Save files must gain a Low Power baseline without losing mandatory Ground");
 assert.equal(S.getPole("STREETLIGHT").lowPower, "25'", "grounding has no vertical target and must not invent a Low Power height");
+assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "19'4\"", "mandatory grounding must retain bracket and drip-loop clearances");
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
 
 console.log("Power Equipment action tests passed.");

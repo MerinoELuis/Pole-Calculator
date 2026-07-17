@@ -130,12 +130,13 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 
 ### Power Equipment Actions
 
-1. Streetlight `Ground` adds `MNT GROUND STREETLIGHT` and does not invent a vertical height.
-2. Transformer `Redress` requires New HOA and adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
-3. Power Riser `Raise` requires a New HOA above the imported attachment and adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
-4. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
-5. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
-6. Disabling an action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
+1. Every MidAm Streetlight has mandatory `Ground`: import and recalculation activate it automatically, the UI cannot disable it, and MR adds `MNT GROUND STREETLIGHT`.
+2. Grounding does not invent a vertical height or remove physical clearances. MidAm still applies `Bottom Height - 20\"` and `Drip Loop Height - 12\"`; the lower ceiling controls.
+3. Transformer `Redress` requires New HOA and adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
+4. Power Riser `Raise` requires a New HOA above the imported attachment and adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
+5. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
+6. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
+7. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
 
 ## MidAm Collection Identity
 

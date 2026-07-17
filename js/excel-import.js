@@ -904,7 +904,9 @@
         dripLoopHeight: heightFromRow(row, ["Drip Loop Height.display"], ["Drip Loop Height"]),
         uncoveredDripLoop: category === "STREETLIGHT",
         groundingRequired: category === "STREETLIGHT" && isMidAm,
-        actionActive: false,
+        // MidAm requires every streetlight to be grounded. Store the action
+        // immediately so MR is complete without manual row-by-row clicks.
+        actionActive: category === "STREETLIGHT" && isMidAm,
         actionHeight: ""
       };
       metadataFor(poleId).powerEquipment.push(equipment);
