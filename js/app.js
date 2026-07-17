@@ -578,6 +578,44 @@
     });
   }
 
+  function equipmentMatchScore(importedRow, oldRow) {
+    if (!importedRow || !oldRow) return -1;
+    const clean = value => String(value || "").trim().toLowerCase();
+    if (clean(oldRow.equipmentId) && clean(importedRow.equipmentId) === clean(oldRow.equipmentId)) return 100;
+    const samePhysicalRow = ["category", "type", "owner", "orientation", "attachmentHeight", "bottomHeight", "dripLoopHeight"]
+      .every(field => clean(importedRow[field]) === clean(oldRow[field]));
+    if (samePhysicalRow) return 80;
+    if (clean(oldRow.equipmentIndex) && clean(importedRow.equipmentIndex) === clean(oldRow.equipmentIndex)) return 60;
+    return -1;
+  }
+
+  // Equipment actions are user work. Reimport fresh physical data, then put
+  // each saved action back on its matching row. If Excel temporarily omits an
+  // acted-on row, keep it so Update Data cannot silently delete that work.
+  function mergePowerEquipmentUserWork(importedRows, oldRows, reconciliation) {
+    const rows = Array.isArray(importedRows) ? importedRows.map(row => ({ ...row })) : [];
+    const claimed = new Set();
+    (oldRows || []).filter(row => row.actionActive || row.actionHeight).forEach(oldRow => {
+      const match = rows
+        .map((row, index) => ({ index, score: claimed.has(index) ? -1 : equipmentMatchScore(row, oldRow) }))
+        .filter(item => item.score >= 0)
+        .sort((a, b) => b.score - a.score)[0];
+      if (match) {
+        claimed.add(match.index);
+        rows[match.index] = {
+          ...rows[match.index],
+          actionActive: Boolean(oldRow.actionActive),
+          actionHeight: oldRow.actionHeight || ""
+        };
+        reconciliation.equipmentActionsPreserved += 1;
+      } else {
+        rows.push({ ...oldRow });
+        reconciliation.missingEquipmentActionsPreserved += 1;
+      }
+    });
+    return rows;
+  }
+
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
     merged.poles = merged.poles || {};
@@ -592,6 +630,8 @@
       endpointPlaceholdersDiscarded: 0,
       unmatchedUserCommsPreserved: 0,
       baselineCommRowsPreserved: 0,
+      equipmentActionsPreserved: 0,
+      missingEquipmentActionsPreserved: 0,
       blankValuesPreserved: 0,
       missingRowsPreserved: 0
     };
@@ -688,14 +728,27 @@
         reconciliation.missingRowsPreserved += 1;
         return;
       }
-      const preservedPole = preserveValuesMissingFromUpdate(merged.poles[targetPoleId], mappedOldPole, reconciliation);
+      const importedPole = merged.poles[targetPoleId];
+      const preservedPole = preserveValuesMissingFromUpdate(importedPole, mappedOldPole, reconciliation);
+      const importedEquipment = importedPole.metadata?.powerEquipment || [];
+      const oldEquipment = mappedOldPole.metadata?.powerEquipment || [];
+      const powerEquipment = mergePowerEquipmentUserWork(importedEquipment, oldEquipment, reconciliation);
+      const lowPowerBaseline = importedPole.lowPower
+        || mappedOldPole.metadata?.lowPowerBaseline
+        || preservedPole.lowPower
+        || "";
       merged.poles[targetPoleId] = {
         ...preservedPole,
         poleId: targetPoleId,
         ugActive: Boolean(mappedOldPole.ugActive || preservedPole.ugActive),
         pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
         standaloneProposedHOA: mappedOldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",
-        notes: mappedOldPole.notes || preservedPole.notes || ""
+        notes: mappedOldPole.notes || preservedPole.notes || "",
+        metadata: {
+          ...(preservedPole.metadata || {}),
+          lowPowerBaseline,
+          powerEquipment
+        }
       };
     });
 
@@ -1933,17 +1986,31 @@
       TRANSFORMER: "Transformer",
       RISER: "Power Riser"
     };
+    const actionLabels = {
+      STREETLIGHT: "Ground",
+      TRANSFORMER: "Redress",
+      RISER: "Raise"
+    };
     return `<div class="table-wrap"><table class="power-table equipment-table">
-      <thead><tr><th>Equipment</th><th>Owner</th><th>Attachment Height</th><th>Bottom Height</th><th>Drip Loop Height</th><th>Orientation</th><th>Max Comm Height</th></tr></thead>
-      <tbody>${rows.map(row => `<tr>
+      <thead><tr><th>Equipment</th><th>Owner</th><th>Attachment Height</th><th>Bottom Height</th><th>Drip Loop Height</th><th>Orientation</th><th>Action</th><th>New HOA</th><th>Max Comm Height</th></tr></thead>
+      <tbody>${rows.map((row, index) => {
+        const category = String(row.category || "").toUpperCase();
+        const needsHeight = category === "TRANSFORMER" || category === "RISER";
+        return `<tr>
         <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
         <td>${escapeHtml(row.owner || "")}</td>
         <td>${escapeHtml(row.attachmentHeight || "")}</td>
         <td>${escapeHtml(row.bottomHeight || "")}</td>
         <td>${escapeHtml(row.dripLoopHeight || "")}</td>
         <td>${escapeHtml(row.orientation || "")}</td>
+        <td><label class="equipment-action-control">
+          <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive ? "checked" : ""}>
+          <span>${escapeHtml(actionLabels[category] || "Apply")}</span>
+        </label></td>
+        <td>${needsHeight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionHeight" value="${escapeHtml(row.actionHeight || "")}" placeholder="New HOA" ${row.actionActive ? "" : "disabled"}>` : `<span class="muted">&mdash;</span>`}</td>
         <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
-      </tr>`).join("")}</tbody>
+      </tr>`;
+      }).join("")}</tbody>
     </table></div>`;
   }
 
@@ -2203,7 +2270,9 @@
       "serviceDrop",
       "downGuy",
       "transferToNewPole",
-      "resagServiceDrop"
+      "resagServiceDrop",
+      "actionActive",
+      "actionHeight"
     ].includes(field);
   }
 
@@ -2370,7 +2439,8 @@
       el.dataset.owner || "",
       el.dataset.groupKey || "",
       el.dataset.wireId || "",
-      el.dataset.powerKey || ""
+      el.dataset.powerKey || "",
+      el.dataset.equipmentIndex || ""
     ].join("|");
   }
 
@@ -2429,8 +2499,21 @@
     recordUndoSnapshot();
 
     if (scope === "pole") {
-      S.updatePoleField(el.dataset.pole, field, value);
+      if (field === "lowPower") {
+        const pole = S.getPole(el.dataset.pole);
+        S.upsertPole({
+          ...pole,
+          lowPower: value,
+          metadata: { ...(pole?.metadata || {}), lowPowerBaseline: value }
+        });
+      } else {
+        S.updatePoleField(el.dataset.pole, field, value);
+      }
       global.Calculations.recalculateSpansForPole(el.dataset.pole);
+    }
+
+    if (scope === "equipment") {
+      S.updatePowerEquipmentField(el.dataset.pole, Number(el.dataset.equipmentIndex), field, value);
     }
 
     if (scope === "spanSide") {

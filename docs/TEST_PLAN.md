@@ -17,6 +17,7 @@ Run the dependency-free Excel Review regression test with:
 node tests/excel-review.test.js
 node tests/update-merge.test.js
 node tests/pole-identity.test.js
+node tests/equipment-actions.test.js
 ```
 
 These tests cover decimal-height equivalence, exact Low Power source selection, Fore/Back counting with Other rows, generated-MR readiness, the INTEC wire rules, non-destructive Update Data reconciliation, and canonical pole identity across STEEL/UG/PCO suffix variants.
@@ -98,6 +99,10 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 3. A transfer without HOA Change uses Existing HOA; multiple heights for the same owner produce one ascending-height instruction.
 4. An adjacent Backspan UG creates one relation/direction line and one riser 12 inches below the primary Proposed.
 5. An active INTEC UG pole replaces normal MR with the single final overload instruction.
+6. Streetlight Ground generates its MR without inventing a new Low Power height.
+7. Transformer Redress and Power Riser Raise update effective Low Power when they move the limiting equipment.
+8. Disabling an equipment action restores imported Low Power.
+9. Update Data preserves equipment actions and refreshes the Low Power baseline from non-empty Excel data.
 
 ## Import Cases
 

@@ -70,7 +70,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 
 ### Mutations
 
-`upsertPole`, `upsertComm`, `upsertSpan`, `upsertSpanSide`, `upsertSpanComm`, and `addSpanPower` normalize and store entities. Field update helpers restrict editable fields. Removal helpers delete a SpanSide, manual span, or SpanComm. Mutations do not universally guarantee recalculation; UI code normally calls a `Calculations` update/recalculation entry point.
+`upsertPole`, `upsertComm`, `upsertSpan`, `upsertSpanSide`, `upsertSpanComm`, and `addSpanPower` normalize and store entities. `updatePowerEquipmentField(poleId, index, field, value)` stores `actionActive` or `actionHeight` without changing imported equipment heights. Other field update helpers restrict editable fields. Removal helpers delete a SpanSide, manual span, or SpanComm. Mutations do not universally guarantee recalculation; UI code normally calls a `Calculations` update/recalculation entry point.
 
 `ensureSpanSides`, `ensureSpanComms`, and `ensureEndpointComms` repair required relationships during normalization. They should not be used to invent business values.
 
@@ -100,6 +100,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `evaluateSpanSideFlagging(...)` | Evaluate compact Proposed Flagging. |
 | `evaluateProposedPoleClearance(...)` | Check comm and bolt spacing for Proposed. |
 | `getReferenceMidspansForSpanSide(...)` | Get Proposed references from the same physical connection. |
+| `getPowerEquipmentCeiling(equipment)` | Return the effective comm ceiling for an imported equipment row and its active action. |
 
 ### Recalculation
 
@@ -129,6 +130,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | --- | --- |
 | `generateMRForComm(spanComm)` | Generate one movement line. |
 | `generateResagServiceDropMR(spanComm)` | Generate the INTEC re-sag instruction when its conditions apply. |
+| `generatePowerEquipmentMRForPole(poleId)` | Generate Ground, Transformer Redress, and Power Riser Raise instructions. |
 | `generateMRForSpanSide(spanSide)` | Generate Proposed/anchor/riser/slack lines. |
 | `generateMRForSpan(spanId)` | Generate all lines related to one span. |
 | `generateMRForPole(poleId)` | Replace one pole's ordered MR block. |

@@ -34,7 +34,7 @@ vm.runInNewContext(appSource, sandbox, { filename: appPath });
 const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {
-  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: false, pcoActive: false } },
+  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: false, pcoActive: false, metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }] } } },
   spans: {
     S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "100'", environment: "STREET" },
     S2: { spanId: "S2", fromPole: "P1", toPole: "P3", lengthDisplay: "80'", environment: "ALLEY" }
@@ -54,7 +54,7 @@ const previous = {
 };
 
 const imported = {
-  poles: { P1: { poleId: "P1", lowPower: "", poleHeight: "45'", notes: "", ugActive: false, pcoActive: false } },
+  poles: { P1: { poleId: "P1", lowPower: "28'", poleHeight: "45'", notes: "", ugActive: false, pcoActive: false, metadata: { powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "28'", actionActive: false, actionHeight: "" }] } } },
   spans: { S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "", environment: "ALLEY" } },
   spanSides: { S1__P1: { spanId: "S1", poleId: "P1", proposedHOA: "", proposedHOAChange: "", ocalcMS: "" } },
   spanComms: { C1: { spanId: "S1", poleId: "P1", owner: "CATV", ownerBase: "CATV", wireId: "W1", existingHOA: "", midspan: "", size: "New size" } },
@@ -67,7 +67,10 @@ const imported = {
 };
 
 const result = merge(previous, imported);
-assert.equal(result.poles.P1.lowPower, "30'", "blank updated pole value must retain the prior value");
+assert.equal(result.poles.P1.lowPower, "28'", "non-empty updated Low Power must become the new imported value");
+assert.equal(result.poles.P1.metadata.lowPowerBaseline, "28'", "new imported Low Power must become the equipment-action baseline");
+assert.equal(result.poles.P1.metadata.powerEquipment[0].actionActive, true, "Update Data must preserve the equipment action");
+assert.equal(result.poles.P1.metadata.powerEquipment[0].actionHeight, "31'", "Update Data must preserve the equipment target HOA");
 assert.equal(result.poles.P1.poleHeight, "45'", "non-empty updated pole value must win");
 assert.equal(result.spans.S1.lengthDisplay, "100'", "blank updated span value must retain the prior value");
 assert.equal(result.spans.S1.environment, "ALLEY", "non-empty updated span value must win");

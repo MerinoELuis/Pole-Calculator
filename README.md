@@ -122,13 +122,15 @@ For INTEC, `Size` values containing `Self-Supporting Fiber` are treated as POF. 
 
 ### Equipment
 
-Imported as a read-only Power Equipment section on each pole. The calculator includes power-owned:
+Imported as a Power Equipment section on each pole. The calculator includes power-owned:
 
 - Streetlights.
 - Transformers.
 - Risers.
 
 Communication-owned risers are excluded. Equipment heights can lower `Max Height on Pole`. INTEC applies the normal Pole Power-comms clearance to the equipment's lowest physical height. MidAm applies its dedicated streetlight bracket and uncovered drip-loop rules to streetlights, while transformers and power risers use Pole Power-comms clearance.
+
+The Equipment table also stores user actions: Ground for Streetlights, Redress plus a new HOA for Transformer drip loops, and Raise plus a new HOA for Power Risers. Transformer and Riser work recalculates Low Power when the moved equipment was the limiting power point. Generated equipment instructions are included in the pole Make Ready, and the actions survive Save/Load and Update Data.
 
 ### Anchor
 

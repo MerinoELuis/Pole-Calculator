@@ -615,6 +615,27 @@
     return row;
   }
 
+  /**
+   * Stores the user action attached to one normalized Power Equipment row.
+   * The imported physical heights remain unchanged; actionHeight is the
+   * proposed redress/raise height used by calculations and Make Ready.
+   */
+  function updatePowerEquipmentField(poleId, equipmentIndex, field, value) {
+    if (!["actionActive", "actionHeight"].includes(field)) return null;
+    const pole = state.poles[poleId];
+    const rows = pole?.metadata?.powerEquipment;
+    const index = Number(equipmentIndex);
+    if (!pole || !Array.isArray(rows) || !Number.isInteger(index) || !rows[index]) return null;
+    const nextRows = rows.map((row, rowIndex) => rowIndex === index
+      ? {
+          ...row,
+          [field]: field === "actionActive" ? Boolean(value) : trim(value)
+        }
+      : row);
+    pole.metadata = { ...(pole.metadata || {}), powerEquipment: nextRows };
+    return nextRows[index];
+  }
+
   function getConnectedSpans(poleId) {
     return Object.values(state.spans).filter(span => span.fromPole === poleId || span.toPole === poleId);
   }
@@ -655,7 +676,9 @@
   function poleHasChanges(poleId) {
     const sideChange = getSpanSidesForPole(poleId).some(side => side.proposedHOA || side.proposedMidspan || side.ocalcMS || side.msProposed || side.finalMidspan || side.endDrop || side.notes);
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA) || sideChange || commChange;
+    const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
+      .some(row => Boolean(row.actionActive || trim(row.actionHeight || "")));
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA) || sideChange || commChange || equipmentChange;
   }
 
   function ensureUnknownPoles() {
@@ -948,6 +971,7 @@
     applyProjectProfile,
     updateSpanField,
     updateSpanPowerField,
+    updatePowerEquipmentField,
     upsertComm,
     upsertSpan,
     upsertSpanSide,

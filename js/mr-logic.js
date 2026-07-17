@@ -328,6 +328,32 @@
   }
 
   /**
+   * Converts user-selected Power Equipment actions into crew instructions.
+   * Imported heights remain the source HOA; actionHeight is the destination.
+   */
+  function generatePowerEquipmentMRForPole(poleId) {
+    const rows = S().getPole(poleId)?.metadata?.powerEquipment || [];
+    return rows.flatMap(row => {
+      if (!row.actionActive) return [];
+      const category = String(row.category || row.type || "").toUpperCase();
+      if (category.includes("STREETLIGHT")) return ["MNT GROUND STREETLIGHT"];
+
+      const target = H().parseHeight(row.actionHeight || "");
+      if (target === null) return [];
+      const targetText = H().formatHeight(target);
+      if (category.includes("TRANSFORMER")) {
+        return [`POWER REDRESS TRANSFORMER DRIP LOOP TO HOA ${targetText}.`];
+      }
+      if (category.includes("RISER")) {
+        const source = H().parseHeight(row.attachmentHeight || "");
+        if (source === null || target <= source) return [];
+        return [`AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`];
+      }
+      return [];
+    });
+  }
+
+  /**
    * Replaces the generated Make Ready block for one pole using current state.
    * @param {string} poleId
    * @returns {Array<Object>} Generated MR records for the pole.
@@ -356,6 +382,7 @@
       if (/^pl\s+(?:new\s+)?riser\b/i.test(line)) risers.push(line);
       else ug.push(line);
     });
+    power.push(...generatePowerEquipmentMRForPole(poleId));
     commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
@@ -407,6 +434,7 @@
     generateMRForSpan,
     generateMRForComm,
     generateResagServiceDropMR,
+    generatePowerEquipmentMRForPole,
     generateMRForSpanSide,
     generateAllMR,
     detectAttach: detectAttachFromSpanSide,

@@ -59,7 +59,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `collectionId` | imported | Collection identity used while linking Span rows. |
 | `poleHeight` | imported/editable | Pole height/type reference. |
 | `tipHeight` | imported | Above-ground tip measurement used by Pole Type Check. |
-| `lowPower` | imported/editable | Lowest power attachment on the pole. |
+| `lowPower` | imported/editable/derived from equipment action | Effective lowest power attachment on the pole. |
 | `maxCommHeight` | derived | Lowest applicable Low Power and project-specific equipment ceiling. |
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |
 
@@ -67,9 +67,9 @@ Imported, editable, and derived values live together but have different ownershi
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `notes` | editable | User-owned pole notes. |
-| `metadata` | imported reference | Source notes, location, status, and other non-authoritative fields. `powerEquipment` stores normalized power-owned Streetlights, Transformers, and Risers; MidAm also retains project constraints here. |
+| `metadata` | mixed | Source notes and project constraints plus normalized editable Power Equipment actions. |
 
-Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. It is read-only calculator reference data.
+`metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Ground, Transformer Redress, and Power Riser Raise work.
 
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 

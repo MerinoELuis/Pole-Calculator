@@ -128,6 +128,15 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 3. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
 4. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
 
+### Power Equipment Actions
+
+1. Streetlight `Ground` adds `MNT GROUND STREETLIGHT` and does not invent a vertical height.
+2. Transformer `Redress` requires New HOA and adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
+3. Power Riser `Raise` requires a New HOA above the imported attachment and adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
+4. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
+5. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
+6. Disabling an action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
+
 ## MidAm Collection Identity
 
 1. Sequence contains three digits and may end with one letter.

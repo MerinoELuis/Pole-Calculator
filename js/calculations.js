@@ -780,6 +780,18 @@
     return S().getSpan(spanId);
   }
 
+  function validEquipmentActionHeightInches(equipment) {
+    if (!equipment?.actionActive) return null;
+    const target = H().parseHeight(equipment.actionHeight || "");
+    if (target === null) return null;
+    const category = String(equipment.category || equipment.type || "").toUpperCase();
+    if (category.includes("RISER")) {
+      const source = H().parseHeight(equipment.attachmentHeight || "");
+      if (source === null || target <= source) return null;
+    }
+    return target;
+  }
+
   // Returns the comm-height ceiling imposed by one imported Power Equipment
   // row. MidAm streetlights use their project-specific bracket and uncovered
   // drip-loop rules. Every other supported equipment type uses the normal
@@ -788,10 +800,15 @@
     if (!equipment) return null;
     const settings = S().getState().settings || {};
     const genericClearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
-    const attachment = H().parseHeight(equipment.attachmentHeight || "");
-    const bottom = H().parseHeight(equipment.bottomHeight || "");
-    const dripLoop = H().parseHeight(equipment.dripLoopHeight || "");
     const category = String(equipment.category || equipment.type || "").toUpperCase();
+    const actionHeight = validEquipmentActionHeightInches(equipment);
+    const attachment = category.includes("RISER") && actionHeight !== null
+      ? actionHeight
+      : H().parseHeight(equipment.attachmentHeight || "");
+    const bottom = H().parseHeight(equipment.bottomHeight || "");
+    const dripLoop = category.includes("TRANSFORMER") && actionHeight !== null
+      ? actionHeight
+      : H().parseHeight(equipment.dripLoopHeight || "");
 
     if (isMidAmProfile() && category.includes("STREETLIGHT")) {
       const specialCeilings = [];
@@ -806,6 +823,50 @@
     return physicalHeights.length && genericClearance !== null
       ? Math.min(...physicalHeights) - genericClearance
       : null;
+  }
+
+  // The source height that can make an equipment row the pole's imported
+  // Low Power. Transformer work moves its drip loop; riser work moves the
+  // riser attachment. Streetlight grounding has no vertical movement.
+  function equipmentLowPowerSourceInches(equipment) {
+    const category = String(equipment?.category || equipment?.type || "").toUpperCase();
+    if (category.includes("TRANSFORMER")) {
+      return H().parseHeight(equipment.dripLoopHeight || equipment.bottomHeight || equipment.attachmentHeight || "");
+    }
+    if (category.includes("RISER")) return H().parseHeight(equipment.attachmentHeight || "");
+    return null;
+  }
+
+  /**
+   * Applies active Transformer/Riser work to the imported Low Power baseline.
+   * A raised item replaces the baseline only when every equipment item at that
+   * same limiting height was moved. A lowered target can always become the new
+   * lowest Power point.
+   */
+  function effectivePoleLowPowerInches(pole, equipment) {
+    const metadata = pole?.metadata || {};
+    const baselineText = Object.prototype.hasOwnProperty.call(metadata, "lowPowerBaseline")
+      ? metadata.lowPowerBaseline
+      : pole?.lowPower;
+    const baseline = H().parseHeight(baselineText || "");
+    const movable = (equipment || []).map(row => ({
+      row,
+      source: equipmentLowPowerSourceInches(row),
+      target: validEquipmentActionHeightInches(row)
+    }));
+    let effective = baseline;
+
+    if (baseline !== null) {
+      const limitingRows = movable.filter(item => item.source === baseline);
+      if (limitingRows.length && limitingRows.every(item => item.target !== null)) {
+        effective = Math.min(...limitingRows.map(item => item.target));
+      }
+    }
+
+    movable.forEach(item => {
+      if (item.target !== null && (effective === null || item.target < effective)) effective = item.target;
+    });
+    return effective;
   }
 
   function getPowerEquipmentCeiling(equipment) {
@@ -825,12 +886,22 @@
 
     const topComm = heights.length ? format(Math.max(...heights)) : "";
     const lowComm = heights.length ? format(Math.min(...heights)) : "";
-    const lowPower = H().parseHeight(pole.lowPower);
+    const equipment = pole.metadata?.powerEquipment || [];
+    if (!Object.prototype.hasOwnProperty.call(pole.metadata || {}, "lowPowerBaseline")) {
+      S().upsertPole({
+        ...pole,
+        metadata: { ...(pole.metadata || {}), lowPowerBaseline: pole.lowPower || "" }
+      });
+    }
+    const lowPower = effectivePoleLowPowerInches(S().getPole(poleId), equipment);
+    const effectiveLowPower = lowPower === null ? "" : format(lowPower);
+    if (effectiveLowPower !== S().getPole(poleId).lowPower) {
+      S().updatePoleField(poleId, "lowPower", effectiveLowPower);
+    }
     const settings = S().getState().settings || {};
     const clearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
     const ceilings = [];
     if (lowPower !== null && clearance !== null) ceilings.push(lowPower - clearance);
-    const equipment = pole.metadata?.powerEquipment || [];
     equipment.forEach(item => {
       const equipmentCeiling = powerEquipmentCeilingInches(item);
       if (equipmentCeiling !== null) ceilings.push(equipmentCeiling);

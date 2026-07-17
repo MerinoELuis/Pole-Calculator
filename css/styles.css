@@ -796,6 +796,32 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   min-width: 880px;
 }
 
+.equipment-table {
+  min-width: 1240px;
+}
+
+.equipment-action-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.equipment-action-height {
+  min-width: 96px;
+  max-width: 116px;
+  text-align: center;
+}
+
+.equipment-action-height:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .pole-class-summary {
   display: flex;
   justify-content: flex-end;

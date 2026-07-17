@@ -903,7 +903,9 @@
         bottomHeight: heightFromRow(row, ["Bottom Height.display"], ["Bottom Height"]),
         dripLoopHeight: heightFromRow(row, ["Drip Loop Height.display"], ["Drip Loop Height"]),
         uncoveredDripLoop: category === "STREETLIGHT",
-        groundingRequired: category === "STREETLIGHT" && isMidAm
+        groundingRequired: category === "STREETLIGHT" && isMidAm,
+        actionActive: false,
+        actionHeight: ""
       };
       metadataFor(poleId).powerEquipment.push(equipment);
       if (isMidAm && category === "STREETLIGHT") {
@@ -933,6 +935,9 @@
         ...pole,
         metadata: {
           ...(pole.metadata || {}),
+          // Keep the imported/manual Low Power separate from equipment
+          // actions so disabling an action can restore the original value.
+          lowPowerBaseline: pole.metadata?.lowPowerBaseline || pole.lowPower || "",
           powerEquipment: metadata.powerEquipment,
           ...(isMidAm ? { midAmConstraints: metadata.midAmConstraints } : {})
         }
