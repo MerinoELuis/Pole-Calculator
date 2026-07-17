@@ -130,7 +130,7 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 
 ### Power Equipment Actions
 
-1. Streetlight `Ground` adds `MNT GROUND STREETLIGHT` and does not invent a vertical height.
+1. Streetlight `Ground` adds `MNT GROUND STREETLIGHT`, removes that Streetlight as a Max Height ceiling, and does not invent a vertical Low Power height. Other pole Power limits continue to apply.
 2. Transformer `Redress` requires New HOA and adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
 3. Power Riser `Raise` requires a New HOA above the imported attachment and adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
 4. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
