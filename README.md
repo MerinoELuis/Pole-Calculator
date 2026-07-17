@@ -128,6 +128,8 @@ Used to pre-check the `DG` box on existing comm movements. The importer matches:
 
 When all three match, Make Ready movement lines can include `with DG`.
 
+For `Metronet > MidAm`, utility guys must be `1/2\"` and communication guys must be `3/8\"`. Utility guy attachment heights also participate in the editable `Pole · Power guy-comm` clearance.
+
 `Service Drop` is shown for INTEC projects and hidden for Metronet projects. Wecom remains an INTEC proposed owner, not a separate project profile. `DG` remains available for every profile because it depends on the imported anchor/guy relationship, not on the service-drop workflow.
 
 `Transfer to New Pole` is one manual option per physical comm at a pole, even when that comm is related to several spans. It changes the normal movement into one transfer instruction at the entered HOA Change. INTEC also provides `Re-sag Service Drop` per span: for a checked service drop below `15'6"`, the calculator validates that span at `15'6"` and adds the corresponding re-sag instruction without changing the imported midspan baseline.
@@ -160,6 +162,8 @@ Example:
 
 Comms without their own imported midspan can show as `REF`. That means they belong to the connected span, while the real midspan comes from the other end.
 
+MidAm is an explicit exception for Back Span rows that contain their own measured `Span.Wire` midspan. The row remains labeled `REF` so it is not proposed twice, but its displayed midspan is recalculated from movements at both physical endpoints. Reciprocal Fore/Back rows are matched by their pole pair even when their Span IDs and Wire IDs differ.
+
 ### Proposed by Span
 
 `Proposed by Span` is only used for spans that have real midspan data or manually added proposed spans. It avoids repeating backspans and duplicate physical connections.
@@ -175,6 +179,14 @@ Editable clearance values control these checks:
 - `Pole · Bolt-bolt`.
 - `Midspan · Power-comm`.
 - `Midspan · Comm-comm`.
+
+`Metronet > MidAm` also exposes:
+
+- `Pole · Streetlight bracket-comm` (`20\"`).
+- `Pole · Streetlight drip loop-comm` (`12\"`, treating drip loops as uncovered).
+- `Pole · Power guy-comm` (`3\"`).
+
+The MidAm pole maximum is the lowest ceiling produced by Low Power, streetlight bottom/bracket, and streetlight drip-loop data. MidAm crossing defaults are `23'6\"` for railroad, `15'6\"` for truck/vehicular areas, `9'6\"` for pedestrian areas, and `14'` over water not suitable for sailboats.
 
 Between comms on the pole:
 

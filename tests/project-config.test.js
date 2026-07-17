@@ -15,6 +15,13 @@ const metronet = profiles.applyProfileSettings({}, "METRONET");
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
 assert.equal(metronet.position, "LOW_COMM", "existing Metronet calculation defaults must remain unchanged");
+assert.equal(metronet.calculateBackspanMidspan, true, "MidAm must calculate an imported Back Span midspan");
+assert.equal(metronet.environmentClearances.RAILROAD, "23'6\"", "MidAm railroad crossing must use 23 feet 6 inches");
+assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "MidAm non-sailboat water crossing must use 14 feet");
+assert.equal(metronet.streetlightBracketCommClearance, "20\"", "MidAm streetlight bracket clearance must be configured");
+assert.equal(metronet.streetlightDripLoopCommClearance, "12\"", "MidAm uncovered drip-loop clearance must be configured");
+assert.equal(metronet.powerGuyCommClearance, "3\"", "MidAm power guy clearance must be configured");
+assert.equal(profiles.detectProfile({ owners: ["UTILITY > MidAm"] }), "METRONET", "MidAm utility ownership must select Metronet automatically");
 assert.equal(profiles.normalizeProfileId("WI"), "INTEC", "WI is a Metronet field, not a separate project profile");
 
 console.log("Project profile tests passed.");

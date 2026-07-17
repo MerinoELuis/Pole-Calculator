@@ -39,6 +39,11 @@ Important settings and defaults:
 | `midspanPowerCommClearance` | `30"` | Power-to-comm spacing at midspan. |
 | `midspanCommCommClearance` | `4"` | Comm-to-comm spacing at midspan. |
 | `proposedOwner` | `Wecom` | Proposed owner; INTEC exposes the normal owner selector and Metronet exposes it as WI with `MidAm`. |
+| `calculateBackspanMidspan` | profile default | Allows MidAm Back Span rows with their own measured midspan to participate in endpoint movement calculations. |
+| `environmentClearances` | `{}` | Optional project-specific environment-to-clearance map. |
+| `streetlightBracketCommClearance` | profile default | MidAm spacing below the streetlight bottom/bracket. |
+| `streetlightDripLoopCommClearance` | profile default | MidAm spacing below an uncovered drip loop. |
+| `powerGuyCommClearance` | profile default | MidAm spacing between utility guy attachment and comm/proposed. |
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
 | `showResagServiceDrop` | `true` | Whether INTEC exposes the Re-sag Service Drop control. |
@@ -56,14 +61,14 @@ Imported, editable, and derived values live together but have different ownershi
 | `poleHeight` | imported/editable | Pole height/type reference. |
 | `tipHeight` | imported | Above-ground tip measurement used by Pole Type Check. |
 | `lowPower` | imported/editable | Lowest power attachment on the pole. |
-| `maxCommHeight` | derived | `lowPower - Pole Power-comms clearance`. |
+| `maxCommHeight` | derived | Lowest applicable Low Power and project-specific equipment ceiling. |
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |
 
 `canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The `poleId` stored from Collection remains unchanged for display and export.
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `notes` | editable | User-owned pole notes. |
-| `metadata` | imported reference | Source notes, location, status, and other non-authoritative fields. |
+| `metadata` | imported reference | Source notes, location, status, and other non-authoritative fields. MidAm stores normalized streetlight and utility-guy constraints here. |
 
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 

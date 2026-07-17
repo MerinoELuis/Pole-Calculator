@@ -12,12 +12,18 @@
         position: "TOP_COMM",
         mrCase: "LOWER",
         proposedOwner: "Wecom",
+        calculateBackspanMidspan: false,
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: false,
         allowLowPowerMidspanAdjustment: true,
         showServiceDrop: true,
         showResagServiceDrop: true,
         hideProposedOwner: false,
+        environmentClearances: {},
+        streetlightBracketCommClearance: "",
+        streetlightDripLoopCommClearance: "",
+        powerGuyCommClearance: "",
+        streetlightGroundingRequired: false,
         mrTemplate: "INTEC"
       }
     },
@@ -30,12 +36,41 @@
         // Metronet uses a separate WI selector. MidAm is the currently
         // supported work issuer and is exported as the Proposed owner.
         proposedOwner: "MidAm",
+        // MidAm records the measured midspan on some Back Span rows. Those
+        // rows remain references in the UI, but their value follows movements
+        // made at either physical endpoint of the connection.
+        calculateBackspanMidspan: true,
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: true,
         allowLowPowerMidspanAdjustment: false,
         showServiceDrop: false,
         showResagServiceDrop: false,
         hideProposedOwner: true,
+        polePowerCommsClearance: "40\"",
+        clearanceToPower: "40\"",
+        commClearance: "12\"",
+        streetlightBracketCommClearance: "20\"",
+        streetlightDripLoopCommClearance: "12\"",
+        powerGuyCommClearance: "3\"",
+        streetlightGroundingRequired: true,
+        environmentClearances: {
+          NONE: "15'6\"",
+          STREET: "15'6\"",
+          HIGHWAY: "15'6\"",
+          PEDESTRIAN: "9'6\"",
+          PARALLEL_TO_STREET: "15'6\"",
+          OBSTRUCTED_PARALLEL_TO_STREET: "15'6\"",
+          UNLIKELY_PARALLEL_TO_STREET: "15'6\"",
+          RESIDENTIAL_DRIVEWAY: "15'6\"",
+          COMMERCIAL_DRIVEWAY: "15'6\"",
+          PARKING_LOT: "15'6\"",
+          ALLEY: "15'6\"",
+          RAILROAD: "23'6\"",
+          RURAL: "9'6\"",
+          FARM: "15'6\"",
+          WATER_WITHOUT_SAILBOATS: "14'",
+          WATER_WITH_SAILBOATS: "Variable"
+        },
         mrTemplate: "METRONET"
       }
     }
@@ -61,7 +96,7 @@
 
   function detectProfile({ fileName = "", owners = [] } = {}) {
     const text = [fileName, ...owners].join(" ").toLowerCase();
-    if (/metronet|proposed\s*mnt|\bmnt\b/.test(text)) return "METRONET";
+    if (/metronet|proposed\s*mnt|\bmnt\b|utility\s*>\s*midam|\bmidam\b/.test(text)) return "METRONET";
     return "INTEC";
   }
 

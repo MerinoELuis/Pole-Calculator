@@ -33,6 +33,8 @@ Span checks operate on original rows:
 
 For INTEC, Span.Wire also checks DAVIT construction, permitted communication owners, APS ownership for Primary/Secondary/Neutral, and the configured insulator lists. Duplicate wire detection is intentionally excluded.
 
+For Metronet/MidAm, Span.Wire checks `UTILITY > MidAm`, the configured Primary/Secondary/Neutral sizes, communication versus power insulator families, and Anchor.Guys sizes (`1/2\"` utility, `3/8\"` communication). Streetlight rows require MidAm ownership plus Bottom Height and Drip Loop Height so the calculator can apply the project-specific pole ceiling. The workbook does not expose a reliable completed-grounding field, so the grounding requirement is retained as project metadata rather than reported as a false pass.
+
 ## Final Readiness
 
 Final Calculator work includes HOA changes, Proposed/Next Pole values, O-CALC or final midspan values, End Drop, terminal Proposed, UG, or generated Make Ready instructions. Final Excel work includes populated Make Ready fields or rows in Make Ready.Comm Transfers.

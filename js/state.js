@@ -99,6 +99,7 @@
       position: "TOP_COMM",
       mrCase: "LOWER",
       proposedOwner: "Wecom",
+      calculateBackspanMidspan: false,
       attachmentMessengerSize: "",
       fiberSizes: {},
       borrowMidspanFromPhysicalSpan: false,
@@ -107,6 +108,11 @@
       showServiceDrop: true,
       showResagServiceDrop: true,
       hideProposedOwner: false,
+      environmentClearances: {},
+      streetlightBracketCommClearance: "",
+      streetlightDripLoopCommClearance: "",
+      powerGuyCommClearance: "",
+      streetlightGroundingRequired: false,
       environmentClearance: "15'6\"",
       sagPer100Ft: "1'"
     },
@@ -123,6 +129,8 @@
       collection: { headers: [], rows: [] },
       spans: { headers: [], rows: [] },
       spanWires: { headers: [], rows: [] },
+      equipment: { headers: [], rows: [] },
+      anchorGuys: { headers: [], rows: [] },
       makeReady: { headers: [], rows: [] },
       commTransfers: { headers: [], rows: [] }
     },
@@ -156,6 +164,8 @@
 
   function defaultEnvironmentClearance(environment) {
     const env = trim(environment || "NONE") || "NONE";
+    const profileValue = state.settings?.environmentClearances?.[env];
+    if (profileValue) return trim(profileValue);
     const option = ENVIRONMENT_OPTIONS.find(item => item.value === env);
     return option ? option.clearance : "";
   }
@@ -418,6 +428,8 @@
       collection: normalizeReviewSheet(raw.collection),
       spans: normalizeReviewSheet(raw.spans),
       spanWires: normalizeReviewSheet(raw.spanWires),
+      equipment: normalizeReviewSheet(raw.equipment),
+      anchorGuys: normalizeReviewSheet(raw.anchorGuys),
       makeReady: normalizeReviewSheet(raw.makeReady),
       commTransfers: normalizeReviewSheet(raw.commTransfers)
     };
@@ -479,6 +491,9 @@
     if (!state.settings || !Object.prototype.hasOwnProperty.call(emptyState().settings, field)) return null;
     if (field === "projectProfile" && global.ProjectProfiles) {
       state.settings = global.ProjectProfiles.applyProfileSettings(state.settings, value);
+      Object.values(state.spans || {}).forEach(span => {
+        span.environmentClearance = defaultEnvironmentClearance(span.environment || "NONE");
+      });
       return state.settings;
     }
     state.settings[field] = trim(value);
@@ -809,7 +824,14 @@
 
   function normalizeState(raw) {
     const next = { ...emptyState(), ...raw };
-    next.settings = { ...emptyState().settings, ...(raw && raw.settings ? raw.settings : {}) };
+    const rawSettings = raw && raw.settings ? raw.settings : {};
+    const profileDefaults = global.ProjectProfiles
+      ? (global.ProjectProfiles.getProfile(rawSettings.projectProfile || "INTEC")?.settings || {})
+      : {};
+    // Apply project defaults before saved values. Existing user edits win,
+    // while older JSON files automatically receive newly introduced profile
+    // rules such as MidAm streetlight and Back Span behavior.
+    next.settings = { ...emptyState().settings, ...profileDefaults, ...rawSettings };
     // Migrate Metronet saves created before the WI selector existed.
     if (String(next.settings.projectProfile || "").toUpperCase() === "METRONET"
       && (!next.settings.proposedOwner || String(next.settings.proposedOwner).toUpperCase() === "METRONET")) {
@@ -911,6 +933,7 @@
     createSpanPower,
     createMakeReadyReference,
     canonicalPoleIdentity,
+    defaultEnvironmentClearance,
     keyForSpanSide,
     keyForSpanComm,
     getPole,

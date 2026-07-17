@@ -119,7 +119,7 @@ Update Data performs a fresh Excel import and then reconciles previous user work
 Current profiles:
 
 - INTEC: Top Comm, proposed owner visible, Service Drop and Re-sag Service Drop visible, low-power Proposed MS adjustment enabled.
-- Metronet: Low Comm, a dedicated `WI` selector with `MidAm`, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled.
+- Metronet: Low Comm, a dedicated `WI` selector with `MidAm`, Service Drop and Re-sag Service Drop hidden, low-power Proposed MS adjustment disabled. MidAm also supplies crossing defaults, streetlight/guy clearances, wire audit rules, and calculated measured Back Span midspans.
 
 Transfer to New Pole remains visible for both profiles because it is a manual movement outcome rather than an imported project-specific attribute.
 
@@ -134,6 +134,7 @@ These invariants should remain true after future changes:
 5. Proposed MS references may include reciprocal records only when they describe the same physical pole pair.
 6. `sourceSpanId` carries physical data for additional Proposed rows.
 7. Save and export recalculate before serializing.
+8. Reciprocal Fore/Back rows may have different Span/Wire IDs; endpoint-pair matching keeps their physical calculations synchronized.
 8. Make Ready is generated from current state and does not use imported Make Ready as the final result.
 
 ## Safe Extension Points

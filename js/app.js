@@ -969,6 +969,7 @@
       const isBackspan = /back\s*span|backspan/.test(spanType);
       const isOtherReference = /other/.test(spanType) && !ownMidspan;
       const isReferenceSpan = isBackspan || isOtherReference;
+      const calculatedBackspan = Boolean(global.Calculations.isCalculatedBackspanComm?.(sc));
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
       const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || sc.calculatedMidspan || sc.msProposed || sc.finalMidspan || "") !== null;
@@ -1047,8 +1048,8 @@
             aria-label="Clear only this midspan">&#10005;</button>` : ""}
           ${!hasStoredMidspan ? `<span class="inline-icon-action ghost-action" aria-hidden="true"></span>` : ""}
         </div>`,
-        maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${!isReferenceSpan && hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
-        remoteHtml: isReferenceSpan || !hasMidspan || !remote
+        maxHeightAtMSHtml: `<div class="comm-midspan-value"><strong>${(!isReferenceSpan || calculatedBackspan) && hasMidspan ? escapeHtml(span?.midspanMaxCommHeight || "") : ""}</strong></div>`,
+        remoteHtml: (isReferenceSpan && !calculatedBackspan) || !hasMidspan || !remote
           ? `<div class="comm-midspan-value"><strong></strong></div>`
           : `<div class="comm-midspan-value"><input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(remote.poleId)}" data-span="${escapeHtml(remote.spanId)}" data-owner="${escapeHtml(remote.owner)}" data-wire-id="${escapeHtml(remote.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(remote.existingHOAChange || remote.existingHOA || "")}"></div>`
       });
@@ -1299,6 +1300,13 @@
       ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
       ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
     ];
+    if (selectedProfile === "METRONET" && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM") {
+      clearanceRows.push(
+        ["streetlightBracketCommClearance", "Pole · Streetlight bracket-comm", settings.streetlightBracketCommClearance || "20\""],
+        ["streetlightDripLoopCommClearance", "Pole · Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""],
+        ["powerGuyCommClearance", "Pole · Power guy-comm", settings.powerGuyCommClearance || "3\""]
+      );
+    }
     const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
     const proposedOwner = settings.proposedOwner || "Wecom";
     const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
@@ -2159,6 +2167,9 @@
       "clearanceToPower",
       "commClearance",
       "boltClearance",
+      "streetlightBracketCommClearance",
+      "streetlightDripLoopCommClearance",
+      "powerGuyCommClearance",
       "projectProfile",
       "position",
       "mrCase",
@@ -2402,9 +2413,12 @@
 
     if (scope === "span") {
       if (field === "environment") {
-        const option = (S.ENVIRONMENT_OPTIONS || []).find(item => item.value === value);
         global.Calculations.updateSpanField(el.dataset.span, "environment", value);
-        global.Calculations.updateSpanField(el.dataset.span, "environmentClearance", option?.clearance || "");
+        global.Calculations.updateSpanField(
+          el.dataset.span,
+          "environmentClearance",
+          S.defaultEnvironmentClearance ? S.defaultEnvironmentClearance(value) : ""
+        );
       } else {
         global.Calculations.updateSpanField(el.dataset.span, field, value);
       }
@@ -2460,7 +2474,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }

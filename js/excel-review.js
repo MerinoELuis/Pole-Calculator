@@ -26,6 +26,13 @@
   const COMM_INSULATORS = ["single bolt", "three bolt", "j-hook"];
   const PRIMARY_INSULATORS = ["deadend aps", "horizontal line post", "post 15\""];
   const SECONDARY_INSULATORS = ["pin 7.5in", "deadend aps", "spool 3in", "suspension aps"];
+  const MIDAM_POWER_SIZES = {
+    PRIMARY: "primary > aac 477.0 kcm 19 strand cosmos > static",
+    SECONDARY: "secondary > triplex 2 awg > static",
+    NEUTRAL: "neutral > aac 477.0 kcm 19 strand cosmos > static"
+  };
+  const MIDAM_COMM_INSULATORS = ["single bolt", "three bolt"];
+  const MIDAM_POWER_INSULATORS = ["spool 2.5\"", "deadend 12.75\"", "suspension 11.50\"", "pin 7.5\""];
 
   let current = emptyResults();
 
@@ -447,6 +454,98 @@
         });
       }
     });
+  }
+
+  function addMidAmChecks(result, poleId) {
+    const settings = S().getState().settings || {};
+    if (text(settings.projectProfile).toUpperCase() !== "METRONET"
+      || text(settings.proposedOwner || "MidAm").toUpperCase() !== "MIDAM") return;
+
+    rowsForPole("spanWires", poleId).forEach((row, index) => {
+      const ownerRaw = text(pick(row, ["Owner", "owner"]));
+      const owner = normalizedText(ownerRaw);
+      const sizeRaw = text(pick(row, ["Size", "Size.display", "Wire Size"]));
+      const size = normalizedText(sizeRaw);
+      const insulatorRaw = text(pick(row, ["Insulator"]));
+      const insulator = normalizedInsulator(insulatorRaw);
+      const descriptor = `${ownerRaw || "No owner"} / ${sizeRaw || `row ${index + 2}`}`;
+      const power = I().isPowerWire ? I().isPowerWire(row) : /^utility\s*>/i.test(ownerRaw);
+      const communication = I().isCommunicationWire ? I().isCommunicationWire(row) : !power;
+
+      if (communication && !MIDAM_COMM_INSULATORS.includes(insulator)) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: "INVALID_MIDAM_COMM_INSULATOR", status: "ERROR",
+          title: "Communication Insulator", message: `Invalid MidAm communication insulator for ${descriptor}.`,
+          expected: MIDAM_COMM_INSULATORS.join(", "), actual: insulatorRaw || "Empty"
+        });
+      }
+
+      if (!power) return;
+      const powerType = /primary/i.test(sizeRaw) ? "PRIMARY" : /secondary/i.test(sizeRaw) ? "SECONDARY" : /neutral/i.test(sizeRaw) ? "NEUTRAL" : "";
+      if (!powerType) return;
+      if (owner !== "utility > midam") {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: "INVALID_MIDAM_POWER_OWNER", status: "ERROR",
+          title: `${powerType} Owner`, message: `${powerType} owner must be UTILITY > MidAm.`,
+          expected: "UTILITY > MidAm", actual: ownerRaw || "Empty"
+        });
+      }
+      if (size !== MIDAM_POWER_SIZES[powerType]) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: `INVALID_MIDAM_${powerType}_SIZE`, status: "ERROR",
+          title: `${powerType} Size`, message: `Invalid MidAm ${powerType.toLowerCase()} size.`,
+          expected: MIDAM_POWER_SIZES[powerType], actual: sizeRaw || "Empty"
+        });
+      }
+      if (!MIDAM_POWER_INSULATORS.includes(insulator)) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: `INVALID_MIDAM_${powerType}_INSULATOR`, status: "ERROR",
+          title: `${powerType} Insulator`, message: `Invalid MidAm ${powerType.toLowerCase()} insulator for ${descriptor}.`,
+          expected: MIDAM_POWER_INSULATORS.join(", "), actual: insulatorRaw || "Empty"
+        });
+      }
+    });
+
+    rowsForPole("anchorGuys", poleId).forEach(row => {
+      const ownerRaw = text(pick(row, ["Owner", "owner"]));
+      const owner = normalizedText(ownerRaw);
+      const size = text(pick(row, ["Size"]));
+      const utility = owner === "utility > midam";
+      const communication = owner.startsWith("communication >");
+      const valid = utility
+        ? /(?:ehs\s*)?1\s*\/\s*2|0\.500/i.test(size)
+        : communication ? /(?:ehs\s*)?3\s*\/\s*8|0\.375/i.test(size) : true;
+      if (valid) return;
+      add(result, {
+        phase: "HOA", section: "Anchor.Guys", code: utility ? "INVALID_MIDAM_POWER_GUY_SIZE" : "INVALID_MIDAM_COMM_GUY_SIZE", status: "ERROR",
+        title: utility ? "Power Guy Size" : "Communication Guy Size",
+        message: `${utility ? "Power" : "Communication"} ANC/guy has an invalid MidAm size.`,
+        expected: utility ? "1/2\" (0.500\")" : "3/8\" (0.375\")", actual: size || "Empty"
+      });
+    });
+
+    rowsForPole("equipment", poleId)
+      .filter(row => /street\s*light|streetlight/i.test(text(pick(row, ["Type"]))))
+      .forEach(row => {
+        const owner = text(pick(row, ["Owner"]));
+        if (normalizedText(owner) !== "utility > midam") {
+          add(result, {
+            phase: "HOA", section: "Equipment", code: "INVALID_MIDAM_STREETLIGHT_OWNER", status: "ERROR",
+            title: "Streetlight Owner", message: "MidAm streetlights must use UTILITY > MidAm.",
+            expected: "UTILITY > MidAm", actual: owner || "Empty"
+          });
+        }
+        const bottom = text(pick(row, ["Bottom Height.display", "Bottom Height Display"]));
+        const dripLoop = text(pick(row, ["Drip Loop Height.display", "Drip Loop Height Display"]));
+        if (!bottom || !dripLoop) {
+          add(result, {
+            phase: "HOA", section: "Equipment", code: "MISSING_MIDAM_STREETLIGHT_HEIGHT", status: "ERROR",
+            title: "Streetlight Clearance Data",
+            message: "Streetlight bottom and uncovered drip-loop heights are required for MidAm pole clearance.",
+            expected: "Bottom Height.display and Drip Loop Height.display", actual: `Bottom ${bottom || "Empty"}; Drip loop ${dripLoop || "Empty"}`
+          });
+        }
+      });
   }
 
   function calculatorWorkForPole(poleId) {
@@ -1018,6 +1117,7 @@
       addReciprocalChecks(result, poleSpans, spans);
       addEnvironmentChecks(result, poleSpans, spans, environmentPairsSeen);
       if (entry.poleId) addIntecWireChecks(result, entry.poleId);
+      if (entry.poleId) addMidAmChecks(result, entry.poleId);
       addFinalChecks(result, entry);
       return finalizeResult(result);
     });

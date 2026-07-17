@@ -279,4 +279,52 @@ const restoredKey = ignoredResult.checks.find(item => item.code === "MR_INSTRUCT
 review.setCheckIgnored(restoredKey, false);
 assert.equal(review.reviewPole("PMISMATCH").finalStatus, "ERROR", "restored findings must affect review status again");
 
+state.settings = { projectProfile: "METRONET", proposedOwner: "MidAm" };
+state.poles = { PMIDAM: { poleId: "PMIDAM" } };
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {};
+state.mr = [];
+state.excelReviewIgnoredChecks = {};
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display"],
+    rows: [{ Id: "PMIDAM", Sequence: "PMIDAM", "Year Installed": 2010, "Low Power Attachment.display": "27'" }]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: {
+    headers: ["Id", "Owner", "Size", "Insulator"],
+    rows: [
+      { Id: "PMIDAM", Owner: "COMMUNICATION > Fiber", Size: "Fiber", Insulator: "Pin 7.5\"" },
+      { Id: "PMIDAM", Owner: "UTILITY > Other", Size: "Primary > OTHER > Static", Insulator: "Single Bolt" }
+    ]
+  },
+  equipment: {
+    headers: ["Id", "Type", "Owner", "Bottom Height.display", "Drip Loop Height.display"],
+    rows: [{ Id: "PMIDAM", Type: "Streetlight > SMALL", Owner: "UTILITY > Other", "Bottom Height.display": "", "Drip Loop Height.display": "" }]
+  },
+  anchorGuys: {
+    headers: ["Id", "Owner", "Size"],
+    rows: [
+      { Id: "PMIDAM", Owner: "UTILITY > MidAm", Size: "Down > EHS 3/8" },
+      { Id: "PMIDAM", Owner: "COMMUNICATION > Fiber", Size: "Down > EHS 1/2" }
+    ]
+  },
+  makeReady: { headers: [], rows: [] },
+  commTransfers: { headers: [], rows: [] }
+};
+
+output = review.runReview();
+const midAmCodes = new Set(review.reviewPole("PMIDAM").checks.map(item => item.code));
+[
+  "INVALID_MIDAM_COMM_INSULATOR",
+  "INVALID_MIDAM_POWER_OWNER",
+  "INVALID_MIDAM_PRIMARY_SIZE",
+  "INVALID_MIDAM_PRIMARY_INSULATOR",
+  "INVALID_MIDAM_POWER_GUY_SIZE",
+  "INVALID_MIDAM_COMM_GUY_SIZE",
+  "INVALID_MIDAM_STREETLIGHT_OWNER",
+  "MISSING_MIDAM_STREETLIGHT_HEIGHT"
+].forEach(code => assert.ok(midAmCodes.has(code), `expected MidAm review check ${code}`));
+
 console.log("Excel Review tests passed.");

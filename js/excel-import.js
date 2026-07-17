@@ -449,8 +449,9 @@
   }
 
   function clearanceForEnvironment(environment) {
-    const option = (S().ENVIRONMENT_OPTIONS || []).find(item => item.value === environment);
-    return option ? option.clearance : "";
+    return S().defaultEnvironmentClearance
+      ? S().defaultEnvironmentClearance(environment)
+      : ((S().ENVIRONMENT_OPTIONS || []).find(item => item.value === environment)?.clearance || "");
   }
 
   function importAppStateSheet(workbook) {
@@ -857,6 +858,60 @@
     });
   }
 
+  // MidAm streetlight and guy clearances depend on source data that is not a
+  // Span.Wire. Keep a normalized copy on the pole so normal calculator
+  // flagging can use it without reading raw workbook rows after import.
+  function importMidAmPoleConstraints(equipmentRows, anchorGuyRows) {
+    if (String(S().getState().settings?.projectProfile || "").toUpperCase() !== "METRONET") return;
+    const constraintsByPole = new Map();
+    const constraintsFor = poleId => {
+      if (!constraintsByPole.has(poleId)) constraintsByPole.set(poleId, { streetlights: [], powerGuys: [] });
+      return constraintsByPole.get(poleId);
+    };
+
+    equipmentRows.forEach(row => {
+      const type = String(pick(row, ["Type"])).trim();
+      if (!/street\s*light|streetlight/i.test(type)) return;
+      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
+      if (!poleId || !S().getPole(poleId)) return;
+      constraintsFor(poleId).streetlights.push({
+        equipmentId: String(pick(row, ["Equipment Id", "Equipment ID"])).trim(),
+        owner: String(pick(row, ["Owner"])).trim(),
+        type,
+        attachmentHeight: heightFromRow(row, ["Attachment Height.display"], ["Attachment Height"]),
+        bottomHeight: heightFromRow(row, ["Bottom Height.display"], ["Bottom Height"]),
+        dripLoopHeight: heightFromRow(row, ["Drip Loop Height.display"], ["Drip Loop Height"]),
+        uncoveredDripLoop: true,
+        groundingRequired: true
+      });
+    });
+
+    anchorGuyRows.forEach(row => {
+      const owner = String(pick(row, ["Owner"])).trim();
+      if (!/^utility\s*>\s*midam$/i.test(owner)) return;
+      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
+      const attachmentHeight = heightFromRow(row, ["Attachment Height.display"], ["Attachment Height"]);
+      if (!poleId || !S().getPole(poleId) || H().parseHeight(attachmentHeight) === null) return;
+      constraintsFor(poleId).powerGuys.push({
+        guyId: String(pick(row, ["Guys Id", "Guy Id", "Guys ID", "Guy ID"])).trim(),
+        owner,
+        size: String(pick(row, ["Size"])).trim(),
+        attachmentHeight
+      });
+    });
+
+    constraintsByPole.forEach((constraints, poleId) => {
+      const pole = S().getPole(poleId);
+      S().upsertPole({
+        ...pole,
+        metadata: {
+          ...(pole.metadata || {}),
+          midAmConstraints: constraints
+        }
+      });
+    });
+  }
+
   /**
    * Imports a raw field workbook into a new normalized AppState.
    * @param {Object} workbook Parsed XLSX-compatible workbook.
@@ -877,7 +932,10 @@
     const collectionRows = rowsToObjects(collectionSheet || []);
     const spanRows = rowsToObjects(spanSheet || []);
     const wireRows = rowsToObjects(wireSheet || []);
-    const anchorGuyRows = rowsToObjects(findSheet(workbook, ["Anchor.Guys", "Anchor Guys", "Anchor Guy", "Guys"]) || []);
+    const equipmentSheet = findSheet(workbook, ["Equipment"]);
+    const anchorGuySheet = findSheet(workbook, ["Anchor.Guys", "Anchor Guys", "Anchor Guy", "Guys"]);
+    const equipmentRows = rowsToObjects(equipmentSheet || []);
+    const anchorGuyRows = rowsToObjects(anchorGuySheet || []);
     const makeReadyRows = rowsToObjects(makeReadySheet || []);
 
     if (!collectionRows.length && !spanRows.length && !wireRows.length) {
@@ -893,12 +951,15 @@
       collection: sheetSnapshot(collectionSheet),
       spans: sheetSnapshot(spanSheet),
       spanWires: sheetSnapshot(wireSheet),
+      equipment: sheetSnapshot(equipmentSheet),
+      anchorGuys: sheetSnapshot(anchorGuySheet),
       makeReady: sheetSnapshot(makeReadySheet),
       commTransfers: sheetSnapshot(commTransfersSheet)
     };
 
     const collectionIndex = buildCollectionIndex(collectionRows);
     importPolesFromCollection(collectionRows, collectionIndex);
+    importMidAmPoleConstraints(equipmentRows, anchorGuyRows);
     state.poleClassChecks = buildPoleClassChecks(collectionRows);
 
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);

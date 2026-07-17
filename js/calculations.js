@@ -134,10 +134,24 @@
     return sc?.midspan || sc?.ocalcMS || "";
   }
 
+  function isMidAmProfile() {
+    const settings = S().getState().settings || {};
+    return String(settings.projectProfile || "").toUpperCase() === "METRONET"
+      && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
+  }
+
+  function isCalculatedBackspanComm(sc) {
+    const span = S().getSpan(sc?.spanId || "");
+    const type = String(span?.type || span?.rawType || "").toLowerCase();
+    const enabled = S().getState().settings?.calculateBackspanMidspan === true;
+    return Boolean(enabled && isMidAmProfile() && /back\s*span|backspan/.test(type)
+      && parseMidspanValue(ownMidspanValue(sc)) !== null);
+  }
+
   function isReferenceSpanComm(sc) {
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    if (/back\s*span|backspan/.test(type)) return true;
+    if (/back\s*span|backspan/.test(type)) return !isCalculatedBackspanComm(sc);
     if (/other/.test(type)) {
       return parseMidspanValue(ownMidspanValue(sc)) === null;
     }
@@ -563,6 +577,21 @@
     const owner = commOwnerLabel(sc);
     const issues = [];
 
+    if (isMidAmProfile() && poleHeight !== null) {
+      const guyClearance = H().parseHeight(S().getState().settings?.powerGuyCommClearance || "");
+      const powerGuys = pole?.metadata?.midAmConstraints?.powerGuys || [];
+      if (guyClearance !== null) {
+        powerGuys.forEach(guy => {
+          const guyHeight = H().parseHeight(guy.attachmentHeight || "");
+          if (guyHeight === null) return;
+          const separation = Math.abs(poleHeight - guyHeight);
+          if (separation < guyClearance) {
+            issues.push(`Power guy: ${format(separation)} separation; minimum ${format(guyClearance)}.`);
+          }
+        });
+      }
+    }
+
     const envMin = getEnvironmentMinimum(span);
     if (midspan !== null && envMin !== null && midspan < envMin) {
       issues.push(`Environment: ${format(midspan)} < ${format(envMin)}.`);
@@ -688,6 +717,21 @@
     const commRequired = getPoleCommCommClearance();
     const issues = [];
 
+    if (isMidAmProfile()) {
+      const pole = S().getPole(spanSide.poleId);
+      const guyRequired = H().parseHeight(S().getState().settings?.powerGuyCommClearance || "");
+      if (guyRequired !== null) {
+        (pole?.metadata?.midAmConstraints?.powerGuys || []).forEach(guy => {
+          const guyHeight = H().parseHeight(guy.attachmentHeight || "");
+          if (guyHeight === null) return;
+          const diff = Math.abs(proposed - guyHeight);
+          if (diff < guyRequired) {
+            issues.push(`Proposed ${format(proposed)} does not respect Pole · Power guy-comm ${format(guyRequired)} against ${format(guyHeight)}.`);
+          }
+        });
+      }
+    }
+
     S().getSpanCommsForPole(spanSide.poleId)
       .map(sc => ({
         owner: commOwnerLabel(sc) || "sin owner",
@@ -777,7 +821,20 @@
     const lowPower = H().parseHeight(pole.lowPower);
     const settings = S().getState().settings || {};
     const clearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
-    const maxCommHeight = lowPower !== null && clearance !== null ? format(lowPower - clearance) : "";
+    const ceilings = [];
+    if (lowPower !== null && clearance !== null) ceilings.push(lowPower - clearance);
+    if (isMidAmProfile()) {
+      const constraints = pole.metadata?.midAmConstraints || {};
+      const bracketClearance = H().parseHeight(settings.streetlightBracketCommClearance || "");
+      const dripLoopClearance = H().parseHeight(settings.streetlightDripLoopCommClearance || "");
+      (constraints.streetlights || []).forEach(streetlight => {
+        const bracket = H().parseHeight(streetlight.bottomHeight || "");
+        const dripLoop = H().parseHeight(streetlight.dripLoopHeight || "");
+        if (bracket !== null && bracketClearance !== null) ceilings.push(bracket - bracketClearance);
+        if (dripLoop !== null && dripLoopClearance !== null) ceilings.push(dripLoop - dripLoopClearance);
+      });
+    }
+    const maxCommHeight = ceilings.length ? format(Math.min(...ceilings)) : "";
 
     S().updatePoleField(poleId, "topComm", topComm);
     S().updatePoleField(poleId, "lowComm", lowComm);
@@ -1443,7 +1500,14 @@
    * @param {string} poleId
    */
   function recalculateSpansForPole(poleId) {
-    const spans = S().getConnectedSpans(poleId);
+    const directlyConnected = S().getConnectedSpans(poleId);
+    // Fore and Back rows are separate directed records in IKE exports and can
+    // use different Span/Wire IDs. Recalculate every reciprocal record for the
+    // same endpoint pair so a movement at either pole updates MidAm Back Span
+    // midspans immediately instead of waiting for a full-page recalculation.
+    const spans = Object.values(S().getState().spans || {}).filter(candidate =>
+      directlyConnected.some(connected => samePhysicalSpan(candidate, connected))
+    );
     spans.forEach(span => calculateSpanPowerDerived(span.spanId));
 
     calculatePoleDerived(poleId);
@@ -1533,6 +1597,7 @@
     commOwnerLabel,
     isPofComm,
     displayMidspanForComm,
+    isCalculatedBackspanComm,
     getConnectedSpans,
     getBackspanForPole,
     recalculateSpan,

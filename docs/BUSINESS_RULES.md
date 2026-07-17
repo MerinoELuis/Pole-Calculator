@@ -12,6 +12,17 @@ All heights are parsed to integer inches before calculations. Decimal feet are r
 Max Height on Pole = Low Power on Pole - Pole Power-comms clearance
 ```
 
+For Metronet/MidAm, the final maximum is the lowest available ceiling:
+
+```text
+Low Power ceiling        = Low Power - 40"
+Streetlight bracket      = Bottom Height - 20"
+Uncovered drip-loop      = Drip Loop Height - 12"
+Max Height on Pole       = minimum available ceiling
+```
+
+MidAm comms and Proposed must also remain at least `3\"` from imported MidAm utility guy attachment heights.
+
 The highest and lowest effective comm heights use `HOA Change` when present; otherwise they use `Existing HOA`. INTEC Self-Supporting Fiber is POF: it stays visible but does not define Top Comm or Low Comm for Proposed placement.
 
 ## Derived Midspan Power Limit
@@ -84,7 +95,9 @@ Using the same priority prevents the table from displaying one value while flagg
 
 | Span type | Own midspan | Behavior |
 | --- | --- | --- |
-| Back Span | missing or present | REF for current calculations. An imported value can remain visible for inspection. |
+| Back Span, INTEC | missing or present | REF for current calculations. An imported value can remain visible for inspection. |
+| Back Span, MidAm | missing | REF with no calculated midspan. |
+| Back Span, MidAm | present | Remains labeled REF, but its own imported baseline is recalculated from both endpoint movements. |
 | Other | missing | REF. No calculated midspan or Other Pole HOA. |
 | Other | present | Real midspan row; calculations and flagging apply. |
 | Fore Span | missing | Editable so the user can create the midspan. |
@@ -103,6 +116,9 @@ One compact comm flagging field combines these checks:
 7. Different owners keep Pole Comm-comm clearance.
 8. Same owners keep Pole Bolt-bolt clearance.
 9. New movement bolts keep Bolt-bolt clearance from previous Existing HOA points.
+10. MidAm comms keep Power guy-comm clearance from imported utility guy attachment points.
+
+MidAm environment defaults are profile-specific: railroad `23'6\"`; truck traffic, parking lots, alleys, farms and along-road spans `15'6\"`; pedestrian-only areas `9'6\"`; and water without sailboats `14'`.
 
 A same-owner Service Drop may reuse exactly the same bolt height. This exception applies only when the separation is zero; nearby nonzero placements still use Bolt-bolt clearance.
 
