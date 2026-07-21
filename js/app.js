@@ -946,9 +946,7 @@
   }
 
   function spanHasRealMidspan(spanId) {
-    const hasCommMidspan = S.getSpanCommsForSpan(spanId).some(sc => H.parseHeight(sc.ocalcMS || sc.midspan || "") !== null);
-    const hasProposedMidspan = S.getSpanSidesForSpan(spanId).some(side => H.parseHeight(side.ocalcMS || side.proposedMidspan || side.msProposed || "") !== null);
-    return hasCommMidspan || hasProposedMidspan;
+    return global.Calculations.spanHasRealMidspan(spanId);
   }
 
   function isForespanForProposed(span, poleId) {

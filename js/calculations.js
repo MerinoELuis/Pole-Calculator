@@ -1143,9 +1143,19 @@
     ));
   }
 
-  function autoCalcHasRealMidspan(spanId) {
-    return S().getSpanCommsForSpan(spanId).some(row => getImportedMidspanInchesForComm(row) !== null)
-      || S().getSpanSidesForSpan(spanId).some(side => parseMidspanValue(side.ocalcMS || side.proposedMidspan || side.msProposed || "") !== null);
+  /**
+   * Reports whether one physical span contains enough midspan data to appear
+   * in Proposed by Span. Power midspans count even when Span.Wire has no comm
+   * rows; this is common on an otherwise valid INTEC Fore Span.
+   */
+  function spanHasRealMidspan(spanId) {
+    const hasPowerMidspan = S().getSpanPowerForSpan(spanId)
+      .some(row => H().parseHeight(row.midspan || "") !== null);
+    const hasCommMidspan = S().getSpanCommsForSpan(spanId)
+      .some(row => getImportedMidspanInchesForComm(row) !== null);
+    const hasProposedMidspan = S().getSpanSidesForSpan(spanId)
+      .some(side => parseMidspanValue(side.ocalcMS || side.proposedMidspan || side.msProposed || "") !== null);
+    return hasPowerMidspan || hasCommMidspan || hasProposedMidspan;
   }
 
   function isForespanForProposed(span, poleId) {
@@ -1160,7 +1170,7 @@
     const allowNoMidspan = S().getState().settings?.proposeForeSpanWithoutMidspan === true;
     return S().getConnectedSpans(poleId)
       .filter(span => isForespanForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
-      .filter(span => allowNoMidspan || autoCalcHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isAdditionalProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
@@ -1729,6 +1739,7 @@
     recalculateAll,
     getEffectiveCommHOA,
     getEstimatedSagInches,
+    spanHasRealMidspan,
     findRemoteComm,
     getReferenceMidspansForSpanSide,
     autoCalculateMovements

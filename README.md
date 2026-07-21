@@ -184,7 +184,7 @@ MidAm is an explicit exception for Back Span rows that contain their own measure
 
 ### Proposed by Span
 
-`Proposed by Span` is only used for spans that have real midspan data or manually added proposed spans. It avoids repeating backspans and duplicate physical connections.
+`Proposed by Span` is only used for spans that have real midspan data or manually added proposed spans. Imported Power midspan counts as real data even when that span has no communication wire rows. This keeps valid power-only Fore Spans available while avoiding backspans, truly empty spans, and duplicate physical connections.
 
 End Drop is calculated from the local Proposed value and the Next Pole Proposed value when available.
 

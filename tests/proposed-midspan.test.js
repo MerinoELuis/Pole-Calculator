@@ -55,6 +55,27 @@ assert.equal(C.calculateProposedMidspanBase(side, span), 18 * 12, "Wecom Propose
 C.calculateSpanSideMidspan("WITH-MS", "P1");
 assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "18'", "the automatic Wecom base must be persisted for display and validation");
 
+S.upsertSpan(S.createSpan("POWER-ONLY", "P1", "P2", "E", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "147'4\""
+}));
+S.addSpanPower(S.createSpanPower({
+  spanId: "POWER-ONLY",
+  poleId: "P1",
+  wireId: "NEUTRAL-1",
+  size: "Neutral",
+  midspan: "25'10\""
+}));
+assert.equal(C.spanHasRealMidspan("POWER-ONLY"), true, "an INTEC Fore Span with only a Power midspan must be eligible for Proposed by Span");
+
+S.upsertSpan(S.createSpan("EMPTY-FORE", "P1", "P2", "E", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "140'"
+}));
+assert.equal(C.spanHasRealMidspan("EMPTY-FORE"), false, "a truly empty Fore Span must remain hidden under the INTEC profile");
+
 seedSpan("METRONET", "NO-MS", "148'5\"", "22'");
 side = S.getSpanSide("NO-MS", "P1");
 span = S.getSpan("NO-MS");

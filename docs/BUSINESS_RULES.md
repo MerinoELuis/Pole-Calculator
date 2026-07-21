@@ -103,6 +103,10 @@ Using the same priority prevents the table from displaying one value while flagg
 | Fore Span | missing | Editable so the user can create the midspan. |
 | Fore Span | present | Real midspan row; calculations and flagging apply. |
 
+For `Proposed by Span`, a valid imported Power midspan also counts as real
+midspan data. This allows a Fore Span to be proposed when it contains Power
+clearance data but no communication rows in `Span.Wire`.
+
 ## Comm Flagging
 
 One compact comm flagging field combines these checks:
