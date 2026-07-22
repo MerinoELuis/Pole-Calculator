@@ -1968,7 +1968,7 @@
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
-      <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the riser for the adjacent UG span" : "No adjacent UG span is available"}">Riser</button>
+      <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" title="Add or remove the pole Riser Make Ready">Riser</button>
     </div>
     ${showUGReason ? `<label class="pole-action-field">
       <span>UG Make Ready</span>

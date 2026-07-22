@@ -137,7 +137,8 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `generateAllMR()` | Replace generated MR for the complete state. |
 | `getResolvedRiserDirection(poleId)` | Resolve saved, imported, or relation-derived INTEC riser direction. |
 | `getDefaultRiserDirection(relation, direction)` | Keep the UG span direction for Fore/Back and leave Other Span blank. |
-| `isRiserAvailable/isRiserEnabled(poleId)` | Expose adjacent-UG availability and automatic/manual Riser action state. |
+| `isRiserAvailable/isRiserEnabled(poleId)` | Expose always-available INTEC manual Riser control and its automatic/manual state. |
+| `generateRiserInstruction(poleId)` | Build the final riser line from primary Proposed, saved/imported direction, and span fallback. |
 | `detectAttach/RaiseLower/Overlash/Slack/Anchor/Riser` | Expose MR condition detectors. |
 
 ## ExcelReview

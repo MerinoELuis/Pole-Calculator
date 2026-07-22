@@ -373,14 +373,29 @@
 
   function riserConnectionForPole(poleId) {
     const items = connectedUGSpanItems(poleId);
-    return items.find(item => item.relation === "Backspan")
+    const adjacentUG = items.find(item => item.relation === "Backspan")
       || items.find(item => item.relation === "Forespan")
       || items[0]
       || null;
+    if (adjacentUG) return adjacentUG;
+
+    // A manually selected Riser does not require an adjacent UG pole. Use the
+    // primary Proposed span to supply its default direction when available.
+    const side = S().getSpanSidesForPole(poleId)
+      .filter(item => item.proposedHOA)
+      .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)))[0];
+    const span = S().getSpan(side?.spanId || "");
+    if (!span) return null;
+    return {
+      relation: normalizeSpanRelation(span.rawType || span.type, span.fromPole !== poleId),
+      direction: span.fromPole === poleId ? (span.direction || "") : oppositeDirection(span.direction || ""),
+      spanId: span.spanId,
+      otherPoleId: S().getOtherPoleId(span, poleId) || ""
+    };
   }
 
   function isRiserAvailable(poleId) {
-    return Boolean(riserConnectionForPole(poleId));
+    return Boolean(S().getPole(poleId));
   }
 
   // null preserves the legacy automatic Back Span behavior. true/false is an
@@ -388,8 +403,31 @@
   function isRiserEnabled(poleId, connection = null) {
     const pole = S().getPole(poleId);
     if (pole?.riserActive === true || pole?.riserActive === false) return pole.riserActive;
-    const item = connection || riserConnectionForPole(poleId);
+    // Only an actual adjacent Back Span UG turns the legacy automatic riser
+    // on. A normal Back Span or Proposed does not activate it by itself.
+    const items = connectedUGSpanItems(poleId);
+    const item = items.find(candidate => candidate.relation === "Backspan")
+      || (connection && items.find(candidate => candidate.spanId === connection.spanId));
     return item?.relation === "Backspan";
+  }
+
+  function generateRiserInstruction(poleId) {
+    if (isMetronetMR() || !isRiserEnabled(poleId)) return "";
+    const connection = riserConnectionForPole(poleId);
+    const proposedSides = S().getSpanSidesForPole(poleId)
+      .filter(side => side.proposedHOA)
+      .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)));
+    const proposedSide = proposedSides.find(side => {
+      if (!connection) return false;
+      if (side.spanId === connection.spanId) return true;
+      const sideSpan = S().getSpan(side.spanId);
+      return Boolean(sideSpan && [sideSpan.fromPole, sideSpan.toPole].includes(connection.otherPoleId));
+    }) || proposedSides[0];
+    const proposed = H().parseHeight(proposedSide?.proposedHOA || S().getPole(poleId)?.standaloneProposedHOA || "");
+    if (proposed === null) return "";
+    const riserDirection = resolvedRiserDirection(poleId, connection);
+    const direction = riserDirection ? ` ${riserDirection}` : "";
+    return `Pl riser${direction} at HOA ${H().formatHeight(proposed - 12)}.`;
   }
 
   function connectedUGInstructions(poleId) {
@@ -405,22 +443,8 @@
       return [`${item.relation} to go UG${direction} due to on adj pole ${adjacentReason}.`];
     });
 
-    if (isMetronetMR()) return lines;
-    const connection = riserConnectionForPole(poleId);
-    if (!connection || !isRiserEnabled(poleId, connection)) return lines;
-    const proposedSides = S().getSpanSidesForPole(poleId)
-      .filter(side => side.proposedHOA)
-      .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)));
-    const proposedSide = proposedSides.find(side => {
-      if (side.spanId === connection.spanId) return true;
-      const sideSpan = S().getSpan(side.spanId);
-      return Boolean(sideSpan && [sideSpan.fromPole, sideSpan.toPole].includes(connection.otherPoleId));
-    }) || proposedSides[0];
-    const proposed = H().parseHeight(proposedSide?.proposedHOA || S().getPole(poleId)?.standaloneProposedHOA || "");
-    if (proposed === null) return lines;
-    const riserDirection = resolvedRiserDirection(poleId, connection);
-    const direction = riserDirection ? ` ${riserDirection}` : "";
-    lines.push(`Pl riser${direction} at HOA ${H().formatHeight(proposed - 12)}.`);
+    const riser = generateRiserInstruction(poleId);
+    if (riser) lines.push(riser);
     return lines;
   }
 
@@ -497,6 +521,8 @@
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
       const lines = pole.ugActive ? ugReplacementMR(pole) : pcoReplacementMR();
+      const riser = generateRiserInstruction(poleId);
+      if (riser) lines.push(riser);
       const text = lines.map(applyCase).join("\n");
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
@@ -566,6 +592,7 @@
     getDefaultRiserDirection: defaultRiserDirection,
     isRiserAvailable,
     isRiserEnabled,
+    generateRiserInstruction,
     generateMRForSpanSide,
     generateAllMR,
     detectAttach: detectAttachFromSpanSide,
