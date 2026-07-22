@@ -334,13 +334,25 @@
   function generatePowerEquipmentMRForPole(poleId) {
     const rows = S().getPole(poleId)?.metadata?.powerEquipment || [];
     return rows.flatMap(row => {
-      if (!row.actionActive) return [];
       const category = String(row.category || row.type || "").toUpperCase();
       if (category.includes("STREETLIGHT")) {
-        return [isMetronetMR()
-          ? "MNT GROUND STREETLIGHT"
-          : "Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT."];
+        const lines = [];
+        if (row.actionActive) {
+          lines.push(isMetronetMR()
+            ? "MNT GROUND STREETLIGHT"
+            : "Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.");
+        }
+        if (!isMetronetMR() && row.raiseActive) {
+          const source = H().parseHeight(row.attachmentHeight || "");
+          const target = H().parseHeight(row.raiseHeight || "");
+          if (source !== null && target !== null && target > source && target <= source + 12) {
+            lines.push(`Raise streetlight from HOA ${H().formatHeight(source)} to ${H().formatHeight(target)}.`);
+          }
+        }
+        return lines;
       }
+
+      if (!row.actionActive) return [];
 
       const target = H().parseHeight(row.actionHeight || "");
       if (target === null) return [];

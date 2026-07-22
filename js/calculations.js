@@ -792,6 +792,16 @@
     return target;
   }
 
+  // INTEC allows a Streetlight to be raised independently of grounding, but
+  // never by more than one foot from the imported attachment HOA.
+  function validStreetlightRaiseInches(equipment) {
+    if (isMidAmProfile() || !equipment?.raiseActive) return null;
+    const source = H().parseHeight(equipment.attachmentHeight || "");
+    const target = H().parseHeight(equipment.raiseHeight || "");
+    if (source === null || target === null || target <= source || target > source + 12) return null;
+    return target;
+  }
+
   // Returns the comm-height ceiling imposed by one imported Power Equipment
   // row. Streetlight bracket and drip-loop clearances are evaluated separately
   // because grounding changes only the INTEC bracket rule, never the drip loop.
@@ -801,15 +811,24 @@
     const genericClearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
     const category = String(equipment.category || equipment.type || "").toUpperCase();
     const actionHeight = validEquipmentActionHeightInches(equipment);
-    const attachment = category.includes("RISER") && actionHeight !== null
+    let attachment = category.includes("RISER") && actionHeight !== null
       ? actionHeight
       : H().parseHeight(equipment.attachmentHeight || "");
-    const bottom = H().parseHeight(equipment.bottomHeight || "");
-    const dripLoop = category.includes("TRANSFORMER") && actionHeight !== null
+    let bottom = H().parseHeight(equipment.bottomHeight || "");
+    let dripLoop = category.includes("TRANSFORMER") && actionHeight !== null
       ? actionHeight
       : H().parseHeight(equipment.dripLoopHeight || "");
 
     if (category.includes("STREETLIGHT")) {
+      const raisedAttachment = validStreetlightRaiseInches(equipment);
+      if (raisedAttachment !== null && attachment !== null) {
+        // The complete Streetlight assembly moves by the same delta, so its
+        // bracket and drip-loop clearance references remain physically aligned.
+        const delta = raisedAttachment - attachment;
+        attachment = raisedAttachment;
+        if (bottom !== null) bottom += delta;
+        if (dripLoop !== null) dripLoop += delta;
+      }
       const specialCeilings = [];
       const bracket = bottom !== null ? bottom : attachment;
       const bracketClearance = isMidAmProfile()

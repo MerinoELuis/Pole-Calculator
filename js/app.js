@@ -595,7 +595,7 @@
   function mergePowerEquipmentUserWork(importedRows, oldRows, reconciliation) {
     const rows = Array.isArray(importedRows) ? importedRows.map(row => ({ ...row })) : [];
     const claimed = new Set();
-    (oldRows || []).filter(row => row.actionActive || row.actionHeight).forEach(oldRow => {
+    (oldRows || []).filter(row => row.actionActive || row.actionHeight || row.raiseActive || row.raiseHeight).forEach(oldRow => {
       const match = rows
         .map((row, index) => ({ index, score: claimed.has(index) ? -1 : equipmentMatchScore(row, oldRow) }))
         .filter(item => item.score >= 0)
@@ -605,7 +605,9 @@
         rows[match.index] = {
           ...rows[match.index],
           actionActive: Boolean(oldRow.actionActive),
-          actionHeight: oldRow.actionHeight || ""
+          actionHeight: oldRow.actionHeight || "",
+          raiseActive: Boolean(oldRow.raiseActive),
+          raiseHeight: oldRow.raiseHeight || ""
         };
         reconciliation.equipmentActionsPreserved += 1;
       } else {
@@ -2055,6 +2057,25 @@
         const requiredMidAmGround = category === "STREETLIGHT"
           && String(settings.projectProfile || "").toUpperCase() === "METRONET"
           && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
+        const isIntecStreetlight = category === "STREETLIGHT"
+          && String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
+        const actionControls = isIntecStreetlight
+          ? `<div class="equipment-action-stack">
+              <label class="equipment-action-control">
+                <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive ? "checked" : ""}>
+                <span>Ground</span>
+              </label>
+              <label class="equipment-action-control">
+                <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="raiseActive" ${row.raiseActive ? "checked" : ""}>
+                <span>Raise</span>
+              </label>
+            </div>`
+          : `<label class="equipment-action-control">
+              <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
+              <span>${escapeHtml(actionLabels[category] || "Apply")}</span>
+            </label>`;
+        const heightField = isIntecStreetlight ? "raiseHeight" : "actionHeight";
+        const heightEnabled = isIntecStreetlight ? row.raiseActive : row.actionActive;
         return `<tr>
         <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
         <td>${escapeHtml(row.owner || "")}</td>
@@ -2062,11 +2083,8 @@
         <td>${escapeHtml(row.bottomHeight || "")}</td>
         <td>${escapeHtml(row.dripLoopHeight || "")}</td>
         <td>${escapeHtml(row.orientation || "")}</td>
-        <td><label class="equipment-action-control">
-          <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
-          <span>${escapeHtml(actionLabels[category] || "Apply")}</span>
-        </label></td>
-        <td>${needsHeight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionHeight" value="${escapeHtml(row.actionHeight || "")}" ${row.actionActive ? "" : "disabled"}>` : `<span class="muted">&mdash;</span>`}</td>
+        <td>${actionControls}</td>
+        <td>${needsHeight || isIntecStreetlight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="${heightField}" value="${escapeHtml(row[heightField] || "")}" ${heightEnabled ? "" : "disabled"} ${isIntecStreetlight ? `title="Maximum raise: 1 foot above ${escapeHtml(row.attachmentHeight || "the imported HOA")}"` : ""}>` : `<span class="muted">&mdash;</span>`}</td>
         <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
       </tr>`;
       }).join("")}</tbody>
@@ -2336,7 +2354,9 @@
       "transferToNewPole",
       "resagServiceDrop",
       "actionActive",
-      "actionHeight"
+      "actionHeight",
+      "raiseActive",
+      "raiseHeight"
     ].includes(field);
   }
 
@@ -2590,7 +2610,7 @@
     const el = event.currentTarget;
     const scope = el.dataset.scope;
     const field = el.dataset.field;
-    const value = el.type === "checkbox" ? el.checked : el.value;
+    let value = el.type === "checkbox" ? el.checked : el.value;
     recordUndoSnapshot();
 
     if (scope === "pole") {
@@ -2608,6 +2628,20 @@
     }
 
     if (scope === "equipment") {
+      if (field === "raiseHeight" && value) {
+        const row = S.getPole(el.dataset.pole)?.metadata?.powerEquipment?.[Number(el.dataset.equipmentIndex)];
+        const source = H.parseHeight(row?.attachmentHeight || "");
+        const target = H.parseHeight(value);
+        if (source !== null && target !== null && target > source + 12) {
+          value = H.formatHeight(source + 12);
+          el.value = value;
+          toast(`Streetlight Raise is limited to ${value} (1 foot maximum).`, "warning");
+        } else if (source !== null && target !== null && target <= source) {
+          value = "";
+          el.value = "";
+          toast("Streetlight New HOA must be above its Attachment Height.", "warning");
+        }
+      }
       S.updatePowerEquipmentField(el.dataset.pole, Number(el.dataset.equipmentIndex), field, value);
     }
 

@@ -140,6 +140,7 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 3. Transformer `Redress` requires New HOA. INTEC adds `Secure transformer drip loop to HOA <height>.`; Metronet adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
 4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC and `MNT GROUND STREETLIGHT` for Metronet.
 5. Power Riser `Raise` requires a New HOA above the imported attachment. INTEC adds `Raise APS riser from HOA <old> to HOA <new>.`; Metronet adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
+6. INTEC Streetlight `Raise` is independent of `Ground`. New HOA must be above Attachment Height and no more than `12"` higher. The bracket, bottom, and drip-loop references move by the same delta, and MR adds `Raise streetlight from HOA <old> to <new>.`
 5. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
 6. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
 7. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.

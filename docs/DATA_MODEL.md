@@ -69,7 +69,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes and project constraints plus normalized editable Power Equipment actions. |
 
-`metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Ground, Transformer Redress, and Power Riser Raise work.
+`metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Ground, Transformer Redress, and Power Riser Raise work. `raiseActive` and `raiseHeight` separately preserve the optional INTEC Streetlight Raise action.
 
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 

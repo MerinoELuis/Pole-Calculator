@@ -907,7 +907,11 @@
         // MidAm requires every streetlight to be grounded. Store the action
         // immediately so MR is complete without manual row-by-row clicks.
         actionActive: category === "STREETLIGHT" && isMidAm,
-        actionHeight: ""
+        actionHeight: "",
+        // Raising a Streetlight is an optional INTEC-only action. It remains
+        // separate from Ground because either instruction may exist alone.
+        raiseActive: false,
+        raiseHeight: ""
       };
       metadataFor(poleId).powerEquipment.push(equipment);
       if (isMidAm && category === "STREETLIGHT") {

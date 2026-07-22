@@ -840,6 +840,14 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   white-space: nowrap;
 }
 
+.equipment-action-stack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+
 .equipment-action-height {
   min-width: 96px;
   max-width: 116px;

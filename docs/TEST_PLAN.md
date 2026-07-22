@@ -103,6 +103,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 7. Transformer Redress and Power Riser Raise update effective Low Power when they move the limiting equipment.
 8. Disabling an equipment action restores imported Low Power.
 9. Update Data preserves equipment actions and refreshes the Low Power baseline from non-empty Excel data.
+10. INTEC Streetlight Raise accepts a destination up to one foot above Attachment Height, moves all Streetlight clearance references by the same delta, and generates its dedicated MR without requiring Ground.
 
 ## Import Cases
 

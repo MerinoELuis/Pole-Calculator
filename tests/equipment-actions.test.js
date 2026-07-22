@@ -100,7 +100,7 @@ S.upsertPole(S.createPole({
     lowPowerBaseline: "23'",
     powerEquipment: [
       { category: "TRANSFORMER", dripLoopHeight: "23'", actionActive: true, actionHeight: "25'8\"" },
-      { category: "STREETLIGHT", attachmentHeight: "24'", actionActive: true, actionHeight: "" },
+      { category: "STREETLIGHT", attachmentHeight: "24'", actionActive: true, actionHeight: "", raiseActive: true, raiseHeight: "25'" },
       { category: "RISER", attachmentHeight: "27'", actionActive: true, actionHeight: "28'2\"" }
     ]
   }
@@ -109,6 +109,7 @@ C.recalculateAll();
 const intecEquipmentMR = mrText("INTEC-EQUIPMENT");
 assert.match(intecEquipmentMR, /Secure transformer drip loop to HOA 25'8"\./);
 assert.match(intecEquipmentMR, /Install flex conduit to STLT circuit\. bond STLT housing to pole GRND\/NEUT\./);
+assert.match(intecEquipmentMR, /Raise streetlight from HOA 24' to 25'\./);
 assert.match(intecEquipmentMR, /Raise APS riser from HOA 27' to HOA 28'2"\./);
 assert.equal(
   C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", actionActive: true }),
@@ -124,6 +125,16 @@ assert.equal(
   C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", dripLoopHeight: "22'", actionActive: true }),
   "18'8\"",
   "an INTEC Streetlight drip loop must still keep 40 inches after the bracket is grounded"
+);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'", actionActive: true, raiseActive: true, raiseHeight: "25'" }),
+  "24'",
+  "a valid INTEC Streetlight Raise must move the bracket ceiling by the same amount"
+);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'", actionActive: true, raiseActive: true, raiseHeight: "25'1\"" }),
+  "23'",
+  "an INTEC Streetlight Raise above the one-foot limit must not affect calculations"
 );
 assert.equal(
   C.getPowerEquipmentCeiling({ category: "TRANSFORMER", attachmentHeight: "28'", bottomHeight: "25'" }),
