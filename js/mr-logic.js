@@ -395,7 +395,8 @@
   }
 
   function isRiserAvailable(poleId) {
-    return Boolean(S().getPole(poleId));
+    const pole = S().getPole(poleId);
+    return Boolean(pole && !pole.ugActive && !pole.pcoActive);
   }
 
   // null preserves the legacy automatic Back Span behavior. true/false is an
@@ -407,12 +408,13 @@
     // on. A normal Back Span or Proposed does not activate it by itself.
     const items = connectedUGSpanItems(poleId);
     const item = items.find(candidate => candidate.relation === "Backspan")
+      || items.find(candidate => candidate.relation === "Forespan")
       || (connection && items.find(candidate => candidate.spanId === connection.spanId));
-    return item?.relation === "Backspan";
+    return item?.relation === "Backspan" || item?.relation === "Forespan";
   }
 
   function generateRiserInstruction(poleId) {
-    if (isMetronetMR() || !isRiserEnabled(poleId)) return "";
+    if (isMetronetMR() || !isRiserAvailable(poleId) || !isRiserEnabled(poleId)) return "";
     const connection = riserConnectionForPole(poleId);
     const proposedSides = S().getSpanSidesForPole(poleId)
       .filter(side => side.proposedHOA)
@@ -521,8 +523,6 @@
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
       const lines = pole.ugActive ? ugReplacementMR(pole) : pcoReplacementMR();
-      const riser = generateRiserInstruction(poleId);
-      if (riser) lines.push(riser);
       const text = lines.map(applyCase).join("\n");
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);

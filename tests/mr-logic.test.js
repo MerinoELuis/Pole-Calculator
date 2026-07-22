@@ -89,7 +89,15 @@ sandbox.window.MRLogic.generateMRForPole("P1");
 const foreSpanRiser = state.mr.find(item => item.poleId === "P1").text;
 assert.doesNotMatch(foreSpanRiser, /to go UG/i, "manual Riser must not require or invent an adjacent UG instruction");
 assert.equal(foreSpanRiser.trim().split("\n").at(-1), "Pl riser N at HOA 18'.", "a manually enabled Riser must use the primary Proposed span direction");
+state.poles.P1.riserActive = null;
+state.poles.P3.ugActive = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const automaticForeSpanRiser = state.mr.find(item => item.poleId === "P1").text;
+assert.match(automaticForeSpanRiser, /Forespan to go UG N due to on adj pole \(reasoning\)\./, "Fore Span toward an adjacent UG pole must generate its relation instruction");
+assert.equal(automaticForeSpanRiser.trim().split("\n").at(-1), "Pl riser N at HOA 18'.", "Fore Span toward an adjacent UG pole must receive an automatic riser");
+state.poles.P3.ugActive = false;
 state.poles.P2.ugActive = true;
+state.poles.P1.riserActive = true;
 state.poles.P1.ugRiserDirection = "E";
 
 state.poles.P2.ugMRText = [
@@ -106,8 +114,14 @@ assert.match(
 
 state.poles.P1.ugActive = true;
 sandbox.window.MRLogic.generateMRForPole("P1");
-assert.equal(state.mr.find(item => item.poleId === "P1").text.trim().split("\n").at(-1), "Pl riser E at HOA 18'.", "manual Riser must remain available on the pole's own UG replacement MR");
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/i, "Riser must be disabled on the pole's own UG replacement MR");
+assert.equal(sandbox.window.MRLogic.isRiserAvailable("P1"), false, "Riser control must be unavailable while the pole is UG");
 state.poles.P1.ugActive = false;
+state.poles.P1.pcoActive = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/i, "Riser must be disabled on the pole's own PCO replacement MR");
+assert.equal(sandbox.window.MRLogic.isRiserAvailable("P1"), false, "Riser control must be unavailable while the pole is PCO");
+state.poles.P1.pcoActive = false;
 
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, [
