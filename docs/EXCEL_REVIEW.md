@@ -13,8 +13,8 @@ Results remain in memory. The saved job retains the original review source rows,
 Each Collection row has:
 
 - `HOA Review`: always runs.
-- `Final Review`: runs when Calculator or Excel has final work; otherwise `NOT READY`.
-- `Overall`: `ERROR`, then `WARNING`, then `PASS`. `NOT READY` does not lower Overall status.
+- `Final Review`: runs only when the imported workbook contains Make Ready or Comm Transfer data; otherwise it displays `N/A` because the workbook is HOA-only.
+- `Overall`: `ERROR`, then `WARNING`, then `PASS`. Final Review `N/A` does not lower Overall status.
 
 Pole results are ordered by Overall severity and then naturally by Sequence or Id. A missing Collection `Id` uses its source row as a visible temporary label so the problem is not lost.
 
@@ -41,14 +41,14 @@ The `Anchor` worksheet is audited independently from `Anchor.Guys`. Each existin
 
 ## Final Readiness
 
-Final Calculator work includes HOA changes, Proposed/Next Pole values, O-CALC or final midspan values, End Drop, terminal Proposed, UG, or generated Make Ready instructions. Final Excel work includes populated Make Ready fields or rows in Make Ready.Comm Transfers.
+The workbook enters Final Review only when it contains populated Make Ready fields or rows in Make Ready.Comm Transfers. Calculator-derived values cannot promote an HOA-only workbook into Final Review. Once the workbook is in the final stage, Calculator work includes HOA changes, Proposed/Next Pole values, O-CALC or final midspan values, End Drop, terminal Proposed, UG, or generated Make Ready instructions.
 
-| Calculator | Excel | Result |
-| --- | --- | --- |
-| Empty | Empty | `NOT READY`; HOA only |
-| Has work | Empty | `ERROR` |
-| Empty | Has work | `WARNING` |
-| Has work | Has work | Full Final comparison |
+| Workbook final data | Calculator pole | Excel pole | Result |
+| --- | --- | --- | --- |
+| None | Any | Empty | `N/A`; HOA only |
+| Present elsewhere | Has work | Empty | `ERROR` |
+| Present | Empty | Has work | `WARNING` |
+| Present | Has work | Has work | Full Final comparison |
 
 When Final Review applies, PLA STATUS must be non-empty. MRE Construction Type must be Aerial or Underground and must agree with the Calculator solution.
 

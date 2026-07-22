@@ -680,21 +680,38 @@
     return Boolean(commWork || proposedWork || standalone || pole?.ugActive || generatedMR);
   }
 
-  function excelFinalRowsForPole(poleId) {
-    return rowsForPole("makeReady", poleId).filter(row => [
+  function makeReadyRowHasFinalData(row) {
+    return [
       pick(row, ["Attachment Size"], { contains: true }),
       pick(row, ["Attachment Type"], { contains: true }),
       pick(row, ["Attachment Height.display", "Attachment Height Display"], { contains: true }),
       pick(row, ["Proposed Mid Span.display", "Proposed Midspan.display", "Proposed Mid Span Display"], { contains: true }),
       pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true }),
       pick(row, ["Comm Transfers"], { contains: true })
-    ].some(value => text(value)));
+    ].some(value => text(value));
+  }
+
+  function commTransferRowHasFinalData(row) {
+    return [
+      pick(row, ["Owner"]),
+      pick(row, ["Height.display", "Height Display", "Height"], { contains: true })
+    ].some(value => text(value));
+  }
+
+  // Final review is a workbook stage, not a per-pole inference. A raw HOA
+  // workbook can produce derived Calculator MR, but that must not make an
+  // absent Make Ready deliverable look like a final-review error.
+  function workbookHasFinalReviewData() {
+    return rows("makeReady").some(makeReadyRowHasFinalData)
+      || rows("commTransfers").some(commTransferRowHasFinalData);
+  }
+
+  function excelFinalRowsForPole(poleId) {
+    return rowsForPole("makeReady", poleId).filter(makeReadyRowHasFinalData);
   }
 
   function excelTransferRowsForPole(poleId) {
-    return rowsForPole("commTransfers", poleId).filter(row => [
-      pick(row, ["Owner"]), pick(row, ["Height.display", "Height Display", "Height"], { contains: true })
-    ].some(value => text(value)));
+    return rowsForPole("commTransfers", poleId).filter(commTransferRowHasFinalData);
   }
 
   function excelHasFinalForPole(poleId) {
@@ -1168,8 +1185,11 @@
 
   function finalizeResult(result) {
     result.hoaStatus = statusFromChecks(result.checks, "HOA");
-    result.finalStatus = statusFromChecks(result.checks, "FINAL");
-    const statuses = [result.hoaStatus, result.finalStatus].filter(status => status !== "NOT_READY");
+    result.finalStatus = result.finalApplicable === false
+      ? "NOT_APPLICABLE"
+      : statusFromChecks(result.checks, "FINAL");
+    const statuses = [result.hoaStatus, result.finalStatus]
+      .filter(status => !["NOT_READY", "NOT_APPLICABLE"].includes(status));
     result.overallStatus = statuses.includes("ERROR") ? "ERROR" : statuses.includes("WARNING") ? "WARNING" : "PASS";
     const applicableProblems = result.checks.filter(item => item.applicable !== false && !item.ignored && ["ERROR", "WARNING"].includes(item.status));
     if (!applicableProblems.length) {
@@ -1208,6 +1228,7 @@
     const maps = collectionMaps(entries);
     const spans = spanModels(entries, maps);
     const environmentPairsSeen = new Set();
+    const finalReviewApplicable = workbookHasFinalReviewData();
 
     if (!hasHeader("collection", ["Id"])) {
       current.globalChecks.push(check({
@@ -1224,7 +1245,8 @@
         sequence: entry.sequence,
         sourceRow: entry.sourceRow,
         hoaStatus: "PASS",
-        finalStatus: "NOT_READY",
+        finalStatus: finalReviewApplicable ? "NOT_READY" : "NOT_APPLICABLE",
+        finalApplicable: finalReviewApplicable,
         overallStatus: "PASS",
         checks: []
       };
@@ -1237,7 +1259,7 @@
       addEnvironmentChecks(result, poleSpans, spans, environmentPairsSeen);
       if (entry.poleId) addIntecWireChecks(result, entry.poleId);
       if (entry.poleId) addMidAmChecks(result, entry.poleId);
-      addFinalChecks(result, entry);
+      if (finalReviewApplicable) addFinalChecks(result, entry);
       return finalizeResult(result);
     });
 

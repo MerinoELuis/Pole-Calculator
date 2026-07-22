@@ -1517,9 +1517,11 @@
     const normalized = String(status || "PASS").toUpperCase();
     const badgeClass = normalized === "ERROR" ? "danger"
       : normalized === "WARNING" || normalized === "NOT_READY" ? "warning"
-        : normalized === "IGNORED" ? "ignored"
+        : normalized === "IGNORED" || normalized === "NOT_APPLICABLE" ? "ignored"
         : "changed";
-    const label = normalized === "NOT_READY" ? "NOT READY" : normalized;
+    const label = normalized === "NOT_READY" ? "NOT READY"
+      : normalized === "NOT_APPLICABLE" ? "N/A"
+        : normalized;
     return `<span class="badge ${badgeClass}">${label}</span>`;
   }
 

@@ -116,6 +116,18 @@ assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "
 assert.equal(output.summary.total, 2);
 assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
 
+const finalWorkbookSource = state.excelReviewSource.makeReady;
+state.excelReviewSource.makeReady = { headers: [], rows: [] };
+output = review.runReview();
+output.results.forEach(result => {
+  assert.equal(result.finalStatus, "NOT_APPLICABLE", "a workbook without Make Ready must be treated as HOA-only");
+  assert.equal(result.overallStatus, result.hoaStatus, "an HOA-only workbook must derive Overall exclusively from HOA Review");
+  assert.equal(result.checks.some(item => item.phase === "FINAL"), false, "an HOA-only workbook must not emit Final Review findings");
+});
+assert.equal(review.reviewPole("P2").checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), false, "derived Calculator MR must not force Final Review when the workbook has no Make Ready data");
+state.excelReviewSource.makeReady = finalWorkbookSource;
+output = review.runReview();
+
 state.excelReviewSource.spans.rows.find(row => row["Span Id"] === "F1")["Linked Collection.Title"] = "P11-EXTERNAL-JOB";
 output = review.runReview();
 assert.equal(

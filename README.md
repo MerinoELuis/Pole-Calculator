@@ -62,7 +62,7 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 
 `Excel Review` is a read-only workbook audit built from the imported source rows and the current calculated state. It runs automatically after `Import Raw Excel` and `Update Data` without changing the active tab. `Re-run Review` recalculates the job and replaces the previous review results.
 
-Every Collection row receives an HOA Review and, when final work exists, a Final PLA / MR Review. HOA Review requires exactly one Fore Span. One Back Span passes, zero produces a warning, and more than one is an error. It also checks reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
+Every Collection row receives an HOA Review. Final PLA / MR Review runs only when the imported workbook contains Make Ready or Comm Transfer data; a workbook without those deliverables is identified as HOA-only and shows Final Review as `N/A`. HOA Review requires exactly one Fore Span. One Back Span passes, zero produces a warning, and more than one is an error. It also checks reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
 
 Review results stay in natural pole/sequence order. The pole name itself is the navigation link back to its Calculator card; the rest of the review row only expands or collapses review details.
 

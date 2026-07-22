@@ -152,7 +152,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 10. Empty Fore/Back Linked Collection.Title produces a low-level warning. Populated external-job links and empty Other links do not warn.
 11. An incomplete Anchor row produces one error listing all missing required fields; a complete row passes. Anchor and Anchor.Guys remain independent snapshots.
 12. INTEC DAVIT, owner, utility owner, and insulator rules use raw Span.Wire rows; duplicate wires are not reviewed.
-13. No Calculator work and no Excel MR produces Final NOT READY without an empty-MR error.
+13. A workbook without Make Ready or Comm Transfers remains HOA-only: Final Review is N/A and produces no Final findings even when Calculator-derived work exists.
 14. Calculator-only work errors; Excel-only final data warns.
 15. Proposed and final Proposed midspan compare through integer inches, including decimal-feet equivalence.
 16. UG requires Underground construction and one valid UG resolution note without requiring aerial attachment heights; `Unable to attach due to <specific reason>` passes, while an unresolved placeholder produces one error.
