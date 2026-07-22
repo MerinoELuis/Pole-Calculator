@@ -58,6 +58,15 @@
     return String(value || "");
   }
 
+  // Make Ready height lists follow normal English punctuation while keeping
+  // the caller's already-sorted order: A, A and B, or A, B and C.
+  function joinMRList(values) {
+    const items = (values || []).filter(Boolean);
+    if (items.length < 2) return items[0] || "";
+    if (items.length === 2) return `${items[0]} and ${items[1]}`;
+    return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+  }
+
   function applyCase(text) {
     const settings = S().getState().settings || {};
     return (settings.mrCase || "LOWER") === "UPPER" ? text.toUpperCase() : text;
@@ -146,7 +155,7 @@
         const heights = Array.from(group.heights).sort((a, b) => a - b);
         return {
           minimum: heights[0] ?? Infinity,
-          text: `Transfer ${group.owner} to new pole at HOA ${heights.map(value => H().formatHeight(value)).join(" and ")}${group.downGuy ? " with DG" : ""}.`
+          text: `Transfer ${group.owner} to new pole at HOA ${joinMRList(heights.map(value => H().formatHeight(value)))}${group.downGuy ? " with DG" : ""}.`
         };
       })
       .sort((a, b) => a.minimum - b.minimum)
@@ -218,7 +227,7 @@
       .sort((a, b) => a - b);
     const uniqueHeights = Array.from(new Set(heights)).map(value => mrHeight(H().formatHeight(value)));
     if (!uniqueHeights.length) return "";
-    const joinedHeights = uniqueHeights.join(" and ");
+    const joinedHeights = joinMRList(uniqueHeights);
     return `Attach ${proposedOwnerForMR()} at HOA ${joinedHeights}.`;
   }
 

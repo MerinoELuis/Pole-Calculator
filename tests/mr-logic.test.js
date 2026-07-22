@@ -22,7 +22,8 @@ const state = {
   },
   spanComms: {
     A: { spanId: "PROP", poleId: "P1", owner: "CATV", ownerBase: "CATV", existingHOA: "20'10\"", transferToNewPole: true, downGuy: true },
-    B: { spanId: "BACK", poleId: "P1", owner: "CATV", ownerBase: "CATV", existingHOA: "21'2\"", transferToNewPole: true }
+    B: { spanId: "BACK", poleId: "P1", owner: "CATV", ownerBase: "CATV", existingHOA: "21'2\"", transferToNewPole: true },
+    C: { spanId: "OTHER", poleId: "P1", owner: "CATV", ownerBase: "CATV", existingHOA: "21'6\"", transferToNewPole: true }
   },
   makeReadyReferences: [{ poleId: "P1", makeReadyNotes: "Pl riser W at HOA 18'.", raw: {} }],
   mr: []
@@ -54,7 +55,7 @@ sandbox.window.MRLogic.generateMRForPole("P1");
 const p1Text = state.mr.find(item => item.poleId === "P1").text;
 assert.match(p1Text, /Backspan to go UG SE due to on adj pole proposed pole overloaded\./);
 assert.match(p1Text, /Pl riser W at HOA 18'\./);
-assert.match(p1Text, /Transfer CATV to new pole at HOA 20'10" and 21'2" with DG\./);
+assert.match(p1Text, /Transfer CATV to new pole at HOA 20'10", 21'2" and 21'6" with DG\./);
 assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser must be final and use the imported IO direction");
 
 state.makeReadyReferences = [];
