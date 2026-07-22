@@ -1868,7 +1868,10 @@
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
     const showRiserDirection = isIntec && /\bPl riser\b/i.test(makeReadyText);
     const riserDirection = String(
-      pole?.ugRiserDirection || global.MRLogic.getImportedRiserDirection?.(poleId) || ""
+      global.MRLogic.getResolvedRiserDirection?.(poleId)
+        || pole?.ugRiserDirection
+        || global.MRLogic.getImportedRiserDirection?.(poleId)
+        || ""
     ).toUpperCase();
     const directionOptions = ["", "N", "NE", "E", "SE", "S", "SW", "W", "NW"]
       .map(direction => `<option value="${direction}" ${direction === riserDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)

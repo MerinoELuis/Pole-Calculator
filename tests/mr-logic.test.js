@@ -60,8 +60,11 @@ assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser 
 state.makeReadyReferences = [];
 sandbox.window.MRLogic.generateMRForPole("P1");
 let generatedWithoutDirection = state.mr.find(item => item.poleId === "P1").text;
-assert.match(generatedWithoutDirection, /Pl riser at HOA 18'\./, "required riser work must remain visible while its direction is pending");
-assert.equal(generatedWithoutDirection.trim().split("\n").at(-1), "Pl riser at HOA 18'.", "a direction-pending riser must remain the final instruction");
+assert.match(generatedWithoutDirection, /Pl riser NW at HOA 18'\./, "a Back Span riser must default opposite the span direction");
+assert.equal(generatedWithoutDirection.trim().split("\n").at(-1), "Pl riser NW at HOA 18'.", "the defaulted riser must remain the final instruction");
+assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Forespan", "SE"), "SE", "Fore Span keeps the span direction");
+assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Backspan", "SE"), "NW", "Back Span reverses the span direction");
+assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Otherspan", "SE"), "", "Other Span remains pending for manual review");
 
 state.poles.P1.ugRiserDirection = "E";
 sandbox.window.MRLogic.generateMRForPole("P1");

@@ -135,6 +135,8 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `generateMRForSpan(spanId)` | Generate all lines related to one span. |
 | `generateMRForPole(poleId)` | Replace one pole's ordered MR block. |
 | `generateAllMR()` | Replace generated MR for the complete state. |
+| `getResolvedRiserDirection(poleId)` | Resolve saved, imported, or relation-derived INTEC riser direction. |
+| `getDefaultRiserDirection(relation, direction)` | Keep Fore Span direction, reverse Back Span direction, and leave Other Span blank. |
 | `detectAttach/RaiseLower/Overlash/Slack/Anchor/Riser` | Expose MR condition detectors. |
 
 ## ExcelReview

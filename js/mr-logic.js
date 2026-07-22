@@ -282,8 +282,9 @@
   }
 
   // Riser direction starts with the model-owned Make Ready/IO value. The pole
-  // can store a user override, but the calculator never guesses a pole face
-  // from the span bearing because span direction and riser face are distinct.
+  // can store a user override. When neither exists, the imported span relation
+  // supplies a practical default: Fore Span keeps its direction and Back Span
+  // uses the opposite direction. Other spans stay blank for manual review.
   function importedRiserDirection(poleId) {
     const refs = (S().getState().makeReadyReferences || []).filter(ref => ref.poleId === poleId);
     const directionPattern = "(NE|NW|SE|SW|N|E|S|W)";
@@ -301,20 +302,31 @@
     return "";
   }
 
-  function connectedUGInstructions(poleId) {
+  function normalizeSpanRelation(rawType, isReverseSide) {
+    const clean = String(rawType || "").replace(/\s+/g, "").toLowerCase();
+    const relation = clean === "forespan" ? "Forespan"
+      : clean === "backspan" ? "Backspan"
+        : "Otherspan";
+    if (!isReverseSide) return relation;
+    if (relation === "Forespan") return "Backspan";
+    if (relation === "Backspan") return "Forespan";
+    return relation;
+  }
+
+  function defaultRiserDirection(relation, direction) {
+    const normalizedDirection = String(direction || "").toUpperCase();
+    if (!normalizedDirection) return "";
+    if (relation === "Forespan") return normalizedDirection;
+    if (relation === "Backspan") return oppositeDirection(normalizedDirection);
+    return "";
+  }
+
+  // Builds one canonical UG connection per adjacent pole. Excel can contain
+  // both directions of the same physical span, so Back Span wins when both
+  // rows describe the same adjacent UG pole.
+  function connectedUGSpanItems(poleId) {
     const spans = S().getConnectedSpans(poleId);
     const byOtherPole = new Map();
-
-    function normalizeSpanRelation(rawType, isReverseSide) {
-      const clean = String(rawType || "").replace(/\s+/g, "").toLowerCase();
-      const relation = clean === "forespan" ? "Forespan"
-        : clean === "backspan" ? "Backspan"
-          : "Otherspan";
-      if (!isReverseSide) return relation;
-      if (relation === "Forespan") return "Backspan";
-      if (relation === "Backspan") return "Forespan";
-      return relation;
-    }
 
     spans.forEach(span => {
       const otherPoleId = S().getOtherPoleId(span, poleId);
@@ -335,7 +347,23 @@
       }
     });
 
-    return Array.from(byOtherPole.values()).flatMap(item => {
+    return Array.from(byOtherPole.values());
+  }
+
+  function resolvedRiserDirection(poleId, connection = null) {
+    const pole = S().getPole(poleId);
+    const saved = String(pole?.ugRiserDirection || "").toUpperCase();
+    if (saved) return saved;
+    const imported = importedRiserDirection(poleId);
+    if (imported) return imported;
+    const item = connection || connectedUGSpanItems(poleId).find(candidate => candidate.relation === "Backspan");
+    return item ? defaultRiserDirection(item.relation, item.direction) : "";
+  }
+
+  function connectedUGInstructions(poleId) {
+    const items = connectedUGSpanItems(poleId);
+
+    return items.flatMap(item => {
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
@@ -355,8 +383,7 @@
         return Boolean(sideSpan && [sideSpan.fromPole, sideSpan.toPole].includes(item.otherPoleId));
       }) || proposedSides[0];
       const proposed = H().parseHeight(proposedSide?.proposedHOA || S().getPole(poleId)?.standaloneProposedHOA || "");
-      const pole = S().getPole(poleId);
-      const riserDirection = String(pole?.ugRiserDirection || importedRiserDirection(poleId) || "").toUpperCase();
+      const riserDirection = resolvedRiserDirection(poleId, item);
       if (proposed !== null) {
         const direction = riserDirection ? ` ${riserDirection}` : "";
         lines.push(`Pl riser${direction} at HOA ${H().formatHeight(proposed - 12)}.`);
@@ -503,6 +530,8 @@
     generatePowerEquipmentMRForPole,
     getEditableUGTemplate: editableUGTemplate,
     getImportedRiserDirection: importedRiserDirection,
+    getResolvedRiserDirection: resolvedRiserDirection,
+    getDefaultRiserDirection: defaultRiserDirection,
     generateMRForSpanSide,
     generateAllMR,
     detectAttach: detectAttachFromSpanSide,
