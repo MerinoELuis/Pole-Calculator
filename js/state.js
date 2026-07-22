@@ -10,6 +10,18 @@
   const DEFAULT_COMM_CLEARANCE = "12\"";
   const DEFAULT_BOLT_CLEARANCE = "4\"";
 
+  // Convert imported/save filenames into the editable job label. Keep this
+  // logic in AppStore so Save, AutoProposed and import all use one source.
+  function jobNameFromFileName(value) {
+    const clean = String(value || "")
+      .replace(/\.[^.]+$/, "")
+      .replace(/_(?:Pole_Calculator|AutoProposed|Debug)$/i, "")
+      .replace(/^excel[_\-\s]*/i, "")
+      .replace(/[_\-\s]*20\d{2}[-_]\d{2}[-_]\d{2}(?:\s*\(\d+\))?$/i, "")
+      .trim();
+    return clean || "Pole Job";
+  }
+
   /**
    * @typedef {Object} Pole
    * @property {string} poleId Stable visible pole identifier.
@@ -83,6 +95,7 @@
   /** @returns {AppState} A new empty state with current defaults. */
   const emptyState = () => ({
     version: CURRENT_VERSION,
+    jobName: "",
     importedFileName: "",
     importedAt: new Date().toISOString(),
     selectedPoleId: "",
@@ -926,6 +939,7 @@
 
   function normalizeState(raw) {
     const next = { ...emptyState(), ...raw };
+    next.jobName = trim(next.jobName) || jobNameFromFileName(next.importedFileName);
     const rawSettings = raw && raw.settings ? raw.settings : {};
     const profileDefaults = global.ProjectProfiles
       ? (global.ProjectProfiles.getProfile(rawSettings.projectProfile || "INTEC")?.settings || {})
@@ -1039,6 +1053,7 @@
   global.AppStore = {
     CURRENT_VERSION,
     STORAGE_KEY,
+    jobNameFromFileName,
     getState,
     setState,
     resetState,

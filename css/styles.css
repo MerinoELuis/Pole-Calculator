@@ -211,6 +211,18 @@ button:disabled { cursor: not-allowed; }
 .compact-toolbar { flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
 .compact-toolbar .input { max-width: 280px; }
 .index-panel .panel-header { margin-bottom: 8px; }
+.job-name-field {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 360px);
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  color: #475569;
+  font-size: .78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.job-name-field .input { padding: 7px 10px; text-transform: none; font-weight: 700; }
 .index-actions {
   display: grid;
   gap: 8px;

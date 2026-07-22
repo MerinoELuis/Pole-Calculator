@@ -147,7 +147,9 @@
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
     const enabled = S().getState().settings?.calculateBackspanMidspan === true;
-    return Boolean(enabled && isMidAmProfile() && /back\s*span|backspan/.test(type)
+    // Never borrow the reciprocal Fore Span value here. A Back Span becomes
+    // calculable only when this exact Span.Wire row owns an imported midspan.
+    return Boolean(enabled && /back\s*span|backspan/.test(type)
       && parseMidspanValue(ownMidspanValue(sc)) !== null);
   }
 

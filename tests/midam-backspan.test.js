@@ -84,6 +84,22 @@ assert.equal(back.calculatedMidspan, "17'10\"", "movements at both endpoints mus
 
 S.resetState();
 S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "INTEC-P1", lowPower: "30'" }));
+S.upsertPole(S.createPole({ poleId: "INTEC-P2", lowPower: "30'" }));
+S.upsertSpan(S.createSpan("INTEC-BACK", "INTEC-P2", "INTEC-P1", "N", "", { type: "Back Span", rawType: "Back Span" }));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "INTEC-BACK",
+  poleId: "INTEC-P2",
+  owner: "COMMUNICATION > CATV",
+  wireId: "INTEC-BACK-WIRE",
+  existingHOA: "20'",
+  midspan: "18'10\""
+}));
+C.recalculateAll();
+const intecBack = S.getSpanComm("INTEC-BACK", "INTEC-P2", "COMMUNICATION > CATV", "INTEC-BACK-WIRE");
+assert.equal(C.isCalculatedBackspanComm(intecBack), true, "INTEC Back Span with its own imported midspan must calculate");
+assert.equal(intecBack.calculatedMidspan, "18'10\"", "INTEC must preserve the imported Back Span baseline before movements");
+
 S.upsertPole(S.createPole({
   poleId: "INTEC-EQUIPMENT",
   lowPower: "30'",
@@ -94,4 +110,4 @@ S.upsertPole(S.createPole({
 C.recalculateAll();
 assert.equal(S.getPole("INTEC-EQUIPMENT").maxCommHeight, "21'8\"", "INTEC Power Equipment must constrain Max Height on Pole using Power-comms clearance");
 
-console.log("MidAm Back Span calculation tests passed.");
+console.log("Back Span calculation tests passed.");

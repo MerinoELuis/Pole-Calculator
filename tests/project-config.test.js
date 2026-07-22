@@ -11,11 +11,13 @@ vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: mod
 
 const profiles = sandbox.window.ProjectProfiles;
 const metronet = profiles.applyProfileSettings({}, "METRONET");
+const intec = profiles.applyProfileSettings({}, "INTEC");
 
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
 assert.equal(metronet.position, "LOW_COMM", "existing Metronet calculation defaults must remain unchanged");
 assert.equal(metronet.calculateBackspanMidspan, true, "MidAm must calculate an imported Back Span midspan");
+assert.equal(intec.calculateBackspanMidspan, true, "INTEC must calculate a Back Span only when that row owns a midspan");
 assert.equal(metronet.environmentClearances.RAILROAD, "23'6\"", "MidAm railroad crossing must use 23 feet 6 inches");
 assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "MidAm non-sailboat water crossing must use 14 feet");
 assert.equal(metronet.streetlightBracketCommClearance, "20\"", "MidAm streetlight bracket clearance must be configured");

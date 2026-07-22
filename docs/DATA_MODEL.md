@@ -7,7 +7,8 @@
 | Field | Type | Purpose |
 | --- | --- | --- |
 | `version` | string | State format version. |
-| `importedFileName` | string | Source job filename used for display and save/export naming. |
+| `jobName` | string | User-editable job label used for Save, AutoProposed, and Debug filenames. |
+| `importedFileName` | string | Original source filename retained for traceability. |
 | `importedAt` | ISO string | Last raw import time. |
 | `settings` | object | Editable clearance values and project-profile behavior. |
 | `poles` | object map | Poles keyed by `poleId`. |
@@ -39,7 +40,7 @@ Important settings and defaults:
 | `midspanPowerCommClearance` | `30"` | Power-to-comm spacing at midspan. |
 | `midspanCommCommClearance` | `4"` | Comm-to-comm spacing at midspan. |
 | `proposedOwner` | `Wecom` | Proposed owner; INTEC exposes the normal owner selector and Metronet exposes it as WI with `MidAm`. |
-| `calculateBackspanMidspan` | profile default | Allows MidAm Back Span rows with their own measured midspan to participate in endpoint movement calculations. |
+| `calculateBackspanMidspan` | `true` | Allows a Back Span row with its own measured midspan to participate in endpoint movement calculations. INTEC also raises an HOA Review warning for this unusual input. |
 | `environmentClearances` | `{}` | Optional project-specific environment-to-clearance map. |
 | `streetlightBracketCommClearance` | profile default | MidAm spacing below the streetlight bottom/bracket. |
 | `streetlightDripLoopCommClearance` | profile default | MidAm spacing below an uncovered drip loop. |

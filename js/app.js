@@ -171,7 +171,7 @@
 
   function saveFileName() {
     const state = S.getState();
-    return `${safeJobFilePart(state.importedFileName || "pole_job")}_Pole_Calculator.json`;
+    return `${safeJobFilePart(state.jobName || state.importedFileName || "pole_job")}_Pole_Calculator.json`;
   }
 
   function openFileHandleDb() {
@@ -730,6 +730,10 @@
 
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
+    // Update Data refreshes workbook facts, but the operator-owned job label
+    // remains stable for subsequent Save and export operations.
+    merged.jobName = previous.jobName || merged.jobName
+      || (S.jobNameFromFileName ? S.jobNameFromFileName(merged.importedFileName) : safeJobFilePart(merged.importedFileName));
     merged.poles = merged.poles || {};
     merged.spans = merged.spans || {};
     merged.spanSides = merged.spanSides || {};
@@ -1883,6 +1887,9 @@
 
   function renderSummary() {
     const state = S.getState();
+    if (els.jobNameInput && document.activeElement !== els.jobNameInput) {
+      els.jobNameInput.value = state.jobName || S.jobNameFromFileName(state.importedFileName);
+    }
     if (els.projectMeta) {
       els.projectMeta.textContent = state.importedFileName
         ? `${state.importedFileName} · ${new Date(state.importedAt || Date.now()).toLocaleString()}`
@@ -2986,6 +2993,20 @@
     els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
+    els.jobNameInput?.addEventListener("change", event => {
+      const nextName = String(event.target.value || "").trim()
+        || S.jobNameFromFileName(S.getState().importedFileName);
+      if (nextName === S.getState().jobName) return;
+      recordUndoSnapshot();
+      S.getState().jobName = nextName;
+      event.target.value = nextName;
+      markDirty();
+    });
+    els.jobNameInput?.addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      event.currentTarget.blur();
+    });
     window.addEventListener("scroll", updatePoleIndexToggleVisibility, { passive: true });
     window.addEventListener("resize", updatePoleIndexToggleVisibility);
     document.querySelectorAll("[data-view-tab]").forEach(btn => {
@@ -3029,6 +3050,7 @@
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
       projectMeta: qs("projectMeta"),
+      jobNameInput: qs("jobNameInput"),
       poleSearchInput: qs("poleSearchInput"),
       warningFilterSelect: qs("warningFilterSelect"),
       polesList: qs("polesList"),

@@ -442,6 +442,45 @@
     });
   }
 
+  // INTEC normally stores the physical midspan on the forward/owning side.
+  // A measured Back Span value is still valid calculator input, but HOA
+  // Review calls it out so the analyst can confirm that the workbook intended
+  // to place the measurement on this directed span.
+  function addIntecBackspanMidspanChecks(result, poleId, poleSpans) {
+    if (text(S().getState().settings?.projectProfile).toUpperCase() !== "INTEC") return;
+    const backSpans = poleSpans.filter(span => span.type === "BACK" && span.spanId);
+    if (!backSpans.length) return;
+    const wireRows = rowsForPole("spanWires", poleId);
+
+    backSpans.forEach(span => {
+      const measured = wireRows.map(row => ({
+        row,
+        spanId: text(pick(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"])),
+        owner: text(pick(row, ["Owner", "owner"])),
+        midspan: heightValue(
+          row,
+          ["Mid Span Height.display", "Midspan.display"],
+          ["Mid Span Height", "Midspan"]
+        )
+      })).filter(item => (
+        normalizedText(item.spanId) === normalizedText(span.spanId)
+        && text(item.midspan)
+        && (I().isCommunicationWire ? I().isCommunicationWire(item.row) : !/^utility\s*>/i.test(item.owner))
+      ));
+      if (!measured.length) return;
+
+      const values = measured.map(item => `${item.owner || "Communication"}: ${item.midspan}`);
+      add(result, {
+        phase: "HOA", section: "Span.Wire", code: "INTEC_BACKSPAN_MIDSPAN", status: "WARNING",
+        title: "Back Span Midspan",
+        message: `${spanDescription(span)} contains an imported communication midspan. It will be calculated, but INTEC normally leaves Back Span midspan empty.`,
+        expected: "Empty Back Span communication midspan",
+        actual: values.join("; "),
+        details: [span.details]
+      });
+    });
+  }
+
   function addLinkedCollectionChecks(result, poleSpans, maps) {
     poleSpans.forEach(span => {
       if (!span.linkedTitle) {
@@ -1254,6 +1293,7 @@
       addCollectionChecks(result, entry);
       addAnchorChecks(result, entry.poleId);
       addSpanCountChecks(result, poleSpans);
+      addIntecBackspanMidspanChecks(result, entry.poleId, poleSpans);
       addLinkedCollectionChecks(result, poleSpans, maps);
       addReciprocalChecks(result, poleSpans, spans);
       addEnvironmentChecks(result, poleSpans, spans, environmentPairsSeen);

@@ -960,6 +960,7 @@
   function importOriginalWorkbook(workbook, fileName) {
     const state = S().resetState();
     state.importedFileName = fileName || "Excel original";
+    state.jobName = S().jobNameFromFileName(state.importedFileName);
     state.importedAt = new Date().toISOString();
     state.autoCreateSpanComms = false;
 
@@ -1032,6 +1033,7 @@
     }
     const restored = S().setState({
       ...nextState,
+      jobName: nextState.jobName || S().jobNameFromFileName(nextState.importedFileName || file.name),
       importedFileName: file.name || nextState.importedFileName || "Imported data",
       importedAt: new Date().toISOString()
     });

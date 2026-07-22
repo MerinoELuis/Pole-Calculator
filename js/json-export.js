@@ -345,7 +345,7 @@
       .filter(pole => pole.proposed.length || pole.attachments.length || pole.spans.length || pole.commMakeReady.length)
       .sort((a, b) => a.poleId.localeCompare(b.poleId, undefined, { numeric: true }));
 
-    const jobName = safeJobFilePart(state.importedFileName || `pole_job_${date}`);
+    const jobName = safeJobFilePart(state.jobName || state.importedFileName || `pole_job_${date}`);
     const payload = {
       app: "pole-calculator",
       exportType: "proposed-for-ocalc",
@@ -370,7 +370,7 @@
   function exportDebugJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
-    const jobName = safeJobFilePart(state.importedFileName || "pole_job");
+    const jobName = safeJobFilePart(state.jobName || state.importedFileName || "pole_job");
     const spanComms = Object.values(state.spanComms || {});
     downloadJson(`${jobName}_Debug.json`, {
       app: "pole-calculator",

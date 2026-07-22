@@ -180,11 +180,28 @@ state.excelReviewSource = {
   commTransfers: { headers: [], rows: [] }
 };
 
+// INTEC uses an imported Back Span midspan for calculation, while HOA Review
+// warns because that directed row is normally expected to be empty.
+state.excelReviewSource.spans = {
+  headers: ["Id", "Span Id", "Span Index", "Type", "Linked Collection.Title"],
+  rows: [{ Id: "P3", "Span Id": "P3-BACK", "Span Index": 2, Type: "Back Span", "Linked Collection.Title": "P2" }]
+};
+state.excelReviewSource.spanWires.rows.push({
+  Id: "P3",
+  "Span Id": "P3-BACK",
+  Owner: "COMMUNICATION > CATV",
+  Size: "CATV",
+  Construction: "ON_POLE",
+  Insulator: "Single Bolt",
+  "Mid Span Height.display": "18'10\""
+});
+
 output = review.runReview();
 const codes = new Set(output.results[0].checks.map(item => item.code));
 ["DAVIT_NOT_ALLOWED", "UNKNOWN_COMM_OWNER", "INVALID_COMM_INSULATOR", "INVALID_POWER_OWNER", "INVALID_PRIMARY_INSULATOR"].forEach(code => {
   assert.ok(codes.has(code), `expected INTEC check ${code}`);
 });
+assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own communication midspan must warn in HOA Review");
 
 state.poles = { PUG: { poleId: "PUG", ugActive: true } };
 state.spans = {};

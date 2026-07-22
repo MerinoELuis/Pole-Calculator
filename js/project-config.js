@@ -12,7 +12,10 @@
         position: "TOP_COMM",
         mrCase: "LOWER",
         proposedOwner: "Wecom",
-        calculateBackspanMidspan: false,
+        // INTEC Back Span midspans are unusual, but when the workbook really
+        // supplies one it must follow endpoint HOA movements and remain
+        // visible for review instead of being treated as an empty reference.
+        calculateBackspanMidspan: true,
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: false,
         allowLowPowerMidspanAdjustment: true,
@@ -36,9 +39,8 @@
         // Metronet uses a separate WI selector. MidAm is the currently
         // supported work issuer and is exported as the Proposed owner.
         proposedOwner: "MidAm",
-        // MidAm records the measured midspan on some Back Span rows. Those
-        // rows remain references in the UI, but their value follows movements
-        // made at either physical endpoint of the connection.
+        // MidAm records the measured midspan on some Back Span rows. Its value
+        // follows movements made at either physical endpoint of the connection.
         calculateBackspanMidspan: true,
         borrowMidspanFromPhysicalSpan: false,
         proposeForeSpanWithoutMidspan: true,
