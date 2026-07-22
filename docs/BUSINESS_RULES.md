@@ -185,7 +185,9 @@ Proposed Flagging checks:
 
 The Proposed MS base is `O-CALC MS`, with imported `proposedMidspan` as fallback. The value is evaluated only against comm midspans from the same physical pole-to-pole connection. Unrelated spans on the same pole are excluded.
 
-When both fields are blank and Proposed owner is Wecom or MidAm, the base is calculated automatically:
+For INTEC/Wecom, both fields remaining blank means MS Proposed and Adjusted Final MS remain blank until the user enters `O-CALC MS`.
+
+For Metronet/MidAm, when both fields are blank the base is calculated automatically:
 
 1. If the physical span contains one or more comm midspans, use the highest comm midspan plus `12\"`. MidAm checks both directed rows of the same pole pair because the measured value may live on the reciprocal Back/Other span.
 2. Otherwise, subtract estimated sag from Proposed HOA.

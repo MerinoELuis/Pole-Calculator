@@ -51,9 +51,12 @@ S.upsertSpanComm(S.createSpanComm({
 }));
 let side = S.getSpanSide("WITH-MS", "P1");
 let span = S.getSpan("WITH-MS");
-assert.equal(C.calculateProposedMidspanBase(side, span), 18 * 12, "Wecom Proposed MS must be 12 inches above the highest comm midspan");
+assert.equal(C.calculateProposedMidspanBase(side, span), null, "INTEC must require a manually entered O-CALC MS");
 C.calculateSpanSideMidspan("WITH-MS", "P1");
-assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "18'", "the automatic Wecom base must be persisted for display and validation");
+assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "", "INTEC must not derive MS Proposed from comm midspans or span length");
+S.upsertSpanSide({ ...S.getSpanSide("WITH-MS", "P1"), ocalcMS: "17.5" });
+C.calculateSpanSideMidspan("WITH-MS", "P1");
+assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "17'6\"", "INTEC must convert a manually entered decimal O-CALC MS for display");
 
 S.upsertSpan(S.createSpan("POWER-ONLY", "P1", "P2", "E", "", {
   type: "Fore Span",

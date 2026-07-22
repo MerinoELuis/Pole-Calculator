@@ -1020,8 +1020,10 @@
   }
 
   function supportsAutomaticProposedMidspan() {
-    const owner = String(S().getState().settings?.proposedOwner || "").trim().toUpperCase();
-    return owner === "WECOM" || owner === "MIDAM";
+    // INTEC/Wecom requires an engineer-provided O-CALC MS. Only the
+    // Metronet/MidAm workflow may derive Proposed MS from measured comm
+    // midspans or, when none exist, from the span-length sag estimate.
+    return isMidAmProfile();
   }
 
   function calculateProposedMidspanBase(side, span) {
