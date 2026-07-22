@@ -30,7 +30,7 @@
       try {
         const source = expression.value.trim();
         if (!source) {
-          result.textContent = "Result";
+          result.textContent = "";
           return;
         }
         const operation = source.match(/^(.+?)\s*([+-])\s*(.+)$/);

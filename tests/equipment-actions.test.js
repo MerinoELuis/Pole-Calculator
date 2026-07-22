@@ -91,4 +91,24 @@ assert.equal(S.getPole("STREETLIGHT").lowPower, "25'", "grounding has no vertica
 assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "19'4\"", "mandatory grounding must retain bracket and drip-loop clearances");
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
 
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({
+  poleId: "INTEC-EQUIPMENT",
+  lowPower: "23'",
+  metadata: {
+    lowPowerBaseline: "23'",
+    powerEquipment: [
+      { category: "TRANSFORMER", dripLoopHeight: "23'", actionActive: true, actionHeight: "25'8\"" },
+      { category: "STREETLIGHT", attachmentHeight: "24'", actionActive: true, actionHeight: "" },
+      { category: "RISER", attachmentHeight: "27'", actionActive: true, actionHeight: "28'2\"" }
+    ]
+  }
+}));
+C.recalculateAll();
+const intecEquipmentMR = mrText("INTEC-EQUIPMENT");
+assert.match(intecEquipmentMR, /Secure transformer drip loop to HOA 25'8"\./);
+assert.match(intecEquipmentMR, /Install flex conduit to STLT circuit\. bond STLT housing to pole GRND\/NEUT\./);
+assert.match(intecEquipmentMR, /Raise APS riser from HOA 27' to HOA 28'2"\./);
+
 console.log("Power Equipment action tests passed.");

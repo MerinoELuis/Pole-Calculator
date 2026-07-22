@@ -1308,7 +1308,7 @@
     return `<div class="auto-notes">${clean.map(line => `<div>${escapeHtml(line)}</div>`).join("")}</div>`;
   }
 
-  function renderEditableNotes(scope, attrs, value, autoNotes, placeholder = "Notes...") {
+  function renderEditableNotes(scope, attrs, value, autoNotes, placeholder = "") {
     const attrText = Object.entries(attrs || {})
       .map(([name, attrValue]) => `data-${name}="${escapeHtml(attrValue)}"`)
       .join(" ");
@@ -1471,11 +1471,11 @@
         <div class="settings-grid fiber-grid">
           <label class="clearance-row">
             <span>Messenger Size</span>
-            <input class="input" data-scope="attachmentSettings" data-field="attachmentMessengerSize" value="${escapeHtml(settings.attachmentMessengerSize || "")}" placeholder="0.25" />
+            <input class="input" data-scope="attachmentSettings" data-field="attachmentMessengerSize" value="${escapeHtml(settings.attachmentMessengerSize || "")}" />
           </label>
           ${fiberTypes.map(fiber => `<label class="clearance-row">
             <span>${escapeHtml(fiber)} Size</span>
-            <input class="input" data-scope="attachmentSettings" data-field="fiberSize" data-fiber="${escapeHtml(fiber)}" value="${escapeHtml(fiberSizes[fiber] || "")}" placeholder="0.51" />
+            <input class="input" data-scope="attachmentSettings" data-field="fiberSize" data-fiber="${escapeHtml(fiber)}" value="${escapeHtml(fiberSizes[fiber] || "")}" />
           </label>`).join("")}
         </div>
       </div>` : ""}
@@ -1887,7 +1887,7 @@
         </div>
       </div>
       <div class="pole-kpis two-up">
-        <label>Low Power on Pole<input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="lowPower" value="${escapeHtml(pole.lowPower || "")}" placeholder="30'8&quot;"></label>
+        <label>Low Power on Pole<input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="lowPower" value="${escapeHtml(pole.lowPower || "")}"></label>
         <label>Max Height on Pole<input class="input height-input muted-input" value="${escapeHtml(pole.maxCommHeight || "")}" readonly></label>
       </div>
     </div>`;
@@ -1927,7 +1927,7 @@
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
           <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
-          <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}" placeholder="XX.XX"></td>
+          <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}"></td>
           <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
           <td>${escapeHtml(physicalSpan.midspanMaxCommHeight || "")}</td>
           <td><span class="calculated-value midspan-highlight-display ${spanColorClass(poleId, physicalSpan.spanId)}">${escapeHtml(side.finalMidspan || "")}</span></td>
@@ -1935,7 +1935,7 @@
           <td>${renderSpanSideFlagging(side)}</td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>
-          <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes, "Own notes...")}</td>
+          <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes)}</td>
           <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
         </tr>`;
       }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
@@ -2066,7 +2066,7 @@
           <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
           <span>${escapeHtml(actionLabels[category] || "Apply")}</span>
         </label></td>
-        <td>${needsHeight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionHeight" value="${escapeHtml(row.actionHeight || "")}" placeholder="New HOA" ${row.actionActive ? "" : "disabled"}>` : `<span class="muted">&mdash;</span>`}</td>
+        <td>${needsHeight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionHeight" value="${escapeHtml(row.actionHeight || "")}" ${row.actionActive ? "" : "disabled"}>` : `<span class="muted">&mdash;</span>`}</td>
         <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
       </tr>`;
       }).join("")}</tbody>
@@ -2364,7 +2364,7 @@
       title: "Add Comm",
       fields: [
         { name: "owner", label: "Owner / Comm" },
-        { name: "existingHOA", label: "Existing HOA", placeholder: "20'" }
+        { name: "existingHOA", label: "Existing HOA" }
       ],
       confirmLabel: "Add Comm"
     });
@@ -2388,7 +2388,7 @@
       title: "Edit Comm",
       fields: [
         { name: "owner", label: "Owner / Comm", value: group.owner },
-        { name: "existingHOA", label: "Existing HOA", value: group.existingHOA || "", placeholder: "20'" }
+        { name: "existingHOA", label: "Existing HOA", value: group.existingHOA || "" }
       ],
       confirmLabel: "Save"
     });
@@ -2439,7 +2439,7 @@
       const midspanValues = await openAppDialog({
         title: "Midspan",
         description: shortSpanLabel(span),
-        fields: [{ name: "midspan", label: "Midspan", value: existing?.midspan || "", placeholder: "Leave empty for REF" }],
+        fields: [{ name: "midspan", label: "Midspan", value: existing?.midspan || "" }],
         confirmLabel: "Save"
       });
       const midspan = midspanValues ? midspanValues.midspan : (existing?.midspan || "");

@@ -136,8 +136,9 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 
 1. Every MidAm Streetlight has mandatory `Ground`: import and recalculation activate it automatically, the UI cannot disable it, and MR adds `MNT GROUND STREETLIGHT`.
 2. Grounding does not invent a vertical height or remove physical clearances. MidAm still applies `Bottom Height - 20\"` and `Drip Loop Height - 12\"`; the lower ceiling controls.
-3. Transformer `Redress` requires New HOA and adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
-4. Power Riser `Raise` requires a New HOA above the imported attachment and adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
+3. Transformer `Redress` requires New HOA. INTEC adds `Secure transformer drip loop to HOA <height>.`; Metronet adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
+4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC and `MNT GROUND STREETLIGHT` for Metronet.
+5. Power Riser `Raise` requires a New HOA above the imported attachment. INTEC adds `Raise APS riser from HOA <old> to HOA <new>.`; Metronet adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
 5. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
 6. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
 7. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.

@@ -336,18 +336,26 @@
     return rows.flatMap(row => {
       if (!row.actionActive) return [];
       const category = String(row.category || row.type || "").toUpperCase();
-      if (category.includes("STREETLIGHT")) return ["MNT GROUND STREETLIGHT"];
+      if (category.includes("STREETLIGHT")) {
+        return [isMetronetMR()
+          ? "MNT GROUND STREETLIGHT"
+          : "Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT."];
+      }
 
       const target = H().parseHeight(row.actionHeight || "");
       if (target === null) return [];
       const targetText = H().formatHeight(target);
       if (category.includes("TRANSFORMER")) {
-        return [`POWER REDRESS TRANSFORMER DRIP LOOP TO HOA ${targetText}.`];
+        return [isMetronetMR()
+          ? `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA ${targetText}.`
+          : `Secure transformer drip loop to HOA ${targetText}.`];
       }
       if (category.includes("RISER")) {
         const source = H().parseHeight(row.attachmentHeight || "");
         if (source === null || target <= source) return [];
-        return [`AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`];
+        return [isMetronetMR()
+          ? `AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`
+          : `Raise APS riser from HOA ${H().formatHeight(source)} to HOA ${targetText}.`];
       }
       return [];
     });
