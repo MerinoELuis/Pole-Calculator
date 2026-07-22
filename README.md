@@ -154,7 +154,7 @@ For `Metronet > MidAm`, utility guys must be `1/2\"` and communication guys must
 
 `Transfer to New Pole` is one manual option per physical comm at a pole, even when that comm is related to several spans. It changes the normal movement into one transfer instruction at the entered HOA Change. The previous pole's Existing HOA is not retained as a Bolt-bolt obstacle after transfer, while the effective transfer height still follows Comm-comm and the remaining clearances. INTEC also provides `Re-sag Service Drop` per span: for a checked service drop below `15'6"`, the calculator validates that span at `15'6"` and adds the corresponding re-sag instruction without changing the imported midspan baseline.
 
-INTEC UG replaces the pole MR with the standard six-line decision block. Pole Actions provides a large `UG Make Ready` editor already populated with that template. Connected Fore/Back/Other Span instructions extract only the reason from its `Unable to attach due to ...` line. Riser direction is model-owned: the calculator reads it from imported Make Ready/IO text and never derives it from the span bearing.
+INTEC UG replaces the pole MR with the standard six-line decision block. Pole Actions provides a large `UG Make Ready` editor already populated with that template. Connected Fore/Back/Other Span instructions extract only the reason from its `Unable to attach due to ...` line. A required Backspan riser is placed one foot below the primary Proposed and remains the final Make Ready instruction. Its direction starts with imported Make Ready/IO when available, can be changed through `Riser Direction`, and is never inferred from span bearing.
 
 ### Make Ready
 

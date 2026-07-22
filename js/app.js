@@ -1860,11 +1860,19 @@
 
   function renderPoleActions(poleId) {
     const pole = S.getPole(poleId);
-    const showUGReason = pole?.ugActive
-      && String(S.getState().settings?.projectProfile || "INTEC").toUpperCase() === "INTEC";
+    const isIntec = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase() === "INTEC";
+    const showUGReason = pole?.ugActive && isIntec;
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
       : "";
+    const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
+    const showRiserDirection = isIntec && /\bPl riser\b/i.test(makeReadyText);
+    const riserDirection = String(
+      pole?.ugRiserDirection || global.MRLogic.getImportedRiserDirection?.(poleId) || ""
+    ).toUpperCase();
+    const directionOptions = ["", "N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+      .map(direction => `<option value="${direction}" ${direction === riserDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
+      .join("");
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
@@ -1872,6 +1880,10 @@
     ${showUGReason ? `<label class="pole-action-field">
       <span>UG Make Ready</span>
       <textarea class="input ug-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
+    </label>` : ""}
+    ${showRiserDirection ? `<label class="pole-action-field riser-direction-field">
+      <span>Riser Direction</span>
+      <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugRiserDirection">${directionOptions}</select>
     </label>` : ""}`;
   }
 
@@ -2364,6 +2376,7 @@
       "resagServiceDrop",
       "ugReason",
       "ugMRText",
+      "ugRiserDirection",
       "actionActive",
       "actionHeight",
       "raiseActive",

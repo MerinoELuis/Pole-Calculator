@@ -59,11 +59,15 @@ assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser 
 
 state.makeReadyReferences = [];
 sandbox.window.MRLogic.generateMRForPole("P1");
-assert.doesNotMatch(
-  state.mr.find(item => item.poleId === "P1").text,
-  /\bPl riser\b/i,
-  "the calculator must not infer a riser direction when Make Ready/IO has not supplied one"
-);
+let generatedWithoutDirection = state.mr.find(item => item.poleId === "P1").text;
+assert.match(generatedWithoutDirection, /Pl riser at HOA 18'\./, "required riser work must remain visible while its direction is pending");
+assert.equal(generatedWithoutDirection.trim().split("\n").at(-1), "Pl riser at HOA 18'.", "a direction-pending riser must remain the final instruction");
+
+state.poles.P1.ugRiserDirection = "E";
+sandbox.window.MRLogic.generateMRForPole("P1");
+const generatedWithOverride = state.mr.find(item => item.poleId === "P1").text;
+assert.match(generatedWithOverride, /Pl riser E at HOA 18'\./, "the editable riser direction must override a missing imported direction");
+assert.equal(generatedWithOverride.trim().split("\n").at(-1), "Pl riser E at HOA 18'.", "the edited riser must remain the final instruction");
 
 state.poles.P2.ugMRText = [
   "Unable to attach due to red tag.",

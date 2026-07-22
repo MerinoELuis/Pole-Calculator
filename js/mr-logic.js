@@ -281,8 +281,9 @@
     }[direction] || direction || "";
   }
 
-  // Riser direction is model-owned. Read it from imported Make Ready/IO text
-  // instead of guessing a pole face from the span bearing.
+  // Riser direction starts with the model-owned Make Ready/IO value. The pole
+  // can store a user override, but the calculator never guesses a pole face
+  // from the span bearing because span direction and riser face are distinct.
   function importedRiserDirection(poleId) {
     const refs = (S().getState().makeReadyReferences || []).filter(ref => ref.poleId === poleId);
     const directionPattern = "(NE|NW|SE|SW|N|E|S|W)";
@@ -354,9 +355,11 @@
         return Boolean(sideSpan && [sideSpan.fromPole, sideSpan.toPole].includes(item.otherPoleId));
       }) || proposedSides[0];
       const proposed = H().parseHeight(proposedSide?.proposedHOA || S().getPole(poleId)?.standaloneProposedHOA || "");
-      const riserDirection = importedRiserDirection(poleId);
-      if (proposed !== null && riserDirection) {
-        lines.push(`Pl riser ${riserDirection} at HOA ${H().formatHeight(proposed - 12)}.`);
+      const pole = S().getPole(poleId);
+      const riserDirection = String(pole?.ugRiserDirection || importedRiserDirection(poleId) || "").toUpperCase();
+      if (proposed !== null) {
+        const direction = riserDirection ? ` ${riserDirection}` : "";
+        lines.push(`Pl riser${direction} at HOA ${H().formatHeight(proposed - 12)}.`);
       }
       return lines;
     });
@@ -499,6 +502,7 @@
     generateResagServiceDropMR,
     generatePowerEquipmentMRForPole,
     getEditableUGTemplate: editableUGTemplate,
+    getImportedRiserDirection: importedRiserDirection,
     generateMRForSpanSide,
     generateAllMR,
     detectAttach: detectAttachFromSpanSide,

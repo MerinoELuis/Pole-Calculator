@@ -221,6 +221,7 @@
         ugActive: Boolean(data.ugActive),
         ugReason: trim(data.ugReason || ""),
         ugMRText: trim(data.ugMRText || ""),
+        ugRiserDirection: trim(data.ugRiserDirection || "").toUpperCase(),
         pcoActive: Boolean(data.pcoActive),
         pcoScope: trim(data.pcoScope || ""),
         pcoType: trim(data.pcoType || ""),
@@ -248,6 +249,7 @@
       ugActive: Boolean(extra.ugActive),
       ugReason: trim(extra.ugReason || ""),
       ugMRText: trim(extra.ugMRText || ""),
+      ugRiserDirection: trim(extra.ugRiserDirection || "").toUpperCase(),
       pcoActive: Boolean(extra.pcoActive),
       pcoScope: trim(extra.pcoScope || ""),
       pcoType: trim(extra.pcoType || ""),
@@ -498,8 +500,9 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "ugRiserDirection", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
+    if (field === "ugRiserDirection") pole[field] = pole[field].toUpperCase();
     return pole;
   }
 
@@ -747,7 +750,7 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || trim(row.raiseHeight || "")));
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText) || sideChange || commChange || equipmentChange;
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection) || sideChange || commChange || equipmentChange;
   }
 
   function ensureUnknownPoles() {
