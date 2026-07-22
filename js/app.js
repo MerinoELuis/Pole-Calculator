@@ -616,6 +616,43 @@
     return rows;
   }
 
+  // A deleted pole is job-level user intent. Apply its canonical tombstone to
+  // the freshly imported graph so Update Data cannot restore it as a renamed
+  // Collection row (for example, with STEEL newly appended).
+  function suppressDeletedPoles(merged, deletedPoleIds) {
+    const deleted = new Set((deletedPoleIds || []).map(S.canonicalPoleIdentity).filter(Boolean));
+    if (!deleted.size) return 0;
+    const removedPoleIds = Object.keys(merged.poles || {}).filter(id => deleted.has(S.canonicalPoleIdentity(id)));
+    if (!removedPoleIds.length) return 0;
+    const removed = new Set(removedPoleIds);
+    const spanIds = new Set(Object.values(merged.spans || {})
+      .filter(span => removed.has(span.fromPole) || removed.has(span.toPole))
+      .map(span => span.spanId));
+    let foundDependent = true;
+    while (foundDependent) {
+      foundDependent = false;
+      Object.values(merged.spans || {}).forEach(span => {
+        if (spanIds.has(span.spanId) || !span.sourceSpanId || !spanIds.has(span.sourceSpanId)) return;
+        spanIds.add(span.spanId);
+        foundDependent = true;
+      });
+    }
+    removedPoleIds.forEach(id => delete merged.poles[id]);
+    spanIds.forEach(id => delete merged.spans[id]);
+    ["spanSides", "spanComms", "spanPower"].forEach(mapName => {
+      Object.keys(merged[mapName] || {}).forEach(key => {
+        const row = merged[mapName][key];
+        if (removed.has(row.poleId) || spanIds.has(row.spanId)) delete merged[mapName][key];
+      });
+    });
+    merged.makeReadyReferences = (merged.makeReadyReferences || []).filter(row => !removed.has(row.poleId));
+    merged.poleClassChecks = (merged.poleClassChecks || []).filter(row => !removed.has(row.poleId));
+    merged.movements = (merged.movements || []).filter(row => !removed.has(row.poleId));
+    merged.mr = (merged.mr || []).filter(row => !removed.has(row.poleId));
+    merged.warnings = (merged.warnings || []).filter(row => !removed.has(row.poleId) && !spanIds.has(row.spanId));
+    return removedPoleIds.length;
+  }
+
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
     merged.poles = merged.poles || {};
@@ -633,7 +670,8 @@
       equipmentActionsPreserved: 0,
       missingEquipmentActionsPreserved: 0,
       blankValuesPreserved: 0,
-      missingRowsPreserved: 0
+      missingRowsPreserved: 0,
+      deletedPolesSuppressed: 0
     };
     const poleAliases = buildPoleAliasMap(previous.poles || {}, merged.poles);
     discardSupersededEndpointPlaceholders(previous, merged, poleAliases, reconciliation);
@@ -783,11 +821,17 @@
     };
     // Review decisions belong to the job, not to one workbook snapshot.
     merged.excelReviewIgnoredChecks = { ...(previous.excelReviewIgnoredChecks || {}) };
+    merged.deletedPoleIds = Array.from(new Set(previous.deletedPoleIds || []));
+    reconciliation.deletedPolesSuppressed = suppressDeletedPoles(merged, merged.deletedPoleIds);
     merged.updateDiagnostics = {
       updatedAt: new Date().toISOString(),
       ...reconciliation
     };
-    merged.ui = previous.ui || merged.ui || {};
+    merged.ui = {
+      ...(merged.ui || {}),
+      ...(previous.ui || {}),
+      hiddenPoleIds: (previous.ui?.hiddenPoleIds || []).map(id => remapPoleId(id, poleAliases))
+    };
     return merged;
   }
 
@@ -1756,11 +1800,13 @@
     }
   }
 
-  function filteredPoles() {
+  function filteredPoles({ includeHidden = true } = {}) {
     const state = S.getState();
     const search = (state.ui.search || "").toLowerCase();
     const filter = state.ui.filter || "all";
+    const hidden = new Set(state.ui.hiddenPoleIds || []);
     return Object.keys(state.poles).filter(poleId => {
+      if (!includeHidden && hidden.has(poleId)) return false;
       const summary = poleSummary(poleId);
       const pole = summary.pole;
       const comms = Array.isArray(pole.comms) ? pole.comms : [];
@@ -1776,9 +1822,11 @@
     const state = S.getState();
     const { pole, warnings, hasChanges } = poleSummary(poleId);
     const flagging = poleFlaggingSummary(poleId);
+    const hidden = (state.ui.hiddenPoleIds || []).includes(poleId);
     const active = state.selectedPoleId === poleId ? " active" : "";
-    return `<button class="pole-index-link${active}" data-pole-select="${escapeHtml(poleId)}" type="button">
+    return `<button class="pole-index-link${active}${hidden ? " hidden-pole" : ""}" data-pole-select="${escapeHtml(poleId)}" type="button" title="${hidden ? "Show this pole" : "Open this pole"}">
       <span>${escapeHtml(poleId)}</span>
+      ${hidden ? `<span class="mini-dot hidden-status">Hidden</span>` : ""}
       ${pole.isGenerated ? `<span class="mini-dot warning">Gen</span>` : ""}
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
       ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="mini-dot danger">Flag ${flagging.calculationIssueCount}</span>` : ""}
@@ -1819,8 +1867,14 @@
     const { pole, spans, hasChanges } = poleSummary(poleId);
     const flagging = poleFlaggingSummary(poleId);
     return `<div class="pole-workspace-header">
-      <div>
-        <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
+      <div class="pole-heading-block">
+        <div class="pole-heading-row">
+          <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
+          <div class="pole-header-actions">
+            <button class="mini-btn" type="button" data-hide-pole data-pole="${escapeHtml(poleId)}" title="Hide this pole from the workspace" aria-label="Hide ${escapeHtml(poleId)}">Hide</button>
+            <button class="mini-btn danger-action" type="button" data-delete-pole data-pole="${escapeHtml(poleId)}" title="Delete this pole and its connected data" aria-label="Delete ${escapeHtml(poleId)}">Delete</button>
+          </div>
+        </div>
         <div class="pole-meta">
           ${pole.isGenerated ? `<span class="badge warning">Editable generated other pole</span>` : ""}
           <span class="badge">Spans ${spans.length}</span>
@@ -2020,6 +2074,8 @@
 
   function renderPoleWorkspace(poleId) {
     const pole = S.getPole(poleId);
+    const commsHidden = (S.getState().ui?.hiddenCommPoleIds || []).includes(poleId);
+    const commCount = groupedCommsForPole(poleId).length;
     return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""} ${pole?.pcoActive ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
@@ -2033,10 +2089,15 @@
         <section class="subsection wide" id="comms-${escapeHtml(poleId)}">
           <div class="subsection-title-row">
             <h4>Existing Comm Movements</h4>
-            <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
+            <div class="subsection-actions">
+              <button class="mini-btn" type="button" data-toggle-comm-visibility data-pole="${escapeHtml(poleId)}" aria-expanded="${String(!commsHidden)}">${commsHidden ? "Show Comms" : "Hide Comms"}</button>
+              <button class="mini-btn danger-action" type="button" data-delete-all-comms data-pole="${escapeHtml(poleId)}" ${commCount ? "" : "disabled"}>Delete Comms</button>
+              <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
+            </div>
           </div>
-          <p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>
-          ${renderCommMovementTable(poleId)}
+          ${commsHidden
+            ? `<p class="muted comms-hidden-message">${commCount} comm${commCount === 1 ? "" : "s"} hidden. Use Show Comms to restore this table.</p>`
+            : `<p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>${renderCommMovementTable(poleId)}`}
         </section>
         <section class="subsection wide">
           <h4>Imported Power / Clearance</h4>
@@ -2062,7 +2123,8 @@
   }
 
   function renderAllPolesWorkspace() {
-    const poleIds = filteredPoles();
+    const poleIds = filteredPoles({ includeHidden: false });
+    const hiddenCount = (S.getState().ui.hiddenPoleIds || []).filter(id => S.getPole(id)).length;
     els.polesOverview.innerHTML = poleIds.map(id => {
       try {
         return renderPoleWorkspace(id);
@@ -2078,7 +2140,9 @@
           <p class="muted">This pole was imported, but it has incomplete or unexpected data. Review the Excel file or import again.</p>
         </article>`;
       }
-    }).join("") || `<div class="detail-placeholder">No poles to show.</div>`;
+    }).join("") || `<div class="detail-placeholder">${hiddenCount
+      ? `${hiddenCount} pole${hiddenCount === 1 ? " is" : "s are"} hidden. Select a Hidden pole in the index to show it again.`
+      : "No poles to show."}</div>`;
     wireEditableEvents(els.polesOverview);
     bindScrollLinks(els.polesOverview);
     bindLocalActions(els.polesOverview);
@@ -2104,6 +2168,10 @@
   function bindLocalActions(root) {
     if (!root) return;
     root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
+    root.querySelectorAll("[data-hide-pole]").forEach(btn => btn.addEventListener("click", () => hidePole(btn.dataset.pole)));
+    root.querySelectorAll("[data-delete-pole]").forEach(btn => btn.addEventListener("click", () => deletePole(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-comm-visibility]").forEach(btn => btn.addEventListener("click", () => toggleCommVisibility(btn.dataset.pole)));
+    root.querySelectorAll("[data-delete-all-comms]").forEach(btn => btn.addEventListener("click", () => deleteAllCommsFromPole(btn.dataset.pole)));
     root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-delete-comm-span]").forEach(btn => btn.addEventListener("click", () => deleteCommSpan(
@@ -2417,6 +2485,66 @@
     renderAffectedPoles([poleId]);
   }
 
+  function toggleCommVisibility(poleId) {
+    if (!S.getPole(poleId)) return;
+    recordUndoSnapshot();
+    const hidden = new Set(S.getState().ui?.hiddenCommPoleIds || []);
+    if (hidden.has(poleId)) hidden.delete(poleId);
+    else hidden.add(poleId);
+    S.getState().ui = { ...(S.getState().ui || {}), hiddenCommPoleIds: Array.from(hidden) };
+    renderAffectedPoles([poleId]);
+  }
+
+  function hidePole(poleId) {
+    if (!S.getPole(poleId)) return;
+    recordUndoSnapshot();
+    const hidden = new Set(S.getState().ui.hiddenPoleIds || []);
+    hidden.add(poleId);
+    S.getState().ui.hiddenPoleIds = Array.from(hidden);
+    if (S.getState().selectedPoleId === poleId) S.getState().selectedPoleId = "";
+    render();
+    toast(`${poleId} hidden. Select it in the Pole Index to show it again.`, "success");
+  }
+
+  async function deletePole(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole) return;
+    const spans = S.getConnectedSpans(poleId).length;
+    const comms = groupedCommsForPole(poleId).length;
+    const confirmed = await confirmInApp(
+      "Delete Pole",
+      `Delete ${poleId}, its ${spans} connected span${spans === 1 ? "" : "s"}, and ${comms} comm${comms === 1 ? "" : "s"}? This can be undone with Ctrl+Z.`,
+      "Delete Pole"
+    );
+    if (!confirmed) return;
+
+    recordUndoSnapshot();
+    S.removePole(poleId);
+    global.Calculations.recalculateAll();
+    render();
+    toast(`${poleId} deleted.`, "success");
+  }
+
+  async function deleteAllCommsFromPole(poleId) {
+    const groups = groupedCommsForPole(poleId);
+    if (!groups.length) return;
+    const label = groups.length === 1 ? "1 comm" : `${groups.length} comms`;
+    const confirmed = await confirmInApp(
+      "Delete Comms",
+      `Delete all ${label} from ${poleId}? Spans, Proposed, power and equipment will remain.`,
+      "Delete Comms"
+    );
+    if (!confirmed) return;
+
+    recordUndoSnapshot();
+    const removedRows = S.removeSpanCommsForPole(poleId);
+    const affected = new Set([poleId]);
+    removedRows.forEach(row => poleIdsForSpan(row.spanId).forEach(id => affected.add(id)));
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles(Array.from(affected));
+    toast(`${label} deleted from ${poleId}.`, "success");
+  }
+
   async function deleteCommSpan(spanId, poleId, owner, wireId = "") {
     if (!spanId || !poleId || !owner) return;
     if (!(await confirmInApp("Delete Span", "Delete only this span from the comm?"))) return;
@@ -2599,6 +2727,10 @@
 
   function selectPole(poleId) {
     const state = S.getState();
+    if ((state.ui.hiddenPoleIds || []).includes(poleId)) {
+      recordUndoSnapshot();
+      state.ui.hiddenPoleIds = state.ui.hiddenPoleIds.filter(id => id !== poleId);
+    }
     state.selectedPoleId = poleId;
     state.selectedSpanId = "";
     state.ui.activeView = "calculator";

@@ -142,9 +142,17 @@
     movements: [],
     mr: [],
     warnings: [],
+    // Canonical identities intentionally removed by the user. Update Data uses
+    // this list to avoid restoring the same pole under a slightly different
+    // display name such as "P01" versus "P01 STEEL".
+    deletedPoleIds: [],
     ui: {
       search: "",
-      filter: "all"
+      filter: "all",
+      // Per-pole presentation preference. Collapsing the comm table never
+      // removes engineering data and is preserved in the saved job JSON.
+      hiddenCommPoleIds: [],
+      hiddenPoleIds: []
     }
   });
 
@@ -523,6 +531,9 @@
 
   function upsertComm(poleId, owner, existingHOA = "", notes = "", extra = {}) {
     const pole = state.poles[poleId] || upsertPole(createPole(poleId));
+    // A manual/imported comm means the pole is no longer intentionally empty.
+    // Clear the guard used after a user deletes every comm from this pole.
+    pole.metadata = { ...(pole.metadata || {}), suppressEndpointComms: false };
     const ownerKey = trim(owner);
     const wireKey = trim(extra.wireId || "");
     let idx = pole.comms.findIndex(c => c.owner === ownerKey && (!wireKey || c.wireId === wireKey));
@@ -613,6 +624,80 @@
     if (!row) return null;
     row[field] = trim(value);
     return row;
+  }
+
+  /**
+   * Removes every comm relationship owned by one pole without touching its
+   * spans, Proposed rows, power wires, equipment, or the opposite endpoint.
+   * The suppression marker prevents normalizeState() from recreating empty
+   * endpoint reference rows after the job is saved and loaded again.
+   * @param {string} poleId
+   * @returns {Array<SpanComm>} Removed rows, used by callers to refresh spans.
+   */
+  function removeSpanCommsForPole(poleId) {
+    const id = trim(poleId);
+    const rows = getSpanCommsForPole(id).slice();
+    rows.forEach(row => removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
+    const pole = state.poles[id];
+    if (pole) {
+      pole.comms = [];
+      pole.metadata = { ...(pole.metadata || {}), suppressEndpointComms: true };
+    }
+    return rows;
+  }
+
+  /**
+   * Deletes one pole and every graph entity that depends on it. The canonical
+   * identity is retained as a tombstone so Update Data cannot recreate a pole
+   * that the user deliberately removed from this job.
+   * @param {string} poleId
+   * @param {{remember?: boolean}} [options]
+   * @returns {{poleId:string, spanIds:string[], commCount:number}}
+   */
+  function removePole(poleId, options = {}) {
+    const id = trim(poleId);
+    if (!state.poles[id]) return { poleId: id, spanIds: [], commCount: 0 };
+
+    const spanIds = new Set(getConnectedSpans(id).map(span => span.spanId));
+    // Additional Proposed rows inherit a physical source span and must leave
+    // with it even if their generated endpoints do not directly match id.
+    let foundDependent = true;
+    while (foundDependent) {
+      foundDependent = false;
+      Object.values(state.spans).forEach(span => {
+        if (spanIds.has(span.spanId) || !span.sourceSpanId || !spanIds.has(span.sourceSpanId)) return;
+        spanIds.add(span.spanId);
+        foundDependent = true;
+      });
+    }
+
+    const commRows = Object.values(state.spanComms).filter(row => row.poleId === id || spanIds.has(row.spanId));
+    commRows.forEach(row => removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
+    Object.keys(state.spanSides).forEach(key => {
+      const row = state.spanSides[key];
+      if (row.poleId === id || spanIds.has(row.spanId)) delete state.spanSides[key];
+    });
+    Object.keys(state.spanPower).forEach(key => {
+      const row = state.spanPower[key];
+      if (row.poleId === id || spanIds.has(row.spanId)) delete state.spanPower[key];
+    });
+    spanIds.forEach(spanId => delete state.spans[spanId]);
+    delete state.poles[id];
+
+    state.makeReadyReferences = state.makeReadyReferences.filter(row => row.poleId !== id);
+    state.poleClassChecks = state.poleClassChecks.filter(row => row.poleId !== id);
+    state.movements = state.movements.filter(row => row.poleId !== id);
+    state.mr = state.mr.filter(row => row.poleId !== id);
+    state.warnings = state.warnings.filter(row => row.poleId !== id && !spanIds.has(row.spanId));
+    if (state.selectedPoleId === id) state.selectedPoleId = "";
+
+    state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).filter(value => value !== id);
+    state.ui.hiddenCommPoleIds = (state.ui.hiddenCommPoleIds || []).filter(value => value !== id);
+    if (options.remember !== false) {
+      const canonical = canonicalPoleIdentity(id);
+      state.deletedPoleIds = Array.from(new Set([...(state.deletedPoleIds || []), canonical].filter(Boolean)));
+    }
+    return { poleId: id, spanIds: Array.from(spanIds), commCount: commRows.length };
   }
 
   /**
@@ -812,6 +897,7 @@
     // heights later, and the pole never appears visually empty.
     Object.values(state.spans).forEach(span => {
       [span.fromPole, span.toPole].filter(Boolean).forEach(poleId => {
+        if (state.poles[poleId]?.metadata?.suppressEndpointComms) return;
         const rowsAtPole = getSpanCommsForPole(poleId);
         if (rowsAtPole.length) return;
         const otherPoleId = getOtherPoleId(span, poleId);
@@ -881,7 +967,16 @@
     next.movements = Array.isArray(next.movements) ? next.movements : [];
     next.mr = Array.isArray(next.mr) ? next.mr : [];
     next.warnings = Array.isArray(next.warnings) ? next.warnings : [];
-    next.ui = { search: "", filter: "all", ...(next.ui || {}) };
+    next.deletedPoleIds = Array.isArray(next.deletedPoleIds)
+      ? Array.from(new Set(next.deletedPoleIds.map(canonicalPoleIdentity).filter(Boolean)))
+      : [];
+    next.ui = { search: "", filter: "all", hiddenCommPoleIds: [], hiddenPoleIds: [], ...(next.ui || {}) };
+    next.ui.hiddenCommPoleIds = Array.isArray(next.ui.hiddenCommPoleIds)
+      ? Array.from(new Set(next.ui.hiddenCommPoleIds.map(trim).filter(Boolean)))
+      : [];
+    next.ui.hiddenPoleIds = Array.isArray(next.ui.hiddenPoleIds)
+      ? Array.from(new Set(next.ui.hiddenPoleIds.map(trim).filter(id => Boolean(id && next.poles[id]))))
+      : [];
 
     Object.keys(next.poles).forEach(id => {
       const pole = next.poles[id];
@@ -979,6 +1074,8 @@
     removeManualSpan,
     upsertSpanComm,
     removeSpanComm,
+    removeSpanCommsForPole,
+    removePole,
     addSpanPower,
     getConnectedSpans,
     getOtherPoleId,

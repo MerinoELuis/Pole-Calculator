@@ -22,6 +22,8 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Imports wires, owners, attachment heights and midspans from `Span.Wire`.
 - Imports `Attachment Size` references from the `Make Ready` sheet for proposed export data.
 - Shows all poles in one editable workspace.
+- Each pole can collapse its comm table or delete all of its comm rows without removing spans, Proposed, power, or equipment.
+- Each pole can also be hidden from the workspace and restored from the Pole Index, or deleted with its connected graph data. Deleted identities remain suppressed during Update Data; both actions support `Ctrl+Z`.
 - Provides a collapsible left-side pole index for quick navigation without occupying workspace width.
 - Calculates max heights against Low Power.
 - Recalculates midspans when comms move up or down on either connected pole.

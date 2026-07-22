@@ -157,4 +157,24 @@ assert.equal(p09Rows.find(row => row.spanId === "FORE" && row.owner === "CATV").
 assert.equal(endpointResult.updateDiagnostics.endpointPlaceholdersDiscarded, 2);
 assert.equal(endpointResult.updateDiagnostics.baselineCommRowsPreserved, 3);
 
+const deletedPrevious = {
+  poles: { P2: { poleId: "P2" } },
+  spans: {}, spanSides: {}, spanComms: {}, spanPower: {},
+  makeReadyReferences: [], poleClassChecks: [], settings: {}, ui: {},
+  deletedPoleIds: ["P1"]
+};
+const deletedImported = {
+  poles: { "P1 STEEL": { poleId: "P1 STEEL" }, P2: { poleId: "P2" } },
+  spans: { RESTORED: { spanId: "RESTORED", fromPole: "P1 STEEL", toPole: "P2" } },
+  spanSides: { RESTORED_SIDE: { spanId: "RESTORED", poleId: "P1 STEEL", proposedHOA: "22'" } },
+  spanComms: { RESTORED_COMM: { spanId: "RESTORED", poleId: "P2", owner: "CATV", wireId: "W1", midspan: "18'" } },
+  spanPower: { RESTORED_POWER: { spanId: "RESTORED", poleId: "P1 STEEL", owner: "UTILITY", midspan: "25'" } },
+  makeReadyReferences: [], poleClassChecks: [], settings: {}, ui: {}, excelReviewSource: {}
+};
+const deletedResult = merge(deletedPrevious, deletedImported);
+assert.equal(deletedResult.poles["P1 STEEL"], undefined, "Update Data must not restore a canonically deleted pole");
+assert.equal(deletedResult.spans.RESTORED, undefined, "spans connected to a deleted pole must remain suppressed");
+assert.equal(Object.keys(deletedResult.spanComms).length, 0, "dependent comm rows must be suppressed with the deleted span");
+assert.equal(deletedResult.updateDiagnostics.deletedPolesSuppressed, 1);
+
 console.log("Update Data non-destructive merge tests passed.");
