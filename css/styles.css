@@ -860,6 +860,22 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   cursor: not-allowed;
 }
 
+.pole-action-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: #475569;
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pole-action-field .input {
+  width: 100%;
+  text-align: left;
+  text-transform: none;
+}
+
 .pole-class-summary {
   display: flex;
   justify-content: flex-end;

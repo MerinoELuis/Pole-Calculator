@@ -66,6 +66,7 @@ Imported, editable, and derived values live together but have different ownershi
 `canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The `poleId` stored from Collection remains unchanged for display and export.
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
+| `ugReason` | editable | Specific INTEC UG reason reused by connected span instructions. |
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes and project constraints plus normalized editable Power Equipment actions. |
 

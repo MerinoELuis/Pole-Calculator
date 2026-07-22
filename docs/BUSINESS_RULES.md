@@ -156,6 +156,8 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 
 A same-owner Service Drop may reuse exactly the same bolt height. This exception applies only when the separation is zero; nearby nonzero placements still use Bolt-bolt clearance.
 
+When `Transfer to New Pole` is active, the old `Existing HOA` bolt belongs to the prior pole and is excluded from Bolt-bolt checks on the destination pole. The transferred comm's effective HOA remains subject to Comm-comm and every other applicable clearance.
+
 ### Transfer and Re-sag Controls
 
 `Transfer to New Pole` is available for every project profile and is controlled once per physical comm at a pole. The value is synchronized across that comm's span relationships for persistence, but it generates only one Make Ready instruction. When the comm has an HOA movement, it replaces the normal raise/lower or relocate instruction with:
@@ -268,7 +270,7 @@ Normal ordering:
 
 UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. UG and PCO are mutually exclusive.
 
-For INTEC, an active UG pole replaces its normal block with `Unable to attach due to proposed pole overloaded.` When an adjacent pole is UG, the current pole receives one relation-specific instruction such as `Backspan to go UG SE due to existing pole overloaded.` A Backspan UG also places one riser 12 inches below the current pole's primary Proposed. The span bearing supplies the direction; diagonal bearings use the corresponding pole face (`SE` uses `S`, for example). The separate riser instruction is always the final line in the pole Make Ready.
+For INTEC, an active UG pole replaces its normal block with the six-line UG decision template headed by `Unable to attach due to <UG Reason>.` `UG Reason` is editable on the pole. When an adjacent pole is UG, the current pole receives one relation-specific instruction carrying only that reason, such as `Backspan to go UG SE due to proposed pole overloaded on adj pole.` The relation direction comes from the physical span. A Backspan UG places one riser 12 inches below the current pole's primary Proposed only when imported Make Ready/IO text supplies a riser direction; the calculator never infers that pole face from span bearing. The separate riser instruction is always the final line in the pole Make Ready.
 
 `Transfer to New Pole` uses HOA Change when populated and otherwise uses Existing HOA. Transfer rows for the same normalized owner are combined into one instruction, their unique heights are ordered from lowest to highest, and `with DG` is appended when any related transfer has DG. For example: `Transfer CATV to new pole at HOA 20'10" and 21'2" with DG.` CenturyLink, CTL and TELCO resolve to the same MR owner.
 

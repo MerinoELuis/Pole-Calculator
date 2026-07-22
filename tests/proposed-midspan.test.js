@@ -123,4 +123,27 @@ side = S.getSpanSide("FORE", "P1");
 span = S.getSpan("FORE");
 assert.equal(C.calculateProposedMidspanBase(side, span), 19 * 12 + 10, "MidAm must use the reciprocal same-connection midspan before falling back to span sag");
 
+seedSpan("INTEC", "TRANSFER-BOLT", "100'", "18'6\"");
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "TRANSFER-BOLT",
+  poleId: "P1",
+  owner: "COMMUNICATION > CATV",
+  existingHOA: "18'8\"",
+  existingHOAChange: "17'6\"",
+  transferToNewPole: true
+}));
+const transferSide = S.getSpanSide("TRANSFER-BOLT", "P1");
+assert.equal(
+  C.evaluateProposedPoleClearance(transferSide).ok,
+  true,
+  "a transfer must not reserve the old Existing HOA bolt point on the destination pole"
+);
+const transferComm = S.getSpanCommsForPole("P1")[0];
+S.upsertSpanComm({ ...transferComm, transferToNewPole: false });
+assert.equal(
+  C.evaluateProposedPoleClearance(transferSide).ok,
+  false,
+  "the old Existing HOA must retain Bolt-bolt validation when the comm is not transferred"
+);
+
 console.log("Proposed midspan fallback tests passed.");

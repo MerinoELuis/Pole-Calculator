@@ -496,7 +496,7 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
     return pole;
   }

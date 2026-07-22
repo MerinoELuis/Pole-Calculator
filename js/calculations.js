@@ -642,7 +642,7 @@
       const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
-      if (sc.existingHOAChange && ownExistingHeight !== null) {
+      if (sc.existingHOAChange && !sc.transferToNewPole && ownExistingHeight !== null) {
         const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
         if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
           issues.push(`Pole bolt-bolt: ${format(ownBoltDiff)} against Existing HOA ${format(ownExistingHeight)}; minimum ${format(boltClearance)}.`);
@@ -673,7 +673,7 @@
         // the new bolt is only 2" from that existing point, even if the other
         // comm was moved down to 21'. That must still flag.
         const otherExistingHeight = H().parseHeight(other.existingHOA || "");
-        if (otherExistingHeight !== null) {
+        if (!other.transferToNewPole && otherExistingHeight !== null) {
           const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
           if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
             issues.push(`Pole bolt-bolt: ${format(existingPointDiff)} against Existing HOA ${format(otherExistingHeight)} from ${otherOwner || "no owner"}; minimum ${format(boltClearance)}.`);
@@ -711,7 +711,8 @@
         owner: commOwnerLabel(sc) || "sin owner",
         existing: H().parseHeight(sc.existingHOA || ""),
         effective: H().parseHeight(getEffectiveCommHOA(sc)),
-        moved: Boolean(sc.existingHOAChange)
+        moved: Boolean(sc.existingHOAChange),
+        transferred: Boolean(sc.transferToNewPole)
       }))
       .filter(item => item.effective !== null || item.existing !== null)
       .forEach(item => {
@@ -724,7 +725,7 @@
             issues.push(`Proposed ${format(proposed)} does not respect Pole · Comm-comm ${format(commRequired)} against ${item.owner} ${format(item.effective)}.`);
           }
         }
-        if (item.existing !== null) {
+        if (item.existing !== null && !item.transferred) {
           const boltDiff = Math.abs(proposed - item.existing);
           if (boltDiff > 0 && boltDiff < boltRequired) {
             issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against Existing HOA ${format(item.existing)}.`);

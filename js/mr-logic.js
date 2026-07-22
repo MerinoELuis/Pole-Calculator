@@ -222,13 +222,24 @@
     return `Attach ${proposedOwnerForMR()} at HOA ${joinedHeights}.`;
   }
 
-  function ugReplacementMR() {
+  function cleanUGReason(value) {
+    return String(value || "").trim().replace(/[.]+$/, "") || "(reasoning)";
+  }
+
+  function ugReplacementMR(pole) {
     if (isMetronetMR()) {
       return [
         "Suggest going UG due to [clearance violation / 2 span aerial requirement]."
       ];
     }
-    return ["Unable to attach due to proposed pole overloaded."];
+    return [
+      `Unable to attach due to ${cleanUGReason(pole?.ugReason)}.`,
+      "Red tag",
+      "Inability to place ANC",
+      "TDU replace required",
+      "Existing neutral / multiplex above 26'9\"",
+      "PCO neutral / multiplex exceeds 26'9\""
+    ];
   }
 
   function pcoReplacementMR() {
@@ -254,6 +265,25 @@
       W: "E",
       NW: "SE"
     }[direction] || direction || "";
+  }
+
+  // Riser direction is model-owned. Read it from imported Make Ready/IO text
+  // instead of guessing a pole face from the span bearing.
+  function importedRiserDirection(poleId) {
+    const refs = (S().getState().makeReadyReferences || []).filter(ref => ref.poleId === poleId);
+    const directionPattern = "(NE|NW|SE|SW|N|E|S|W)";
+    for (const ref of refs) {
+      const sources = [
+        ref.makeReadyNotes,
+        ...Object.values(ref.raw || {}).filter(value => typeof value === "string")
+      ];
+      for (const source of sources) {
+        const text = String(source || "");
+        const match = text.match(new RegExp(`\\b(?:pl(?:ace)?\\s+(?:new\\s+)?riser(?:\\s+for\\s+ug\\s+transfer)?|riser)\\s+${directionPattern}\\b`, "i"));
+        if (match) return match[1].toUpperCase();
+      }
+    }
+    return "";
   }
 
   function connectedUGInstructions(poleId) {
@@ -296,7 +326,8 @@
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
         return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`];
       }
-      const lines = [`${item.relation} to go UG${direction} due to existing pole overloaded.`];
+      const adjacentReason = cleanUGReason(S().getPole(item.otherPoleId)?.ugReason);
+      const lines = [`${item.relation} to go UG${direction} due to ${adjacentReason} on adj pole.`];
       if (item.relation !== "Backspan") return lines;
 
       const proposedSides = S().getSpanSidesForPole(poleId)
@@ -309,11 +340,9 @@
         return Boolean(sideSpan && [sideSpan.fromPole, sideSpan.toPole].includes(item.otherPoleId));
       }) || proposedSides[0];
       const proposed = H().parseHeight(proposedSide?.proposedHOA || S().getPole(poleId)?.standaloneProposedHOA || "");
-      if (proposed !== null) {
-        // The riser uses a pole-face cardinal. Keep the full octant on the UG
-        // line, but use the first component for diagonals (SE -> S, NW -> N).
-        const riserDirection = (item.direction || "").charAt(0).toUpperCase();
-        lines.push(`Pl riser${riserDirection ? ` ${riserDirection}` : ""} at HOA ${H().formatHeight(proposed - 12)}.`);
+      const riserDirection = importedRiserDirection(poleId);
+      if (proposed !== null && riserDirection) {
+        lines.push(`Pl riser ${riserDirection} at HOA ${H().formatHeight(proposed - 12)}.`);
       }
       return lines;
     });
@@ -391,7 +420,7 @@
     const risers = [];
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
-      const lines = pole.ugActive ? ugReplacementMR() : pcoReplacementMR();
+      const lines = pole.ugActive ? ugReplacementMR(pole) : pcoReplacementMR();
       const text = lines.map(applyCase).join("\n");
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
