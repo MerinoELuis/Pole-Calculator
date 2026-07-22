@@ -110,5 +110,25 @@ const intecEquipmentMR = mrText("INTEC-EQUIPMENT");
 assert.match(intecEquipmentMR, /Secure transformer drip loop to HOA 25'8"\./);
 assert.match(intecEquipmentMR, /Install flex conduit to STLT circuit\. bond STLT housing to pole GRND\/NEUT\./);
 assert.match(intecEquipmentMR, /Raise APS riser from HOA 27' to HOA 28'2"\./);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", actionActive: true }),
+  "23'2\"",
+  "an INTEC grounded Streetlight bracket must keep 12 inches to comm"
+);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", actionActive: false }),
+  "20'10\"",
+  "an INTEC ungrounded Streetlight bracket must keep 40 inches to comm"
+);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", dripLoopHeight: "22'", actionActive: true }),
+  "18'8\"",
+  "an INTEC Streetlight drip loop must still keep 40 inches after the bracket is grounded"
+);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "TRANSFORMER", attachmentHeight: "28'", bottomHeight: "25'" }),
+  "21'8\"",
+  "an INTEC Transformer must keep 40 inches below its Bottom Height"
+);
 
 console.log("Power Equipment action tests passed.");

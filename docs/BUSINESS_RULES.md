@@ -127,10 +127,11 @@ MidAm environment defaults are profile-specific: railroad `23'6\"`; truck traffi
 
 The `Equipment` sheet contributes only rows owned by Utility/Power and categorized as Streetlight, Transformer, or Riser. Communication risers do not participate.
 
-1. INTEC subtracts Pole Power-comms clearance from the equipment's lowest imported physical height.
-2. MidAm Streetlights use `Bottom Height - Streetlight bracket-comm` and `Drip Loop Height - Streetlight drip loop-comm`; the lower result controls.
-3. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
-4. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
+1. INTEC keeps `40"` below Low Power, Transformer Bottom Height, Streetlight drip loops, and ungrounded Streetlight brackets.
+2. An INTEC grounded Streetlight bracket keeps `12"` to the top comm. Grounding changes only the bracket rule; its drip loop still keeps `40"`.
+3. MidAm Streetlights use `Bottom Height - Streetlight bracket-comm` and `Drip Loop Height - Streetlight drip loop-comm`; the lower result controls.
+4. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
+5. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
 
 ### Power Equipment Actions
 

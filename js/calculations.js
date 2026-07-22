@@ -793,9 +793,8 @@
   }
 
   // Returns the comm-height ceiling imposed by one imported Power Equipment
-  // row. MidAm streetlights use their project-specific bracket and uncovered
-  // drip-loop rules. Every other supported equipment type uses the normal
-  // pole Power-to-comms clearance against its lowest physical height.
+  // row. Streetlight bracket and drip-loop clearances are evaluated separately
+  // because grounding changes only the INTEC bracket rule, never the drip loop.
   function powerEquipmentCeilingInches(equipment) {
     if (!equipment) return null;
     const settings = S().getState().settings || {};
@@ -810,13 +809,28 @@
       ? actionHeight
       : H().parseHeight(equipment.dripLoopHeight || "");
 
-    if (isMidAmProfile() && category.includes("STREETLIGHT")) {
+    if (category.includes("STREETLIGHT")) {
       const specialCeilings = [];
-      const bracketClearance = H().parseHeight(settings.streetlightBracketCommClearance || "");
-      const dripLoopClearance = H().parseHeight(settings.streetlightDripLoopCommClearance || "");
-      if (bottom !== null && bracketClearance !== null) specialCeilings.push(bottom - bracketClearance);
+      const bracket = bottom !== null ? bottom : attachment;
+      const bracketClearance = isMidAmProfile()
+        ? H().parseHeight(settings.streetlightBracketCommClearance || "")
+        : H().parseHeight(equipment.actionActive ? "12\"" : (settings.polePowerCommsClearance || settings.clearanceToPower || "40\""));
+      const dripLoopClearance = isMidAmProfile()
+        ? H().parseHeight(settings.streetlightDripLoopCommClearance || "")
+        : genericClearance;
+      if (bracket !== null && bracketClearance !== null) specialCeilings.push(bracket - bracketClearance);
       if (dripLoop !== null && dripLoopClearance !== null) specialCeilings.push(dripLoop - dripLoopClearance);
       if (specialCeilings.length) return Math.min(...specialCeilings);
+    }
+
+    if (category.includes("TRANSFORMER")) {
+      // Transformer Bottom Height is the primary physical reference. When the
+      // workbook omits it, use the secured/current drip loop, then attachment.
+      const transformerHeights = [bottom, dripLoop].filter(value => value !== null);
+      const transformerBottom = transformerHeights.length ? Math.min(...transformerHeights) : attachment;
+      return transformerBottom !== null && genericClearance !== null
+        ? transformerBottom - genericClearance
+        : null;
     }
 
     const physicalHeights = [attachment, bottom, dripLoop].filter(value => value !== null);
