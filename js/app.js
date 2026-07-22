@@ -2074,8 +2074,6 @@
 
   function renderPoleWorkspace(poleId) {
     const pole = S.getPole(poleId);
-    const commsHidden = (S.getState().ui?.hiddenCommPoleIds || []).includes(poleId);
-    const commCount = groupedCommsForPole(poleId).length;
     return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""} ${pole?.pcoActive ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
@@ -2089,15 +2087,10 @@
         <section class="subsection wide" id="comms-${escapeHtml(poleId)}">
           <div class="subsection-title-row">
             <h4>Existing Comm Movements</h4>
-            <div class="subsection-actions">
-              <button class="mini-btn" type="button" data-toggle-comm-visibility data-pole="${escapeHtml(poleId)}" aria-expanded="${String(!commsHidden)}">${commsHidden ? "Show Comms" : "Hide Comms"}</button>
-              <button class="mini-btn danger-action" type="button" data-delete-all-comms data-pole="${escapeHtml(poleId)}" ${commCount ? "" : "disabled"}>Delete Comms</button>
-              <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
-            </div>
+            <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
           </div>
-          ${commsHidden
-            ? `<p class="muted comms-hidden-message">${commCount} comm${commCount === 1 ? "" : "s"} hidden. Use Show Comms to restore this table.</p>`
-            : `<p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>${renderCommMovementTable(poleId)}`}
+          <p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>
+          ${renderCommMovementTable(poleId)}
         </section>
         <section class="subsection wide">
           <h4>Imported Power / Clearance</h4>
@@ -2170,8 +2163,6 @@
     root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
     root.querySelectorAll("[data-hide-pole]").forEach(btn => btn.addEventListener("click", () => hidePole(btn.dataset.pole)));
     root.querySelectorAll("[data-delete-pole]").forEach(btn => btn.addEventListener("click", () => deletePole(btn.dataset.pole)));
-    root.querySelectorAll("[data-toggle-comm-visibility]").forEach(btn => btn.addEventListener("click", () => toggleCommVisibility(btn.dataset.pole)));
-    root.querySelectorAll("[data-delete-all-comms]").forEach(btn => btn.addEventListener("click", () => deleteAllCommsFromPole(btn.dataset.pole)));
     root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-delete-comm-span]").forEach(btn => btn.addEventListener("click", () => deleteCommSpan(
@@ -2485,16 +2476,6 @@
     renderAffectedPoles([poleId]);
   }
 
-  function toggleCommVisibility(poleId) {
-    if (!S.getPole(poleId)) return;
-    recordUndoSnapshot();
-    const hidden = new Set(S.getState().ui?.hiddenCommPoleIds || []);
-    if (hidden.has(poleId)) hidden.delete(poleId);
-    else hidden.add(poleId);
-    S.getState().ui = { ...(S.getState().ui || {}), hiddenCommPoleIds: Array.from(hidden) };
-    renderAffectedPoles([poleId]);
-  }
-
   function hidePole(poleId) {
     if (!S.getPole(poleId)) return;
     recordUndoSnapshot();
@@ -2523,26 +2504,6 @@
     global.Calculations.recalculateAll();
     render();
     toast(`${poleId} deleted.`, "success");
-  }
-
-  async function deleteAllCommsFromPole(poleId) {
-    const groups = groupedCommsForPole(poleId);
-    if (!groups.length) return;
-    const label = groups.length === 1 ? "1 comm" : `${groups.length} comms`;
-    const confirmed = await confirmInApp(
-      "Delete Comms",
-      `Delete all ${label} from ${poleId}? Spans, Proposed, power and equipment will remain.`,
-      "Delete Comms"
-    );
-    if (!confirmed) return;
-
-    recordUndoSnapshot();
-    const removedRows = S.removeSpanCommsForPole(poleId);
-    const affected = new Set([poleId]);
-    removedRows.forEach(row => poleIdsForSpan(row.spanId).forEach(id => affected.add(id)));
-    global.Calculations.recalculateSpansForPole(poleId);
-    renderAffectedPoles(Array.from(affected));
-    toast(`${label} deleted from ${poleId}.`, "success");
   }
 
   async function deleteCommSpan(spanId, poleId, owner, wireId = "") {

@@ -149,9 +149,6 @@
     ui: {
       search: "",
       filter: "all",
-      // Per-pole presentation preference. Collapsing the comm table never
-      // removes engineering data and is preserved in the saved job JSON.
-      hiddenCommPoleIds: [],
       hiddenPoleIds: []
     }
   });
@@ -531,9 +528,6 @@
 
   function upsertComm(poleId, owner, existingHOA = "", notes = "", extra = {}) {
     const pole = state.poles[poleId] || upsertPole(createPole(poleId));
-    // A manual/imported comm means the pole is no longer intentionally empty.
-    // Clear the guard used after a user deletes every comm from this pole.
-    pole.metadata = { ...(pole.metadata || {}), suppressEndpointComms: false };
     const ownerKey = trim(owner);
     const wireKey = trim(extra.wireId || "");
     let idx = pole.comms.findIndex(c => c.owner === ownerKey && (!wireKey || c.wireId === wireKey));
@@ -627,26 +621,6 @@
   }
 
   /**
-   * Removes every comm relationship owned by one pole without touching its
-   * spans, Proposed rows, power wires, equipment, or the opposite endpoint.
-   * The suppression marker prevents normalizeState() from recreating empty
-   * endpoint reference rows after the job is saved and loaded again.
-   * @param {string} poleId
-   * @returns {Array<SpanComm>} Removed rows, used by callers to refresh spans.
-   */
-  function removeSpanCommsForPole(poleId) {
-    const id = trim(poleId);
-    const rows = getSpanCommsForPole(id).slice();
-    rows.forEach(row => removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
-    const pole = state.poles[id];
-    if (pole) {
-      pole.comms = [];
-      pole.metadata = { ...(pole.metadata || {}), suppressEndpointComms: true };
-    }
-    return rows;
-  }
-
-  /**
    * Deletes one pole and every graph entity that depends on it. The canonical
    * identity is retained as a tombstone so Update Data cannot recreate a pole
    * that the user deliberately removed from this job.
@@ -692,7 +666,6 @@
     if (state.selectedPoleId === id) state.selectedPoleId = "";
 
     state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).filter(value => value !== id);
-    state.ui.hiddenCommPoleIds = (state.ui.hiddenCommPoleIds || []).filter(value => value !== id);
     if (options.remember !== false) {
       const canonical = canonicalPoleIdentity(id);
       state.deletedPoleIds = Array.from(new Set([...(state.deletedPoleIds || []), canonical].filter(Boolean)));
@@ -897,7 +870,6 @@
     // heights later, and the pole never appears visually empty.
     Object.values(state.spans).forEach(span => {
       [span.fromPole, span.toPole].filter(Boolean).forEach(poleId => {
-        if (state.poles[poleId]?.metadata?.suppressEndpointComms) return;
         const rowsAtPole = getSpanCommsForPole(poleId);
         if (rowsAtPole.length) return;
         const otherPoleId = getOtherPoleId(span, poleId);
@@ -970,10 +942,10 @@
     next.deletedPoleIds = Array.isArray(next.deletedPoleIds)
       ? Array.from(new Set(next.deletedPoleIds.map(canonicalPoleIdentity).filter(Boolean)))
       : [];
-    next.ui = { search: "", filter: "all", hiddenCommPoleIds: [], hiddenPoleIds: [], ...(next.ui || {}) };
-    next.ui.hiddenCommPoleIds = Array.isArray(next.ui.hiddenCommPoleIds)
-      ? Array.from(new Set(next.ui.hiddenCommPoleIds.map(trim).filter(Boolean)))
-      : [];
+    next.ui = { search: "", filter: "all", hiddenPoleIds: [], ...(next.ui || {}) };
+    // Remove presentation keys from saves created while per-section comm
+    // visibility existed. Comm tables are now always visible.
+    delete next.ui.hiddenCommPoleIds;
     next.ui.hiddenPoleIds = Array.isArray(next.ui.hiddenPoleIds)
       ? Array.from(new Set(next.ui.hiddenPoleIds.map(trim).filter(id => Boolean(id && next.poles[id]))))
       : [];
@@ -1074,7 +1046,6 @@
     removeManualSpan,
     upsertSpanComm,
     removeSpanComm,
-    removeSpanCommsForPole,
     removePole,
     addSpanPower,
     getConnectedSpans,
