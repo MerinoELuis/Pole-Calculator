@@ -37,8 +37,15 @@ assert.deepEqual(Array.from(S.getState().deletedPoleIds), ["P1"], "the canonical
 
 const saved = JSON.parse(JSON.stringify(S.getState()));
 saved.ui.hiddenPoleIds = ["P2", "P2", "missing"];
+saved.poles["Unknown-S1"] = S.createPole({ poleId: "Unknown-S1", isGenerated: true });
 S.setState(saved);
-assert.deepEqual(Array.from(S.getState().ui.hiddenPoleIds), ["P2"], "hidden poles should persist as valid unique IDs");
+assert.deepEqual(Array.from(S.getState().ui.hiddenPoleIds), ["P2", "Unknown-S1"], "saved poles and new Unknown poles should be hidden");
 assert.deepEqual(Array.from(S.getState().deletedPoleIds), ["P1"], "deleted pole tombstones should survive Save and Load");
+
+const revealed = JSON.parse(JSON.stringify(S.getState()));
+revealed.ui.hiddenPoleIds = revealed.ui.hiddenPoleIds.filter(id => id !== "Unknown-S1");
+revealed.ui.revealedUnknownPoleIds = ["Unknown-S1"];
+S.setState(revealed);
+assert.equal(S.getState().ui.hiddenPoleIds.includes("Unknown-S1"), false, "an Unknown explicitly opened by the user should remain visible after Load");
 
 console.log("pole-controls.test.js passed");

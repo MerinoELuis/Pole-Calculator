@@ -23,6 +23,7 @@ The calculator imports raw pole data, lets users edit existing comm heights, pro
 - Imports `Attachment Size` references from the `Make Ready` sheet for proposed export data.
 - Shows all poles in one editable workspace.
 - Each pole can also be hidden from the workspace and restored from the Pole Index, or deleted with its connected graph data. Deleted identities remain suppressed during Update Data; both actions support `Ctrl+Z`.
+- Generated `Unknown-*` poles start hidden from the workspace and remain available in the Pole Index; opening one records the user's visibility choice for Save/Load.
 - Provides a collapsible left-side pole index for quick navigation without occupying workspace width.
 - Calculates max heights against Low Power.
 - Recalculates midspans when comms move up or down on either connected pole.

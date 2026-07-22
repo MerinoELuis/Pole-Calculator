@@ -149,7 +149,10 @@
     ui: {
       search: "",
       filter: "all",
-      hiddenPoleIds: []
+      hiddenPoleIds: [],
+      // Unknown poles begin hidden, but selecting one from the index records a
+      // user exception so Save/Load does not hide it again unexpectedly.
+      revealedUnknownPoleIds: []
     }
   });
 
@@ -166,6 +169,10 @@
     const parts = trim(value).replace(/\s+/g, " ").split(" ").filter(Boolean);
     while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
     return parts.join(" ").toUpperCase();
+  }
+
+  function isUnknownPoleId(value) {
+    return /^unknown(?:-|\b)/i.test(trim(value));
   }
 
   function defaultEnvironmentClearance(environment) {
@@ -666,6 +673,7 @@
     if (state.selectedPoleId === id) state.selectedPoleId = "";
 
     state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).filter(value => value !== id);
+    state.ui.revealedUnknownPoleIds = (state.ui.revealedUnknownPoleIds || []).filter(value => value !== id);
     if (options.remember !== false) {
       const canonical = canonicalPoleIdentity(id);
       state.deletedPoleIds = Array.from(new Set([...(state.deletedPoleIds || []), canonical].filter(Boolean)));
@@ -942,12 +950,15 @@
     next.deletedPoleIds = Array.isArray(next.deletedPoleIds)
       ? Array.from(new Set(next.deletedPoleIds.map(canonicalPoleIdentity).filter(Boolean)))
       : [];
-    next.ui = { search: "", filter: "all", hiddenPoleIds: [], ...(next.ui || {}) };
+    next.ui = { search: "", filter: "all", hiddenPoleIds: [], revealedUnknownPoleIds: [], ...(next.ui || {}) };
     // Remove presentation keys from saves created while per-section comm
     // visibility existed. Comm tables are now always visible.
     delete next.ui.hiddenCommPoleIds;
     next.ui.hiddenPoleIds = Array.isArray(next.ui.hiddenPoleIds)
       ? Array.from(new Set(next.ui.hiddenPoleIds.map(trim).filter(id => Boolean(id && next.poles[id]))))
+      : [];
+    next.ui.revealedUnknownPoleIds = Array.isArray(next.ui.revealedUnknownPoleIds)
+      ? Array.from(new Set(next.ui.revealedUnknownPoleIds.map(trim).filter(id => Boolean(id && next.poles[id]))))
       : [];
 
     Object.keys(next.poles).forEach(id => {
@@ -988,6 +999,11 @@
 
     state = next;
     ensureUnknownPoles();
+    const revealedUnknown = new Set(state.ui.revealedUnknownPoleIds || []);
+    state.ui.hiddenPoleIds = Array.from(new Set([
+      ...(state.ui.hiddenPoleIds || []),
+      ...Object.keys(state.poles).filter(id => isUnknownPoleId(id) && !revealedUnknown.has(id))
+    ]));
     ensureSpanSides();
     reconcileSyntheticProposedSpans();
     if (state.autoCreateSpanComms) ensureSpanComms();

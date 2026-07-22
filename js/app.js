@@ -830,7 +830,8 @@
     merged.ui = {
       ...(merged.ui || {}),
       ...(previous.ui || {}),
-      hiddenPoleIds: (previous.ui?.hiddenPoleIds || []).map(id => remapPoleId(id, poleAliases))
+      hiddenPoleIds: (previous.ui?.hiddenPoleIds || []).map(id => remapPoleId(id, poleAliases)),
+      revealedUnknownPoleIds: (previous.ui?.revealedUnknownPoleIds || []).map(id => remapPoleId(id, poleAliases))
     };
     return merged;
   }
@@ -2482,6 +2483,7 @@
     const hidden = new Set(S.getState().ui.hiddenPoleIds || []);
     hidden.add(poleId);
     S.getState().ui.hiddenPoleIds = Array.from(hidden);
+    S.getState().ui.revealedUnknownPoleIds = (S.getState().ui.revealedUnknownPoleIds || []).filter(id => id !== poleId);
     if (S.getState().selectedPoleId === poleId) S.getState().selectedPoleId = "";
     render();
     toast(`${poleId} hidden. Select it in the Pole Index to show it again.`, "success");
@@ -2691,6 +2693,9 @@
     if ((state.ui.hiddenPoleIds || []).includes(poleId)) {
       recordUndoSnapshot();
       state.ui.hiddenPoleIds = state.ui.hiddenPoleIds.filter(id => id !== poleId);
+      if (/^unknown(?:-|\b)/i.test(poleId)) {
+        state.ui.revealedUnknownPoleIds = Array.from(new Set([...(state.ui.revealedUnknownPoleIds || []), poleId]));
+      }
     }
     state.selectedPoleId = poleId;
     state.selectedSpanId = "";
