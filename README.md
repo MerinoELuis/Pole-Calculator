@@ -62,7 +62,7 @@ If there are unsaved changes and the page is closed, the browser shows its nativ
 
 ## Excel Review
 
-`Excel Review` is a read-only workbook audit built from the imported source rows and the current calculated state. It runs automatically after `Import Raw Excel` and `Update Data` without changing the active tab. `Re-run Review` recalculates the job and replaces the previous review results.
+`Excel Review` is a read-only workbook audit built from the imported source rows and the current calculated state. It runs automatically after `Import Raw Excel` and `Update Data` without changing the active tab. A partial Update Data replaces matching source rows and retains other poles in Excel Review and Pole Type Check. `Re-run Review` recalculates the job and replaces the previous review results.
 
 Every Collection row receives an HOA Review. Final PLA / MR Review runs only when the imported workbook contains Make Ready or Comm Transfer data; a workbook without those deliverables is identified as HOA-only and shows Final Review as `N/A`. HOA Review requires exactly one Fore Span. One Back Span passes, zero produces a warning, and more than one is an error. It also checks reciprocal span relationships, Linked Collection, Environment, and INTEC wire rules. Final Review compares PLA/MRE fields, Proposed heights, final Proposed midspans, generated Make Ready structure, and structured comm transfers. It does not rerun calculator clearances or Pole Type Check.
 
@@ -154,7 +154,7 @@ For `Metronet > MidAm`, utility guys must be `1/2\"` and communication guys must
 
 `Transfer to New Pole` is one manual option per physical comm at a pole, even when that comm is related to several spans. It changes the normal movement into one transfer instruction at the entered HOA Change. The previous pole's Existing HOA is not retained as a Bolt-bolt obstacle after transfer, while the effective transfer height still follows Comm-comm and the remaining clearances. INTEC also provides `Re-sag Service Drop` per span: for a checked service drop below `15'6"`, the calculator validates that span at `15'6"` and adds the corresponding re-sag instruction without changing the imported midspan baseline.
 
-INTEC UG replaces the pole MR with the standard six-line decision block. Pole Actions provides a large `UG Make Ready` editor already populated with that template. Connected Fore/Back/Other Span instructions extract only the reason from its `Unable to attach due to ...` line. A required Backspan riser is placed one foot below the primary Proposed and remains the final Make Ready instruction. Its direction uses the saved user selection first, then imported Make Ready/IO, and finally the span default: Fore Span keeps the span direction while Back Span uses the opposite direction. `Riser Direction` remains editable.
+INTEC UG replaces the pole MR with the standard six-line decision block. Pole Actions provides a large `UG Make Ready` editor already populated with that template. Connected Fore/Back/Other Span instructions extract only the reason from its `Unable to attach due to ...` line and format it as `due to on adj pole <reason>`. A Backspan riser is enabled automatically and can be overridden with the `Riser` action beside UG/PCO. It is placed one foot below the primary Proposed and remains the final Make Ready instruction. Its direction uses the saved user selection first, then imported Make Ready/IO, and finally the UG span direction for both Fore Span and Back Span. `Riser Direction` remains editable.
 
 ### Make Ready
 

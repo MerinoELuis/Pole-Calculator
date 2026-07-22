@@ -34,7 +34,7 @@ vm.runInNewContext(appSource, sandbox, { filename: appPath });
 const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {
-  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", pcoActive: false, metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
+  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", riserActive: true, pcoActive: false, metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
   spans: {
     S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "100'", environment: "STREET" },
     S2: { spanId: "S2", fromPole: "P1", toPole: "P3", lengthDisplay: "80'", environment: "ALLEY" }
@@ -46,11 +46,14 @@ const previous = {
   },
   spanPower: { PW1: { spanId: "S1", poleId: "P1", owner: "APS", wireId: "PW1", size: "Primary", attachmentHeight: "35'", midspan: "29'" } },
   makeReadyReferences: [],
-  poleClassChecks: [],
+  poleClassChecks: [{ poleId: "P2", measuredTip: "31'", expectedLength: 35 }],
   settings: { projectProfile: "INTEC", fiberSizes: {} },
   ui: {},
   excelReviewIgnoredChecks: { "review-known-exception": true },
-  excelReviewSource: { collection: { rows: [{ Id: "OLD" }] } }
+  excelReviewSource: {
+    collection: { headers: ["Id", "Tip.display"], rows: [{ Id: "P2", "Tip.display": "31'" }] },
+    spans: { headers: ["Id", "Span Id", "Type"], rows: [{ Id: "P2", "Span Id": "REVIEW-S2", Type: "Fore Span" }] }
+  }
 };
 
 const imported = {
@@ -60,10 +63,13 @@ const imported = {
   spanComms: { C1: { spanId: "S1", poleId: "P1", owner: "CATV", ownerBase: "CATV", wireId: "W1", existingHOA: "", midspan: "", size: "New size" } },
   spanPower: { PW1: { spanId: "S1", poleId: "P1", owner: "APS", wireId: "PW1", size: "Primary", attachmentHeight: "", midspan: "" } },
   makeReadyReferences: [],
-  poleClassChecks: [],
+  poleClassChecks: [{ poleId: "P1", measuredTip: "36'", expectedLength: 40 }],
   settings: { projectProfile: "INTEC", fiberSizes: {} },
   ui: {},
-  excelReviewSource: { collection: { rows: [{ Id: "NEW", "Low Power Attachment.display": "" }] } }
+  excelReviewSource: {
+    collection: { headers: ["Id", "Tip.display", "Low Power Attachment.display"], rows: [{ Id: "P1", "Tip.display": "36'", "Low Power Attachment.display": "" }] },
+    spans: { headers: ["Id", "Span Id", "Type"], rows: [{ Id: "P1", "Span Id": "REVIEW-S1", Type: "Fore Span" }] }
+  }
 };
 
 const result = merge(previous, imported);
@@ -77,6 +83,7 @@ assert.equal(result.poles.P1.ugActive, true, "Update Data must preserve the UG r
 assert.equal(result.poles.P1.ugReason, "proposed pole overloaded", "Update Data must preserve the editable UG reason");
 assert.equal(result.poles.P1.ugMRText, "Unable to attach due to red tag.\nRed tag", "Update Data must preserve the editable UG template");
 assert.equal(result.poles.P1.ugRiserDirection, "E", "Update Data must preserve the editable riser direction");
+assert.equal(result.poles.P1.riserActive, true, "Update Data must preserve the explicit Riser action");
 assert.equal(result.poles.P1.poleHeight, "45'", "non-empty updated pole value must win");
 assert.equal(result.spans.S1.lengthDisplay, "100'", "blank updated span value must retain the prior value");
 assert.equal(result.spans.S1.environment, "ALLEY", "non-empty updated span value must win");
@@ -91,7 +98,11 @@ assert.equal(
   "an omitted comm with baseline HOA must remain available for calculations"
 );
 assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must retain the prior value");
-assert.equal(result.excelReviewSource.collection.rows[0].Id, "NEW", "raw review source must remain the new workbook snapshot");
+assert.equal(result.excelReviewSource.collection.rows.find(row => row.Id === "P1")["Tip.display"], "36'", "updated Review rows must use the new workbook value");
+assert.ok(result.excelReviewSource.collection.rows.some(row => row.Id === "P2"), "partial Update Data must retain other poles in Excel Review");
+assert.ok(result.excelReviewSource.spans.rows.some(row => row["Span Id"] === "REVIEW-S2"), "partial Update Data must retain other poles' Review span rows");
+assert.ok(result.poleClassChecks.some(row => row.poleId === "P1"), "Pole Type Check must include the updated pole");
+assert.ok(result.poleClassChecks.some(row => row.poleId === "P2"), "Pole Type Check must retain poles omitted by a partial update");
 assert.equal(result.excelReviewIgnoredChecks["review-known-exception"], true, "Update Data must preserve ignored review findings");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
 

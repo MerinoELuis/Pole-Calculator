@@ -68,7 +68,8 @@ Imported, editable, and derived values live together but have different ownershi
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `ugReason` | editable | Specific INTEC UG reason reused by connected span instructions. |
 | `ugMRText` | editable | Full multiline INTEC UG template; its first line supplies the adjacent-span reason. |
-| `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the Fore-same/Back-opposite span default. |
+| `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
+| `riserActive` | editable tri-state | `null` keeps automatic Back Span behavior; `true` forces and `false` suppresses the available adjacent-UG riser. |
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes and project constraints plus normalized editable Power Equipment actions. |
 

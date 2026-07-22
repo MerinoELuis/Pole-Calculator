@@ -449,6 +449,79 @@
     return next;
   }
 
+  function normalizeReviewHeader(value) {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function reviewCell(row, names) {
+    const wanted = names.map(normalizeReviewHeader);
+    const key = Object.keys(row || {}).find(candidate => wanted.includes(normalizeReviewHeader(candidate)));
+    return key ? String(row[key] ?? "").trim() : "";
+  }
+
+  // Raw review sheets need their own stable identities because Update Data
+  // may contain only one pole. These keys replace matching source rows while
+  // retaining every unrelated row from the previously loaded job workbook.
+  function reviewRowIdentity(sheetName, row) {
+    const poleId = reviewCell(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]);
+    const poleKey = S.canonicalPoleIdentity(poleId) || poleId.toUpperCase();
+    const collectionId = reviewCell(row, ["collectionId", "Collection ID"]);
+    const spanId = reviewCell(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"]);
+    const spanIndex = reviewCell(row, ["Span Index"]);
+    const wireId = reviewCell(row, ["Wire Id", "Wire ID", "wireId"]);
+    const wireIndex = reviewCell(row, ["Wire Index"]);
+    const owner = reviewCell(row, ["Owner"]);
+    const type = reviewCell(row, ["Type", "Equipment Type", "Attachment Type"]);
+    const attachment = reviewCell(row, ["Attachment Height.display", "Attachment Height Display", "Attachment Height"]);
+    const orientation = reviewCell(row, ["Orientation", "Direction"]);
+    const genericId = reviewCell(row, ["Make Ready Id", "Make Ready ID", "MR ID", "Equipment Id", "Equipment ID", "Anchor Id", "Anchor ID", "Guy Id", "Guy ID"]);
+    const genericIndex = reviewCell(row, ["Make Ready Index", "MR Index", "Equipment Index", "Anchor Index", "Guy Index"]);
+
+    if (sheetName === "collection") return poleKey || collectionId;
+    if (sheetName === "spans") return spanId || [collectionId, spanIndex, poleKey].join("|");
+    if (sheetName === "spanWires") return [spanId, poleKey, wireId || wireIndex || `${owner}|${type}|${attachment}`].join("|");
+    return [poleKey || collectionId, genericId || genericIndex || `${type}|${owner}|${attachment}|${orientation}`].join("|");
+  }
+
+  function mergeReviewSheetSnapshot(sheetName, previousSnapshot, importedSnapshot, reconciliation) {
+    const rows = (importedSnapshot?.rows || []).map(row => ({ ...row }));
+    const importedByIdentity = new Map();
+    rows.forEach((row, index) => {
+      const identity = reviewRowIdentity(sheetName, row) || JSON.stringify(row);
+      if (!importedByIdentity.has(identity)) importedByIdentity.set(identity, []);
+      importedByIdentity.get(identity).push(index);
+    });
+    const oldOccurrences = new Map();
+    (previousSnapshot?.rows || []).forEach(oldRow => {
+      const identity = reviewRowIdentity(sheetName, oldRow) || JSON.stringify(oldRow);
+      const occurrence = oldOccurrences.get(identity) || 0;
+      oldOccurrences.set(identity, occurrence + 1);
+      const importedIndex = importedByIdentity.get(identity)?.[occurrence];
+      if (importedIndex !== undefined) {
+        rows[importedIndex] = preserveValuesMissingFromUpdate(rows[importedIndex], oldRow, reconciliation);
+        return;
+      }
+      rows.push({ ...oldRow });
+      reconciliation.reviewRowsPreserved += 1;
+    });
+    return {
+      headers: Array.from(new Set([...(importedSnapshot?.headers || []), ...(previousSnapshot?.headers || [])])),
+      rows
+    };
+  }
+
+  function mergeExcelReviewSources(previousSource, importedSource, reconciliation) {
+    const sheetNames = ["collection", "spans", "spanWires", "equipment", "anchors", "anchorGuys", "makeReady", "commTransfers"];
+    return Object.fromEntries(sheetNames.map(sheetName => [
+      sheetName,
+      mergeReviewSheetSnapshot(sheetName, previousSource?.[sheetName], importedSource?.[sheetName], reconciliation)
+    ]));
+  }
+
   function findImportedPowerMatch(spanPower, oldKey, oldRow, claimedKeys) {
     if (spanPower[oldKey] && !claimedKeys.has(oldKey)) return { key: oldKey, row: spanPower[oldKey] };
     const oldOwner = normalizedCommOwner(oldRow.owner);
@@ -671,6 +744,7 @@
       baselineCommRowsPreserved: 0,
       equipmentActionsPreserved: 0,
       missingEquipmentActionsPreserved: 0,
+      reviewRowsPreserved: 0,
       blankValuesPreserved: 0,
       missingRowsPreserved: 0,
       deletedPolesSuppressed: 0
@@ -782,6 +856,9 @@
         poleId: targetPoleId,
         ugActive: Boolean(mappedOldPole.ugActive || preservedPole.ugActive),
         pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
+        riserActive: mappedOldPole.riserActive === true || mappedOldPole.riserActive === false
+          ? mappedOldPole.riserActive
+          : preservedPole.riserActive,
         standaloneProposedHOA: mappedOldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",
         notes: mappedOldPole.notes || preservedPole.notes || "",
         metadata: {
@@ -798,20 +875,30 @@
       reconciliation
     );
 
-    const importedPoleClassById = new Map((merged.poleClassChecks || []).map(row => [row.poleId, row]));
+    const importedPoleClassById = new Map((merged.poleClassChecks || []).map(row => [S.canonicalPoleIdentity(row.poleId), row]));
     (previous.poleClassChecks || []).forEach(oldRowSource => {
       const oldRow = { ...oldRowSource, poleId: remapPoleId(oldRowSource.poleId, poleAliases) };
-      const importedRow = importedPoleClassById.get(oldRow.poleId);
-      if (!importedRow) return;
+      const identity = S.canonicalPoleIdentity(oldRow.poleId);
+      const importedRow = importedPoleClassById.get(identity);
+      if (!importedRow) {
+        importedPoleClassById.set(identity, oldRow);
+        reconciliation.missingRowsPreserved += 1;
+        return;
+      }
       const preserved = preserveValuesMissingFromUpdate(importedRow, oldRow, reconciliation);
       importedPoleClassById.set(
-        oldRow.poleId,
+        identity,
         global.ExcelImport?.recalculatePoleClassCheck
           ? global.ExcelImport.recalculatePoleClassCheck(preserved)
           : preserved
       );
     });
     merged.poleClassChecks = Array.from(importedPoleClassById.values());
+    merged.excelReviewSource = mergeExcelReviewSources(
+      previous.excelReviewSource || {},
+      merged.excelReviewSource || {},
+      reconciliation
+    );
 
     merged.settings = {
       ...(merged.settings || {}),
@@ -874,7 +961,7 @@
   // after aliases, preserved baselines and recalculated values are applied.
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
-      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "pcoActive"]],
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "pcoActive", "riserActive", "ugRiserDirection"]],
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
@@ -1866,7 +1953,9 @@
       ? global.MRLogic.getEditableUGTemplate(pole)
       : "";
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
-    const showRiserDirection = isIntec && /\bPl riser\b/i.test(makeReadyText);
+    const riserAvailable = isIntec && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
+    const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
+    const showRiserDirection = isIntec && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
         || pole?.ugRiserDirection
@@ -1879,6 +1968,7 @@
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
+      <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the riser for the adjacent UG span" : "No adjacent UG span is available"}">Riser</button>
     </div>
     ${showUGReason ? `<label class="pole-action-field">
       <span>UG Make Ready</span>
@@ -2223,6 +2313,7 @@
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
     root.querySelectorAll("[data-delete-proposed-span]").forEach(btn => btn.addEventListener("click", () => deleteProposedSpan(btn.dataset.pole, btn.dataset.span)));
@@ -2249,6 +2340,18 @@
       ...pole,
       pcoActive: !pole.pcoActive,
       ugActive: pole.pcoActive ? pole.ugActive : false
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+  }
+
+  function toggleRiser(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole || !global.MRLogic.isRiserAvailable?.(poleId)) return;
+    recordUndoSnapshot();
+    S.upsertPole({
+      ...pole,
+      riserActive: !global.MRLogic.isRiserEnabled?.(poleId)
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);

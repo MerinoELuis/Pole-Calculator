@@ -97,13 +97,14 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 1. Transfer to New Pole appears once per grouped comm, synchronizes all related spans, generates one movement line, and includes `with DG` when any related span has DG checked.
 2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"`, preserves other clearance checks, and is not applied for Metronet.
 3. A transfer without HOA Change uses Existing HOA; multiple heights for the same owner produce one ascending-height instruction.
-4. An adjacent Backspan UG extracts only the first-line reason from the adjacent pole's editable UG template; its riser is 12 inches below primary Proposed and remains last. Direction precedence is saved user override, imported Make Ready/IO, then relation default (Fore Span same direction, Back Span opposite direction).
-5. An active INTEC UG pole replaces normal MR with the six-line UG decision template.
-6. MidAm automatically activates and locks Streetlight Ground, generates its MR, preserves both Streetlight clearances, and does not invent a new Low Power height.
-7. Transformer Redress and Power Riser Raise update effective Low Power when they move the limiting equipment.
-8. Disabling an equipment action restores imported Low Power.
-9. Update Data preserves equipment actions and refreshes the Low Power baseline from non-empty Excel data.
-10. INTEC Streetlight Raise accepts a destination up to one foot above Attachment Height, moves all Streetlight clearance references by the same delta, and generates its dedicated MR without requiring Ground.
+4. An adjacent Backspan UG extracts only the first-line reason from the adjacent pole's editable UG template using `due to on adj pole`; its riser is 12 inches below primary Proposed and remains last. Direction precedence is saved user override, imported Make Ready/IO, then the same UG span direction for Fore or Back. The Riser action can suppress the automatic Back Span riser or enable an available Fore Span riser.
+5. A partial Update Data keeps omitted poles in Excel Review and Pole Type Check while replacing matching source rows with the incoming values.
+6. An active INTEC UG pole replaces normal MR with the six-line UG decision template.
+7. MidAm automatically activates and locks Streetlight Ground, generates its MR, preserves both Streetlight clearances, and does not invent a new Low Power height.
+8. Transformer Redress and Power Riser Raise update effective Low Power when they move the limiting equipment.
+9. Disabling an equipment action restores imported Low Power.
+10. Update Data preserves equipment actions and refreshes the Low Power baseline from non-empty Excel data.
+11. INTEC Streetlight Raise accepts a destination up to one foot above Attachment Height, moves all Streetlight clearance references by the same delta, and generates its dedicated MR without requiring Ground.
 
 ## Import Cases
 

@@ -52,7 +52,7 @@ assert.match(defaultUGTemplate, /^Unable to attach due to proposed pole overload
 
 sandbox.window.MRLogic.generateMRForPole("P1");
 const p1Text = state.mr.find(item => item.poleId === "P1").text;
-assert.match(p1Text, /Backspan to go UG SE due to proposed pole overloaded on adj pole\./);
+assert.match(p1Text, /Backspan to go UG SE due to on adj pole proposed pole overloaded\./);
 assert.match(p1Text, /Pl riser W at HOA 18'\./);
 assert.match(p1Text, /Transfer CATV to new pole at HOA 20'10" and 21'2" with DG\./);
 assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser must be final and use the imported IO direction");
@@ -60,17 +60,33 @@ assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser 
 state.makeReadyReferences = [];
 sandbox.window.MRLogic.generateMRForPole("P1");
 let generatedWithoutDirection = state.mr.find(item => item.poleId === "P1").text;
-assert.match(generatedWithoutDirection, /Pl riser NW at HOA 18'\./, "a Back Span riser must default opposite the span direction");
-assert.equal(generatedWithoutDirection.trim().split("\n").at(-1), "Pl riser NW at HOA 18'.", "the defaulted riser must remain the final instruction");
+assert.match(generatedWithoutDirection, /Pl riser SE at HOA 18'\./, "a Back Span riser must use the UG span direction");
+assert.equal(generatedWithoutDirection.trim().split("\n").at(-1), "Pl riser SE at HOA 18'.", "the defaulted riser must remain the final instruction");
 assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Forespan", "SE"), "SE", "Fore Span keeps the span direction");
-assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Backspan", "SE"), "NW", "Back Span reverses the span direction");
+assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Backspan", "SE"), "SE", "Back Span also keeps the UG span direction");
 assert.equal(sandbox.window.MRLogic.getDefaultRiserDirection("Otherspan", "SE"), "", "Other Span remains pending for manual review");
 
+state.poles.P1.riserActive = false;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/i, "the Riser action can suppress the automatic Back Span riser");
+
+state.poles.P1.riserActive = true;
 state.poles.P1.ugRiserDirection = "E";
 sandbox.window.MRLogic.generateMRForPole("P1");
 const generatedWithOverride = state.mr.find(item => item.poleId === "P1").text;
 assert.match(generatedWithOverride, /Pl riser E at HOA 18'\./, "the editable riser direction must override a missing imported direction");
 assert.equal(generatedWithOverride.trim().split("\n").at(-1), "Pl riser E at HOA 18'.", "the edited riser must remain the final instruction");
+
+state.poles.P1.ugRiserDirection = "";
+state.poles.P2.ugActive = false;
+state.poles.P3.ugActive = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const foreSpanRiser = state.mr.find(item => item.poleId === "P1").text;
+assert.match(foreSpanRiser, /Forespan to go UG N due to on adj pole \(reasoning\)\./, "Fore Span UG must use the adjacent-pole wording");
+assert.equal(foreSpanRiser.trim().split("\n").at(-1), "Pl riser N at HOA 18'.", "a manually enabled Fore Span riser must use the same direction");
+state.poles.P2.ugActive = true;
+state.poles.P3.ugActive = false;
+state.poles.P1.ugRiserDirection = "E";
 
 state.poles.P2.ugMRText = [
   "Unable to attach due to red tag.",
@@ -80,7 +96,7 @@ state.poles.P2.ugMRText = [
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(
   state.mr.find(item => item.poleId === "P1").text,
-  /Backspan to go UG SE due to red tag on adj pole\./,
+  /Backspan to go UG SE due to on adj pole red tag\./,
   "connected UG instructions must extract only the reason from the editable template"
 );
 

@@ -110,7 +110,7 @@ Save serializes the complete normalized state after a full recalculation. The fi
 
 Load always opens a JSON picker and restores the full state. The last file handle is used only as a starting-location hint when the File System Access API supports it.
 
-Update Data performs a fresh Excel import and then reconciles previous user work. Exact imported identity is preferred; span, pole, owner, and physical relationships are fallbacks. For matched entities, non-empty incoming values win and empty incoming values retain their previous calculator data. Omitted imported rows are discarded unless they contain manual user work, preventing obsolete spans from recreating blank endpoint comms. The raw Excel Review snapshot is never backfilled. Derived fields are recalculated after merging so stale midspans are not trusted as current results.
+Update Data performs a fresh Excel import and then reconciles previous user work. Exact imported identity is preferred; span, pole, owner, and physical relationships are fallbacks. For matched entities, non-empty incoming values win and empty incoming values retain their previous calculator data. Omitted calculator rows are discarded unless they contain manual work or calculation baselines, preventing obsolete spans from recreating blank endpoint comms. Raw Excel Review sheets and Pole Type Check rows are merged by source identity so a partial one-pole update does not remove the rest of the job. Derived fields and review results are recalculated after merging so stale midspans and statuses are not trusted as current results.
 
 ## Project Profiles
 
