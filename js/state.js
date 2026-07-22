@@ -948,6 +948,14 @@
     // while older JSON files automatically receive newly introduced profile
     // rules such as MidAm streetlight and Back Span behavior.
     next.settings = { ...emptyState().settings, ...profileDefaults, ...rawSettings };
+    // Back Span calculation is a profile rule, not an operator preference.
+    // Older INTEC saves persisted the former `false` default, which made an
+    // imported Back Span midspan visible but prevented it from responding to
+    // endpoint HOA movements. Always migrate that setting to the active
+    // profile value when the profile defines it.
+    if (Object.prototype.hasOwnProperty.call(profileDefaults, "calculateBackspanMidspan")) {
+      next.settings.calculateBackspanMidspan = profileDefaults.calculateBackspanMidspan === true;
+    }
     // Migrate Metronet saves created before the WI selector existed.
     if (String(next.settings.projectProfile || "").toUpperCase() === "METRONET"
       && (!next.settings.proposedOwner || String(next.settings.proposedOwner).toUpperCase() === "METRONET")) {

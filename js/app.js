@@ -1157,8 +1157,11 @@
       const ownMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || "") !== null;
       const isBackspan = /back\s*span|backspan/.test(spanType);
       const isOtherReference = /other/.test(spanType) && !ownMidspan;
-      const isReferenceSpan = isBackspan || isOtherReference;
       const calculatedBackspan = Boolean(global.Calculations.isCalculatedBackspanComm?.(sc));
+      // A Back Span is REF only while it lacks its own measured midspan. When
+      // INTEC/MidAm imports one on this exact row, it participates in endpoint
+      // movement calculations and should no longer look like a passive REF.
+      const isReferenceSpan = (isBackspan && !calculatedBackspan) || isOtherReference;
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
       const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || sc.calculatedMidspan || sc.msProposed || sc.finalMidspan || "") !== null;

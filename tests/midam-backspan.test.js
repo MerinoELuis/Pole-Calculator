@@ -95,10 +95,21 @@ S.upsertSpanComm(S.createSpanComm({
   existingHOA: "20'",
   midspan: "18'10\""
 }));
+// Saves created before INTEC Back Span calculation existed contain an explicit
+// false. Loading that state must migrate to the current project rule.
+const legacyIntecState = JSON.parse(JSON.stringify(S.getState()));
+legacyIntecState.settings.calculateBackspanMidspan = false;
+S.setState(legacyIntecState);
+assert.equal(S.getState().settings.calculateBackspanMidspan, true, "legacy INTEC saves must enable current Back Span calculation rules");
 C.recalculateAll();
-const intecBack = S.getSpanComm("INTEC-BACK", "INTEC-P2", "COMMUNICATION > CATV", "INTEC-BACK-WIRE");
+let intecBack = S.getSpanComm("INTEC-BACK", "INTEC-P2", "COMMUNICATION > CATV", "INTEC-BACK-WIRE");
 assert.equal(C.isCalculatedBackspanComm(intecBack), true, "INTEC Back Span with its own imported midspan must calculate");
 assert.equal(intecBack.calculatedMidspan, "18'10\"", "INTEC must preserve the imported Back Span baseline before movements");
+
+S.upsertSpanComm({ ...intecBack, existingHOAChange: "19'2\"" });
+C.recalculateSpansForPole("INTEC-P2");
+intecBack = S.getSpanComm("INTEC-BACK", "INTEC-P2", "COMMUNICATION > CATV", "INTEC-BACK-WIRE");
+assert.equal(intecBack.calculatedMidspan, "18'5\"", "a 10-inch INTEC endpoint movement must apply half, or 5 inches, to its Back Span midspan");
 
 S.upsertPole(S.createPole({
   poleId: "INTEC-EQUIPMENT",
