@@ -154,11 +154,14 @@
       .map(group => {
         const heights = Array.from(group.heights).sort((a, b) => a - b);
         return {
-          minimum: heights[0] ?? Infinity,
+          highest: heights[heights.length - 1] ?? -Infinity,
+          lowest: heights[0] ?? -Infinity,
           text: `Transfer ${group.owner} to new pole at HOA ${joinMRList(heights.map(value => H().formatHeight(value)))}${group.downGuy ? " with DG" : ""}.`
         };
       })
-      .sort((a, b) => a.minimum - b.minimum)
+      // Crew instructions follow the physical pole stack from top to bottom.
+      // A grouped owner is positioned by its highest effective attachment.
+      .sort((a, b) => (b.highest - a.highest) || (b.lowest - a.lowest))
       .map(item => item.text);
   }
 
