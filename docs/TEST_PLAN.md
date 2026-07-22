@@ -97,7 +97,7 @@ These tests cover decimal-height equivalence, exact Low Power source selection, 
 1. Transfer to New Pole appears once per grouped comm, synchronizes all related spans, generates one movement line, and includes `with DG` when any related span has DG checked.
 2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"`, preserves other clearance checks, and is not applied for Metronet.
 3. A transfer without HOA Change uses Existing HOA; multiple heights for the same owner produce one ascending-height instruction.
-4. An adjacent Backspan UG creates one relation/direction line using the adjacent pole's editable UG Reason; its riser is 12 inches below primary Proposed and uses only a direction imported from Make Ready/IO.
+4. An adjacent Backspan UG extracts only the first-line reason from the adjacent pole's editable UG template; its riser is 12 inches below primary Proposed and uses only a direction imported from Make Ready/IO.
 5. An active INTEC UG pole replaces normal MR with the six-line UG decision template.
 6. MidAm automatically activates and locks Streetlight Ground, generates its MR, preserves both Streetlight clearances, and does not invent a new Low Power height.
 7. Transformer Redress and Power Riser Raise update effective Low Power when they move the limiting equipment.

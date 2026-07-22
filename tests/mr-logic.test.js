@@ -46,6 +46,10 @@ const mrPath = path.join(__dirname, "..", "js", "mr-logic.js");
 vm.runInNewContext(fs.readFileSync(heightPath, "utf8"), sandbox, { filename: heightPath });
 vm.runInNewContext(fs.readFileSync(mrPath, "utf8"), sandbox, { filename: mrPath });
 
+const defaultUGTemplate = sandbox.window.MRLogic.getEditableUGTemplate(state.poles.P2);
+assert.equal(defaultUGTemplate.split("\n").length, 6, "the UG editor must start with all six template lines");
+assert.match(defaultUGTemplate, /^Unable to attach due to proposed pole overloaded\./, "legacy UG Reason must populate the first template line");
+
 sandbox.window.MRLogic.generateMRForPole("P1");
 const p1Text = state.mr.find(item => item.poleId === "P1").text;
 assert.match(p1Text, /Backspan to go UG SE due to proposed pole overloaded on adj pole\./);
@@ -61,14 +65,23 @@ assert.doesNotMatch(
   "the calculator must not infer a riser direction when Make Ready/IO has not supplied one"
 );
 
+state.poles.P2.ugMRText = [
+  "Unable to attach due to red tag.",
+  "Red tag",
+  "Inability to place ANC"
+].join("\n");
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(
+  state.mr.find(item => item.poleId === "P1").text,
+  /Backspan to go UG SE due to red tag on adj pole\./,
+  "connected UG instructions must extract only the reason from the editable template"
+);
+
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, [
-  "Unable to attach due to proposed pole overloaded.",
+  "Unable to attach due to red tag.",
   "Red tag",
-  "Inability to place ANC",
-  "TDU replace required",
-  "Existing neutral / multiplex above 26'9\"",
-  "PCO neutral / multiplex exceeds 26'9\""
+  "Inability to place ANC"
 ].join("\n"));
 
 console.log("Make Ready logic tests passed.");

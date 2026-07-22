@@ -226,12 +226,7 @@
     return String(value || "").trim().replace(/[.]+$/, "") || "(reasoning)";
   }
 
-  function ugReplacementMR(pole) {
-    if (isMetronetMR()) {
-      return [
-        "Suggest going UG due to [clearance violation / 2 span aerial requirement]."
-      ];
-    }
+  function defaultIntecUGLines(pole) {
     return [
       `Unable to attach due to ${cleanUGReason(pole?.ugReason)}.`,
       "Red tag",
@@ -240,6 +235,25 @@
       "Existing neutral / multiplex above 26'9\"",
       "PCO neutral / multiplex exceeds 26'9\""
     ];
+  }
+
+  function editableUGTemplate(pole) {
+    return String(pole?.ugMRText || "").trim() || defaultIntecUGLines(pole).join("\n");
+  }
+
+  function ugReasonFromPole(pole) {
+    const firstLine = editableUGTemplate(pole).split(/\r?\n/).find(line => /unable\s+to\s+attach\s+due\s+to/i.test(line));
+    const match = String(firstLine || "").match(/unable\s+to\s+attach\s+due\s+to\s+(.+?)[.]*\s*$/i);
+    return cleanUGReason(match?.[1] || pole?.ugReason);
+  }
+
+  function ugReplacementMR(pole) {
+    if (isMetronetMR()) {
+      return [
+        "Suggest going UG due to [clearance violation / 2 span aerial requirement]."
+      ];
+    }
+    return editableUGTemplate(pole).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   }
 
   function pcoReplacementMR() {
@@ -326,7 +340,7 @@
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
         return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`];
       }
-      const adjacentReason = cleanUGReason(S().getPole(item.otherPoleId)?.ugReason);
+      const adjacentReason = ugReasonFromPole(S().getPole(item.otherPoleId));
       const lines = [`${item.relation} to go UG${direction} due to ${adjacentReason} on adj pole.`];
       if (item.relation !== "Backspan") return lines;
 
@@ -484,6 +498,7 @@
     generateMRForComm,
     generateResagServiceDropMR,
     generatePowerEquipmentMRForPole,
+    getEditableUGTemplate: editableUGTemplate,
     generateMRForSpanSide,
     generateAllMR,
     detectAttach: detectAttachFromSpanSide,

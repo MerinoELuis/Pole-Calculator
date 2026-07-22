@@ -67,6 +67,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `ugReason` | editable | Specific INTEC UG reason reused by connected span instructions. |
+| `ugMRText` | editable | Full multiline INTEC UG template; its first line supplies the adjacent-span reason. |
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes and project constraints plus normalized editable Power Equipment actions. |
 

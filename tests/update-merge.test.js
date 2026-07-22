@@ -34,7 +34,7 @@ vm.runInNewContext(appSource, sandbox, { filename: appPath });
 const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {
-  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", pcoActive: false, metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
+  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", pcoActive: false, metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
   spans: {
     S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "100'", environment: "STREET" },
     S2: { spanId: "S2", fromPole: "P1", toPole: "P3", lengthDisplay: "80'", environment: "ALLEY" }
@@ -75,6 +75,7 @@ assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseActive, true, "Upda
 assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseHeight, "25'", "Update Data must preserve the Streetlight Raise target HOA");
 assert.equal(result.poles.P1.ugActive, true, "Update Data must preserve the UG resolution");
 assert.equal(result.poles.P1.ugReason, "proposed pole overloaded", "Update Data must preserve the editable UG reason");
+assert.equal(result.poles.P1.ugMRText, "Unable to attach due to red tag.\nRed tag", "Update Data must preserve the editable UG template");
 assert.equal(result.poles.P1.poleHeight, "45'", "non-empty updated pole value must win");
 assert.equal(result.spans.S1.lengthDisplay, "100'", "blank updated span value must retain the prior value");
 assert.equal(result.spans.S1.environment, "ALLEY", "non-empty updated span value must win");

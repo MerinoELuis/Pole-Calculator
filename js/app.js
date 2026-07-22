@@ -1862,13 +1862,16 @@
     const pole = S.getPole(poleId);
     const showUGReason = pole?.ugActive
       && String(S.getState().settings?.projectProfile || "INTEC").toUpperCase() === "INTEC";
+    const ugTemplate = showUGReason
+      ? global.MRLogic.getEditableUGTemplate(pole)
+      : "";
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
     </div>
     ${showUGReason ? `<label class="pole-action-field">
-      <span>UG Reason</span>
-      <input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugReason" value="${escapeHtml(pole.ugReason || "")}">
+      <span>UG Make Ready</span>
+      <textarea class="input ug-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
     </label>` : ""}`;
   }
 
@@ -2360,6 +2363,7 @@
       "transferToNewPole",
       "resagServiceDrop",
       "ugReason",
+      "ugMRText",
       "actionActive",
       "actionHeight",
       "raiseActive",

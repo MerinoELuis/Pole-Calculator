@@ -220,6 +220,7 @@
         isGenerated: Boolean(data.isGenerated),
         ugActive: Boolean(data.ugActive),
         ugReason: trim(data.ugReason || ""),
+        ugMRText: trim(data.ugMRText || ""),
         pcoActive: Boolean(data.pcoActive),
         pcoScope: trim(data.pcoScope || ""),
         pcoType: trim(data.pcoType || ""),
@@ -246,6 +247,7 @@
       isGenerated: Boolean(extra.isGenerated),
       ugActive: Boolean(extra.ugActive),
       ugReason: trim(extra.ugReason || ""),
+      ugMRText: trim(extra.ugMRText || ""),
       pcoActive: Boolean(extra.pcoActive),
       pcoScope: trim(extra.pcoScope || ""),
       pcoType: trim(extra.pcoType || ""),
@@ -496,7 +498,7 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
     return pole;
   }
@@ -745,7 +747,7 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || trim(row.raiseHeight || "")));
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA) || sideChange || commChange || equipmentChange;
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText) || sideChange || commChange || equipmentChange;
   }
 
   function ensureUnknownPoles() {
