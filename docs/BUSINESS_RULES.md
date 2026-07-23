@@ -268,7 +268,7 @@ Normal ordering:
 5. Attach/proposed/anchor/riser instructions.
 6. Low-power midspan reminder.
 
-UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. UG and PCO are mutually exclusive.
+UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. Both replacement blocks are editable and persist with Save/Load and Update Data. UG and PCO are mutually exclusive.
 
 For INTEC, an active UG pole replaces its normal block with the editable six-line UG decision template headed by `Unable to attach due to <reason>.` The multiline editor is preloaded automatically; older saves containing only `ugReason` are migrated into its first line. When an adjacent pole is UG, the current pole extracts only that first-line reason for its relation-specific instruction, such as `Backspan to go UG SE due to on adj pole proposed pole overloaded.` The relation direction comes from the physical span. Fore Span and Back Span toward an adjacent UG pole each enable one riser automatically. On a normal pole, the `Riser` action beside UG/PCO can explicitly add or remove riser MR without an adjacent UG pole; manual work uses the primary Proposed span. The control is disabled while that same pole is UG or PCO, and its replacement block does not include a riser. A generated riser is 12 inches below the current pole's primary Proposed. Direction precedence is saved user selection, imported Make Ready/IO, then the selected span direction; Fore Span and Back Span both keep that direction. Other Span remains blank unless a direction is imported or selected. The separate riser instruction is always the final line in the pole Make Ready.
 

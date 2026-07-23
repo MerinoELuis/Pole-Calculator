@@ -118,7 +118,15 @@ assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/
 assert.equal(sandbox.window.MRLogic.isRiserAvailable("P1"), false, "Riser control must be unavailable while the pole is UG");
 state.poles.P1.ugActive = false;
 state.poles.P1.pcoActive = true;
+const defaultPCOTemplate = sandbox.window.MRLogic.getEditablePCOTemplate(state.poles.P1);
+assert.equal(defaultPCOTemplate.split("\n").length, 2, "the INTEC PCO editor must start with both replacement options");
+state.poles.P1.pcoMRText = "Replace pole due to CATV overload.\nTransfer CATV to new pole.";
 sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(
+  state.mr.find(item => item.poleId === "P1").text,
+  "Replace pole due to CATV overload.\nTransfer CATV to new pole.",
+  "PCO Make Ready must use the operator-edited multiline text"
+);
 assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/i, "Riser must be disabled on the pole's own PCO replacement MR");
 assert.equal(sandbox.window.MRLogic.isRiserAvailable("P1"), false, "Riser control must be unavailable while the pole is PCO");
 state.poles.P1.pcoActive = false;

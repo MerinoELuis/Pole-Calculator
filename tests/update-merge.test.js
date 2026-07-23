@@ -34,7 +34,7 @@ vm.runInNewContext(appSource, sandbox, { filename: appPath });
 const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {
-  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", riserActive: true, pcoActive: false, metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
+  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", riserActive: true, pcoActive: false, pcoMRText: "Replace pole due to overload.", metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
   spans: {
     S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "100'", environment: "STREET" },
     S2: { spanId: "S2", fromPole: "P1", toPole: "P3", lengthDisplay: "80'", environment: "ALLEY" }
@@ -82,6 +82,7 @@ assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseHeight, "25'", "Upd
 assert.equal(result.poles.P1.ugActive, true, "Update Data must preserve the UG resolution");
 assert.equal(result.poles.P1.ugReason, "proposed pole overloaded", "Update Data must preserve the editable UG reason");
 assert.equal(result.poles.P1.ugMRText, "Unable to attach due to red tag.\nRed tag", "Update Data must preserve the editable UG template");
+assert.equal(result.poles.P1.pcoMRText, "Replace pole due to overload.", "Update Data must preserve the editable PCO template");
 assert.equal(result.poles.P1.ugRiserDirection, "E", "Update Data must preserve the editable riser direction");
 assert.equal(result.poles.P1.riserActive, true, "Update Data must preserve the explicit Riser action");
 assert.equal(result.poles.P1.poleHeight, "45'", "non-empty updated pole value must win");

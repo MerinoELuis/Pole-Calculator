@@ -965,7 +965,7 @@
   // after aliases, preserved baselines and recalculated values are applied.
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
-      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "pcoActive", "riserActive", "ugRiserDirection"]],
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "ugRiserDirection"]],
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
@@ -1962,6 +1962,10 @@
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
       : "";
+    const showPCOEditor = Boolean(pole?.pcoActive);
+    const pcoTemplate = showPCOEditor
+      ? global.MRLogic.getEditablePCOTemplate(pole)
+      : "";
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
     const riserAvailable = isIntec && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
@@ -1982,7 +1986,11 @@
     </div>
     ${showUGReason ? `<label class="pole-action-field">
       <span>UG Make Ready</span>
-      <textarea class="input ug-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
+      <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
+    </label>` : ""}
+    ${showPCOEditor ? `<label class="pole-action-field">
+      <span>PCO Make Ready</span>
+      <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="pcoMRText">${escapeHtml(pcoTemplate)}</textarea>
     </label>` : ""}
     ${showRiserDirection ? `<label class="pole-action-field riser-direction-field">
       <span>Riser Direction</span>
@@ -2286,6 +2294,12 @@
 
   function wireEditableEvents(root) {
     root.querySelectorAll("input[data-scope], textarea[data-scope], select[data-scope]").forEach(input => {
+      if (input.classList.contains("pole-mr-editor")) {
+        // Capture one undo point when a new editing session starts. The input
+        // handler updates MR in place, so the textarea keeps focus while the
+        // operator writes a multiline UG/PCO instruction.
+        input.addEventListener("focus", () => { delete input.dataset.undoCaptured; });
+      }
       input.addEventListener("input", handleEditableInput);
       input.addEventListener("change", handleEditableChange);
       input.addEventListener("blur", handleEditableBlur);
@@ -2492,6 +2506,7 @@
       "resagServiceDrop",
       "ugReason",
       "ugMRText",
+      "pcoMRText",
       "ugRiserDirection",
       "actionActive",
       "actionHeight",
@@ -2701,7 +2716,22 @@
 
   function handleEditableInput(event) {
     const el = event.currentTarget;
-    if (!el || el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
+    if (!el) return;
+    if (el.classList.contains("pole-mr-editor")) {
+      if (!el.dataset.undoCaptured) {
+        recordUndoSnapshot();
+        el.dataset.undoCaptured = "true";
+      }
+      const poleId = el.dataset.pole || "";
+      S.updatePoleField(poleId, el.dataset.field, el.value);
+      global.MRLogic.generateMRForPole(poleId);
+      const generated = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
+      const output = el.closest("[data-pole-card]")?.querySelector(".mr-output");
+      if (output) output.textContent = generated;
+      markDirty();
+      return;
+    }
+    if (el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
   }
 
   function handleEditableBlur(event) {
@@ -2751,6 +2781,12 @@
     const scope = el.dataset.scope;
     const field = el.dataset.field;
     let value = el.type === "checkbox" ? el.checked : el.value;
+    // Multiline UG/PCO editors persist on every input so the card is not
+    // replaced while typing. Blur/change only closes that editing session.
+    if (el.classList.contains("pole-mr-editor")) {
+      delete el.dataset.undoCaptured;
+      return;
+    }
     recordUndoSnapshot();
 
     if (scope === "pole") {

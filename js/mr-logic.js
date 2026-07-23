@@ -268,7 +268,7 @@
     return editableUGTemplate(pole).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   }
 
-  function pcoReplacementMR() {
+  function defaultPCOLines() {
     if (isMetronetMR()) {
       return [
         "Replace pole to 45ft Class 3 due to (failing clearances on pole / failing clearances at midspan / failing load capacity) & (keeping 1/2 span aerial / keeping 2 poles aerial)."
@@ -278,6 +278,16 @@
       "(Existing/proposed) clearance violations (specify violation), replace pole. Transfer (existing comm 1 ie Fiber, CATV, Telco) & (existing comm 2 type) to new pole.",
       "(Existing/proposed) pole overloaded by (who is causing overload), replace pole. Transfer (existing comm 1 ie Fiber, CATV, Telco) & (existing comm 2 type) to new pole."
     ];
+  }
+
+  // PCO follows the same operator-owned workflow as UG: start with the
+  // profile template, then persist and generate exactly the edited lines.
+  function editablePCOTemplate(pole) {
+    return String(pole?.pcoMRText || "").trim() || defaultPCOLines().join("\n");
+  }
+
+  function pcoReplacementMR(pole) {
+    return editablePCOTemplate(pole).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   }
 
   function oppositeDirection(direction) {
@@ -522,7 +532,7 @@
     const risers = [];
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
-      const lines = pole.ugActive ? ugReplacementMR(pole) : pcoReplacementMR();
+      const lines = pole.ugActive ? ugReplacementMR(pole) : pcoReplacementMR(pole);
       const text = lines.map(applyCase).join("\n");
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
@@ -587,6 +597,7 @@
     generateResagServiceDropMR,
     generatePowerEquipmentMRForPole,
     getEditableUGTemplate: editableUGTemplate,
+    getEditablePCOTemplate: editablePCOTemplate,
     getImportedRiserDirection: importedRiserDirection,
     getResolvedRiserDirection: resolvedRiserDirection,
     getDefaultRiserDirection: defaultRiserDirection,

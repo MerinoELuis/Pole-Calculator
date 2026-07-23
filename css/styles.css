@@ -888,7 +888,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   text-transform: none;
 }
 
-.pole-action-field .ug-mr-editor {
+.pole-action-field .pole-mr-editor {
   min-height: 158px;
   padding: 10px 12px;
   font-size: .84rem;
