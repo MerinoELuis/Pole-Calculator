@@ -17,6 +17,14 @@ function parseHeight(value) {
   return feet || inches ? sign * (feet * 12 + inches) : null;
 }
 
+function formatHeight(total) {
+  const sign = total < 0 ? "-" : "";
+  const abs = Math.abs(Math.round(total));
+  const feet = Math.floor(abs / 12);
+  const inches = abs % 12;
+  return `${sign}${feet}'${inches ? `${inches}\"` : ""}`;
+}
+
 function canonicalPoleIdentity(value) {
   const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
   while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
@@ -29,14 +37,36 @@ const state = {
     projectProfile: "INTEC",
     proposedOwner: "Wecom",
     attachmentMessengerSize: "0.242",
-    fiberSizes: { "144CT Fiber": "0.51" }
+    fiberSizes: { "144CT Fiber": "0.51" },
+    mrCase: "LOWER"
   },
   poles: {
     P1: { poleId: "P1" },
-    P2: { poleId: "P2", pcoActive: true, standaloneProposedHOA: "21'4\"" },
-    P3: { poleId: "P3", ugActive: true, standaloneProposedHOA: "20'10\"" },
-    P4: { poleId: "P4", pcoActive: true, ugActive: true, standaloneProposedHOA: "20'6\"" },
-    P5: { poleId: "P5", pcoActive: true, standaloneProposedHOA: "19'6\"" }
+    P2: {
+      poleId: "P2",
+      pcoActive: true,
+      standaloneProposedHOA: "21'4\"",
+      pcoMRText: "Existing clearance violations on midspan 12'4\" N, replace pole. Transfer CATV & CTL to new pole."
+    },
+    P3: {
+      poleId: "P3",
+      ugActive: true,
+      standaloneProposedHOA: "20'10\"",
+      ugMRText: "Unable to attach due to clearance violation."
+    },
+    P4: {
+      poleId: "P4",
+      pcoActive: true,
+      ugActive: true,
+      standaloneProposedHOA: "20'6\"",
+      ugMRText: "Unable to attach due to pole condition."
+    },
+    P5: {
+      poleId: "P5",
+      pcoActive: true,
+      standaloneProposedHOA: "19'6\"",
+      pcoMRText: "Replace pole. Transfer CATV to new pole."
+    }
   },
   spans: {
     P1_TO_P2: { spanId: "P1_TO_P2", fromPole: "P1", toPole: "P2", type: "Fore Span", direction: "E", bearingDegrees: 90, lengthDisplay: "100'" },
@@ -55,6 +85,7 @@ const state = {
   spanComms: {
     P1_CATV: { spanId: "P1_TO_P2", poleId: "P1", owner: "CATV", existingHOA: "20'", existingHOAChange: "21'" },
     P2_CATV: { spanId: "P2_TO_P1", poleId: "P2", owner: "CATV", existingHOA: "18'6\"", existingHOAChange: "20'4\"", downGuy: true },
+    P2_CTL_SERVICE: { spanId: "P2_TO_P1", poleId: "P2", owner: "CenturyLink", existingHOA: "16'10\"", existingHOAChange: "17'2\"", serviceDrop: true },
     P3_CTL: { spanId: "P3_TO_P1", poleId: "P3", owner: "CenturyLink", existingHOA: "18'", existingHOAChange: "19'" },
     P4_3J: { spanId: "P4_TO_P1", poleId: "P4", owner: "3J Communications", existingHOA: "17'", existingHOAChange: "18'" },
     P5_CATV: { spanId: "", poleId: "P5", owner: "CATV", existingHOA: "18'", existingHOAChange: "19'" }
@@ -79,7 +110,7 @@ const window = {
   },
   HeightUtils: {
     parseHeight,
-    formatHeight: value => String(value)
+    formatHeight
   },
   Calculations: { recalculateAll() {} },
   ProjectExport: {
@@ -88,8 +119,22 @@ const window = {
     }
   },
   MRLogic: {
-    generateMRForPole() { return []; },
-    generateAllMR() { return []; }
+    generateMRForPole(poleId) {
+      state.mr = state.mr.filter(item => item.poleId !== poleId);
+      const pole = state.poles[poleId];
+      const text = pole?.ugActive
+        ? pole.ugMRText
+        : pole?.pcoActive
+          ? pole.pcoMRText
+          : "Base Make Ready instruction.";
+      state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
+      return state.mr.filter(item => item.poleId === poleId);
+    },
+    generateAllMR() {
+      state.mr = [];
+      Object.keys(state.poles).forEach(poleId => this.generateMRForPole(poleId));
+      return state.mr;
+    }
   },
   console,
   setTimeout,
@@ -140,6 +185,33 @@ assert.ok(pcoAndUg.spans.every(span => span.ug === true), "UG must take priority
 assert.equal(payload.poles.some(pole => pole.id === "P5"), false, "a PCO pole with only local moves/terminal and no spans must be omitted");
 assert.equal(window.CompactAutoProposed.isPolePco(state, "P2"), true);
 assert.equal(window.CompactAutoProposed.isPolePco(state, "P1"), false);
+
+window.MRLogic.generateMRForPole("P1");
+const normalMr = state.mr.find(item => item.poleId === "P1").text;
+assert.match(normalMr, /Base Make Ready instruction\./);
+assert.match(normalMr, /At HOA 20' raise CATV to HOA 21'\./, "normal poles must continue showing calculated movement MR");
+
+window.MRLogic.generateMRForPole("P2");
+const pcoMr = state.mr.find(item => item.poleId === "P2").text;
+assert.equal(pcoMr, state.poles.P2.pcoMRText, "PCO Make Ready must keep only the replacement/transfer template");
+assert.doesNotMatch(pcoMr, /^At HOA\b/im, "PCO Make Ready must hide regular attachment movements");
+assert.doesNotMatch(pcoMr, /^Relocate\b/im, "PCO Make Ready must hide service-drop movements");
+
+window.MRLogic.generateMRForPole("P3");
+const ugMr = state.mr.find(item => item.poleId === "P3").text;
+assert.equal(ugMr, state.poles.P3.ugMRText, "UG Make Ready must keep only the UG template");
+assert.doesNotMatch(ugMr, /^At HOA\b/im, "UG Make Ready must hide attachment movements");
+
+window.MRLogic.generateMRForPole("P4");
+const ugPriorityMr = state.mr.find(item => item.poleId === "P4").text;
+assert.equal(ugPriorityMr, state.poles.P4.ugMRText, "UG must control the Make Ready text when UG and PCO are both active");
+assert.doesNotMatch(ugPriorityMr, /^At HOA\b/im);
+
+window.MRLogic.generateAllMR();
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P2").text, /^At HOA\b/im);
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P2").text, /^Relocate\b/im);
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P3").text, /^At HOA\b/im);
+assert.match(state.mr.find(item => item.poleId === "P1").text, /^At HOA\b/im);
 
 assert.equal(window.ProjectExport.exportProposedJson(), true);
 const downloadedNormal = downloaded.payload.poles.find(pole => pole.id === "P1");
