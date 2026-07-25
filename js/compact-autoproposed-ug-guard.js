@@ -44,6 +44,10 @@
     return Boolean(pole?.pcoActive || hasPcoToken(poleId));
   }
 
+  function blocksLocalActions(state, poleId) {
+    return isPoleFullyUg(state, poleId) || isPolePco(state, poleId);
+  }
+
   function geometryOnlySpan(span, markUg) {
     const item = {
       to: span.to,
@@ -89,6 +93,57 @@
     };
   }
 
+  function movementMrLine(candidate) {
+    if (!candidate || candidate.transfer) return "";
+    const formatter = global.HeightUtils?.formatHeight;
+    const from = typeof formatter === "function" ? formatter(candidate.from) : String(candidate.from);
+    const to = typeof formatter === "function" ? formatter(candidate.to) : String(candidate.to);
+    const owner = text(candidate.owner || "COMM") || "COMM";
+    const dg = candidate.dg ? " with DG" : "";
+    if (candidate.service) return `Relocate ${owner} drop at HOA ${from} to HOA ${to}${dg}.`;
+    const verb = candidate.to > candidate.from ? "raise" : "lower";
+    return `At HOA ${from} ${verb} ${owner} to HOA ${to}${dg}.`;
+  }
+
+  function normalizeMrLine(value) {
+    return text(value).replace(/\s+/g, " ").toLowerCase();
+  }
+
+  function generatedMovementLineKeys(state, poleId) {
+    if (typeof api.movementCandidates !== "function") return new Set();
+    return new Set(
+      api.movementCandidates(state, poleId)
+        .map(movementMrLine)
+        .map(normalizeMrLine)
+        .filter(Boolean)
+    );
+  }
+
+  function sanitizeBlockedLocalMr(state, poleId) {
+    if (!state || !Array.isArray(state.mr) || !blocksLocalActions(state, poleId)) {
+      return state?.mr?.filter(item => item.poleId === poleId) || [];
+    }
+
+    const generatedMovementLines = generatedMovementLineKeys(state, poleId);
+    state.mr = state.mr.reduce((items, item) => {
+      if (item?.poleId !== poleId) {
+        items.push(item);
+        return items;
+      }
+
+      const remainingLines = text(item.text)
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .filter(line => !generatedMovementLines.has(normalizeMrLine(line)));
+
+      if (remainingLines.length) items.push({ ...item, text: remainingLines.join("\n") });
+      return items;
+    }, []);
+
+    return state.mr.filter(item => item.poleId === poleId);
+  }
+
   const originalBuildCompactPayload = api.buildCompactPayload.bind(api);
   api.buildCompactPayload = function (state = store.getState?.()) {
     return sanitizeBlockedLocalPayload(originalBuildCompactPayload(state), state);
@@ -117,8 +172,31 @@
     };
   }
 
+  const mrLogic = global.MRLogic;
+  if (mrLogic && typeof mrLogic.generateMRForPole === "function" && !mrLogic.__compactBlockedLocalMrPatched) {
+    const originalGenerateMRForPole = mrLogic.generateMRForPole.bind(mrLogic);
+    mrLogic.generateMRForPole = function (poleId) {
+      originalGenerateMRForPole(poleId);
+      return sanitizeBlockedLocalMr(store.getState?.(), poleId);
+    };
+
+    if (typeof mrLogic.generateAllMR === "function") {
+      const originalGenerateAllMR = mrLogic.generateAllMR.bind(mrLogic);
+      mrLogic.generateAllMR = function () {
+        originalGenerateAllMR();
+        const state = store.getState?.();
+        Object.keys(state?.poles || {}).forEach(poleId => sanitizeBlockedLocalMr(state, poleId));
+        return state?.mr || [];
+      };
+    }
+
+    mrLogic.__compactBlockedLocalMrPatched = true;
+  }
+
   api.isPolePco = isPolePco;
+  api.blocksLocalActions = blocksLocalActions;
   api.sanitizeBlockedLocalPayload = sanitizeBlockedLocalPayload;
+  api.sanitizeBlockedLocalMr = sanitizeBlockedLocalMr;
   api.sanitizeFullyUgPayload = sanitizeBlockedLocalPayload;
   projectExport.__compactAutoProposedUgGuardPatched = true;
 })(window);
