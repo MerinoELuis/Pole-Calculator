@@ -4,6 +4,17 @@
   const DEFAULT_MESSENGER_144 = "0.242";
   const DEFAULT_FIBER_144 = "0.51";
   const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET"]);
+  const OPPOSITE_DIRECTION = {
+    N: "S",
+    NE: "SW",
+    E: "W",
+    SE: "NW",
+    S: "N",
+    SW: "NE",
+    W: "E",
+    NW: "SE"
+  };
+  const BEARING_DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
   const S = () => global.AppStore;
   const H = () => global.HeightUtils;
@@ -122,30 +133,67 @@
     return raw.replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
   }
 
+  function bearingDegrees(span) {
+    const raw = text(span?.bearingDegrees);
+    const value = Number(raw);
+    return raw && Number.isFinite(value) ? value : null;
+  }
+
+  function directionFromBearing(value) {
+    const bearing = Number(value);
+    if (!Number.isFinite(bearing)) return "";
+    const normalized = ((bearing % 360) + 360) % 360;
+    return BEARING_DIRECTIONS[Math.round(normalized / 45) % 8];
+  }
+
   function directionFromPole(span, poleId) {
     if (!span) return "";
-    if (span.fromPole === poleId) return text(span.direction).toUpperCase();
-    return ({ N: "S", NE: "SW", E: "W", SE: "NW", S: "N", SW: "NE", W: "E", NW: "SE" })[text(span.direction).toUpperCase()] || "";
+    const imported = text(span.direction).toUpperCase();
+    if (span.fromPole === poleId) return imported || directionFromBearing(bearingDegrees(span));
+    if (imported) return OPPOSITE_DIRECTION[imported] || "";
+    const bearing = bearingDegrees(span);
+    return bearing === null ? "" : directionFromBearing(bearing + 180);
+  }
+
+  function directionTokensForReference(ref) {
+    if (Array.isArray(ref?.attachmentDirectionTokens) && ref.attachmentDirectionTokens.length) {
+      return Array.from(new Set(ref.attachmentDirectionTokens
+        .map(value => text(value).toUpperCase())
+        .filter(value => BEARING_DIRECTIONS.includes(value))));
+    }
+
+    const source = [
+      ref?.attachmentDirection,
+      ref?.attachmentFiber,
+      ref?.attachmentSizeRaw,
+      ref?.attachmentType
+    ].map(text).filter(Boolean).join(" ").toUpperCase();
+    return Array.from(new Set(source.match(/\b(?:NE|NW|SE|SW|N|E|S|W)\b/g) || []));
+  }
+
+  function fiberReferencesForPole(state, poleId) {
+    return (state?.makeReadyReferences || []).filter(ref => {
+      if (ref?.poleId !== poleId) return false;
+      return Boolean(fiberCount(`${ref?.attachmentFiber || ""} ${ref?.attachmentSizeRaw || ""}`));
+    });
   }
 
   function referenceForSpan(state, poleId, span) {
-    const refs = (state.makeReadyReferences || []).filter(ref => ref.poleId === poleId);
+    const refs = fiberReferencesForPole(state, poleId);
     if (!refs.length) return null;
+
     const direction = directionFromPole(span, poleId);
-    const matches = refs.filter(ref => {
-      const tokens = Array.isArray(ref.attachmentDirectionTokens)
-        ? ref.attachmentDirectionTokens.map(value => text(value).toUpperCase())
-        : text(ref.attachmentDirection).split(/[\s/,;-]+/).map(value => value.toUpperCase()).filter(Boolean);
-      return !direction || !tokens.length || tokens.includes(direction);
-    });
-    return matches[0] || refs[0] || null;
+    const exact = direction
+      ? refs.find(ref => directionTokensForReference(ref).includes(direction))
+      : null;
+    if (exact) return exact;
+
+    return refs.find(ref => directionTokensForReference(ref).length === 0) || null;
   }
 
   function fiberForSpan(state, poleId, span) {
     const ref = referenceForSpan(state, poleId, span);
-    const fromRef = fiberCount(`${ref?.attachmentFiber || ""} ${ref?.attachmentSizeRaw || ""}`);
-    if (fromRef) return fromRef;
-    return fiberEntries(state)[0]?.count || "";
+    return ref ? fiberCount(`${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`) : "";
   }
 
   function spanKind(span) {
@@ -155,28 +203,45 @@
     return "O";
   }
 
-  function isUgSpan(state, span) {
-    const targetId = text(span?.toPole);
-    const targetPole = state?.poles?.[targetId] || S()?.getPole?.(targetId);
-    const source = `${targetId} ${span?.rawType || ""} ${span?.notes || ""}`;
-    return Boolean(targetPole?.ugActive || /(?:^|\s)UG(?:\s|$)/i.test(source));
+  function hasUgToken(value) {
+    return /(?:^|\s)UG(?:\s|$)/i.test(text(value));
+  }
+
+  function findPole(state, poleId) {
+    if (!poleId) return null;
+    if (state?.poles?.[poleId]) return state.poles[poleId];
+    const canonical = S()?.canonicalPoleIdentity?.(poleId);
+    if (canonical) {
+      const match = Object.values(state?.poles || {}).find(pole =>
+        S()?.canonicalPoleIdentity?.(pole?.poleId || "") === canonical);
+      if (match) return match;
+    }
+    return S()?.getPole?.(poleId) || null;
+  }
+
+  function isPoleFullyUg(state, poleId) {
+    const pole = findPole(state, poleId);
+    return Boolean(pole?.ugActive || hasUgToken(poleId));
+  }
+
+  function isUgSpan(state, span, poleId = span?.fromPole) {
+    if (!span) return false;
+    if (isPoleFullyUg(state, poleId || span.fromPole)) return true;
+
+    const targetId = text(span.toPole);
+    const targetPole = findPole(state, targetId);
+    const explicitSource = `${targetId} ${span.rawType || ""} ${span.notes || ""}`;
+    return Boolean(targetPole?.ugActive || hasUgToken(explicitSource));
   }
 
   function sideForSpan(state, poleId, spanId) {
-    return Object.values(state.spanSides || {}).find(side => side.poleId === poleId && side.spanId === spanId) || null;
+    return Object.values(state?.spanSides || {}).find(side => side.poleId === poleId && side.spanId === spanId) || null;
   }
 
   function primaryProposalForPole(state, poleId) {
-    const sides = Object.values(state.spanSides || {})
+    return Object.values(state?.spanSides || {})
       .filter(side => side.poleId === poleId && inches(side.proposedHOA) !== null)
-      .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)));
-    return sides[0] || null;
-  }
-
-  function bearingDegrees(span) {
-    const raw = text(span?.bearingDegrees);
-    const value = Number(raw);
-    return raw && Number.isFinite(value) ? value : null;
+      .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)))[0] || null;
   }
 
   function hasSpanGeometry(span) {
@@ -195,19 +260,21 @@
     if (bearing !== null) item.bearing = bearing;
     if (length !== null) item.length = length;
 
-    if (isUgSpan(state, span)) {
+    if (isUgSpan(state, span, poleId)) {
       item.ug = true;
       return item;
     }
 
+    const fiber = fiberForSpan(state, poleId, span);
+    if (!fiber) return item;
+
     const exactSide = sideForSpan(state, poleId, span.spanId);
     const proposal = inches(exactSide?.proposedHOA) !== null ? exactSide : primaryProposal;
     const hoa = inches(proposal?.proposedHOA);
-    const fiber = fiberForSpan(state, poleId, span);
-    if (hoa !== null && fiber) {
-      item.hoa = hoa;
-      item.fiber = Number(fiber);
-    }
+    if (hoa === null) return item;
+
+    item.hoa = hoa;
+    item.fiber = Number(fiber);
 
     if (proposal === exactSide) {
       const endDrop = inches(exactSide?.endDrop);
@@ -218,46 +285,105 @@
     return item;
   }
 
-  function movementIdentity(row, index, service) {
-    const owner = ownerForMove(row).toLowerCase();
-    const wireId = text(row?.wireId);
-    if (wireId) return `${owner}|wire:${wireId}|service:${service}`;
-    const wireIndex = text(row?.wireIndex);
-    if (wireIndex) return `${owner}|index:${wireIndex}|service:${service}`;
-    return `${owner}|row:${text(row?.spanId)}:${index}|service:${service}`;
+  function normalizedPhysicalPoleId(value) {
+    return text(S()?.canonicalPoleIdentity?.(value) || value).toUpperCase();
+  }
+
+  function physicalSpanKey(span) {
+    const bearing = Number.isFinite(Number(span?.bearing)) ? Number(span.bearing).toFixed(2) : "";
+    const length = Number.isFinite(Number(span?.length)) ? String(Math.round(Number(span.length))) : "";
+    return `${normalizedPhysicalPoleId(span?.to)}|${bearing}|${length}`;
+  }
+
+  function spanProposalScore(span) {
+    return Number("hoa" in span) + Number("fiber" in span) +
+      (Number("endDrop" in span) * 2) + (Number("nextHoa" in span) * 2) +
+      Number(span.kind !== "O");
+  }
+
+  function mergeCompactSpans(existing, incoming) {
+    if (!existing) return { ...incoming };
+    if (existing.ug || incoming.ug) {
+      const preferredGeometry = spanProposalScore(incoming) > spanProposalScore(existing) ? incoming : existing;
+      const result = {
+        to: preferredGeometry.to || existing.to || incoming.to,
+        kind: preferredGeometry.kind || existing.kind || incoming.kind
+      };
+      if (Number.isFinite(Number(preferredGeometry.bearing))) result.bearing = Number(preferredGeometry.bearing);
+      else if (Number.isFinite(Number(existing.bearing))) result.bearing = Number(existing.bearing);
+      else if (Number.isFinite(Number(incoming.bearing))) result.bearing = Number(incoming.bearing);
+      if (Number.isFinite(Number(preferredGeometry.length))) result.length = Number(preferredGeometry.length);
+      else if (Number.isFinite(Number(existing.length))) result.length = Number(existing.length);
+      else if (Number.isFinite(Number(incoming.length))) result.length = Number(incoming.length);
+      result.ug = true;
+      return result;
+    }
+
+    const preferred = spanProposalScore(incoming) > spanProposalScore(existing) ? incoming : existing;
+    const secondary = preferred === incoming ? existing : incoming;
+    const result = { ...preferred };
+    ["bearing", "length", "hoa", "fiber", "endDrop", "nextHoa"].forEach(field => {
+      if (!(field in result) && field in secondary) result[field] = secondary[field];
+    });
+    if (result.kind === "O" && secondary.kind && secondary.kind !== "O") result.kind = secondary.kind;
+    return result;
+  }
+
+  function compactSpansForPole(state, poleId) {
+    const primaryProposal = primaryProposalForPole(state, poleId);
+    const byPhysicalSpan = new Map();
+
+    Object.values(state?.spans || {})
+      .filter(span => span.fromPole === poleId && hasSpanGeometry(span))
+      .map(span => compactSpan(state, poleId, span, primaryProposal))
+      .forEach(span => {
+        const key = physicalSpanKey(span);
+        byPhysicalSpan.set(key, mergeCompactSpans(byPhysicalSpan.get(key), span));
+      });
+
+    return Array.from(byPhysicalSpan.values())
+      .sort((a, b) => `${a.kind}|${a.to}`.localeCompare(`${b.kind}|${b.to}`, undefined, { numeric: true }));
+  }
+
+  function movementInstructionKey(candidate) {
+    return [
+      candidate.owner.toLowerCase(),
+      candidate.from,
+      candidate.to,
+      candidate.service ? "service" : "normal"
+    ].join("|");
   }
 
   function movementCandidates(state, poleId) {
     const candidates = [];
-    const byIdentity = new Map();
-    Object.values(state.spanComms || {}).forEach((row, index) => {
+    const byInstruction = new Map();
+
+    Object.values(state?.spanComms || {}).forEach(row => {
       if (row.poleId !== poleId) return;
       const from = inches(row.existingHOA);
       const to = inches(row.existingHOAChange || (row.transferToNewPole ? row.existingHOA : ""));
       if (from === null || to === null) return;
       if (from === to && !row.transferToNewPole) return;
 
-      const service = Boolean(row.serviceDrop);
       const candidate = {
         owner: ownerForMove(row),
         from,
         to,
-        service,
+        service: Boolean(row.serviceDrop),
         dg: Boolean(row.downGuy),
-        transfer: Boolean(row.transferToNewPole),
-        identity: movementIdentity(row, index, service)
+        transfer: Boolean(row.transferToNewPole)
       };
-
-      const existing = byIdentity.get(candidate.identity);
+      const key = movementInstructionKey(candidate);
+      const existing = byInstruction.get(key);
       if (existing) {
         existing.dg = existing.dg || candidate.dg;
         existing.transfer = existing.transfer || candidate.transfer;
-        if (existing.to === existing.from && candidate.to !== candidate.from) existing.to = candidate.to;
         return;
       }
-      byIdentity.set(candidate.identity, candidate);
+      byInstruction.set(key, candidate);
       candidates.push(candidate);
     });
+
     return candidates;
   }
 
@@ -275,22 +401,22 @@
     applyAttachmentDefaults(state);
 
     const poles = [];
-    Object.keys(state.poles || {}).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(poleId => {
-      const primaryProposal = primaryProposalForPole(state, poleId);
-      const spans = Object.values(state.spans || {})
-        .filter(span => span.fromPole === poleId && hasSpanGeometry(span))
-        .map(span => compactSpan(state, poleId, span, primaryProposal))
-        .sort((a, b) => `${a.kind}|${a.to}`.localeCompare(`${b.kind}|${b.to}`, undefined, { numeric: true }));
-      const moves = compactMoves(state, poleId);
-      const terminalHoa = inches(state.poles[poleId]?.standaloneProposedHOA);
-      if (!spans.length && !moves.length && terminalHoa === null) return;
+    Object.keys(state.poles || {})
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .forEach(poleId => {
+        const spans = compactSpansForPole(state, poleId);
+        const moves = compactMoves(state, poleId);
+        const terminalHoa = isPoleFullyUg(state, poleId)
+          ? null
+          : inches(state.poles[poleId]?.standaloneProposedHOA);
+        if (!spans.length && !moves.length && terminalHoa === null) return;
 
-      const pole = { id: poleId };
-      if (terminalHoa !== null) pole.terminalHoa = terminalHoa;
-      if (spans.length) pole.spans = spans;
-      if (moves.length) pole.moves = moves;
-      poles.push(pole);
-    });
+        const pole = { id: poleId };
+        if (terminalHoa !== null) pole.terminalHoa = terminalHoa;
+        if (spans.length) pole.spans = spans;
+        if (moves.length) pole.moves = moves;
+        poles.push(pole);
+      });
 
     const usedFibers = new Set();
     poles.forEach(pole => (pole.spans || []).forEach(span => {
@@ -386,7 +512,10 @@
   function augmentPoleMakeReady(poleId) {
     const state = S()?.getState?.();
     if (!state) return [];
-    const generated = movementCandidates(state, poleId).map(movementMrLine).filter(Boolean).map(line => applyMrCase(line, state));
+    const generated = movementCandidates(state, poleId)
+      .map(movementMrLine)
+      .filter(Boolean)
+      .map(line => applyMrCase(line, state));
     if (!generated.length) return state.mr?.filter(item => item.poleId === poleId) || [];
 
     state.mr = Array.isArray(state.mr) ? state.mr : [];
@@ -495,7 +624,8 @@
       if (messenger && global.document.activeElement !== messenger) messenger.value = state.settings?.attachmentMessengerSize || "";
       fibers.forEach(item => {
         const key = configuredFiberKey(state, item.count);
-        const input = Array.from(section.querySelectorAll('[data-field="fiberSize"]')).find(row => fiberCount(row.dataset.fiber) === item.count);
+        const input = Array.from(section.querySelectorAll('[data-field="fiberSize"]'))
+          .find(row => fiberCount(row.dataset.fiber) === item.count);
         if (input && global.document.activeElement !== input) input.value = state.settings?.fiberSizes?.[key] || "";
       });
     } finally {
@@ -563,11 +693,15 @@
     buildCompactPayload,
     validationErrors,
     compactMoves,
+    compactSpansForPole,
     movementCandidates,
     augmentPoleMakeReady,
     exportCompactProposedJson,
+    isPoleFullyUg,
     isUgSpan,
     spanKind,
-    spanLengthInches
+    spanLengthInches,
+    directionFromPole,
+    directionTokensForReference
   };
 })(window);
