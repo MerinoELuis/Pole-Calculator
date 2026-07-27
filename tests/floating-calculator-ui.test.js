@@ -15,8 +15,14 @@ assert.match(
 
 assert.match(
   html,
-  /id="calcExpression"[^>]*placeholder="Example: 12'6&quot; \+ 3'8&quot;"/,
-  "The expression input must show a feet-and-inches addition example as a placeholder."
+  /id="calcExpression"[^>]*placeholder="12'6&quot; \+ 3'8&quot;"/,
+  "The expression input must show a feet-and-inches addition placeholder."
+);
+
+assert.doesNotMatch(
+  html,
+  /id="calcExpression"[^>]*placeholder="Example:/,
+  "The placeholder must not include the Example prefix."
 );
 
 assert.doesNotMatch(
