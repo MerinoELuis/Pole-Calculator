@@ -17,15 +17,15 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 | Pole height | Parsed from Type, then `Pole Height.display`, `Height.display`, `Length.display` |
 | Tip | `Tip.display`, `Tip Display`, or a header containing `Tip` |
 | Low Power | `Low Power Attachment.display`, related display names, or any header containing `Low Power Attachment`, `Lowest Power`, or `Low Power` |
+| Owner | `Owner` |
+| Location reference | headers containing `Location.latitude` and `Location.longitude` |
+| Excel Review fields | exact `Year Installed`, `MRE Construction Type`, and `PLA STATUS` values are preserved in the raw review source |
 
 Collection supplies the preferred visible Pole ID. During relationship matching, trailing `STEEL`, `UG`, and `PCO` tokens are ignored. This normalization applies to Collection aliases, Span endpoints, Span.Wire rows, Anchor.Guys, Make Ready references, and Update Data reconciliation.
 
 For Metronet/MidAm, the first block of `Id` is the source of truth for Sequence. It must be `000` or `000A`. The imported `Sequence` cell is normalized to the same shape and audited against that ID-derived value.
 
 Endpoint owner placeholders are marked separately from measured `Span.Wire` rows. During Update Data, a blank inverse-span placeholder is discarded when the previous state already contains the same owner on the same physical connection. Existing HOA and midspan baselines are retained when a later workbook omits them, so a partial update cannot silently change calculations.
-| Owner | `Owner` |
-| Location reference | headers containing `Location.latitude` and `Location.longitude` |
-| Excel Review fields | exact `Year Installed`, `MRE Construction Type`, and `PLA STATUS` values are preserved in the raw review source |
 
 Source notes are stored under pole metadata and do not replace user-owned notes.
 
@@ -143,53 +143,99 @@ Fresh non-empty imported geometry, owners, wires, power, Environment, and source
 
 Every update writes a collapsed `[PoleCalc Update Data]` group to the browser console. It includes entity counts, reconciliation diagnostics, and a field-level before/after table for poles, spans, Proposed rows, comms, and power.
 
-## AutoProposed JSON
+## Compact AutoProposed JSON
 
-Export Proposed recalculates first and creates:
+`Export Proposed` recalculates first and downloads the compact Web-to-plugin contract defined by `schemas/autoproposed.schema.json` and `AUTOPROPOSED_CONTRACT.md`.
+
+All height and span-length values are whole inches. Bearings are decimal degrees.
+
+Example:
 
 ```json
 {
-  "app": "pole-calculator",
-  "exportType": "proposed-for-ocalc",
-  "attachmentSizes": {
-    "messengerSize": "0.25",
-    "fibers": [
-      { "fiber": "24CT Fiber", "size": "0.22" }
-    ]
+  "sizes": {
+    "messenger": 0.242,
+    "fiber": {
+      "144": 0.51
+    }
   },
-  "settings": {},
+  "owner": "Wecom",
   "poles": [
     {
-      "poleId": "P01",
-      "proposedOwner": "Wecom",
-      "proposed": [
-        {
-          "spanLabel": "P01 -> P02",
-          "fromPole": "P01",
-          "toPole": "P02",
-          "proposed": "22'",
-          "endDrop": "-1'",
-          "nextPoleProposed": "21'"
-        }
-      ],
-      "attachments": [],
+      "id": "P01",
       "spans": [
         {
-          "label": "P01 -> P02",
-          "toPole": "P02",
-          "type": "Fore Span",
-          "direction": "E",
-          "bearingDegrees": 90,
-          "lengthDisplay": "125'"
+          "to": "P02",
+          "kind": "F",
+          "bearing": 90,
+          "length": 1500,
+          "hoa": 264,
+          "fiber": 144,
+          "endDrop": -12,
+          "nextHoa": 252
+        },
+        {
+          "to": "P03 UG",
+          "kind": "O",
+          "bearing": 0,
+          "length": 960,
+          "ug": true
         }
       ],
-      "commMakeReady": []
+      "moves": [
+        {
+          "owner": "CTL",
+          "from": 216,
+          "to": 228,
+          "dg": true
+        }
+      ]
     }
   ]
 }
 ```
 
-Only outgoing spans owned by the exported pole are included. Internal span IDs, Environment, power limits, O-Calc intermediate fields, and redundant `otherPole` fields are intentionally omitted.
+### Sizes
+
+- `sizes.messenger`: positive decimal messenger diameter, or `null` when the payload has no aerial fiber requiring it.
+- `sizes.fiber`: map from fiber count to positive decimal diameter.
+- Only aerial spans that actually export a `fiber` count create a required size entry.
+
+### Pole fields
+
+- `id`: calculator pole identity.
+- `terminalHoa`: terminal standalone Proposed height in inches.
+- `spans`: outgoing geometry/proposal entries owned by that pole.
+- `moves`: local communication movements.
+
+### Span fields
+
+- `to`: linked pole identity.
+- `kind`: `F`, `B`, or `O`.
+- `bearing`: degrees in `[0, 360)` when known.
+- `length`: whole inches when known.
+- `hoa` and `fiber`: explicit aerial proposal.
+- `endDrop` and `nextHoa`: optional endpoint proposal values.
+- `ug: true`: geometry-only underground relation; it cannot include aerial proposal fields.
+- Geometry without `ug`, `hoa`, or `fiber` is a reference-only span and creates no proposed attachment.
+
+### Movement fields
+
+- `owner`: normalized display owner, including `CTL` abbreviation.
+- `from` and `to`: whole-inch attachment heights.
+- `service: true`: service/drop movement.
+- `dg: true`: move matching down guy.
+
+### UG and PCO safety
+
+The safety policy is applied inside `compact-autoproposed.js` before download:
+
+- A normal pole may export local spans, movements and terminal HOA.
+- A PCO pole removes local movements, terminal HOA and local aerial proposal fields while retaining geometry-only spans without `ug`.
+- A fully UG pole removes local movements, terminal HOA and local aerial proposal fields while retaining geometry-only spans with `ug: true`.
+- UG takes priority when UG and PCO are both active.
+- A blocked pole with no remaining geometry is omitted.
+- A neighboring normal pole may still keep its own aerial proposal toward a PCO pole.
 
 Filename example:
 
