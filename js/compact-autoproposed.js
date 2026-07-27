@@ -207,6 +207,10 @@
     return /(?:^|\s)UG(?:\s|$)/i.test(text(value));
   }
 
+  function hasPcoToken(value) {
+    return /(?:^|\s)PCO(?:\s|$)/i.test(text(value));
+  }
+
   function findPole(state, poleId) {
     if (!poleId) return null;
     if (state?.poles?.[poleId]) return state.poles[poleId];
@@ -222,6 +226,56 @@
   function isPoleFullyUg(state, poleId) {
     const pole = findPole(state, poleId);
     return Boolean(pole?.ugActive || hasUgToken(poleId));
+  }
+
+  function isPolePco(state, poleId) {
+    const pole = findPole(state, poleId);
+    return Boolean(pole?.pcoActive || hasPcoToken(poleId));
+  }
+
+  function blocksLocalActions(state, poleId) {
+    return isPoleFullyUg(state, poleId) || isPolePco(state, poleId);
+  }
+
+  function geometryOnlySpan(span, markUg) {
+    const item = { to: span.to, kind: span.kind };
+    if (Object.prototype.hasOwnProperty.call(span, "bearing")) item.bearing = span.bearing;
+    if (Object.prototype.hasOwnProperty.call(span, "length")) item.length = span.length;
+    if (markUg) item.ug = true;
+    return item;
+  }
+
+  function sanitizeBlockedLocalPole(pole, state) {
+    if (!pole) return pole;
+    const fullyUg = isPoleFullyUg(state, pole.id);
+    const pco = !fullyUg && isPolePco(state, pole.id);
+    if (!fullyUg && !pco) return pole;
+
+    const sanitized = { id: pole.id };
+    if (Array.isArray(pole.spans) && pole.spans.length) {
+      sanitized.spans = pole.spans.map(span => geometryOnlySpan(span, fullyUg));
+    }
+    return sanitized;
+  }
+
+  function hasExportablePoleData(pole) {
+    return Boolean(
+      pole && (
+        (Array.isArray(pole.spans) && pole.spans.length) ||
+        (Array.isArray(pole.moves) && pole.moves.length) ||
+        Object.prototype.hasOwnProperty.call(pole, "terminalHoa")
+      )
+    );
+  }
+
+  function sanitizeBlockedLocalPayload(payload, state = S()?.getState?.()) {
+    if (!payload || !Array.isArray(payload.poles)) return payload;
+    return {
+      ...payload,
+      poles: payload.poles
+        .map(pole => sanitizeBlockedLocalPole(pole, state))
+        .filter(hasExportablePoleData)
+    };
   }
 
   function isUgSpan(state, span, poleId = span?.fromPole) {
@@ -429,14 +483,14 @@
       fiberSizes[count] = numericSize(state.settings?.fiberSizes?.[key]);
     });
 
-    return {
+    return sanitizeBlockedLocalPayload({
       sizes: {
         messenger: numericSize(state.settings?.attachmentMessengerSize),
         fiber: fiberSizes
       },
       owner: text(state.settings?.proposedOwner || "Wecom") || "Wecom",
       poles
-    };
+    }, state);
   }
 
   function validationErrors(payload) {
@@ -509,6 +563,44 @@
     return text(state?.settings?.mrCase).toUpperCase() === "UPPER" ? value.toUpperCase() : value;
   }
 
+  function normalizeMrLine(value) {
+    return text(value).replace(/\s+/g, " ").toLowerCase();
+  }
+
+  function generatedMovementLineKeys(state, poleId) {
+    return new Set(
+      movementCandidates(state, poleId)
+        .map(movementMrLine)
+        .map(normalizeMrLine)
+        .filter(Boolean)
+    );
+  }
+
+  function sanitizeBlockedLocalMr(state, poleId) {
+    if (!state || !Array.isArray(state.mr) || !blocksLocalActions(state, poleId)) {
+      return state?.mr?.filter(item => item.poleId === poleId) || [];
+    }
+
+    const generatedMovementLines = generatedMovementLineKeys(state, poleId);
+    state.mr = state.mr.reduce((items, item) => {
+      if (item?.poleId !== poleId) {
+        items.push(item);
+        return items;
+      }
+
+      const remainingLines = text(item.text)
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .filter(line => !generatedMovementLines.has(normalizeMrLine(line)));
+
+      if (remainingLines.length) items.push({ ...item, text: remainingLines.join("\n") });
+      return items;
+    }, []);
+
+    return state.mr.filter(item => item.poleId === poleId);
+  }
+
   function augmentPoleMakeReady(poleId) {
     const state = S()?.getState?.();
     if (!state) return [];
@@ -550,7 +642,8 @@
     const originalGenerateMRForPole = logic.generateMRForPole.bind(logic);
     logic.generateMRForPole = function (poleId) {
       originalGenerateMRForPole(poleId);
-      return augmentPoleMakeReady(poleId);
+      augmentPoleMakeReady(poleId);
+      return sanitizeBlockedLocalMr(S()?.getState?.(), poleId);
     };
     logic.generateAllMR = function () {
       const state = S()?.getState?.();
@@ -698,6 +791,11 @@
     augmentPoleMakeReady,
     exportCompactProposedJson,
     isPoleFullyUg,
+    isPolePco,
+    blocksLocalActions,
+    sanitizeBlockedLocalPayload,
+    sanitizeBlockedLocalMr,
+    sanitizeFullyUgPayload: sanitizeBlockedLocalPayload,
     isUgSpan,
     spanKind,
     spanLengthInches,
