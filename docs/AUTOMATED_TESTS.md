@@ -30,4 +30,4 @@ npm run test:syntax
 
 ## CI
 
-`.github/workflows/tests.yml` runs `npm test` on pushes and pull requests using Node 20. GitHub Pages continues serving the source files directly.
+`.github/workflows/tests.yml` runs `npm test` on pushes and pull requests using Node 24. GitHub Pages continues serving the source files directly.
