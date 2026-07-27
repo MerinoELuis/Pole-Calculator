@@ -1,0 +1,51 @@
+{
+  "settings": {
+    "projectProfile": "INTEC",
+    "proposedOwner": "Wecom",
+    "attachmentMessengerSize": "0.242",
+    "fiberSizes": {
+      "144CT Fiber": "0.51"
+    },
+    "mrCase": "LOWER"
+  },
+  "poles": {
+    "P1": { "poleId": "P1" },
+    "P2": { "poleId": "P2" }
+  },
+  "spans": {
+    "S1": {
+      "spanId": "S1",
+      "fromPole": "P1",
+      "toPole": "P2",
+      "type": "Fore Span",
+      "direction": "E",
+      "bearingDegrees": 90,
+      "lengthDisplay": "100'"
+    }
+  },
+  "spanSides": {
+    "S1_P1": {
+      "spanId": "S1",
+      "poleId": "P1",
+      "proposedHOA": "22'"
+    }
+  },
+  "spanComms": {
+    "P1_CTL": {
+      "spanId": "S1",
+      "poleId": "P1",
+      "owner": "CenturyLink",
+      "ownerBase": "CenturyLink",
+      "existingHOA": "18'",
+      "existingHOAChange": "19'"
+    }
+  },
+  "makeReadyReferences": [
+    {
+      "poleId": "P1",
+      "attachmentFiber": "144CT Fiber",
+      "attachmentDirectionTokens": ["E"]
+    }
+  ],
+  "mr": []
+}
