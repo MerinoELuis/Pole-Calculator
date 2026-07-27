@@ -1,0 +1,13 @@
+{
+  "name": "pole-span-mr-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dependency-free test tooling for the static Pole Span MR Calculator.",
+  "scripts": {
+    "test": "node tests/run-all-tests.js",
+    "test:syntax": "node tests/run-all-tests.js --syntax-only"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
