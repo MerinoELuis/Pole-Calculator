@@ -15,6 +15,12 @@ assert.match(
 
 assert.match(
   html,
+  /<h3>Feet' Inches(?:&quot;|")<\/h3>/,
+  "The floating calculator heading must display Feet' Inches\"."
+);
+
+assert.match(
+  html,
   /id="calcExpression"[^>]*placeholder="12'6&quot; \+ 3'8&quot;"/,
   "The expression input must show a feet-and-inches addition placeholder."
 );
