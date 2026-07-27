@@ -58,7 +58,9 @@
   }
 
   function firstSpanId(element) {
-    return element?.querySelector?.("[data-span]")?.dataset?.span || "";
+    const ownSpanId = String(element?.dataset?.span || "").trim();
+    if (ownSpanId) return ownSpanId;
+    return String(element?.querySelector?.("[data-span]")?.dataset?.span || "").trim();
   }
 
   function registerTarget(targetsBySpan, store, spanId, elements) {
@@ -69,6 +71,41 @@
     (elements || []).filter(Boolean).forEach(element => targets.add(element));
   }
 
+  function collectCommRowPairs(tableRow) {
+    if (!tableRow?.querySelectorAll) return [];
+
+    const spanRows = Array.from(
+      tableRow.querySelectorAll(".comm-span-list .comm-span-row")
+    );
+    const midspanRows = Array.from(
+      tableRow.querySelectorAll(".comm-midspan-list .comm-midspan-value.colored-midspan")
+    );
+
+    return spanRows.map((spanRow, index) => ({
+      spanId: firstSpanId(spanRow),
+      spanRow,
+      midspanContainer: midspanRows[index] || null
+    }));
+  }
+
+  function registerCommTableRowTargets(targetsBySpan, store, tableRow) {
+    collectCommRowPairs(tableRow).forEach(pair => {
+      if (!pair.spanId) return;
+
+      registerTarget(targetsBySpan, store, pair.spanId, [
+        ...pair.spanRow.querySelectorAll(".span-color-dot")
+      ]);
+
+      if (!pair.midspanContainer) return;
+      registerTarget(targetsBySpan, store, pair.spanId, [
+        pair.midspanContainer,
+        ...pair.midspanContainer.querySelectorAll(
+          ".midspan-highlight-input, .midspan-highlight-display"
+        )
+      ]);
+    });
+  }
+
   function collectTargetsForCard(card, store) {
     const targetsBySpan = new Map();
 
@@ -77,24 +114,26 @@
       if (!spanId) return;
       registerTarget(targetsBySpan, store, spanId, [
         row,
-        ...row.querySelectorAll(".span-color-chip, .midspan-highlight-display, .midspan-highlight-input")
+        ...row.querySelectorAll(
+          ".span-color-chip, .midspan-highlight-display, .midspan-highlight-input"
+        )
       ]);
     });
 
-    card.querySelectorAll(".comm-span-row").forEach(row => {
-      const spanId = firstSpanId(row);
-      if (!spanId) return;
-      registerTarget(targetsBySpan, store, spanId, [
-        ...row.querySelectorAll(".span-color-dot")
-      ]);
+    card.querySelectorAll(".comm-movement-table tbody > tr").forEach(tableRow => {
+      registerCommTableRowTargets(targetsBySpan, store, tableRow);
     });
 
-    card.querySelectorAll(".comm-midspan-value.colored-midspan").forEach(container => {
+    // Fallback for future markup where a Midspan container carries data-span
+    // directly but is not inside the currently grouped communication row.
+    card.querySelectorAll(".comm-midspan-value.colored-midspan[data-span]").forEach(container => {
       const spanId = firstSpanId(container);
       if (!spanId) return;
       registerTarget(targetsBySpan, store, spanId, [
         container,
-        ...container.querySelectorAll(".midspan-highlight-input, .midspan-highlight-display")
+        ...container.querySelectorAll(
+          ".midspan-highlight-input, .midspan-highlight-display"
+        )
       ]);
     });
 
@@ -107,11 +146,17 @@
     if (!poleId) return 0;
 
     const targetsBySpan = collectTargetsForCard(card, store);
-    const orderedSpanIds = sortVisibleSpanIds(store, poleId, Array.from(targetsBySpan.keys()));
+    const orderedSpanIds = sortVisibleSpanIds(
+      store,
+      poleId,
+      Array.from(targetsBySpan.keys())
+    );
 
     orderedSpanIds.forEach((spanId, index) => {
       const className = classForVisibleIndex(index);
-      targetsBySpan.get(spanId)?.forEach(element => applySpanColorClass(element, className));
+      targetsBySpan.get(spanId)?.forEach(element => {
+        applySpanColorClass(element, className);
+      });
     });
 
     return orderedSpanIds.length;
@@ -145,10 +190,15 @@
     if (typeof global.MutationObserver !== "function" || observer) return;
 
     observer = new global.MutationObserver(queueRefresh);
-    observer.observe(document.getElementById("polesOverview") || document.body || document.documentElement, {
-      childList: true,
-      subtree: true
-    });
+    observer.observe(
+      document.getElementById("polesOverview") ||
+        document.body ||
+        document.documentElement,
+      {
+        childList: true,
+        subtree: true
+      }
+    );
   }
 
   if (global.document?.readyState === "loading") {
@@ -162,6 +212,8 @@
     physicalSpanId,
     sortVisibleSpanIds,
     classForVisibleIndex,
+    firstSpanId,
+    collectCommRowPairs,
     resetCardSpanColors,
     resetVisibleSpanColors
   };
