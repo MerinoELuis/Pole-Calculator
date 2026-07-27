@@ -1,0 +1,21 @@
+{
+  "sizes": {
+    "messenger": null,
+    "fiber": {}
+  },
+  "owner": "Wecom",
+  "poles": [
+    {
+      "id": "P20 PCO",
+      "pco": true,
+      "spans": [
+        {
+          "to": "P19",
+          "kind": "B",
+          "bearing": 270,
+          "length": 960
+        }
+      ]
+    }
+  ]
+}
