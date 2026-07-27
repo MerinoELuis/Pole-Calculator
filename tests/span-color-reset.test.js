@@ -3,7 +3,10 @@ const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
 
-const source = fs.readFileSync(path.join(__dirname, "../js/span-color-reset.js"), "utf8");
+const source = fs.readFileSync(
+  path.join(__dirname, "../js/span-color-reset.js"),
+  "utf8"
+);
 const window = {
   document: null,
   setTimeout,
@@ -45,5 +48,65 @@ const p02 = helper.sortVisibleSpanIds(store, "P02", ["manual-B", "B-1"]);
 assert.strictEqual(helper.classForVisibleIndex(p01.indexOf("A-1")), "span-color-0");
 assert.strictEqual(helper.classForVisibleIndex(p02.indexOf("B-1")), "span-color-0");
 assert.strictEqual(helper.physicalSpanId(store, "manual-B"), "B-2");
+
+function spanRow(spanId) {
+  const marker = { dataset: { span: spanId } };
+  const dot = { id: `dot-${spanId}` };
+  return {
+    querySelector(selector) {
+      return selector === "[data-span]" ? marker : null;
+    },
+    querySelectorAll(selector) {
+      return selector === ".span-color-dot" ? [dot] : [];
+    }
+  };
+}
+
+function blankMidspan(id) {
+  const display = { id: `display-${id}` };
+  return {
+    id,
+    dataset: {},
+    querySelector() {
+      return null;
+    },
+    querySelectorAll(selector) {
+      return selector === ".midspan-highlight-input, .midspan-highlight-display"
+        ? [display]
+        : [];
+    }
+  };
+}
+
+const blueSpanRow = spanRow("B-2");
+const blueBlankMidspan = blankMidspan("blank-blue-midspan");
+const groupedCommTableRow = {
+  querySelectorAll(selector) {
+    if (selector === ".comm-span-list .comm-span-row") {
+      return [spanRow("B-1"), blueSpanRow];
+    }
+    if (
+      selector ===
+      ".comm-midspan-list .comm-midspan-value.colored-midspan"
+    ) {
+      return [blankMidspan("first-midspan"), blueBlankMidspan];
+    }
+    return [];
+  }
+};
+
+const rowPairs = helper.collectCommRowPairs(groupedCommTableRow);
+assert.strictEqual(rowPairs.length, 2);
+assert.strictEqual(rowPairs[1].spanId, "B-2");
+assert.strictEqual(
+  rowPairs[1].midspanContainer,
+  blueBlankMidspan,
+  "A blank REF Midspan must inherit the color of the span row at the same index."
+);
+assert.strictEqual(
+  helper.firstSpanId({ dataset: { span: "B-2" } }),
+  "B-2",
+  "Elements carrying data-span directly must be supported."
+);
 
 console.log("span color reset tests passed");
