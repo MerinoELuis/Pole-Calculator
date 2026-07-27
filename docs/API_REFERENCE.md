@@ -133,8 +133,8 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `generatePowerEquipmentMRForPole(poleId)` | Generate Ground, Transformer Redress, and Power Riser Raise instructions. |
 | `generateMRForSpanSide(spanSide)` | Generate Proposed/anchor/riser/slack lines. |
 | `generateMRForSpan(spanId)` | Generate all lines related to one span. |
-| `generateMRForPole(poleId)` | Replace one pole's ordered MR block. |
-| `generateAllMR()` | Replace generated MR for the complete state. |
+| `generateMRForPole(poleId)` | Replace one pole's ordered MR block. CompactAutoProposed augments and filters this method after load. |
+| `generateAllMR()` | Replace generated MR for the complete state. CompactAutoProposed preserves the same public entry point. |
 | `getResolvedRiserDirection(poleId)` | Resolve saved, imported, or relation-derived INTEC riser direction. |
 | `getDefaultRiserDirection(relation, direction)` | Keep the UG span direction for Fore/Back and leave Other Span blank. |
 | `isRiserAvailable/isRiserEnabled(poleId)` | Disable Riser on UG/PCO poles and expose automatic Fore/Back adjacent-UG or manual state elsewhere. |
@@ -164,11 +164,87 @@ The application does not use ES modules. Public APIs are attached to `window` an
 
 | Method | Purpose |
 | --- | --- |
-| `exportProposedJson()` | Download compact AutoProposed data for O-Calc. |
+| `exportProposedJson()` | Download compact AutoProposed data for O-Calc. Replaced at runtime by `CompactAutoProposed.exportCompactProposedJson`. |
 | `exportDebugJson()` | Download full state and calculation traces. |
 | `exportJson()` | Legacy full-state download helper. The primary UI uses Save. |
 | `downloadJson(filename, data)` | Browser JSON download utility. |
 
+## CompactAutoProposed
+
+| Method | Purpose |
+| --- | --- |
+| `applyAttachmentDefaults(state?)` | Apply supported messenger/fiber defaults when references justify them. |
+| `detectedReferenceFiberCounts(state)` | Return fiber counts found in Make Ready references. |
+| `fiberEntries(state)` | Return configured/detected fiber rows for the settings UI. |
+| `buildCompactPayload(state?)` | Recalculate-ready compact serialization with integrated UG/PCO sanitization. |
+| `validationErrors(payload)` | Return missing size requirements for aerial fiber attachments. |
+| `compactMoves(state, poleId)` | Serialize deduplicated local comm movements. |
+| `compactSpansForPole(state, poleId)` | Serialize physical spans, geometry, aerial proposals and UG markers. |
+| `movementCandidates(state, poleId)` | Return normalized movement candidates before compact field reduction. |
+| `augmentPoleMakeReady(poleId)` | Add compact movement instructions to the current pole MR. |
+| `exportCompactProposedJson()` | Recalculate, validate and download the compact payload. |
+| `isPoleFullyUg(state, poleId)` | Resolve active or name-token UG state. |
+| `isPolePco(state, poleId)` | Resolve active or name-token PCO state. |
+| `blocksLocalActions(state, poleId)` | Report whether local export/MR movement actions are blocked. |
+| `sanitizeBlockedLocalPayload(payload, state?)` | Remove local proposal/movement fields from UG/PCO pole entries. |
+| `sanitizeBlockedLocalMr(state, poleId)` | Remove generated regular movement lines from UG/PCO replacement MR. |
+| `isUgSpan(state, span, poleId?)` | Resolve whether one physical relation exports as UG. |
+| `spanKind(span)` | Map imported relation type to `F`, `B`, or `O`. |
+| `spanLengthInches(span)` | Convert display/raw span length to integer inches. |
+| `directionFromPole(span, poleId)` | Resolve direction from one endpoint. |
+| `directionTokensForReference(ref)` | Normalize reference direction tokens. |
+
+## FloatingCalculator
+
+| Method | Purpose |
+| --- | --- |
+| `setupFloatingCalculator()` | Bind calculator panel controls and live evaluation. |
+| `normalizeInchQuotes(value)` | Convert every `''` pair to `"`. |
+| `normalizeExpressionInput(input)` | Normalize the field value while preserving cursor/selection positions. |
+
+## UiDomContract
+
+| Method | Purpose |
+| --- | --- |
+| `normalizeLabel(value)` | Normalize visible labels for stable keys. |
+| `columnKey(value)` | Convert a table heading into a `data-column` value. |
+| `spanIdFrom(element)` | Read stable or legacy span identity from an element. |
+| `pairCommRows(tableRow)` | Pair communication span and Midspan rows by their group position. |
+| `annotateTableColumns(table)` | Add column identity to headers and cells. |
+| `annotatePoleCard(card)` | Add component, pole and span identities to one card. |
+| `apply(root?)` | Annotate every rendered pole card below a root. |
+
+## CommTableUI
+
+| Method/property | Purpose |
+| --- | --- |
+| `HIDDEN_COLUMN_KEY` | Stable key for the hidden `Other Pole HOA` column. |
+| `findColumnIndex(headers)` | Find the hidden column by stable key, with legacy label fallback. |
+| `removeColumnFromTable(table, index)` | Remove one presentation column from every table row. |
+| `refresh(root?)` | Apply the visual column policy to rendered communication tables. |
+
+## SpanColorUI
+
+| Method/property | Purpose |
+| --- | --- |
+| `COLOR_CLASS_COUNT` | Number of reusable span color classes. |
+| `physicalSpanId(store, spanId)` | Resolve a synthetic Proposed span to its source span. |
+| `sortVisibleSpanIds(store, poleId, spanIds)` | Order only visible spans for one pole. |
+| `classForVisibleIndex(index)` | Map a local visible index to `span-color-N`. |
+| `firstSpanId(element)` | Prefer stable `data-span-id`, then legacy markup. |
+| `collectCommRowPairs(tableRow)` | Pair communication span and Midspan rows. |
+| `resetCard(card, store?)` | Restart and apply the sequence for one pole card. |
+| `refresh(root?, store?)` | Reapply colors to all rendered pole cards. |
+
+## PoleCalculatorUI
+
+| Method | Purpose |
+| --- | --- |
+| `runRefresh(root?)` | Run DOM annotation, table cleanup and span colors in order. |
+| `queueRefresh()` | Coalesce mutations into one microtask. |
+| `start()` | Run initial refresh and attach the workspace observer. |
+| `stop()` | Disconnect the observer, primarily for controlled tests. |
+
 ## UI Boundary
 
-`app.js` intentionally does not publish a broad global API. It owns DOM rendering and events. Business logic needed by another module should be exposed through the relevant domain module rather than by calling an `app.js` function.
+`app.js` intentionally does not publish a broad global API. It owns primary DOM rendering and events. Business logic needed by another module should be exposed through the relevant domain module. Presentation-only post-render behavior should be implemented in `js/ui/` and coordinated through `PoleCalculatorUI` rather than by adding another independent workspace observer.
