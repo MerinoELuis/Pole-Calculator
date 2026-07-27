@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://merinoeluis.github.io/Pole-Calculator/schemas/autoproposed.schema.json",
+  "title": "Pole Calculator Compact AutoProposed Export",
+  "description": "Structural contract shared by Pole-Calculator Web and the O-Calc AutoProposed plugin. Heights and span lengths are integer inches; bearings are decimal degrees.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sizes", "owner", "poles"],
+  "properties": {
+    "sizes": { "$ref": "#/$defs/sizes" },
+    "owner": { "type": "string", "minLength": 1 },
+    "poles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pole" }
+    }
+  },
+  "$defs": {
+    "integerInches": {
+      "type": "integer",
+      "description": "Distance or height expressed as whole inches."
+    },
+    "positiveSize": {
+      "type": ["number", "null"],
+      "exclusiveMinimum": 0
+    },
+    "sizes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["messenger", "fiber"],
+      "properties": {
+        "messenger": { "$ref": "#/$defs/positiveSize" },
+        "fiber": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[0-9]+$" },
+          "additionalProperties": { "$ref": "#/$defs/positiveSize" }
+        }
+      }
+    },
+    "move": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "from", "to"],
+      "properties": {
+        "owner": { "type": "string", "minLength": 1 },
+        "from": { "$ref": "#/$defs/integerInches" },
+        "to": { "$ref": "#/$defs/integerInches" },
+        "service": { "type": "boolean" },
+        "dg": { "type": "boolean" }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "kind"],
+      "properties": {
+        "to": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["F", "B", "O"] },
+        "bearing": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
+        "length": { "$ref": "#/$defs/integerInches" },
+        "hoa": { "$ref": "#/$defs/integerInches" },
+        "fiber": { "type": "integer", "minimum": 1 },
+        "endDrop": { "$ref": "#/$defs/integerInches" },
+        "nextHoa": { "$ref": "#/$defs/integerInches" },
+        "ug": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "ug": { "const": true } },
+            "required": ["ug"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["hoa"] },
+                { "required": ["fiber"] },
+                { "required": ["endDrop"] },
+                { "required": ["nextHoa"] }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "pole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "pco": { "type": "boolean" },
+        "terminalHoa": { "$ref": "#/$defs/integerInches" },
+        "spans": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/span" }
+        },
+        "moves": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/move" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "pco": { "const": true } },
+            "required": ["pco"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["terminalHoa"] },
+                { "required": ["moves"] }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
