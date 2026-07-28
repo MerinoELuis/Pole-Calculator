@@ -20,6 +20,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/state.js` | `AppStore` | Normalized mutable application state and identities. |
 | `js/calculations.js` | `Calculations` | Pole limits, movements, midspans, Proposed values, End Drop and flagging. |
 | `js/auto-calculate-solver.js` | `AutoCalculateSolver` | TOP/LOW COMM candidate search, best-partial ranking and Auto Calculate result metadata. |
+| `js/auto-calculate-source-compat.js` | `AutoCalculateSourceCompat` | Preserves automatic Proposed source fields through `upsertSpanSide()` and `setState()` normalization. |
 | `js/midspan.js` | `MidspanLogic` | Midspan-oriented facade. |
 | `js/mr-logic.js` | `MRLogic` | Ordered Make Ready generation. |
 | `js/validations.js` | `Validations` | Broad data-integrity warnings. |
