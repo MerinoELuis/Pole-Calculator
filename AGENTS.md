@@ -32,6 +32,7 @@ The command performs JavaScript syntax checks, JSON parsing, fixture checks and 
 - Approved implementation decisions: `docs/DECISIONS.md`
 - Regression expectations: `docs/TEST_PLAN.md`
 - UI post-render modules: `docs/UI_RUNTIME.md`
+- Auto Calculate search and ranking: `docs/AUTO_CALCULATE_SOLVER.md`
 
 ## Architectural invariants
 
@@ -43,11 +44,14 @@ The command performs JavaScript syntax checks, JSON parsing, fixture checks and 
 - PCO local spans remain geometry-only; they are not converted to UG.
 - Span colors restart from `span-color-0` for each pole and the Midspan color must match its span.
 - `Other Pole HOA` remains available to calculations but is not displayed in the communication table.
+- Auto Calculate must prefer pole compliance over Midspan compliance and retain the best partial aerial result when no SAFE result exists.
+- Auto Calculate never marks UG or PCO automatically.
 
 ## Preferred extension points
 
 - Project differences: `js/project-config.js`
 - Calculations and flagging: `js/calculations.js`
+- Auto Calculate candidate search and ranking: `js/auto-calculate-solver.js`
 - Make Ready wording: `js/mr-logic.js`
 - Compact AutoProposed export: `js/compact-autoproposed.js`
 - Post-render DOM identity and table behavior: `js/ui/`
