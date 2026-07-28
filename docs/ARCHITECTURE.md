@@ -25,15 +25,16 @@ Every browser module is an IIFE that publishes a small API on `window`.
 11. `js/json-export.js`
 12. `js/compact-autoproposed.js`
 13. `js/auto-calculate-solver.js`
-14. `js/floating-calculator.js`
-15. `js/app.js`
-16. `js/ui/dom-contract.js`
-17. `js/ui/comm-table.js`
-18. `js/ui/span-colors.js`
-19. `js/ui/auto-calculate-status.js`
-20. `js/ui/runtime.js`
+14. `js/auto-calculate-source-compat.js`
+15. `js/floating-calculator.js`
+16. `js/app.js`
+17. `js/ui/dom-contract.js`
+18. `js/ui/comm-table.js`
+19. `js/ui/span-colors.js`
+20. `js/ui/auto-calculate-status.js`
+21. `js/ui/runtime.js`
 
-Changing this order can break global dependencies. `auto-calculate-solver.js` needs `Calculations`, `AppStore`, and `HeightUtils`, and must install its replacement `autoCalculateMovements()` before `app.js` binds the button. The UI runtime loads after the renderer because it annotates and normalizes generated DOM.
+Changing this order can break global dependencies. `auto-calculate-solver.js` needs `Calculations`, `AppStore`, and `HeightUtils`. `auto-calculate-source-compat.js` then wraps SpanSide upsert/state normalization before `app.js` binds the button. The UI runtime loads after the renderer because it annotates and normalizes generated DOM.
 
 ## Module Responsibilities
 
@@ -44,6 +45,7 @@ Changing this order can break global dependencies. `auto-calculate-solver.js` ne
 | `state.js` | `AppStore` | Own and normalize the single application state. |
 | `calculations.js` | `Calculations` | Derive pole limits, power limits, comm midspans, Proposed results, End Drop, recalculation, and flagging. |
 | `auto-calculate-solver.js` | `AutoCalculateSolver` | Search TOP/LOW COMM arrangements, rank SAFE/BEST AVAILABLE/CRITICAL results, and install the public Auto Calculate entry point. |
+| `auto-calculate-source-compat.js` | `AutoCalculateSourceCompat` | Preserve automatic Proposed source fields through AppStore normalization without changing the core state schema. |
 | `midspan.js` | `MidspanLogic` | Small midspan-oriented facade over the store and calculations. |
 | `mr-logic.js` | `MRLogic` | Generate ordered Make Ready text for each pole. |
 | `validations.js` | `Validations` | Generate broad data-integrity warnings. Table flagging remains in `calculations.js`. |
