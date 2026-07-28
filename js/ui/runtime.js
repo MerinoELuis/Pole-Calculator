@@ -5,12 +5,13 @@
   let refreshQueued = false;
 
   function runRefresh(root = global.document) {
-    if (!root) return { cards: 0, tablesChanged: 0, coloredSpans: 0 };
+    if (!root) return { cards: 0, tablesChanged: 0, coloredSpans: 0, autoCalculateStatuses: 0 };
     const cards = global.UiDomContract?.apply?.(root) || 0;
     const tablesChanged = global.CommTableUI?.refresh?.(root) || 0;
     if (tablesChanged) global.UiDomContract?.apply?.(root);
     const coloredSpans = global.SpanColorUI?.refresh?.(root, global.AppStore) || 0;
-    return { cards, tablesChanged, coloredSpans };
+    const autoCalculateStatuses = global.AutoCalculateStatusUI?.refresh?.(root) || 0;
+    return { cards, tablesChanged, coloredSpans, autoCalculateStatuses };
   }
 
   function queueRefresh() {
