@@ -34,7 +34,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | Method | Purpose |
 | --- | --- |
 | `getState()` | Return the mutable current AppState. |
-| `setState(nextState)` | Normalize and replace current state. |
+| `setState(nextState)` | Normalize and replace current state. `AutoCalculateSourceCompat` preserves automatic Proposed source fields around this call. |
 | `resetState()` | Create a clean state with defaults. |
 | `saveToLocal()` / `loadFromLocal()` | Legacy localStorage helpers; primary UI persistence uses Save/Load files. |
 | `normalizeState(state)` | Upgrade and reconcile imported/saved state. |
@@ -80,10 +80,10 @@ The application does not use ES modules. Public APIs are attached to `window` an
 
 | Method | Purpose |
 | --- | --- |
-| `updateExistingHOAChange(...)` | Store a new HOA and recalculate both endpoints. |
+| `updateExistingHOAChange(...)` | Store a new HOA and recalculate both endpoints. The installed solver wrapper clears the AUTO source when the user edits it. |
 | `updateSpanCommField(...)` | Update an allowed SpanComm field, including Service Drop, DG, transfer and re-sag controls, then recalculate. |
 | `clearSpanCommMidspan(...)` | Clear only the selected midspan and its derived fields. |
-| `updateSpanSideField(...)` | Update Proposed, Next Pole Proposed, O-CALC MS, End Drop, or notes. |
+| `updateSpanSideField(...)` | Update Proposed, Next Pole Proposed, O-CALC MS, End Drop, or notes. A user Proposed edit clears the AUTO source. |
 | `updateSpanField(...)` | Update an allowed physical span field and recalculate. |
 
 ### Calculation and validation
@@ -109,7 +109,39 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `recalculateSpan(spanId)` | Recalculate one edge and endpoints. |
 | `recalculateSpansForPole(poleId)` | Recalculate a pole network neighborhood and reciprocal Wire IDs. |
 | `recalculateAll()` | Rebuild every derived value, MR block, and warning. |
-| `autoCalculateMovements()` | Run the iterative Top Comm movement solver. |
+| `autoCalculateMovements()` | Run the installed TOP/LOW COMM best-arrangement solver and return SAFE/BEST AVAILABLE/CRITICAL summary counts. |
+
+## AutoCalculateSolver
+
+| Method/property | Purpose |
+| --- | --- |
+| `RESULT_STATUS` | SAFE, BEST_AVAILABLE, CRITICAL, MANUAL, and SKIPPED constants. |
+| `modeFromState(state?)` | Resolve TOP_COMM or LOW_COMM from current settings. |
+| `normalizeOwner(value)` | Normalize common owner aliases before grouping. |
+| `groupsForPole(poleId)` | Group duplicate span relationships that represent one physical comm. |
+| `proposedSpansForPole(poleId)` | Return eligible forward/manual Proposed relationships. |
+| `idealProposedHeight(groups, mode, state?)` | Calculate Top Comm + clearance or Low Comm - clearance. |
+| `candidateHeights(options)` | Generate bounded integer-inch candidates around rule boundaries. |
+| `buildStackPlan(groups, proposed, mode, maxPole, state?)` | Build a TOP downward or LOW upward comm stack. |
+| `collectIssues(poleId)` | Separate current-pole violations from physical-span Midspan violations. |
+| `issueSeverity(message)` | Estimate remaining clearance shortfall from a validation message. |
+| `categoryForAnalysis(value)` | Map an evaluated result to safe, pole-safe partial, or pole-failing category. |
+| `rankAnalysis(value)` / `compareAnalyses(a, b)` | Apply strict pole-first candidate ordering. |
+| `statusForAnalysis(value)` | Return SAFE, BEST_AVAILABLE, or CRITICAL. |
+| `analyzeCurrentState(poleId, mode)` | Return violations, movement cost, and ideal-distance metrics. |
+| `solvePole(poleId, mode)` | Evaluate and retain the best aerial arrangement for one pole. |
+| `autoCalculateMovements()` | Process all poles for up to three converging passes. |
+| `install()` | Replace `Calculations.autoCalculateMovements()` with the solver entry point. |
+
+## AutoCalculateSourceCompat
+
+| Method/property | Purpose |
+| --- | --- |
+| `PROPOSED_SOURCE_FIELDS` | `autoCalcProposedStatus` and `autoCalcProposedMode`. |
+| `keyForSide(side)` | Build the normalized SpanSide identity. |
+| `copySourceFields(target, source)` | Restore automatic Proposed source fields after constructor normalization. |
+
+The module wraps `AppStore.upsertSpanSide()` and `AppStore.setState()` before `app.js` loads. It preserves source metadata through candidate copies, Undo, and Save/Load without changing clearance formulas.
 
 ## ExcelImport
 
@@ -236,11 +268,20 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `resetCard(card, store?)` | Restart and apply the sequence for one pole card. |
 | `refresh(root?, store?)` | Reapply colors to all rendered pole cards. |
 
+## AutoCalculateStatusUI
+
+| Method | Purpose |
+| --- | --- |
+| `resultMarkup(result)` | Render one SAFE/BEST AVAILABLE/CRITICAL/MANUAL/SKIPPED explanation card. |
+| `refreshButton()` | Keep Auto Calculate available for TOP/LOW COMM when poles exist. |
+| `refreshCard(card)` | Synchronize the latest per-pole result without causing an observer loop. |
+| `refresh(root?)` | Refresh the button and every rendered pole result card. |
+
 ## PoleCalculatorUI
 
 | Method | Purpose |
 | --- | --- |
-| `runRefresh(root?)` | Run DOM annotation, table cleanup and span colors in order. |
+| `runRefresh(root?)` | Run DOM annotation, table cleanup, span colors, and Auto Calculate status rendering in order. |
 | `queueRefresh()` | Coalesce mutations into one microtask. |
 | `start()` | Run initial refresh and attach the workspace observer. |
 | `stop()` | Disconnect the observer, primarily for controlled tests. |
