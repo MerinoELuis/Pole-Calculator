@@ -24,6 +24,7 @@ const window = {
   UiDomContract: { apply: () => { calls.push("dom"); return 2; } },
   CommTableUI: { refresh: () => { calls.push("comm"); return 1; } },
   SpanColorUI: { refresh: () => { calls.push("colors"); return 3; } },
+  AutoCalculateStatusUI: { refresh: () => { calls.push("auto-status"); return 4; } },
   AppStore: {}
 };
 const sourcePath = path.join(__dirname, "..", "js", "ui", "runtime.js");
@@ -31,7 +32,16 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window }, { filename: 
 
 calls.length = 0;
 const result = window.PoleCalculatorUI.runRefresh(document);
-assert.deepEqual(JSON.parse(JSON.stringify(result)), { cards: 2, tablesChanged: 1, coloredSpans: 3 });
-assert.deepEqual(calls, ["dom", "comm", "dom", "colors"], "DOM contract runs before table cleanup and color assignment");
+assert.deepEqual(JSON.parse(JSON.stringify(result)), {
+  cards: 2,
+  tablesChanged: 1,
+  coloredSpans: 3,
+  autoCalculateStatuses: 4
+});
+assert.deepEqual(
+  calls,
+  ["dom", "comm", "dom", "colors", "auto-status"],
+  "DOM contract and table cleanup must run before color and Auto Calculate status rendering."
+);
 
 console.log("UI runtime tests passed");
