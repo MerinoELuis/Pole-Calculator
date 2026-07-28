@@ -14,6 +14,12 @@ Proposed = Top Comm + Pole Comm-comm clearance
 
 The solver first tries to keep existing comms in place. When the ideal Proposed does not fit, it builds the smallest downward stack permitted by Pole Comm-comm and Pole Bolt-bolt rules.
 
+When a comm Midspan is below Environment or above Max Height at MS, the
+solver converts the shortfall into the local HOA movement required to correct
+half of that Midspan difference. It may therefore raise a TOP COMM stack when
+space exists. Candidate validation remains authoritative and rejects any
+result that breaks pole, bolt, power, or comm spacing.
+
 ### LOW COMM
 
 The ideal pole attachment is:

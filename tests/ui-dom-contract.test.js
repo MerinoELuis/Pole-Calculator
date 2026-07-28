@@ -18,19 +18,23 @@ const spanRows = [
   { dataset: { spanId: "S1" } },
   { dataset: { span: "S2" } }
 ];
-const midspanRows = [{ dataset: {} }, { dataset: {} }];
+const midspanRows = [
+  { dataset: { spanId: "S2" } },
+  { dataset: { spanId: "S1" } }
+];
 const tableRow = {
   querySelectorAll(selector) {
     if (selector === ".comm-span-list .comm-span-row") return spanRows;
-    if (selector === ".comm-midspan-list .comm-midspan-value") return midspanRows;
+    if (selector === ".comm-midspan-list[data-midspan-list] .comm-midspan-value") return midspanRows;
+    if (selector === ".comm-midspan-list .comm-midspan-value") return [];
     return [];
   }
 };
 const pairs = api.pairCommRows(tableRow);
 assert.equal(pairs.length, 2);
 assert.equal(pairs[0].spanId, "S1");
-assert.equal(pairs[0].midspanRow, midspanRows[0]);
+assert.equal(pairs[0].midspanRow, midspanRows[1]);
 assert.equal(pairs[1].spanId, "S2");
-assert.equal(pairs[1].midspanRow, midspanRows[1]);
+assert.equal(pairs[1].midspanRow, midspanRows[0]);
 
 console.log("DOM contract tests passed");

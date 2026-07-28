@@ -79,6 +79,46 @@ S.upsertSpan(S.createSpan("EMPTY-FORE", "P1", "P2", "E", "", {
 }));
 assert.equal(C.spanHasRealMidspan("EMPTY-FORE"), false, "a truly empty Fore Span must remain hidden under the INTEC profile");
 
+S.upsertSpan(S.createSpan("OTHER-WITH-MS", "P1", "P4", "S", "", {
+  type: "Other",
+  rawType: "Other",
+  lengthDisplay: "125'"
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "OTHER-WITH-MS",
+  poleId: "P1",
+  owner: "COMMUNICATION > CATV",
+  existingHOA: "20'",
+  midspan: "16'8\""
+}));
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("OTHER-WITH-MS"), "P1"),
+  true,
+  "an Other span directed from this pole can own Proposed when it has real midspan data"
+);
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("OTHER-WITH-MS"), "P4"),
+  false,
+  "the receiving endpoint must not duplicate Proposed for the same Other span"
+);
+S.upsertSpan(S.createSpan("OTHER-UNKNOWN-MS", "P1", "Unknown-OTHER-MS", "W", "", {
+  type: "Other",
+  rawType: "Other",
+  lengthDisplay: "30'"
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "OTHER-UNKNOWN-MS",
+  poleId: "P1",
+  owner: "COMMUNICATION > CATV",
+  existingHOA: "20'",
+  midspan: "16'"
+}));
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("OTHER-UNKNOWN-MS"), "P1"),
+  false,
+  "an Other span ending at a generated Unknown pole must remain reference/manual"
+);
+
 seedSpan("METRONET", "NO-MS", "148'5\"", "22'");
 side = S.getSpanSide("NO-MS", "P1");
 span = S.getSpan("NO-MS");

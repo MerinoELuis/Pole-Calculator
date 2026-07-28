@@ -1,7 +1,7 @@
 (function (global) {
   "use strict";
 
-  const COLOR_CLASS_COUNT = 5;
+  const COLOR_CLASS_COUNT = 10;
   const COLOR_CLASS_PATTERN = /^span-color-\d+$/;
 
   function removeSpanColorClasses(element) {
@@ -100,18 +100,21 @@
       ]);
     });
 
-    card.querySelectorAll(".comm-movement-table tbody > tr").forEach(tableRow => {
-      collectCommRowPairs(tableRow).forEach(pair => {
-        if (!pair.spanId) return;
-        registerTarget(targetsBySpan, store, pair.spanId, [
-          ...pair.spanRow.querySelectorAll(".span-color-dot")
-        ]);
-        if (!pair.midspanRow) return;
-        registerTarget(targetsBySpan, store, pair.spanId, [
-          pair.midspanRow,
-          ...pair.midspanRow.querySelectorAll(".midspan-highlight-input, .midspan-highlight-display")
-        ]);
-      });
+    card.querySelectorAll(".comm-movement-table .comm-span-row").forEach(spanRow => {
+      const spanId = firstSpanId(spanRow);
+      if (!spanId) return;
+      registerTarget(targetsBySpan, store, spanId, [
+        ...spanRow.querySelectorAll(".span-color-dot")
+      ]);
+    });
+
+    card.querySelectorAll(".comm-movement-table [data-midspan-list] .colored-midspan").forEach(midspanRow => {
+      const spanId = firstSpanId(midspanRow);
+      if (!spanId) return;
+      registerTarget(targetsBySpan, store, spanId, [
+        midspanRow,
+        ...midspanRow.querySelectorAll(".midspan-highlight-input, .midspan-highlight-display")
+      ]);
     });
 
     return targetsBySpan;

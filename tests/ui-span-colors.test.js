@@ -40,7 +40,9 @@ const store = {
 assert.deepEqual(Array.from(api.sortVisibleSpanIds(store, "P01", ["A-2", "A-1"])), ["A-1", "A-2"]);
 assert.equal(api.classForVisibleIndex(0), "span-color-0");
 assert.equal(api.classForVisibleIndex(1), "span-color-1");
-assert.equal(api.classForVisibleIndex(5), "span-color-0");
+assert.equal(api.classForVisibleIndex(5), "span-color-5");
+assert.equal(api.classForVisibleIndex(9), "span-color-9");
+assert.equal(api.classForVisibleIndex(10), "span-color-0");
 assert.equal(api.classForVisibleIndex(api.sortVisibleSpanIds(store, "P02", ["manual-B", "B-1"]).indexOf("B-1")), "span-color-0");
 assert.equal(api.physicalSpanId(store, "manual-B"), "B-2");
 

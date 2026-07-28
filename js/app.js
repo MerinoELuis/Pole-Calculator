@@ -16,7 +16,7 @@
   let saveFileHandle = null;
   let lastSavedSerialized = "";
   let hasUnsavedChanges = false;
-  const SPAN_COLOR_CLASS_COUNT = 5;
+  const SPAN_COLOR_CLASS_COUNT = 10;
   const FILE_HANDLE_DB = "poleCalculatorFileHandles";
   const FILE_HANDLE_STORE = "handles";
   const SAVE_HANDLE_KEY = "currentSaveFile";
@@ -1119,18 +1119,22 @@
     return global.Calculations.spanHasRealMidspan(spanId);
   }
 
-  function isForespanForProposed(span, poleId) {
+  function isSpanEligibleForProposed(span, poleId) {
+    if (global.Calculations.isSpanEligibleForProposed) {
+      return global.Calculations.isSpanEligibleForProposed(span, poleId);
+    }
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    if (/fore\s*span|forespan/.test(type)) return span.fromPole === poleId;
-    if (/back\s*span|backspan|other/.test(type)) return false;
-    return span?.fromPole === poleId;
+    const otherPoleId = String(span?.toPole || "").trim();
+    return !/back\s*span|backspan/.test(type)
+      && span?.fromPole === poleId
+      && Boolean(otherPoleId && !/^unknown(?:-|\b)/i.test(otherPoleId) && !S.getPole(otherPoleId)?.isGenerated);
   }
 
   function proposedSpansForPole(poleId) {
     const seen = new Set();
     const allowNoMidspan = S.getState().settings?.proposeForeSpanWithoutMidspan === true;
     return connectedSpansSorted(poleId)
-      .filter(span => isForespanForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => isSpanEligibleForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const side = S.getSpanSide(span.spanId, poleId);
@@ -1213,7 +1217,7 @@
         && (sc.resagServiceDrop || (rawMidspan !== null && resagTarget !== null && rawMidspan < resagTarget))
       );
       entries.push({
-        spanHtml: `<div class="comm-span-row">
+        spanHtml: `<div class="comm-span-row" data-span-id="${escapeHtml(sc.spanId)}">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
           ${isReferenceSpan ? `<em>REF</em>` : ""}
@@ -1259,7 +1263,7 @@
             ${sc.resagServiceDrop ? "checked" : ""}
             ${canResagServiceDrop ? "" : "disabled"}>
         </div>`,
-        midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}">${canEditMidspan
+        midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}" data-span-id="${escapeHtml(sc.spanId)}">${canEditMidspan
           ? `<input class="input height-input remote-height-input midspan-highlight-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
           : `<strong class="midspan-highlight-display">${escapeHtml(midspan)}</strong>`}
           ${hasStoredMidspan ? `<button class="inline-icon-action danger-action" type="button"
@@ -1320,7 +1324,7 @@
 
   function renderCommMidspanValues(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
-    return `<div class="comm-midspan-list">${entries.map(entry => entry.midspanHtml).join("")}</div>`;
+    return `<div class="comm-midspan-list" data-midspan-list>${entries.map(entry => entry.midspanHtml).join("")}</div>`;
   }
 
   function renderCommMaxHeightAtMSValues(group, poleId) {

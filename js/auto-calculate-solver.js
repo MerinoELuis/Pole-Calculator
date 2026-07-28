@@ -88,6 +88,35 @@
     return Boolean(row?.existingHOAChange && row?.autoCalcStatus !== AUTO);
   }
 
+  // A local HOA movement changes its span midspan by half that movement.
+  // Convert current Environment/Power MS shortfalls into pole-height bounds so
+  // TOP COMM can raise a comm when raising is the safe correction.
+  function midspanBoundsForGroup(group) {
+    const rows = group.rowKeys
+      .map(key => S()?.getState?.()?.spanComms?.[key])
+      .filter(Boolean);
+    let minimumInches = null;
+    let maximumInches = null;
+    rows.forEach(row => {
+      const span = S()?.getSpan?.(row.spanId);
+      const midspan = parse(C()?.displayMidspanForComm?.(row) || row.calculatedMidspan || row.midspan || "");
+      const current = effective(row);
+      const flaggingMessage = text(row.flaggingMessage);
+      if (!span || midspan === null || current === null) return;
+      const environmentMinimum = parse(span.environmentClearance || "");
+      if (/Environment:/i.test(flaggingMessage) && environmentMinimum !== null && midspan < environmentMinimum) {
+        const required = Math.round(current + (environmentMinimum - midspan) * 2);
+        minimumInches = minimumInches === null ? required : Math.max(minimumInches, required);
+      }
+      const powerMaximum = parse(span.midspanMaxCommHeight || "");
+      if (/Power MS:/i.test(flaggingMessage) && powerMaximum !== null && midspan > powerMaximum) {
+        const required = Math.round(current - (midspan - powerMaximum) * 2);
+        maximumInches = maximumInches === null ? required : Math.min(maximumInches, required);
+      }
+    });
+    return { minimumInches, maximumInches };
+  }
+
   function manualProposed(side) {
     return Boolean(side?.proposedHOA && side?.autoCalcProposedStatus !== AUTO);
   }
@@ -120,7 +149,9 @@
           group.lockedInches = effective(row);
         }
       });
-    return Array.from(groups.values()).sort((a, b) => b.existingInches - a.existingInches);
+    return Array.from(groups.values())
+      .map(group => ({ ...group, ...midspanBoundsForGroup(group) }))
+      .sort((a, b) => b.existingInches - a.existingInches);
   }
 
   function gap(upper, lower, state) {
@@ -137,9 +168,11 @@
       .filter(span => {
         const side = S()?.getSpanSide?.(span.spanId, poleId);
         const type = String(span?.type || span?.rawType || "").toLowerCase();
-        const forward = /fore\s*span|forespan/.test(type)
-          ? span.fromPole === poleId
-          : !/back\s*span|backspan|other/.test(type) && span.fromPole === poleId;
+        const forward = C()?.isSpanEligibleForProposed
+          ? C().isSpanEligibleForProposed(span, poleId)
+          : !/back\s*span|backspan/.test(type)
+            && span.fromPole === poleId
+            && Boolean(span.toPole && !/^unknown(?:-|\b)/i.test(span.toPole) && !S()?.getPole?.(span.toPole)?.isGenerated);
         return forward || side?.isManualProposed;
       })
       .filter(span => {
@@ -165,6 +198,25 @@
       : Math.max(...values) + commClearance(state);
   }
 
+  // A lower comm's Midspan correction can force every comm above it upward.
+  // Propagate those minimums before selecting Proposed so the candidate list
+  // reserves enough vertical room for the complete comm stack.
+  function minimumTopCommHeight(groups, state = S()?.getState?.()) {
+    const ordered = [...groups].sort((a, b) => b.existingInches - a.existingInches);
+    if (!ordered.length) return null;
+    const floors = ordered.map(group => {
+      if (group.locked && group.lockedInches !== null) return group.lockedInches;
+      return Number.isFinite(group.minimumInches) ? group.minimumInches : 0;
+    });
+    for (let index = floors.length - 2; index >= 0; index -= 1) {
+      floors[index] = Math.max(
+        floors[index],
+        floors[index + 1] + gap(ordered[index], ordered[index + 1], state)
+      );
+    }
+    return floors[0];
+  }
+
   function addCandidate(set, value, maxPole) {
     if (!Number.isFinite(value)) return;
     const rounded = Math.round(value);
@@ -175,16 +227,36 @@
     if (!Number.isFinite(maxPole) || maxPole < 0) return [];
     if (manualReference !== null) return [Math.round(manualReference)];
     const values = new Set();
+    const requiredValues = new Set();
     const ideal = idealProposedHeight(groups, mode, state);
     const comm = commClearance(state);
     const bolt = boltClearance(state);
     const anchors = [ideal, maxPole, maxPole - bolt, ...currentProposed];
+    const minimumTop = mode === "TOP_COMM" ? minimumTopCommHeight(groups, state) : null;
+    if (minimumTop !== null) {
+      const requiredProposed = Math.round(minimumTop + comm);
+      anchors.push(requiredProposed);
+      if (requiredProposed >= 0 && requiredProposed <= maxPole) requiredValues.add(requiredProposed);
+    }
     groups.forEach(group => {
       const existing = group.existingInches;
       const current = group.effectiveInches ?? existing;
-      anchors.push(existing, current, existing + comm, existing - comm, existing + bolt, existing - bolt);
+      anchors.push(
+        existing,
+        current,
+        existing + comm,
+        existing - comm,
+        existing + bolt,
+        existing - bolt,
+        group.minimumInches,
+        group.maximumInches,
+        group.minimumInches === null ? null : group.minimumInches + comm,
+        group.maximumInches === null ? null : group.maximumInches + comm
+      );
     });
-    anchors.forEach(value => [-1, 0, 1].forEach(offset => addCandidate(values, Number(value) + offset, maxPole)));
+    anchors
+      .filter(Number.isFinite)
+      .forEach(value => [-1, 0, 1].forEach(offset => addCandidate(values, value + offset, maxPole)));
     if (ideal !== null) {
       for (let offset = -18; offset <= 18; offset += 1) addCandidate(values, ideal + offset, maxPole);
       const start = mode === "LOW_COMM" ? ideal - 48 : Math.min(ideal, maxPole) - 60;
@@ -193,8 +265,13 @@
     }
     for (let offset = 0; offset <= 12; offset += 1) addCandidate(values, maxPole - offset, maxPole);
     const preferred = ideal ?? maxPole;
-    return Array.from(values)
-      .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || (mode === "LOW_COMM" ? a - b : b - a))
+    const required = Array.from(requiredValues);
+    return [
+      ...required,
+      ...Array.from(values)
+        .filter(value => !requiredValues.has(value))
+        .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || (mode === "LOW_COMM" ? a - b : b - a))
+    ]
       .slice(0, MAX_CANDIDATES);
   }
 
@@ -202,6 +279,18 @@
     const ordered = mode === "LOW_COMM"
       ? [...groups].sort((a, b) => a.existingInches - b.existingInches)
       : [...groups].sort((a, b) => b.existingInches - a.existingInches);
+    const topCommFloors = mode === "TOP_COMM"
+      ? ordered.map(group => {
+        if (group.locked && group.lockedInches !== null) return group.lockedInches;
+        return Number.isFinite(group.minimumInches) ? group.minimumInches : 0;
+      })
+      : [];
+    for (let index = topCommFloors.length - 2; index >= 0; index -= 1) {
+      topCommFloors[index] = Math.max(
+        topCommFloors[index],
+        topCommFloors[index + 1] + gap(ordered[index], ordered[index + 1], state)
+      );
+    }
     const plan = [];
     ordered.forEach((group, index) => {
       const previous = plan[index - 1];
@@ -212,12 +301,26 @@
         const minimum = previous
           ? previous.targetInches + gap(previous.group, group, state)
           : proposedInches + commClearance(state);
-        target = Math.min(maxPole, Math.max(group.existingInches, minimum));
+        let preferred = group.existingInches;
+        if (Number.isFinite(group.minimumInches)) preferred = Math.max(preferred, group.minimumInches);
+        if (Number.isFinite(group.maximumInches)) preferred = Math.min(preferred, group.maximumInches);
+        target = Math.min(maxPole, Math.max(preferred, minimum));
       } else {
         const maximum = previous
           ? previous.targetInches - gap(previous.group, group, state)
           : proposedInches - commClearance(state);
-        target = Math.max(0, Math.min(group.existingInches, maximum));
+        const ceiling = Number.isFinite(group.maximumInches)
+          ? Math.min(maximum, group.maximumInches, maxPole)
+          : Math.min(maximum, maxPole);
+        const floor = topCommFloors[index] || 0;
+        let preferred = group.existingInches;
+        if (ceiling >= floor) {
+          target = Math.max(floor, Math.min(preferred, ceiling));
+        } else {
+          // This Proposed candidate cannot fit the required stack. Keep the
+          // candidate inside its upper envelope and let validation reject it.
+          target = Math.max(0, ceiling);
+        }
       }
       plan.push({ group, targetInches: Math.round(target) });
     });
@@ -496,7 +599,8 @@
       const proposedInches = candidates[candidateIndex];
       S().setState(clone(baseline));
       applyProposed(spans, poleId, proposedInches, mode);
-      applyPlan(buildStackPlan(groupsForPole(poleId), proposedInches, mode, maxPole, S().getState()));
+      const candidatePlan = buildStackPlan(groupsForPole(poleId), proposedInches, mode, maxPole, S().getState());
+      applyPlan(candidatePlan);
       recalculateAffected(poleId);
       const candidate = { analysis: analyzeCurrentState(poleId, mode), state: clone(S().getState()) };
       if (!best || compareAnalyses(candidate.analysis, best.analysis) < 0) best = candidate;

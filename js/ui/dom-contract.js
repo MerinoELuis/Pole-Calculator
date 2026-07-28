@@ -49,11 +49,19 @@
   function pairCommRows(tableRow) {
     if (!tableRow?.querySelectorAll) return [];
     const spanRows = Array.from(tableRow.querySelectorAll(".comm-span-list .comm-span-row"));
-    const midspanRows = Array.from(tableRow.querySelectorAll(".comm-midspan-list .comm-midspan-value"));
+    let midspanRows = Array.from(tableRow.querySelectorAll(".comm-midspan-list[data-midspan-list] .comm-midspan-value"));
+    if (!midspanRows.length) {
+      midspanRows = Array.from(tableRow.querySelectorAll(".comm-midspan-list .comm-midspan-value"));
+    }
+    const midspanBySpanId = new Map();
+    midspanRows.forEach(row => {
+      const spanId = spanIdFrom(row);
+      if (spanId && !midspanBySpanId.has(spanId)) midspanBySpanId.set(spanId, row);
+    });
     return spanRows.map((spanRow, index) => ({
       spanId: spanIdFrom(spanRow),
       spanRow,
-      midspanRow: midspanRows[index] || null
+      midspanRow: midspanBySpanId.get(spanIdFrom(spanRow)) || midspanRows[index] || null
     }));
   }
 

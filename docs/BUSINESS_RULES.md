@@ -105,6 +105,12 @@ Using the same priority prevents the table from displaying one value while flagg
 
 For `Proposed by Span`, a valid imported Power midspan also counts as real midspan data. This allows a Fore Span to be proposed when it contains Power clearance data but no communication rows in `Span.Wire`.
 
+An `Other` span directed from the current pole is also eligible for
+`Proposed by Span` when it owns a real comm, power, or Proposed midspan and
+connects to a real pole. Spans ending at generated `Unknown-*` poles stay
+reference/manual. `Back Span` remains excluded unless the user explicitly
+creates a manual Proposed row, preventing duplicate physical proposals.
+
 ## Comm Flagging
 
 One compact comm flagging field combines these checks:
@@ -256,11 +262,17 @@ For every pass the solver:
 2. Visits each eligible aerial pole.
 3. Groups duplicate span relationships representing the same physical comm.
 4. Generates exact one-inch candidates around the ideal and important clearance boundaries, plus wider six-inch checkpoints.
-5. Builds a downward stack for TOP COMM or an upward stack for LOW COMM.
+5. Builds a clearance-aware stack for TOP COMM or LOW COMM.
 6. Preserves user-entered HOA Change and Proposed values.
 7. Applies each candidate to a clean state copy and runs the existing pole, Proposed and Midspan validations.
 8. Keeps the best candidate rather than rejecting every candidate that still has a violation.
 9. Repeats for up to three passes and stops early when the movement signature converges or repeats.
+
+An Environment or Power MS shortfall is converted into the local HOA movement
+required to correct that endpoint's half of the Midspan change. For example, a
+Midspan that is `2"` below Environment contributes a `4"` local pole target.
+The candidate is accepted only when all ordinary pole, bolt, comm, power, and
+Midspan validations also permit it.
 
 Candidate priority is strict and lexicographic:
 

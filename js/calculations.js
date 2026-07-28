@@ -1196,18 +1196,27 @@
     return hasPowerMidspan || hasCommMidspan || hasProposedMidspan;
   }
 
-  function isForespanForProposed(span, poleId) {
+  /**
+   * Reports whether a directed span may own a Proposed row at this pole.
+   * Fore Span and Other relationships can own Proposed when they start at the
+   * current pole and connect to a real pole. Generated Unknown endpoints stay
+   * reference/manual because Auto Calculate cannot determine their far end.
+   * Back Span remains excluded to avoid duplicating a physical proposal.
+   */
+  function isSpanEligibleForProposed(span, poleId) {
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    if (/fore\s*span|forespan/.test(type)) return span.fromPole === poleId;
-    if (/back\s*span|backspan|other/.test(type)) return false;
-    return span?.fromPole === poleId;
+    if (/back\s*span|backspan/.test(type)) return false;
+    if (span?.fromPole !== poleId) return false;
+    const otherPoleId = String(span?.toPole || "").trim();
+    const otherPole = S().getPole(otherPoleId);
+    return Boolean(otherPoleId && !/^unknown(?:-|\b)/i.test(otherPoleId) && !otherPole?.isGenerated);
   }
 
   function autoCalcProposedSpansForPole(poleId) {
     const seen = new Set();
     const allowNoMidspan = S().getState().settings?.proposeForeSpanWithoutMidspan === true;
     return S().getConnectedSpans(poleId)
-      .filter(span => isForespanForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => isSpanEligibleForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isAdditionalProposed)
       .filter(span => {
@@ -1778,6 +1787,7 @@
     getEffectiveCommHOA,
     getEstimatedSagInches,
     spanHasRealMidspan,
+    isSpanEligibleForProposed,
     findRemoteComm,
     getReferenceMidspansForSpanSide,
     autoCalculateMovements

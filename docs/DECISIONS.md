@@ -25,8 +25,16 @@ Every pole starts its visible span sequence at:
 3. `span-color-2` — azul oscuro
 4. `span-color-3` — rosa
 5. `span-color-4` — verde
+6. `span-color-5` — rojo
+7. `span-color-6` — verde oscuro
+8. `span-color-7` — azul claro
+9. `span-color-8` — salmón
+10. `span-color-9` — amarillo
 
-Hidden spans do not consume a visible color position. Midspan rows, including blank or `REF` rows, must use the same color as their paired span.
+Hidden spans do not consume a visible color position. The sequence follows the
+natural imported Span Index order and repeats only after ten visible physical
+spans. Midspan rows, including blank or `REF` rows, use their explicit
+`spanId` and must always have the same color as their paired span.
 
 ## DEC-005 — Stable DOM identities
 

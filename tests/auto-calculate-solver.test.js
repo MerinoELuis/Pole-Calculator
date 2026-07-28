@@ -138,6 +138,40 @@ const lockedGroups = [
 const lockedPlan = solver.buildStackPlan(lockedGroups, 258, "TOP_COMM", 288, state);
 assert.equal(lockedPlan[0].targetInches, 248, "A user-entered HOA Change must remain fixed.");
 
+const environmentCorrectionPlan = solver.buildStackPlan([
+  { key: "catv-env", ownerToken: "catv", existingInches: 208, effectiveInches: 208, minimumInches: 226, maximumInches: null, locked: false },
+  { key: "ctl-env", ownerToken: "ctl", existingInches: 184, effectiveInches: 184, minimumInches: 218, maximumInches: null, locked: false }
+], 242, "TOP_COMM", 328, state);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(environmentCorrectionPlan.map(item => item.targetInches))),
+  [230, 218],
+  "An undersized Proposed candidate must keep the stack inside its available upper envelope."
+);
+
+const environmentCorrectionFitPlan = solver.buildStackPlan([
+  { key: "catv-env", ownerToken: "catv", existingInches: 208, effectiveInches: 208, minimumInches: 226, maximumInches: null, locked: false },
+  { key: "ctl-env", ownerToken: "ctl", existingInches: 184, effectiveInches: 184, minimumInches: 252, maximumInches: null, locked: false }
+], 276, "TOP_COMM", 328, state);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(environmentCorrectionFitPlan.map(item => item.targetInches))),
+  [264, 252],
+  "TOP COMM must propagate a lower comm's Environment MS correction upward through the pole stack."
+);
+const environmentCorrectionCandidates = solver.candidateHeights({
+  groups: [
+    { key: "catv-env", ownerToken: "catv", existingInches: 208, effectiveInches: 208, minimumInches: 226, maximumInches: null, locked: false },
+    { key: "ctl-env", ownerToken: "ctl", existingInches: 184, effectiveInches: 184, minimumInches: 252, maximumInches: null, locked: false }
+  ],
+  maxPole: 328,
+  mode: "TOP_COMM",
+  currentProposed: [220],
+  state
+});
+assert.ok(
+  environmentCorrectionCandidates.includes(276),
+  "The required Proposed height must survive candidate truncation when a lower comm forces the stack upward."
+);
+
 assert.match(solver.resultMessage(poleSafeMidspanBad, "BEST_AVAILABLE"), /Pole clearances satisfied/i);
 assert.match(solver.resultMessage(poleBadMidspanSafe, "CRITICAL"), /No pole-compliant aerial arrangement/i);
 

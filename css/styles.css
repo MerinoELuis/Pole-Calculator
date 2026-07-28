@@ -1331,6 +1331,11 @@ tr.danger-row {
 .span-color-2 { --span-row-color: #21409A; --span-soft-color: #eef4ff; }
 .span-color-3 { --span-row-color: #FF0984; --span-soft-color: #fff0f7; }
 .span-color-4 { --span-row-color: #66D313; --span-soft-color: #efffe8; }
+.span-color-5 { --span-row-color: #F44546; --span-soft-color: #fff0f0; }
+.span-color-6 { --span-row-color: #039C4B; --span-soft-color: #e9fff3; }
+.span-color-7 { --span-row-color: #04ADFF; --span-soft-color: #e8f8ff; }
+.span-color-8 { --span-row-color: #E48873; --span-soft-color: #fff1ed; }
+.span-color-9 { --span-row-color: #FEDF17; --span-soft-color: #fffbe3; }
 
 tr.span-color-row td:first-child {
   box-shadow: inset 7px 0 0 var(--span-row-color);
