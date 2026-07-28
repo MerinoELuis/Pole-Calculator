@@ -33,7 +33,7 @@ Important settings and defaults:
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `projectProfile` | `INTEC` | Active project behavior. |
-| `position` | `TOP_COMM` | Proposed is placed above or below the comm stack. |
+| `position` | `TOP_COMM` | Proposed is placed above or below the comm stack. Auto Calculate supports both values. |
 | `polePowerCommsClearance` | `40"` | Low Power to comm clearance on the pole. |
 | `commClearance` | `12"` | Different-owner comm spacing on the pole. |
 | `boltClearance` | `4"` | Same-owner and bolt-point spacing on the pole. |
@@ -65,6 +65,9 @@ Imported, editable, and derived values live together but have different ownershi
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |
 
 `canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The `poleId` stored from Collection remains unchanged for display and export.
+
+| Field | Ownership | Meaning |
+| --- | --- | --- |
 | `standaloneProposedHOA` | editable | Proposed height on a terminal pole with no outgoing Proposed span. |
 | `ugActive`, `pcoActive` | editable | Mutually exclusive Make Ready resolution modes. |
 | `ugReason` | editable | Specific INTEC UG reason reused by connected span instructions. |
@@ -73,9 +76,22 @@ Imported, editable, and derived values live together but have different ownershi
 | `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
 | `riserActive` | editable tri-state | `null` keeps automatic Fore/Back adjacent-UG behavior; `true` adds and `false` suppresses riser MR on a normal pole. UG/PCO disables the action. |
 | `notes` | editable | User-owned pole notes. |
-| `metadata` | mixed | Source notes and project constraints plus normalized editable Power Equipment actions. |
+| `metadata` | mixed | Source notes, project constraints, Power Equipment actions and the latest Auto Calculate result. |
 
 `metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Ground, Transformer Redress, and Power Riser Raise work. `raiseActive` and `raiseHeight` separately preserve the optional INTEC Streetlight Raise action.
+
+`metadata.autoCalculateResult` stores the latest per-pole solver explanation:
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `SAFE`, `BEST_AVAILABLE`, `CRITICAL`, `MANUAL`, or `SKIPPED`. |
+| `mode` | `TOP_COMM` or `LOW_COMM`. |
+| `message`, `recommendation` | Human-readable result and operator guidance. |
+| `poleViolationCount`, `poleViolationInches` | Remaining pole issue count and estimated total shortfall. |
+| `midspanViolationCount`, `midspanViolationInches` | Remaining Midspan issue count and estimated total shortfall. |
+| `movedCommCount`, `totalMovementInches` | Movement cost of the selected arrangement. |
+| `idealProposed` | Rule-based TOP/LOW COMM Proposed target. |
+| `candidateCount`, `updatedAt` | Search diagnostics. |
 
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 
@@ -105,7 +121,9 @@ Two spans describe the same physical connection when their sorted endpoint pairs
 | Field | Ownership | Meaning |
 | --- | --- | --- |
 | `spanId`, `poleId` | key | Links the Proposed row to a span and pole. |
-| `proposedHOA` | editable | Proposed attachment height on the current pole. |
+| `proposedHOA` | editable/auto | Proposed attachment height on the current pole. |
+| `autoCalcProposedStatus` | derived source metadata | `AUTO` when the solver produced the current Proposed; blank after a user edit. |
+| `autoCalcProposedMode` | derived source metadata | TOP/LOW COMM mode that generated the current automatic Proposed. |
 | `proposedHOAChange` | auto/editable | Next Pole Proposed used to calculate End Drop. |
 | `nextPoleProposedAuto` | derived | Indicates that Next Pole Proposed came from the connected pole. |
 | `ocalcMS` | editable | Decimal-feet O-Calc midspan input. |
@@ -129,6 +147,8 @@ An additional Proposed uses its own SpanSide and may point to a physical span th
 | `ownerBase`, `rawOwner` | imported | Matching and original display owner values. |
 | `existingHOA` | imported/editable | Baseline attachment height. |
 | `existingHOAChange` | editable/auto | New attachment height. Blank means no movement. |
+| `autoCalcStatus` | derived source metadata | `AUTO` when the current HOA Change came from Auto Calculate; blank after a user edit. |
+| `autoCalcMessage` | derived source metadata | Reserved solver message field. |
 | `midspan` | imported/editable before movement | Baseline midspan from Span.Wire. |
 | `ocalcMS` | imported/legacy | Fallback baseline for older states. |
 | `calculatedMidspan` | derived | Baseline plus half-movements at both endpoints. |
