@@ -14,7 +14,8 @@ function position(filename) {
 }
 
 assert.ok(position("js/compact-autoproposed.js") < position("js/auto-calculate-solver.js"));
-assert.ok(position("js/auto-calculate-solver.js") < position("js/app.js"));
+assert.ok(position("js/auto-calculate-solver.js") < position("js/auto-calculate-source-compat.js"));
+assert.ok(position("js/auto-calculate-source-compat.js") < position("js/app.js"));
 assert.ok(position("js/app.js") < position("js/ui/dom-contract.js"));
 assert.ok(position("js/ui/dom-contract.js") < position("js/ui/comm-table.js"));
 assert.ok(position("js/ui/comm-table.js") < position("js/ui/span-colors.js"));
