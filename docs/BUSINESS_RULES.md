@@ -1,6 +1,6 @@
 # Business Rules
 
-This document records the rules currently implemented in `calculations.js` and `mr-logic.js`. Editable values always come from `AppState.settings`.
+This document records the rules currently implemented in `calculations.js`, `auto-calculate-solver.js`, and `mr-logic.js`. Editable values always come from `AppState.settings`.
 
 ## Height Arithmetic
 
@@ -21,7 +21,7 @@ Uncovered drip-loop      = Drip Loop Height - 12"
 Max Height on Pole       = minimum available ceiling
 ```
 
-MidAm comms and Proposed must also remain at least `3\"` from imported MidAm utility guy attachment heights.
+MidAm comms and Proposed must also remain at least `3"` from imported MidAm utility guy attachment heights.
 
 The highest and lowest effective comm heights use `HOA Change` when present; otherwise they use `Existing HOA`. INTEC Self-Supporting Fiber is POF: it stays visible but does not define Top Comm or Low Comm for Proposed placement.
 
@@ -103,9 +103,7 @@ Using the same priority prevents the table from displaying one value while flagg
 | Fore Span | missing | Editable so the user can create the midspan. |
 | Fore Span | present | Real midspan row; calculations and flagging apply. |
 
-For `Proposed by Span`, a valid imported Power midspan also counts as real
-midspan data. This allows a Fore Span to be proposed when it contains Power
-clearance data but no communication rows in `Span.Wire`.
+For `Proposed by Span`, a valid imported Power midspan also counts as real midspan data. This allows a Fore Span to be proposed when it contains Power clearance data but no communication rows in `Span.Wire`.
 
 ## Comm Flagging
 
@@ -121,7 +119,7 @@ One compact comm flagging field combines these checks:
 8. Same owners keep Pole Bolt-bolt clearance.
 9. New movement bolts keep Bolt-bolt clearance from previous Existing HOA points.
 
-MidAm environment defaults are profile-specific: railroad `23'6\"`; truck traffic, parking lots, alleys, farms and along-road spans `15'6\"`; pedestrian-only areas `9'6\"`; and water without sailboats `14'`.
+MidAm environment defaults are profile-specific: railroad `23'6"`; truck traffic, parking lots, alleys, farms and along-road spans `15'6"`; pedestrian-only areas `9'6"`; and water without sailboats `14'`.
 
 ## Power Equipment and Pole Maximum
 
@@ -136,14 +134,14 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 ### Power Equipment Actions
 
 1. Every MidAm Streetlight has mandatory `Ground`: import and recalculation activate it automatically, the UI cannot disable it, and MR adds `MNT GROUND STREETLIGHT`.
-2. Grounding does not invent a vertical height or remove physical clearances. MidAm still applies `Bottom Height - 20\"` and `Drip Loop Height - 12\"`; the lower ceiling controls.
+2. Grounding does not invent a vertical height or remove physical clearances. MidAm still applies `Bottom Height - 20"` and `Drip Loop Height - 12"`; the lower ceiling controls.
 3. Transformer `Redress` requires New HOA. INTEC adds `Secure transformer drip loop to HOA <height>.`; Metronet adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
 4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC and `MNT GROUND STREETLIGHT` for Metronet.
 5. Power Riser `Raise` requires a New HOA above the imported attachment. INTEC adds `Raise APS riser from HOA <old> to HOA <new>.`; Metronet adds `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.`
 6. INTEC Streetlight `Raise` is independent of `Ground`. New HOA must be above Attachment Height and no more than `12"` higher. The bracket, bottom, and drip-loop references move by the same delta, and MR adds `Raise streetlight from HOA <old> to <new>.`
-5. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
-6. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
-7. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
+7. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
+8. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
+9. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
 
 ## MidAm Collection Identity
 
@@ -194,9 +192,9 @@ For INTEC/Wecom, both fields remaining blank means MS Proposed and Adjusted Fina
 
 For Metronet/MidAm, when both fields are blank the base is calculated automatically:
 
-1. If the physical span contains one or more comm midspans, use the highest comm midspan plus `12\"`. MidAm checks both directed rows of the same pole pair because the measured value may live on the reciprocal Back/Other span.
+1. If the physical span contains one or more comm midspans, use the highest comm midspan plus `12"`. MidAm checks both directed rows of the same pole pair because the measured value may live on the reciprocal Back/Other span.
 2. Otherwise, subtract estimated sag from Proposed HOA.
-3. Round span length to the nearest `50 ft` before estimating sag at `1 ft` per `100 ft`: `100 ft -> 12\"`, `150 ft -> 18\"`, `200 ft -> 24\"`, and `250 ft -> 30\"`.
+3. Round span length to the nearest `50 ft` before estimating sag at `1 ft` per `100 ft`: `100 ft -> 12"`, `150 ft -> 18"`, `200 ft -> 24"`, and `250 ft -> 30"`.
 4. Existing MS adjustment and flagging rules run after this base is obtained.
 
 In Top Comm mode:
@@ -241,19 +239,49 @@ Only the first non-additional Proposed at the next pole is used automatically fo
 
 ## Auto Calculate
 
-Auto Calculate is enabled only in Top Comm mode.
+Auto Calculate supports both `TOP_COMM` and `LOW_COMM`.
 
-For every pass it:
+The ideal Proposed height is:
 
-1. Recalculates the full state.
-2. Visits poles and builds comm groups ordered by Existing HOA.
-3. Tests candidate Proposed heights against a clean state snapshot.
-4. Builds a downward comm stack when Proposed or midspan limits require room.
-5. Uses Comm-comm spacing between different owners and Bolt-bolt spacing between the same owner.
-6. Recalculates affected poles and rejects candidates that introduce a new violation.
-7. Repeats until the movement signature no longer changes.
+```text
+TOP_COMM: Proposed = Top Comm + Pole Comm-comm
+LOW_COMM: Proposed = Low Comm - Pole Comm-comm
+```
 
-The solver stops at `max(8, pole count * 2 + 4)` passes or when a repeated signature is detected. Existing user-entered HOA changes are not overwritten by an automatic stack movement.
+The ideal is a ranking target, not a command to use Max Height on Pole. A higher or lower position is selected only when the existing constraints produce a better arrangement.
+
+For every pass the solver:
+
+1. Recalculates the current state.
+2. Visits each eligible aerial pole.
+3. Groups duplicate span relationships representing the same physical comm.
+4. Generates exact one-inch candidates around the ideal and important clearance boundaries, plus wider six-inch checkpoints.
+5. Builds a downward stack for TOP COMM or an upward stack for LOW COMM.
+6. Preserves user-entered HOA Change and Proposed values.
+7. Applies each candidate to a clean state copy and runs the existing pole, Proposed and Midspan validations.
+8. Keeps the best candidate rather than rejecting every candidate that still has a violation.
+9. Repeats for up to three passes and stops early when the movement signature converges or repeats.
+
+Candidate priority is strict and lexicographic:
+
+1. Result category.
+2. Number and total shortfall of pole violations.
+3. Number and total shortfall of Midspan violations.
+4. Number of comm groups moved.
+5. Total movement in inches.
+6. Distance from the ideal Proposed height.
+
+Result categories:
+
+- `SAFE`: pole and Midspan both comply.
+- `BEST_AVAILABLE`: the pole complies, but Midspan still has one or more violations.
+- `CRITICAL`: no pole-compliant aerial arrangement was found; the best evaluated arrangement is retained.
+- `MANUAL`: required pole data is missing.
+- `SKIPPED`: no eligible Proposed span exists or the pole is already UG/PCO.
+
+A `BEST_AVAILABLE` arrangement always outranks a candidate where Midspan complies but the pole does not. The original/current arrangement may remain selected when it already ranks better than every newly generated candidate.
+
+UG and PCO remain operator decisions. For INTEC, a non-SAFE result recommends review for UG or PCO but never activates either option automatically. Existing Streetlight Ground/Raise, Transformer Redress, Power Riser Raise, Re-sag and Transfer actions remain user-controlled; when active, their effects participate in normal recalculation and candidate validation.
 
 ## Make Ready
 
