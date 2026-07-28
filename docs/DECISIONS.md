@@ -43,3 +43,19 @@ Post-render UI behavior is coordinated by `js/ui/runtime.js`. New table or annot
 ## DEC-008 — One test command
 
 `npm test` is the required local and CI command. Runtime remains plain HTML/CSS/JavaScript; Node is development tooling only and does not add a GitHub Pages build step.
+
+## DEC-009 — Pole compliance has priority over Midspan
+
+Auto Calculate compares candidate arrangements by result category before movement cost. `SAFE` is best. When no SAFE arrangement exists, a pole-compliant `BEST_AVAILABLE` arrangement with Midspan violations is always preferred over an arrangement that fixes Midspan but leaves any pole violation.
+
+## DEC-010 — Retain the best partial aerial arrangement
+
+A candidate is no longer discarded only because one or more violations remain. The solver retains the best evaluated arrangement as `BEST_AVAILABLE` or `CRITICAL`, reports the remaining issue count/shortfall, and lets the operator decide the final construction resolution.
+
+## DEC-011 — Auto Calculate supports TOP COMM and LOW COMM
+
+TOP COMM targets `Top Comm + Comm-comm`; LOW COMM targets `Low Comm - Comm-comm`. The rule defines the ideal Proposed position, while the solver minimizes remaining violations, moved comm groups, total movement and distance from that ideal.
+
+## DEC-012 — UG and PCO remain operator decisions
+
+Auto Calculate may recommend manual UG/PCO review for INTEC, but it never activates either option. Poles already marked UG or PCO are skipped by the aerial solver.
