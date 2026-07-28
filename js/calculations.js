@@ -1198,18 +1198,12 @@
 
   /**
    * Reports whether a directed span may own a Proposed row at this pole.
-   * Fore Span and Other relationships can own Proposed when they start at the
-   * current pole and connect to a real pole. Generated Unknown endpoints stay
-   * reference/manual because Auto Calculate cannot determine their far end.
-   * Back Span remains excluded to avoid duplicating a physical proposal.
+   * Only an imported Fore Span directed from the current pole is automatic.
+   * Other and Back Span relationships remain reference/manual.
    */
   function isSpanEligibleForProposed(span, poleId) {
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    if (/back\s*span|backspan/.test(type)) return false;
-    if (span?.fromPole !== poleId) return false;
-    const otherPoleId = String(span?.toPole || "").trim();
-    const otherPole = S().getPole(otherPoleId);
-    return Boolean(otherPoleId && !/^unknown(?:-|\b)/i.test(otherPoleId) && !otherPole?.isGenerated);
+    return /fore\s*span|forespan/.test(type) && span?.fromPole === poleId;
   }
 
   function autoCalcProposedSpansForPole(poleId) {
@@ -1217,6 +1211,7 @@
     const allowNoMidspan = S().getState().settings?.proposeForeSpanWithoutMidspan === true;
     return S().getConnectedSpans(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => !S().getSpanSide(span.spanId, poleId)?.isProposedExcluded)
       .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isAdditionalProposed)
       .filter(span => {
@@ -1788,6 +1783,7 @@
     getEstimatedSagInches,
     spanHasRealMidspan,
     isSpanEligibleForProposed,
+    autoCalcProposedSpansForPole,
     findRemoteComm,
     getReferenceMidspansForSpanSide,
     autoCalculateMovements

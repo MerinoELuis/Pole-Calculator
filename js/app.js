@@ -1124,10 +1124,7 @@
       return global.Calculations.isSpanEligibleForProposed(span, poleId);
     }
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    const otherPoleId = String(span?.toPole || "").trim();
-    return !/back\s*span|backspan/.test(type)
-      && span?.fromPole === poleId
-      && Boolean(otherPoleId && !/^unknown(?:-|\b)/i.test(otherPoleId) && !S.getPole(otherPoleId)?.isGenerated);
+    return /fore\s*span|forespan/.test(type) && span?.fromPole === poleId;
   }
 
   function proposedSpansForPole(poleId) {
@@ -1135,6 +1132,7 @@
     const allowNoMidspan = S.getState().settings?.proposeForeSpanWithoutMidspan === true;
     return connectedSpansSorted(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => !S.getSpanSide(span.spanId, poleId)?.isProposedExcluded)
       .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => {
         const side = S.getSpanSide(span.spanId, poleId);
@@ -2473,6 +2471,7 @@
       poleId,
       isManualProposed: true,
       isAdditionalProposed: shouldCreateAdditional,
+      isProposedExcluded: false,
       proposedHOA: shouldCreateAdditional ? "" : (existingSide?.proposedHOA || S.getPole(poleId)?.standaloneProposedHOA || "")
     });
     if (S.getPole(poleId)?.standaloneProposedHOA) S.updatePoleField(poleId, "standaloneProposedHOA", "");
@@ -2507,7 +2506,8 @@
         endDrop: "",
         notes: "",
         isManualProposed: false,
-        isAdditionalProposed: false
+        isAdditionalProposed: false,
+        isProposedExcluded: true
       });
     }
     global.Calculations.recalculateSpansForPole(poleId);

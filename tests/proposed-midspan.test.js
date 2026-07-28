@@ -93,8 +93,8 @@ S.upsertSpanComm(S.createSpanComm({
 }));
 assert.equal(
   C.isSpanEligibleForProposed(S.getSpan("OTHER-WITH-MS"), "P1"),
-  true,
-  "an Other span directed from this pole can own Proposed when it has real midspan data"
+  false,
+  "an Other span must remain reference/manual even when it has real midspan data"
 );
 assert.equal(
   C.isSpanEligibleForProposed(S.getSpan("OTHER-WITH-MS"), "P4"),
@@ -118,6 +118,36 @@ assert.equal(
   false,
   "an Other span ending at a generated Unknown pole must remain reference/manual"
 );
+
+seedSpan("INTEC", "DELETABLE-FORE", "150'", "22'");
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "DELETABLE-FORE",
+  poleId: "P1",
+  owner: "COMMUNICATION > CATV",
+  existingHOA: "20'",
+  midspan: "17'"
+}));
+assert.deepEqual(
+  Array.from(C.autoCalcProposedSpansForPole("P1"), span => span.spanId),
+  ["DELETABLE-FORE"],
+  "an eligible Fore Span must initially appear in Proposed by Span"
+);
+S.upsertSpanSide({
+  ...S.getSpanSide("DELETABLE-FORE", "P1"),
+  proposedHOA: "",
+  isProposedExcluded: true
+});
+assert.equal(
+  S.getSpanSide("DELETABLE-FORE", "P1").isProposedExcluded,
+  true,
+  "the delete marker must survive SpanSide normalization"
+);
+assert.deepEqual(
+  Array.from(C.autoCalcProposedSpansForPole("P1"), span => span.spanId),
+  [],
+  "deleting Proposed must hide its row without deleting the physical Fore Span"
+);
+assert.ok(S.getSpan("DELETABLE-FORE"), "deleting Proposed must preserve the physical span");
 
 seedSpan("METRONET", "NO-MS", "148'5\"", "22'");
 side = S.getSpanSide("NO-MS", "P1");

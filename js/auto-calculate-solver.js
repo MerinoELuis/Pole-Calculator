@@ -170,11 +170,10 @@
         const type = String(span?.type || span?.rawType || "").toLowerCase();
         const forward = C()?.isSpanEligibleForProposed
           ? C().isSpanEligibleForProposed(span, poleId)
-          : !/back\s*span|backspan/.test(type)
-            && span.fromPole === poleId
-            && Boolean(span.toPole && !/^unknown(?:-|\b)/i.test(span.toPole) && !S()?.getPole?.(span.toPole)?.isGenerated);
+          : /fore\s*span|forespan/.test(type) && span.fromPole === poleId;
         return forward || side?.isManualProposed;
       })
+      .filter(span => !S()?.getSpanSide?.(span.spanId, poleId)?.isProposedExcluded)
       .filter(span => {
         const side = S()?.getSpanSide?.(span.spanId, poleId);
         return allowNoMidspan || C()?.spanHasRealMidspan?.(span.spanId) || side?.isManualProposed;

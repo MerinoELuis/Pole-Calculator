@@ -340,6 +340,7 @@
       poleId: trim(data.poleId || ""),
       isManualProposed: Boolean(data.isManualProposed),
       isAdditionalProposed: Boolean(data.isAdditionalProposed),
+      isProposedExcluded: Boolean(data.isProposedExcluded),
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),

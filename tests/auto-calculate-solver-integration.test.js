@@ -26,7 +26,7 @@ function formatHeight(value) {
 let state = {
   settings: { position: "TOP_COMM", commClearance: "12\"", boltClearance: "4\"", projectProfile: "INTEC" },
   poles: { P1: { poleId: "P1", maxCommHeight: "22'", metadata: {} }, P2: { poleId: "P2", metadata: {} } },
-  spans: { S1: { spanId: "S1", fromPole: "P1", toPole: "P2", type: "Other" } },
+  spans: { S1: { spanId: "S1", fromPole: "P1", toPole: "P2", type: "Fore Span" } },
   spanSides: { S1__P1: { spanId: "S1", poleId: "P1", proposedHOA: "" } },
   spanComms: {
     S1__P1__CATV__: {

@@ -105,11 +105,14 @@ Using the same priority prevents the table from displaying one value while flagg
 
 For `Proposed by Span`, a valid imported Power midspan also counts as real midspan data. This allows a Fore Span to be proposed when it contains Power clearance data but no communication rows in `Span.Wire`.
 
-An `Other` span directed from the current pole is also eligible for
-`Proposed by Span` when it owns a real comm, power, or Proposed midspan and
-connects to a real pole. Spans ending at generated `Unknown-*` poles stay
-reference/manual. `Back Span` remains excluded unless the user explicitly
-creates a manual Proposed row, preventing duplicate physical proposals.
+Only a `Fore Span` directed from the current pole is eligible automatically
+for `Proposed by Span`. `Other`, `Back Span`, and generated `Unknown-*`
+relationships remain reference/manual. The user can still create a manual
+Proposed row when an exception is required.
+
+Deleting an imported Fore Span from `Proposed by Span` suppresses only its
+proposal row. The physical span, comms, power, and graph relationship remain
+in state. Adding the same Proposed span manually removes that suppression.
 
 ## Comm Flagging
 
