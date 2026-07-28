@@ -75,6 +75,20 @@ A user-entered `HOA Change` is locked during Auto Calculate. A user-entered `Pro
 
 Each candidate recalculates the selected pole, connected endpoints and matching Wire IDs. The complete job is processed for up to three passes and stops early when the movement/Proposed signature converges or repeats.
 
+## Responsive execution and progress
+
+`solvePole()` and `autoCalculateMovements()` are asynchronous. Candidate order,
+ranking and validation are unchanged, but evaluation yields to the browser
+after each small candidate batch and after each pole. This prevents long jobs
+from monopolizing the UI thread long enough for the browser to report that the
+page has stopped responding.
+
+The application passes an `onProgress(detail)` callback. Progress details
+include the current phase, percentage, pass, pole, and candidate. While the
+solver runs, a temporary overlay displays this information and prevents
+overlapping edits. The overlay disappears after completion or failure; it is
+not stored in application state.
+
 ## UG and PCO
 
 For INTEC, `BEST_AVAILABLE` and `CRITICAL` results display a recommendation to review UG or PCO. The solver does not select either option. Existing UG/PCO poles are skipped and keep their user-selected resolution.

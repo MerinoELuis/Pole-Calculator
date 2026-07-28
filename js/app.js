@@ -21,6 +21,7 @@
   const FILE_HANDLE_STORE = "handles";
   const SAVE_HANDLE_KEY = "currentSaveFile";
   const JSON_PICKER_ID = "pole-calculator-json";
+  let autoCalculateRunning = false;
 
 
   function qs(id) { return document.getElementById(id); }
@@ -41,6 +42,37 @@
     div.textContent = message;
     els.toastHost.appendChild(div);
     setTimeout(() => div.remove(), 4200);
+  }
+
+  // Auto Calculate runs in small asynchronous batches. This status panel is
+  // updated between batches so large jobs remain visibly active and the user
+  // can see which pass, pole and candidate are currently being evaluated.
+  function setAutoCalculateProgress(visible, detail = {}) {
+    if (!els.autoCalculateOverlay) return;
+    els.autoCalculateOverlay.classList.toggle("hidden", !visible);
+    document.body.classList.toggle("auto-calculate-running", visible);
+    els.autoCalculateBtn?.setAttribute("aria-busy", String(visible));
+    if (!visible) return;
+
+    const progress = Math.max(0, Math.min(100, Math.round(Number(detail.progress) || 0)));
+    if (els.autoCalculateProgressBar) {
+      els.autoCalculateProgressBar.value = progress;
+      els.autoCalculateProgressBar.textContent = `${progress}%`;
+    }
+    if (els.autoCalculateProgressPercent) els.autoCalculateProgressPercent.textContent = `${progress}%`;
+
+    let message = "Preparing pole data...";
+    if (detail.phase === "pole" || detail.phase === "candidate") {
+      const passText = `Pass ${detail.pass || 1} of ${detail.maxPasses || 1}`;
+      const poleText = `Pole ${detail.poleIndex || 0} of ${detail.poleCount || 0}`;
+      const candidateText = detail.phase === "candidate" && detail.candidateCount
+        ? ` · Candidate ${detail.candidateIndex} of ${detail.candidateCount}`
+        : "";
+      message = `${passText} · ${poleText}${detail.poleId ? ` · ${detail.poleId}` : ""}${candidateText}`;
+    } else if (detail.phase === "complete") {
+      message = "Finalizing results...";
+    }
+    if (els.autoCalculateProgressText) els.autoCalculateProgressText.textContent = message;
   }
 
   function setPoleIndexOpen(open) {
@@ -1583,11 +1615,13 @@
     if (!els.autoCalculateBtn) return;
     const hasPoleData = Object.keys(S.getState().poles || {}).length > 0;
     const isLowComm = (S.getState().settings?.position || "TOP_COMM") === "LOW_COMM";
-    const disableAuto = !hasPoleData || isLowComm;
+    const disableAuto = !hasPoleData || isLowComm || autoCalculateRunning;
     els.autoCalculateBtn.disabled = disableAuto;
     els.autoCalculateBtn.classList.toggle("btn-disabled", disableAuto);
     els.autoCalculateBtn.classList.toggle("btn-primary", !disableAuto);
-    els.autoCalculateBtn.textContent = !hasPoleData
+    els.autoCalculateBtn.textContent = autoCalculateRunning
+      ? "Auto Calculate Moves · Processing"
+      : !hasPoleData
       ? "Auto Calculate Moves · Import Data First"
       : isLowComm
         ? "Auto Calculate Moves · Top Comm Required"
@@ -2982,22 +3016,38 @@
       if (els.exportDebugJsonBtn.disabled) return;
       global.ProjectExport.exportDebugJson();
     });
-    els.autoCalculateBtn.addEventListener("click", () => {
-      if (els.autoCalculateBtn.disabled) return;
+    els.autoCalculateBtn.addEventListener("click", async () => {
+      if (els.autoCalculateBtn.disabled || autoCalculateRunning) return;
       recordUndoSnapshot();
-      const result = global.Calculations.autoCalculateMovements();
-      if (result.disabled) {
-        toast("Auto Calculate is only available in Top Comm mode.", "warning");
-        return;
+      autoCalculateRunning = true;
+      updateAutoCalculateButtonState();
+      setAutoCalculateProgress(true, { phase: "starting", progress: 0 });
+      try {
+        // Let the overlay paint before the first calculation begins.
+        await new Promise(resolve => global.setTimeout(resolve, 0));
+        const result = await global.Calculations.autoCalculateMovements({
+          onProgress: detail => setAutoCalculateProgress(true, detail)
+        });
+        if (result.disabled) {
+          toast("Auto Calculate is only available in Top Comm mode.", "warning");
+          return;
+        }
+        render();
+        const passText = result.passes ? ` in ${result.passes} pass${result.passes === 1 ? "" : "es"}` : "";
+        const stopText = result.maxPassesReached
+          ? " Max pass safety limit reached."
+          : result.stoppedByRepeat
+            ? " Repeated state detected."
+            : "";
+        toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged${passText}.${stopText}`, result.applied ? "success" : "warning");
+      } catch (error) {
+        global.console?.error?.(error);
+        toast(`Auto Calculate failed: ${error.message}`, "error");
+      } finally {
+        autoCalculateRunning = false;
+        setAutoCalculateProgress(false);
+        updateAutoCalculateButtonState();
       }
-      render();
-      const passText = result.passes ? ` in ${result.passes} pass${result.passes === 1 ? "" : "es"}` : "";
-      const stopText = result.maxPassesReached
-        ? " Max pass safety limit reached."
-        : result.stoppedByRepeat
-          ? " Repeated state detected."
-          : "";
-      toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged${passText}.${stopText}`, result.applied ? "success" : "warning");
     });
     els.rerunExcelReviewBtn.addEventListener("click", () => {
       if (els.rerunExcelReviewBtn.disabled) return;
@@ -3086,6 +3136,10 @@
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
       exportDebugJsonBtn: qs("exportDebugJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
+      autoCalculateOverlay: qs("autoCalculateOverlay"),
+      autoCalculateProgressBar: qs("autoCalculateProgressBar"),
+      autoCalculateProgressText: qs("autoCalculateProgressText"),
+      autoCalculateProgressPercent: qs("autoCalculateProgressPercent"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
       projectMeta: qs("projectMeta"),

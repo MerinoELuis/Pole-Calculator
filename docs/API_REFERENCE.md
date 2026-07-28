@@ -109,7 +109,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `recalculateSpan(spanId)` | Recalculate one edge and endpoints. |
 | `recalculateSpansForPole(poleId)` | Recalculate a pole network neighborhood and reciprocal Wire IDs. |
 | `recalculateAll()` | Rebuild every derived value, MR block, and warning. |
-| `autoCalculateMovements()` | Run the installed TOP/LOW COMM best-arrangement solver and return SAFE/BEST AVAILABLE/CRITICAL summary counts. |
+| `autoCalculateMovements(options?)` | Asynchronously run the installed TOP/LOW COMM best-arrangement solver. Returns a Promise with SAFE/BEST AVAILABLE/CRITICAL summary counts and accepts `onProgress(detail)`. |
 
 ## AutoCalculateSolver
 
@@ -129,8 +129,8 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `rankAnalysis(value)` / `compareAnalyses(a, b)` | Apply strict pole-first candidate ordering. |
 | `statusForAnalysis(value)` | Return SAFE, BEST_AVAILABLE, or CRITICAL. |
 | `analyzeCurrentState(poleId, mode)` | Return violations, movement cost, and ideal-distance metrics. |
-| `solvePole(poleId, mode)` | Evaluate and retain the best aerial arrangement for one pole. |
-| `autoCalculateMovements()` | Process all poles for up to three converging passes. |
+| `solvePole(poleId, mode, options?)` | Asynchronously evaluate and retain the best aerial arrangement for one pole. `onCandidateProgress(detail)` reports candidate batches. |
+| `autoCalculateMovements(options?)` | Process all poles for up to three converging passes. `onProgress(detail)` reports phase, percentage, pass, pole and candidate. |
 | `install()` | Replace `Calculations.autoCalculateMovements()` with the solver entry point. |
 
 ## AutoCalculateSourceCompat

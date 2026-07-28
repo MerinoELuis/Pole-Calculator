@@ -35,6 +35,7 @@ let state = {
     }
   }
 };
+const initialState = JSON.stringify(state);
 
 const sideKey = (spanId, poleId) => `${spanId}__${poleId}`;
 const commKey = (spanId, poleId, owner, wireId = "") => `${spanId}__${poleId}__${owner}__${wireId}`;
@@ -78,12 +79,32 @@ const window = { AppStore, Calculations, HeightUtils: { parseHeight, formatHeigh
 const sourcePath = path.join(__dirname, "..", "js", "auto-calculate-solver.js");
 vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date, JSON, Math, Number, Object, Array, Set, Map, String, RegExp }, { filename: sourcePath });
 
-const solved = window.AutoCalculateSolver.solvePole("P1", "TOP_COMM");
-assert.equal(solved.status, "BEST_AVAILABLE");
-assert.equal(state.spanSides.S1__P1.proposedHOA, "22'");
-assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "21'");
-assert.equal(state.poles.P1.metadata.autoCalculateResult.poleViolationCount, 0);
-assert.equal(state.poles.P1.metadata.autoCalculateResult.midspanViolationCount, 1);
-assert.match(state.poles.P1.metadata.autoCalculateResult.recommendation, /UG or PCO/);
+(async () => {
+  const candidateProgress = [];
+  const solved = await window.AutoCalculateSolver.solvePole("P1", "TOP_COMM", {
+    onCandidateProgress: detail => candidateProgress.push(detail)
+  });
+  assert.equal(solved.status, "BEST_AVAILABLE");
+  assert.equal(state.spanSides.S1__P1.proposedHOA, "22'");
+  assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "21'");
+  assert.equal(state.poles.P1.metadata.autoCalculateResult.poleViolationCount, 0);
+  assert.equal(state.poles.P1.metadata.autoCalculateResult.midspanViolationCount, 1);
+  assert.match(state.poles.P1.metadata.autoCalculateResult.recommendation, /UG or PCO/);
+  assert.ok(candidateProgress.length > 0, "candidate progress should be reported while evaluating a pole");
+  assert.equal(candidateProgress.at(-1).candidateIndex, candidateProgress.at(-1).candidateCount);
 
-console.log("best-available Auto Calculate integration tests passed");
+  state = JSON.parse(initialState);
+  const runProgress = [];
+  const summary = await window.AutoCalculateSolver.autoCalculateMovements({
+    onProgress: detail => runProgress.push(detail)
+  });
+  assert.equal(summary.disabled, false);
+  assert.equal(runProgress[0].phase, "starting");
+  assert.equal(runProgress.at(-1).phase, "complete");
+  assert.equal(runProgress.at(-1).progress, 100);
+
+  console.log("best-available Auto Calculate integration tests passed");
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -11,6 +11,7 @@
   const AUTO = "AUTO";
   const MAX_PASSES = 3;
   const MAX_CANDIDATES = 72;
+  const CANDIDATE_YIELD_INTERVAL = 6;
 
   const S = () => global.AppStore;
   const C = () => global.Calculations;
@@ -19,6 +20,25 @@
   const parse = value => H()?.parseHeight?.(value) ?? null;
   const format = value => H()?.formatHeight?.(Math.round(value)) || "";
   const text = value => String(value ?? "").trim();
+
+  // Candidate evaluation is CPU-heavy. Yielding between small batches lets the
+  // browser paint progress and process its own events instead of reporting that
+  // the page has stopped responding on large jobs.
+  function yieldToBrowser() {
+    return new Promise(resolve => {
+      if (typeof global.setTimeout === "function") global.setTimeout(resolve, 0);
+      else Promise.resolve().then(resolve);
+    });
+  }
+
+  function reportProgress(callback, detail) {
+    if (typeof callback !== "function") return;
+    try {
+      callback(detail);
+    } catch (error) {
+      global.console?.warn?.("Auto Calculate progress callback failed.", error);
+    }
+  }
 
   function modeFromState(state = S()?.getState?.()) {
     return String(state?.settings?.position || "TOP_COMM").toUpperCase() === "LOW_COMM"
@@ -441,7 +461,7 @@
     pole.metadata.autoCalculateResult = result;
   }
 
-  function solvePole(poleId, mode) {
+  async function solvePole(poleId, mode, options = {}) {
     const pole = S()?.getPole?.(poleId);
     if (!pole) return { status: STATUS.SKIPPED, applied: false };
     if (pole.ugActive || pole.pcoActive) {
@@ -472,14 +492,24 @@
     if (spans.every(span => parse(S()?.getSpanSide?.(span.spanId, poleId)?.proposedHOA || "") !== null)) {
       best = { analysis: analyzeCurrentState(poleId, mode), state: clone(S().getState()) };
     }
-    candidates.forEach(proposedInches => {
+    for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+      const proposedInches = candidates[candidateIndex];
       S().setState(clone(baseline));
       applyProposed(spans, poleId, proposedInches, mode);
       applyPlan(buildStackPlan(groupsForPole(poleId), proposedInches, mode, maxPole, S().getState()));
       recalculateAffected(poleId);
       const candidate = { analysis: analyzeCurrentState(poleId, mode), state: clone(S().getState()) };
       if (!best || compareAnalyses(candidate.analysis, best.analysis) < 0) best = candidate;
-    });
+      const evaluated = candidateIndex + 1;
+      if (evaluated % CANDIDATE_YIELD_INTERVAL === 0 || evaluated === candidates.length) {
+        reportProgress(options.onCandidateProgress, {
+          poleId,
+          candidateIndex: evaluated,
+          candidateCount: candidates.length
+        });
+        await yieldToBrowser();
+      }
+    }
     if (!best) {
       S().setState(baseline);
       const result = { status: STATUS.MANUAL, mode, message: "No candidate arrangement could be evaluated.", recommendation: "Review the imported heights and span data.", candidateCount: candidates.length, updatedAt: new Date().toISOString() };
@@ -510,19 +540,62 @@
     });
   }
 
-  function autoCalculateMovements() {
+  async function autoCalculateMovements(options = {}) {
     if (!S()?.getState || !C()?.recalculateAll || !H()?.parseHeight) return { applied: 0, manual: 0, skipped: 0, safe: 0, bestAvailable: 0, critical: 0, passes: 0, converged: false, stoppedByRepeat: false, maxPassesReached: false, disabled: true };
     Object.values(S().getState().poles || {}).forEach(pole => { if (pole?.metadata?.autoCalculateResult) delete pole.metadata.autoCalculateResult; });
     const mode = modeFromState();
     const poleIds = Object.keys(S().getState().poles || {});
+    const totalPoleSteps = Math.max(1, poleIds.length * MAX_PASSES);
     const seen = new Set([signature()]);
     let previous = signature();
     let passes = 0;
     let converged = false;
     let stoppedByRepeat = false;
+    reportProgress(options.onProgress, {
+      phase: "starting",
+      progress: 0,
+      pass: 0,
+      maxPasses: MAX_PASSES,
+      poleIndex: 0,
+      poleCount: poleIds.length,
+      poleId: ""
+    });
+    await yieldToBrowser();
     for (let pass = 0; pass < MAX_PASSES; pass += 1) {
       C().recalculateAll();
-      poleIds.forEach(poleId => solvePole(poleId, mode));
+      for (let poleIndex = 0; poleIndex < poleIds.length; poleIndex += 1) {
+        const poleId = poleIds[poleIndex];
+        const completedBeforePole = pass * poleIds.length + poleIndex;
+        const baseProgress = (completedBeforePole / totalPoleSteps) * 100;
+        reportProgress(options.onProgress, {
+          phase: "pole",
+          progress: baseProgress,
+          pass: pass + 1,
+          maxPasses: MAX_PASSES,
+          poleIndex: poleIndex + 1,
+          poleCount: poleIds.length,
+          poleId
+        });
+        await solvePole(poleId, mode, {
+          onCandidateProgress(candidate) {
+            const fraction = candidate.candidateCount
+              ? candidate.candidateIndex / candidate.candidateCount
+              : 1;
+            reportProgress(options.onProgress, {
+              phase: "candidate",
+              progress: ((completedBeforePole + fraction) / totalPoleSteps) * 100,
+              pass: pass + 1,
+              maxPasses: MAX_PASSES,
+              poleIndex: poleIndex + 1,
+              poleCount: poleIds.length,
+              poleId,
+              candidateIndex: candidate.candidateIndex,
+              candidateCount: candidate.candidateCount
+            });
+          }
+        });
+        await yieldToBrowser();
+      }
       C().recalculateAll();
       passes = pass + 1;
       const next = signature();
@@ -539,6 +612,15 @@
     const critical = results.filter(result => result.status === STATUS.CRITICAL).length;
     const manualOnly = results.filter(result => result.status === STATUS.MANUAL).length;
     const skipped = results.filter(result => result.status === STATUS.SKIPPED).length;
+    reportProgress(options.onProgress, {
+      phase: "complete",
+      progress: 100,
+      pass: passes,
+      maxPasses: MAX_PASSES,
+      poleIndex: poleIds.length,
+      poleCount: poleIds.length,
+      poleId: ""
+    });
     return { applied: safe + bestAvailable + critical, manual: bestAvailable + critical + manualOnly, skipped, safe, bestAvailable, critical, passes, converged, stoppedByRepeat, maxPassesReached, disabled: false };
   }
 

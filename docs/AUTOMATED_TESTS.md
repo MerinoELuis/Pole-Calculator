@@ -15,6 +15,10 @@ The runner:
 3. Runs every `tests/**/*.test.js` file in natural filename order.
 4. Returns a non-zero exit code when any check fails.
 
+The Auto Calculate integration test also awaits asynchronous candidate
+evaluation and verifies that progress reaches the final candidate. This guards
+the browser-yielding behavior without changing solver results.
+
 ## Syntax only
 
 ```bash

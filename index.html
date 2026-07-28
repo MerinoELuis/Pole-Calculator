@@ -131,6 +131,19 @@
   </div>
 
   <div id="toastHost" class="toast-host"></div>
+  <div id="autoCalculateOverlay" class="auto-calculate-overlay hidden" role="status" aria-live="polite" aria-busy="true">
+    <section class="auto-calculate-progress-card" aria-labelledby="autoCalculateProgressTitle">
+      <div class="auto-calculate-progress-heading">
+        <div>
+          <p class="eyebrow">Auto Calculate</p>
+          <h2 id="autoCalculateProgressTitle">Calculating movements</h2>
+        </div>
+        <strong id="autoCalculateProgressPercent">0%</strong>
+      </div>
+      <p id="autoCalculateProgressText" class="muted">Preparing pole data...</p>
+      <progress id="autoCalculateProgressBar" max="100" value="0">0%</progress>
+    </section>
+  </div>
 
   <button id="scrollTopBtn" class="floating-top-btn" type="button" title="Back to top" aria-label="Back to top">↑</button>
   <button id="openCalculatorBtn" class="floating-open-btn" type="button" title="Open or close calculator">ft'in&quot;</button>

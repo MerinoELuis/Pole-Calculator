@@ -152,8 +152,8 @@ Additional Proposed rows can use a synthetic span with `sourceSpanId`. The synth
 | `recalculateSpan(spanId)` | One span, its endpoints, comm rows, span sides, and End Drop. |
 | `recalculateSpansForPole(poleId)` | Connected spans, both endpoints, reciprocal rows matched by Wire ID, MR, and validation. |
 | `recalculateAll()` | Every span, pole, comm, Proposed side, MR block, and warning. |
-| `AutoCalculateSolver.solvePole(poleId, mode)` | Candidate evaluation for one pole plus affected endpoint recalculation. |
-| `Calculations.autoCalculateMovements()` | Installed solver entry point that processes the job for up to three converging passes. |
+| `AutoCalculateSolver.solvePole(poleId, mode, options?)` | Asynchronous candidate evaluation for one pole plus affected endpoint recalculation. It yields between candidate batches. |
+| `Calculations.autoCalculateMovements(options?)` | Installed asynchronous solver entry point that processes the job for up to three converging passes and reports UI progress. |
 
 Edits to an endpoint HOA normally use `recalculateSpansForPole` because one movement can affect a midspan displayed from the opposite pole.
 
@@ -162,6 +162,11 @@ Edits to an endpoint HOA normally use `recalculateSpansForPole` because one move
 Save serializes the complete normalized state after a full recalculation. Load restores the full state and recalculates derived data. Update Data imports a fresh workbook and then reconciles previous user work by exact identity and physical fallbacks.
 
 Auto-generated HOA/Proposed source markers and `metadata.autoCalculateResult` are part of normalized saved state. A later Auto Calculate run may replace values marked `AUTO`; a user edit clears that marker and becomes fixed input.
+
+Auto Calculate remains on the browser main thread, but yields control between
+small candidate batches and poles. This lets the browser paint the progress
+overlay and process events during large jobs without changing candidate order
+or calculation rules.
 
 Raw Excel Review sheets and Pole Type Check rows are merged by source identity so a partial update does not remove the rest of the job. Derived values and review results are recalculated after merging.
 
