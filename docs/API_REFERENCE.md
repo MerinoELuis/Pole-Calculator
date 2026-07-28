@@ -268,20 +268,11 @@ The module wraps `AppStore.upsertSpanSide()` and `AppStore.setState()` before `a
 | `resetCard(card, store?)` | Restart and apply the sequence for one pole card. |
 | `refresh(root?, store?)` | Reapply colors to all rendered pole cards. |
 
-## AutoCalculateStatusUI
-
-| Method | Purpose |
-| --- | --- |
-| `resultMarkup(result)` | Render one SAFE/BEST AVAILABLE/CRITICAL/MANUAL/SKIPPED explanation card. |
-| `refreshButton()` | Keep Auto Calculate available for TOP/LOW COMM when poles exist. |
-| `refreshCard(card)` | Synchronize the latest per-pole result without causing an observer loop. |
-| `refresh(root?)` | Refresh the button and every rendered pole result card. |
-
 ## PoleCalculatorUI
 
 | Method | Purpose |
 | --- | --- |
-| `runRefresh(root?)` | Run DOM annotation, table cleanup, span colors, and Auto Calculate status rendering in order. |
+| `runRefresh(root?)` | Run DOM annotation, table cleanup, and span colors in order. |
 | `queueRefresh()` | Coalesce mutations into one microtask. |
 | `start()` | Run initial refresh and attach the workspace observer. |
 | `stop()` | Disconnect the observer, primarily for controlled tests. |

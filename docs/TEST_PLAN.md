@@ -29,7 +29,7 @@ Node is optional development tooling only. It is not a runtime requirement and d
 2. Contract: schemas, fixtures, and expected JSON obey documented field restrictions.
 3. State tests: domain modules load with a controlled `window` and call calculations/exporters directly.
 4. Solver tests: TOP/LOW candidate generation, ranking, partial retention, and source locking are checked independently.
-5. UI module tests: DOM identities, table-column removal, per-pole colors, Auto Calculate status, and refresh order are verified without a browser framework.
+5. UI module tests: DOM identities, table-column removal, per-pole colors, and refresh order are verified without a browser framework.
 6. Browser smoke tests: import, edit, Auto Calculate, Save/Load, Update Data, and export through the real UI.
 7. Excel fixture tests: import representative INTEC and Metronet workbooks when available.
 
@@ -39,7 +39,6 @@ The runner discovers every file ending in `.test.js`. Important groups include:
 
 - `auto-calculate-solver.test.js`
 - `auto-calculate-solver-integration.test.js`
-- `auto-calculate-status-ui.test.js`
 - `excel-review.test.js`
 - `update-merge.test.js`
 - `pole-identity.test.js`
@@ -178,10 +177,9 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 7. Hidden spans do not consume visible color positions.
 8. Synthetic Proposed resolves to physical `sourceSpanId`.
 9. Blank/REF Midspan uses the paired span color.
-10. Refresh order is DOM contract, comm cleanup, optional re-annotation, colors, then Auto Calculate status.
+10. Refresh order is DOM contract, comm cleanup, optional re-annotation, then colors.
 11. Only the unified UI runtime observes the workspace.
-12. Result cards render SAFE, BEST AVAILABLE, CRITICAL, MANUAL, and SKIPPED without creating observer loops.
-13. `index.html` loads the solver before `app.js`, status UI before runtime, and no superseded patch scripts.
+12. `index.html` loads the solver before `app.js`, the color module before runtime, and no superseded patch scripts.
 
 ## Import Cases
 
@@ -215,7 +213,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 7. Empty replacement cells retain prior values only on matched entities.
 8. Ctrl+Z restores the previous state-changing action.
 9. Unsaved changes activate the browser leave warning.
-10. AUTO source metadata/result cards survive normal state serialization and are replaced by later solver runs; user edits clear source markers.
+10. AUTO source metadata survives normal state serialization and is replaced by later solver runs; user edits clear source markers.
 
 ## Excel Review Cases
 
@@ -232,9 +230,7 @@ Verify at wide desktop, narrow desktop, and mobile widths:
 - Other Pole HOA is not visible.
 - Each pole begins visible colors at turquesa.
 - Midspan colors match paired spans, including blank/REF.
-- Auto Calculate is enabled in TOP/LOW COMM after import.
-- SAFE/BEST AVAILABLE/CRITICAL cards fit without covering tables.
-- BEST AVAILABLE/CRITICAL clearly state remaining issues and INTEC UG/PCO review guidance.
+- Auto Calculate follows the configured availability rules after import.
 - UG/PCO is never selected automatically.
 - Pole index, floating calculator, dialogs, and Excel Review remain usable.
 

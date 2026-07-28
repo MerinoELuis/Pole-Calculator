@@ -10,9 +10,8 @@
 2. `CommTableUI.refresh()`
 3. `UiDomContract.apply()` again only when a column was removed
 4. `SpanColorUI.refresh()`
-5. `AutoCalculateStatusUI.refresh()`
 
-The order matters. Stable identities are added before behavior reads them, span colors are assigned after the communication table reaches its final visible structure, and Auto Calculate status cards are rendered last so they do not affect table identity or color pairing.
+The order matters. Stable identities are added before behavior reads them, and span colors are assigned after the communication table reaches its final visible structure.
 
 ## Stable attributes
 

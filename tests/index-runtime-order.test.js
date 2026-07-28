@@ -19,9 +19,8 @@ assert.ok(position("js/auto-calculate-source-compat.js") < position("js/app.js")
 assert.ok(position("js/app.js") < position("js/ui/dom-contract.js"));
 assert.ok(position("js/ui/dom-contract.js") < position("js/ui/comm-table.js"));
 assert.ok(position("js/ui/comm-table.js") < position("js/ui/span-colors.js"));
-assert.ok(position("js/ui/span-colors.js") < position("js/ui/auto-calculate-status.js"));
-assert.ok(position("js/ui/auto-calculate-status.js") < position("js/ui/runtime.js"));
-assert.match(html, /css\/auto-calculate-status\.css/);
+assert.ok(position("js/ui/span-colors.js") < position("js/ui/runtime.js"));
+assert.doesNotMatch(html, /auto-calculate-status/);
 assert.doesNotMatch(html, /compact-autoproposed-ug-guard\.js/);
 assert.doesNotMatch(html, /comm-table-columns\.js/);
 assert.doesNotMatch(html, /span-color-reset\.js/);

@@ -8,7 +8,6 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | --- | --- |
 | `index.html` | Loads the static application in dependency order. |
 | `css/styles.css` | Application layout, table presentation, status and span colors. |
-| `css/auto-calculate-status.css` | SAFE/BEST AVAILABLE/CRITICAL result presentation. |
 | `libs/xlsx.full.min.js` | Browser Excel parser. Third-party file; do not edit for application behavior. |
 
 ## Domain modules
@@ -38,7 +37,6 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/ui/dom-contract.js` | `UiDomContract` | Adds stable `data-component`, `data-pole-id`, `data-span-id` and `data-column` attributes after render. |
 | `js/ui/comm-table.js` | `CommTableUI` | Hides the visual `Other Pole HOA` column while preserving calculation data. |
 | `js/ui/span-colors.js` | `SpanColorUI` | Restarts the visible span color sequence per pole and synchronizes each Midspan row. |
-| `js/ui/auto-calculate-status.js` | `AutoCalculateStatusUI` | Shows SAFE, BEST AVAILABLE, CRITICAL, MANUAL and SKIPPED results and enables Auto Calculate for TOP/LOW COMM. |
 | `js/ui/runtime.js` | `PoleCalculatorUI` | Runs all UI modules through one queued refresh and one MutationObserver. |
 
 ## Contracts and tests

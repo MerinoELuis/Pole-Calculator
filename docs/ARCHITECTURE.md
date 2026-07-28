@@ -31,8 +31,7 @@ Every browser module is an IIFE that publishes a small API on `window`.
 17. `js/ui/dom-contract.js`
 18. `js/ui/comm-table.js`
 19. `js/ui/span-colors.js`
-20. `js/ui/auto-calculate-status.js`
-21. `js/ui/runtime.js`
+20. `js/ui/runtime.js`
 
 Changing this order can break global dependencies. `auto-calculate-solver.js` needs `Calculations`, `AppStore`, and `HeightUtils`. `auto-calculate-source-compat.js` then wraps SpanSide upsert/state normalization before `app.js` binds the button. The UI runtime loads after the renderer because it annotates and normalizes generated DOM.
 
@@ -58,7 +57,6 @@ Changing this order can break global dependencies. `auto-calculate-solver.js` ne
 | `ui/dom-contract.js` | `UiDomContract` | Annotate rendered cards and tables with stable component, pole, span, and column identities. |
 | `ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA without deleting calculation data. |
 | `ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and synchronize each Midspan row. |
-| `ui/auto-calculate-status.js` | `AutoCalculateStatusUI` | Present solver results and keep Auto Calculate available in TOP/LOW COMM. |
 | `ui/runtime.js` | `PoleCalculatorUI` | Coordinate post-render UI modules through one queued refresh and one workspace observer. |
 
 The quick ownership index is in `FILE_MAP.md`.
