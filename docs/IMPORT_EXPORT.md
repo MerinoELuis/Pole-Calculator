@@ -257,5 +257,9 @@ Export Debug is intentionally verbose. It contains:
 - Local and remote half-movements
 - Imported, expected, stored, and displayed midspans
 - Current flagging status and message
+- Latest in-memory Auto Calculate trace, including the prior automatic plan,
+  baseline groups, candidate order, Proposed/comm plan for every evaluated
+  candidate, validation result, ranking decision, stop reason, and selected
+  distribution
 
 Use Debug JSON when a visible midspan does not match the expected endpoint movements or when duplicate/stale imported data is suspected.

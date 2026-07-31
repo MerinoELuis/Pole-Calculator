@@ -12,6 +12,7 @@
   const MAX_PASSES = 3;
   const MAX_CANDIDATES = 72;
   const CANDIDATE_YIELD_INTERVAL = 6;
+  let lastDebugTrace = null;
 
   const S = () => global.AppStore;
   const C = () => global.Calculations;
@@ -20,6 +21,85 @@
   const parse = value => H()?.parseHeight?.(value) ?? null;
   const format = value => H()?.formatHeight?.(Math.round(value)) || "";
   const text = value => String(value ?? "").trim();
+
+  function planSnapshot(poleId) {
+    return {
+      proposed: (S()?.getSpanSidesForPole?.(poleId) || [])
+        .filter(side => text(side.proposedHOA))
+        .map(side => ({
+          spanId: side.spanId,
+          proposedHOA: side.proposedHOA,
+          source: side.autoCalcProposedStatus || "MANUAL"
+        })),
+      comms: (S()?.getSpanCommsForPole?.(poleId) || [])
+        .filter(row => text(row.existingHOAChange))
+        .map(row => ({
+          spanId: row.spanId,
+          wireId: row.wireId || "",
+          owner: owner(row),
+          existingHOA: row.existingHOA || "",
+          hoaChange: row.existingHOAChange,
+          source: row.autoCalcStatus || "MANUAL"
+        }))
+    };
+  }
+
+  function analysisSnapshot(analysis) {
+    if (!analysis) return null;
+    return {
+      status: statusForAnalysis(analysis),
+      poleViolations: {
+        count: analysis.poleViolationCount,
+        totalShortfall: format(analysis.poleViolationInches),
+        messages: [...(analysis.poleMessages || [])]
+      },
+      midspanViolations: {
+        count: analysis.midspanViolationCount,
+        totalShortfall: format(analysis.midspanViolationInches),
+        messages: [...(analysis.midspanMessages || [])]
+      },
+      movement: {
+        movedCommGroups: analysis.movedCommCount,
+        totalMovement: format(analysis.totalMovementInches),
+        idealProposed: Number.isFinite(analysis.idealProposedInches) ? format(analysis.idealProposedInches) : "",
+        selectedProposed: Number.isFinite(analysis.selectedProposedInches) ? format(analysis.selectedProposedInches) : ""
+      }
+    };
+  }
+
+  function groupSnapshot(group) {
+    return {
+      groupKey: group.key,
+      owner: group.owner,
+      existingHOA: format(group.existingInches),
+      effectiveBeforeCandidate: format(group.effectiveInches),
+      minimumHOA: Number.isFinite(group.minimumInches) ? format(group.minimumInches) : "",
+      maximumHOA: Number.isFinite(group.maximumInches) ? format(group.maximumInches) : "",
+      locked: Boolean(group.locked),
+      lockedHOA: Number.isFinite(group.lockedInches) ? format(group.lockedInches) : ""
+    };
+  }
+
+  function beginPoleTrace(poleId, mode, pass) {
+    if (!lastDebugTrace) return null;
+    const trace = {
+      poleId,
+      pass,
+      mode,
+      startedAt: new Date().toISOString(),
+      automaticPlanBeforeRetry: planSnapshot(poleId),
+      candidates: []
+    };
+    lastDebugTrace.poleAttempts.push(trace);
+    return trace;
+  }
+
+  function finishPoleTrace(trace, result, poleId) {
+    if (!trace) return;
+    trace.completedAt = new Date().toISOString();
+    trace.result = result ? clone(result) : null;
+    trace.selectedPlan = planSnapshot(poleId);
+  }
 
   // Candidate evaluation is CPU-heavy. Yielding between small batches lets the
   // browser paint progress and process its own events instead of reporting that
@@ -674,21 +754,28 @@
   async function solvePole(poleId, mode, options = {}) {
     const pole = S()?.getPole?.(poleId);
     if (!pole) return { status: STATUS.SKIPPED, applied: false };
+    const debugTrace = beginPoleTrace(poleId, mode, options.tracePass || 1);
     if (pole.ugActive || pole.pcoActive) {
       const result = { status: STATUS.SKIPPED, mode, message: pole.ugActive ? "Pole is already marked UG." : "Pole is already marked PCO.", recommendation: "", candidateCount: 0, updatedAt: new Date().toISOString() };
       setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = pole.ugActive ? "POLE_ALREADY_UG" : "POLE_ALREADY_PCO";
+      finishPoleTrace(debugTrace, result, poleId);
       return { status: result.status, applied: false, result };
     }
     const spans = eligibleProposedSpans(poleId);
     if (!spans.length) {
       const result = { status: STATUS.SKIPPED, mode, message: "No eligible Proposed span was found.", recommendation: "", candidateCount: 0, updatedAt: new Date().toISOString() };
       setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = "NO_ELIGIBLE_PROPOSED_SPAN";
+      finishPoleTrace(debugTrace, result, poleId);
       return { status: result.status, applied: false, result };
     }
     const maxPole = parse(pole.maxCommHeight || "");
     if (maxPole === null) {
       const result = { status: STATUS.MANUAL, mode, message: "Missing Max Height on Pole. Auto Calculate cannot compare aerial arrangements.", recommendation: "Complete the pole power/equipment data and run Auto Calculate again.", candidateCount: 0, updatedAt: new Date().toISOString() };
       setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = "MISSING_MAX_HEIGHT_ON_POLE";
+      finishPoleTrace(debugTrace, result, poleId);
       return { status: result.status, applied: false, result };
     }
 
@@ -709,6 +796,23 @@
       preferMaximum: recoverMidspanUpward,
       state: baseline
     });
+    if (debugTrace) {
+      debugTrace.automaticPlanCleared = true;
+      debugTrace.maxHeightOnPole = format(maxPole);
+      debugTrace.baseline = {
+        groups: groups.map(groupSnapshot),
+        analysis: analysisSnapshot(baselineAnalysis)
+      };
+      debugTrace.search = {
+        strategy: recoverMidspanUpward ? "TOP_COMM_MIDSPAN_RECOVERY" : "STANDARD_PROGRESSIVE",
+        progressiveCandidateCount: candidates.progressiveCount || 0,
+        candidateOrder: candidates.map((value, index) => ({
+          order: index + 1,
+          proposedHOA: format(value),
+          phase: index < (candidates.progressiveCount || 0) ? "PROGRESSIVE" : "FALLBACK"
+        }))
+      };
+    }
     let best = null;
     if (spans.every(span => parse(S()?.getSpanSide?.(span.spanId, poleId)?.proposedHOA || "") !== null)) {
       best = { analysis: baselineAnalysis, state: clone(S().getState()) };
@@ -732,6 +836,7 @@
       const comparison = recoverMidspanUpward
         ? compareTopRecoveryAnalyses(analysis, best?.analysis)
         : compareAnalyses(analysis, best?.analysis);
+      const becameBest = !best || comparison < 0;
       if (!best || comparison < 0) {
         best = { analysis, state: clone(S().getState()) };
       }
@@ -743,6 +848,31 @@
         && candidates.progressiveCount > 0
         && evaluated >= candidates.progressiveCount
         && best?.analysis?.poleViolationCount === 0;
+      if (debugTrace) {
+        debugTrace.candidates.push({
+          order: evaluated,
+          phase: candidateIndex < (candidates.progressiveCount || 0) ? "PROGRESSIVE" : "FALLBACK",
+          proposedHOA: format(proposedInches),
+          commPlan: candidatePlan.map(item => ({
+            ...groupSnapshot(item.group),
+            targetHOA: format(item.targetInches)
+          })),
+          analysis: analysisSnapshot(analysis),
+          becameBest,
+          decision: safe
+            ? "ACCEPT_SAFE"
+            : progressiveBestAvailable
+              ? "STOP_WITH_BEST_PROGRESSIVE"
+              : becameBest
+                ? "KEEP_AS_CURRENT_BEST"
+                : "REJECT_LOWER_RANK",
+          stopReason: safe
+            ? "SAFE_DISTRIBUTION_FOUND"
+            : progressiveBestAvailable
+              ? "POLE_COMPLIANT_PROGRESSIVE_OPTIONS_EXHAUSTED"
+              : ""
+        });
+      }
       if (evaluated % CANDIDATE_YIELD_INTERVAL === 0 || evaluated === candidates.length || safe || progressiveBestAvailable) {
         reportProgress(options.onCandidateProgress, {
           poleId,
@@ -757,6 +887,8 @@
       S().setState(baseline);
       const result = { status: STATUS.MANUAL, mode, message: "No candidate arrangement could be evaluated.", recommendation: "Review the imported heights and span data.", candidateCount: evaluatedCount, updatedAt: new Date().toISOString() };
       setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = "NO_CANDIDATE_EVALUATED";
+      finishPoleTrace(debugTrace, result, poleId);
       return { status: result.status, applied: false, result };
     }
     S().setState(best.state);
@@ -764,6 +896,7 @@
     const analysis = analyzeCurrentState(poleId, mode);
     const result = makeResult(mode, analysis, evaluatedCount);
     setResult(poleId, result);
+    finishPoleTrace(debugTrace, result, poleId);
     return { status: result.status, applied: true, result, analysis };
   }
 
@@ -814,6 +947,14 @@
     Object.values(S().getState().poles || {}).forEach(pole => { if (pole?.metadata?.autoCalculateResult) delete pole.metadata.autoCalculateResult; });
     const mode = modeFromState();
     const poleIds = Object.keys(S().getState().poles || {});
+    lastDebugTrace = {
+      version: 1,
+      startedAt: new Date().toISOString(),
+      mode,
+      maxAttemptsPerPole: MAX_PASSES,
+      poleOrder: [...poleIds],
+      poleAttempts: []
+    };
     const totalPoleSteps = Math.max(1, poleIds.length * MAX_PASSES);
     let currentSignature = signature();
     const seen = new Set([currentSignature]);
@@ -855,6 +996,7 @@
         poleId
       });
       await solvePole(poleId, mode, {
+        tracePass: item.pass,
         onCandidateProgress(candidate) {
           const fraction = candidate.candidateCount
             ? candidate.candidateIndex / candidate.candidateCount
@@ -914,7 +1056,10 @@
       poleCount: poleIds.length,
       poleId: ""
     });
-    return { applied: safe + bestAvailable + critical, manual: bestAvailable + critical + manualOnly, skipped, safe, bestAvailable, critical, passes, converged, stoppedByRepeat, maxPassesReached, disabled: false };
+    const summary = { applied: safe + bestAvailable + critical, manual: bestAvailable + critical + manualOnly, skipped, safe, bestAvailable, critical, passes, converged, stoppedByRepeat, maxPassesReached, disabled: false };
+    lastDebugTrace.completedAt = new Date().toISOString();
+    lastDebugTrace.summary = clone(summary);
+    return summary;
   }
 
   function installManualTracking() {
@@ -979,6 +1124,7 @@
     analyzeCurrentState,
     solvePole,
     autoCalculateMovements,
+    getDebugTrace: () => lastDebugTrace ? clone(lastDebugTrace) : null,
     install
   };
 

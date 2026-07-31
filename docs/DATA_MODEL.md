@@ -93,6 +93,12 @@ Imported, editable, and derived values live together but have different ownershi
 | `idealProposed` | Rule-based TOP/LOW COMM Proposed target. |
 | `candidateCount`, `updatedAt` | Search diagnostics. |
 
+`Export Debug` also includes a top-level `autoCalculateTrace`. It is not part
+of saved project state or the compact AutoProposed contract. The trace records
+each pole attempt and evaluated candidate from the latest Auto Calculate run,
+including its Proposed, comm targets, validation analysis, ranking decision,
+stop reason, and final selected plan.
+
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 
 ## Span

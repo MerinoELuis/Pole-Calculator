@@ -129,6 +129,19 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date,
   assert.equal(runProgress[0].phase, "starting");
   assert.equal(runProgress.at(-1).phase, "complete");
   assert.equal(runProgress.at(-1).progress, 100);
+  const debugTrace = window.AutoCalculateSolver.getDebugTrace();
+  assert.equal(debugTrace.mode, "TOP_COMM");
+  assert.equal(debugTrace.summary.converged, true);
+  assert.ok(debugTrace.poleAttempts.length > 0);
+  const tracedP1 = debugTrace.poleAttempts.find(attempt => attempt.poleId === "P1");
+  assert.ok(tracedP1, "Debug trace must include the evaluated pole.");
+  assert.ok(tracedP1.automaticPlanBeforeRetry);
+  assert.ok(tracedP1.baseline.groups.length > 0);
+  assert.ok(tracedP1.search.candidateOrder.length >= tracedP1.candidates.length);
+  assert.ok(tracedP1.candidates[0].commPlan.length > 0);
+  assert.ok(tracedP1.candidates[0].analysis.status);
+  assert.ok(tracedP1.candidates[0].decision);
+  assert.ok(tracedP1.selectedPlan);
 
   console.log("best-available Auto Calculate integration tests passed");
 })().catch(error => {

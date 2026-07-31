@@ -385,6 +385,7 @@
         multipleWiresPerOwner: multipleWireOwnerGroups(state),
         lastExcelUpdate: state.updateDiagnostics || null
       },
+      autoCalculateTrace: global.AutoCalculateSolver?.getDebugTrace?.() || null,
       midspanCalculations: spanComms.map(midspanDebugRow),
       state
     });

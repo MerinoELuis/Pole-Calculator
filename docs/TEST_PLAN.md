@@ -144,6 +144,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 26. A pole-compliant result reached within the direct progressive candidates stops before the broad fallback height scan.
 27. A stale automatic P17-style plan at `2'4"` is discarded before retry; recovery evaluates `20'4"` and the nearest legal `20'2"` rather than treating the old AUTO value as progressive.
 28. With Proposed `20'2"`, P17 stacks at `19'2"`, `18'`, and `17'8"`; a zero-only propagated floor is never generated when no comm has a real Midspan minimum.
+29. The latest Auto Calculate run exposes a Debug-only trace containing each evaluated candidate, its comm plan, analysis, ranking decision, stop reason, and selected plan.
 
 ### Make Ready Controls
 
