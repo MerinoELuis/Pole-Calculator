@@ -227,10 +227,19 @@
     if (manualReference !== null) return [Math.round(manualReference)];
     const values = new Set();
     const requiredValues = new Set();
+    const progressive = [];
+    const progressiveSeen = new Set();
     const ideal = idealProposedHeight(groups, mode, state);
     const comm = commClearance(state);
     const bolt = boltClearance(state);
     const anchors = [ideal, maxPole, maxPole - bolt, ...currentProposed];
+    const addProgressive = value => {
+      if (!Number.isFinite(value)) return;
+      const rounded = Math.round(value);
+      if (rounded < 0 || rounded > maxPole || progressiveSeen.has(rounded)) return;
+      progressiveSeen.add(rounded);
+      progressive.push(rounded);
+    };
     const minimumTop = mode === "TOP_COMM" ? minimumTopCommHeight(groups, state) : null;
     if (minimumTop !== null) {
       const requiredProposed = Math.round(minimumTop + comm);
@@ -264,11 +273,17 @@
     }
     for (let offset = 0; offset <= 12; offset += 1) addCandidate(values, maxPole - offset, maxPole);
     const preferred = ideal ?? maxPole;
-    const required = Array.from(requiredValues);
+    if (mode === "TOP_COMM") {
+      addProgressive(ideal);
+      if (ideal === null || ideal > maxPole) addProgressive(maxPole);
+      Array.from(requiredValues).forEach(addProgressive);
+      addProgressive(maxPole);
+      currentProposed.forEach(addProgressive);
+    }
     return [
-      ...required,
+      ...progressive,
       ...Array.from(values)
-        .filter(value => !requiredValues.has(value))
+        .filter(value => !progressiveSeen.has(value))
         .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || (mode === "LOW_COMM" ? a - b : b - a))
     ]
       .slice(0, MAX_CANDIDATES);
@@ -584,7 +599,6 @@
       return { status: result.status, applied: false, result };
     }
 
-    C()?.recalculateAll?.();
     const baseline = clone(S().getState());
     const groups = groupsForPole(poleId);
     const manualReference = manualProposedReference(spans, poleId, mode);
@@ -594,6 +608,7 @@
     if (spans.every(span => parse(S()?.getSpanSide?.(span.spanId, poleId)?.proposedHOA || "") !== null)) {
       best = { analysis: analyzeCurrentState(poleId, mode), state: clone(S().getState()) };
     }
+    let evaluatedCount = 0;
     for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
       const proposedInches = candidates[candidateIndex];
       S().setState(clone(baseline));
@@ -601,28 +616,33 @@
       const candidatePlan = buildStackPlan(groupsForPole(poleId), proposedInches, mode, maxPole, S().getState());
       applyPlan(candidatePlan);
       recalculateAffected(poleId);
-      const candidate = { analysis: analyzeCurrentState(poleId, mode), state: clone(S().getState()) };
-      if (!best || compareAnalyses(candidate.analysis, best.analysis) < 0) best = candidate;
+      const analysis = analyzeCurrentState(poleId, mode);
+      if (!best || compareAnalyses(analysis, best.analysis) < 0) {
+        best = { analysis, state: clone(S().getState()) };
+      }
       const evaluated = candidateIndex + 1;
-      if (evaluated % CANDIDATE_YIELD_INTERVAL === 0 || evaluated === candidates.length) {
+      evaluatedCount = evaluated;
+      const safe = statusForAnalysis(analysis) === STATUS.SAFE;
+      if (evaluated % CANDIDATE_YIELD_INTERVAL === 0 || evaluated === candidates.length || safe) {
         reportProgress(options.onCandidateProgress, {
           poleId,
           candidateIndex: evaluated,
-          candidateCount: candidates.length
+          candidateCount: safe ? evaluated : candidates.length
         });
         await yieldToBrowser();
       }
+      if (safe) break;
     }
     if (!best) {
       S().setState(baseline);
-      const result = { status: STATUS.MANUAL, mode, message: "No candidate arrangement could be evaluated.", recommendation: "Review the imported heights and span data.", candidateCount: candidates.length, updatedAt: new Date().toISOString() };
+      const result = { status: STATUS.MANUAL, mode, message: "No candidate arrangement could be evaluated.", recommendation: "Review the imported heights and span data.", candidateCount: evaluatedCount, updatedAt: new Date().toISOString() };
       setResult(poleId, result);
       return { status: result.status, applied: false, result };
     }
     S().setState(best.state);
     recalculateAffected(poleId);
     const analysis = analyzeCurrentState(poleId, mode);
-    const result = makeResult(mode, analysis, candidates.length);
+    const result = makeResult(mode, analysis, evaluatedCount);
     setResult(poleId, result);
     return { status: result.status, applied: true, result, analysis };
   }
@@ -634,12 +654,38 @@
     return JSON.stringify({ comms, proposed });
   }
 
-  function refreshResults(mode) {
-    C()?.recalculateAll?.();
-    Object.keys(S()?.getState?.()?.poles || {}).forEach(poleId => {
-      const previous = S()?.getPole?.(poleId)?.metadata?.autoCalculateResult;
-      if (!previous || [STATUS.SKIPPED, STATUS.MANUAL].includes(previous.status)) return;
-      setResult(poleId, makeResult(mode, analyzeCurrentState(poleId, mode), previous.candidateCount || 0));
+  function poleAutomaticSignature(poleId) {
+    const comms = (S()?.getSpanCommsForPole?.(poleId) || [])
+      .map(row => [commKey(row), row.existingHOAChange || "", row.autoCalcStatus || ""])
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    const proposed = (S()?.getSpanSidesForPole?.(poleId) || [])
+      .map(side => [
+        S()?.keyForSpanSide?.(side.spanId, side.poleId) || `${side.spanId}__${side.poleId}`,
+        side.proposedHOA || "",
+        side.autoCalcProposedStatus || ""
+      ])
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    return JSON.stringify({ comms, proposed });
+  }
+
+  function hasAutomaticMovement(poleId) {
+    return (S()?.getSpanCommsForPole?.(poleId) || [])
+      .some(row => row.autoCalcStatus === AUTO && text(row.existingHOAChange));
+  }
+
+  function needsSelectiveRetry(poleId, mode) {
+    const pole = S()?.getPole?.(poleId);
+    if (!pole || pole.ugActive || pole.pcoActive) return false;
+    const previous = pole.metadata?.autoCalculateResult;
+    if (!previous || [STATUS.SKIPPED, STATUS.MANUAL].includes(previous.status)) return false;
+    return statusForAnalysis(analyzeCurrentState(poleId, mode)) !== STATUS.SAFE
+      || hasAutomaticMovement(poleId);
+  }
+
+  function selectivePoleSignature(poleId, mode) {
+    return JSON.stringify({
+      automatic: poleAutomaticSignature(poleId),
+      rank: rankAnalysis(analyzeCurrentState(poleId, mode))
     });
   }
 
@@ -649,10 +695,15 @@
     const mode = modeFromState();
     const poleIds = Object.keys(S().getState().poles || {});
     const totalPoleSteps = Math.max(1, poleIds.length * MAX_PASSES);
-    const seen = new Set([signature()]);
-    let previous = signature();
-    let passes = 0;
-    let converged = false;
+    let currentSignature = signature();
+    const seen = new Set([currentSignature]);
+    const queue = poleIds.map(poleId => ({ poleId, pass: 1 }));
+    const queued = new Set(poleIds);
+    const processed = new Set();
+    const attempts = new Map();
+    let completedSteps = 0;
+    let passes = poleIds.length ? 1 : 0;
+    let converged = true;
     let stoppedByRepeat = false;
     reportProgress(options.onProgress, {
       phase: "starting",
@@ -664,51 +715,70 @@
       poleId: ""
     });
     await yieldToBrowser();
-    for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-      C().recalculateAll();
-      for (let poleIndex = 0; poleIndex < poleIds.length; poleIndex += 1) {
-        const poleId = poleIds[poleIndex];
-        const completedBeforePole = pass * poleIds.length + poleIndex;
-        const baseProgress = (completedBeforePole / totalPoleSteps) * 100;
-        reportProgress(options.onProgress, {
-          phase: "pole",
-          progress: baseProgress,
-          pass: pass + 1,
-          maxPasses: MAX_PASSES,
-          poleIndex: poleIndex + 1,
-          poleCount: poleIds.length,
-          poleId
-        });
-        await solvePole(poleId, mode, {
-          onCandidateProgress(candidate) {
-            const fraction = candidate.candidateCount
-              ? candidate.candidateIndex / candidate.candidateCount
-              : 1;
-            reportProgress(options.onProgress, {
-              phase: "candidate",
-              progress: ((completedBeforePole + fraction) / totalPoleSteps) * 100,
-              pass: pass + 1,
-              maxPasses: MAX_PASSES,
-              poleIndex: poleIndex + 1,
-              poleCount: poleIds.length,
-              poleId,
-              candidateIndex: candidate.candidateIndex,
-              candidateCount: candidate.candidateCount
-            });
-          }
-        });
-        await yieldToBrowser();
-      }
-      C().recalculateAll();
-      passes = pass + 1;
+    C().recalculateAll();
+    while (queue.length && completedSteps < totalPoleSteps) {
+      const item = queue.shift();
+      const poleId = item.poleId;
+      queued.delete(poleId);
+      passes = Math.max(passes, item.pass);
+      const affected = affectedPoles(poleId);
+      const before = new Map(affected.map(id => [id, selectivePoleSignature(id, mode)]));
+      const completedBeforePole = completedSteps;
+      const poleIndex = poleIds.indexOf(poleId);
+      reportProgress(options.onProgress, {
+        phase: "pole",
+        progress: (completedBeforePole / totalPoleSteps) * 100,
+        pass: item.pass,
+        maxPasses: MAX_PASSES,
+        poleIndex: poleIndex + 1,
+        poleCount: poleIds.length,
+        poleId
+      });
+      await solvePole(poleId, mode, {
+        onCandidateProgress(candidate) {
+          const fraction = candidate.candidateCount
+            ? candidate.candidateIndex / candidate.candidateCount
+            : 1;
+          reportProgress(options.onProgress, {
+            phase: "candidate",
+            progress: ((completedBeforePole + fraction) / totalPoleSteps) * 100,
+            pass: item.pass,
+            maxPasses: MAX_PASSES,
+            poleIndex: poleIndex + 1,
+            poleCount: poleIds.length,
+            poleId,
+            candidateIndex: candidate.candidateIndex,
+            candidateCount: candidate.candidateCount
+          });
+        }
+      });
+      completedSteps += 1;
+      processed.add(poleId);
+      attempts.set(poleId, (attempts.get(poleId) || 0) + 1);
+
+      const changedAffected = affected.filter(id => before.get(id) !== selectivePoleSignature(id, mode));
+      changedAffected.forEach(affectedPoleId => {
+        if (affectedPoleId === poleId || !processed.has(affectedPoleId) || queued.has(affectedPoleId)) return;
+        const count = attempts.get(affectedPoleId) || 0;
+        if (count >= MAX_PASSES || !needsSelectiveRetry(affectedPoleId, mode)) return;
+        queue.push({ poleId: affectedPoleId, pass: count + 1 });
+        queued.add(affectedPoleId);
+      });
+
       const next = signature();
-      if (next === previous) { converged = true; break; }
-      if (seen.has(next)) { stoppedByRepeat = true; break; }
-      seen.add(next);
-      previous = next;
+      if (next !== currentSignature) {
+        if (seen.has(next)) {
+          stoppedByRepeat = true;
+          queue.length = 0;
+          break;
+        }
+        seen.add(next);
+        currentSignature = next;
+      }
+      await yieldToBrowser();
     }
-    const maxPassesReached = !converged && !stoppedByRepeat && passes >= MAX_PASSES;
-    refreshResults(mode);
+    converged = !queue.length && !stoppedByRepeat;
+    const maxPassesReached = !converged && !stoppedByRepeat && completedSteps >= totalPoleSteps;
     const results = Object.values(S().getState().poles || {}).map(pole => pole?.metadata?.autoCalculateResult).filter(Boolean);
     const safe = results.filter(result => result.status === STATUS.SAFE).length;
     const bestAvailable = results.filter(result => result.status === STATUS.BEST_AVAILABLE).length;

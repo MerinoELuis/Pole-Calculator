@@ -118,25 +118,27 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 
 1. The button is available in TOP COMM and LOW COMM when poles are loaded.
 2. TOP COMM includes `Top Comm + Pole Comm-comm` as the ideal candidate.
-3. LOW COMM includes `Low Comm - Pole Comm-comm` as the ideal candidate.
-4. Healthy TOP COMM with space above proposes at the ideal without moving comms.
-5. When TOP COMM does not fit, the smallest permitted downward stack is evaluated.
-6. When LOW COMM needs room, the smallest permitted upward stack is evaluated.
-7. Different owners use Comm-comm spacing; same owners use Bolt-bolt.
-8. User-entered HOA Change remains fixed.
-9. User-entered Proposed remains fixed; AUTO Proposed may be replaced later.
-10. Candidate heights include one-inch positions around the ideal and important boundaries.
-11. `SAFE` outranks all partial arrangements.
-12. `BEST_AVAILABLE` means pole rules pass while Midspan remains in violation.
-13. Any pole-compliant result outranks a result where Midspan passes but the pole fails.
-14. Within the same category, smaller pole/Midspan violation count and shortfall outrank movement cost.
-15. After violations tie, fewer moved comm groups and fewer total inches win.
-16. `CRITICAL` retains the best evaluated arrangement when no pole-compliant candidate exists.
-17. A reciprocal span's Midspan issue affects the arrangement, but a remote endpoint's independent pole issue is scored on that endpoint.
-18. Existing UG/PCO poles are skipped.
-19. Non-SAFE INTEC results recommend UG/PCO review but never activate either option.
-20. Recalculation repeats for up to three passes and stops on convergence/repeated signature.
-21. Streetlight Ground/Raise, Transformer Redress, Power Riser Raise, Re-sag, and Transfer remain user-controlled but active values participate in validation.
+3. TOP COMM tries the ideal direct candidate first and tries Max Height first when the direct height does not fit.
+4. A direct SAFE TOP COMM result stops after one candidate without moving comms.
+5. LOW COMM includes `Low Comm - Pole Comm-comm` as the ideal candidate.
+6. Healthy TOP COMM with space above proposes at the ideal without moving comms.
+7. When TOP COMM does not fit, the smallest permitted downward stack is evaluated.
+8. When LOW COMM needs room, the smallest permitted upward stack is evaluated.
+9. Different owners use Comm-comm spacing; same owners use Bolt-bolt.
+10. User-entered HOA Change remains fixed.
+11. User-entered Proposed remains fixed; AUTO Proposed may be replaced later.
+12. Candidate heights include one-inch positions around the ideal and important boundaries.
+13. `SAFE` outranks all partial arrangements.
+14. `BEST_AVAILABLE` means pole rules pass while Midspan remains in violation.
+15. Any pole-compliant result outranks a result where Midspan passes but the pole fails.
+16. Within the same category, smaller pole/Midspan violation count and shortfall outrank movement cost.
+17. After violations tie, fewer moved comm groups and fewer total inches win.
+18. `CRITICAL` retains the best evaluated arrangement when no pole-compliant candidate exists.
+19. A reciprocal span's Midspan issue affects the arrangement, but a remote endpoint's independent pole issue is scored on that endpoint.
+20. Existing UG/PCO poles are skipped.
+21. Non-SAFE INTEC results recommend UG/PCO review but never activate either option.
+22. Every pole receives one initial evaluation; only affected poles with remaining violations or removable automatic movements are retried, with a three-attempt cap.
+23. Streetlight Ground/Raise, Transformer Redress, Power Riser Raise, Re-sag, and Transfer remain user-controlled but active values participate in validation.
 
 ### Make Ready Controls
 

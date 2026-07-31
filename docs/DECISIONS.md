@@ -67,3 +67,7 @@ TOP COMM targets `Top Comm + Comm-comm`; LOW COMM targets `Low Comm - Comm-comm`
 ## DEC-012 — UG and PCO remain operator decisions
 
 Auto Calculate may recommend manual UG/PCO review for INTEC, but it never activates either option. Poles already marked UG or PCO are skipped by the aerial solver.
+
+## DEC-013 — TOP COMM uses progressive search and selective retries
+
+TOP COMM tries the direct Proposed position first, the pole ceiling when direct space is unavailable, and exact Midspan-driven movement boundaries before opening the wider fallback search. The first SAFE result is final. Connected poles are not processed in unconditional global passes; a pole is retried only when a later connected change creates an opportunity to remove automatic movements or improve a remaining violation.

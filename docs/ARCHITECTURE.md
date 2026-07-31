@@ -153,7 +153,7 @@ Additional Proposed rows can use a synthetic span with `sourceSpanId`. The synth
 | `recalculateSpansForPole(poleId)` | Connected spans, both endpoints, reciprocal rows matched by Wire ID, MR, and validation. |
 | `recalculateAll()` | Every span, pole, comm, Proposed side, MR block, and warning. |
 | `AutoCalculateSolver.solvePole(poleId, mode, options?)` | Asynchronous candidate evaluation for one pole plus affected endpoint recalculation. It yields between candidate batches. |
-| `Calculations.autoCalculateMovements(options?)` | Installed asynchronous solver entry point that processes the job for up to three converging passes and reports UI progress. |
+| `Calculations.autoCalculateMovements(options?)` | Installed asynchronous solver entry point that processes every pole once, selectively retries affected improvable poles, and reports UI progress. |
 
 Edits to an endpoint HOA normally use `recalculateSpansForPole` because one movement can affect a midspan displayed from the opposite pole.
 

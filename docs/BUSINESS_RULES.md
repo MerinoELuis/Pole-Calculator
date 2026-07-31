@@ -257,19 +257,19 @@ TOP_COMM: Proposed = Top Comm + Pole Comm-comm
 LOW_COMM: Proposed = Low Comm - Pole Comm-comm
 ```
 
-The ideal is a ranking target, not a command to use Max Height on Pole. A higher or lower position is selected only when the existing constraints produce a better arrangement.
+For TOP COMM, the ideal is the first operational candidate. Max Height on Pole is used next only when the direct position does not fit; wider alternatives remain fallback candidates.
 
-For every pass the solver:
+During one Auto Calculate run the solver:
 
 1. Recalculates the current state.
 2. Visits each eligible aerial pole.
 3. Groups duplicate span relationships representing the same physical comm.
-4. Generates exact one-inch candidates around the ideal and important clearance boundaries, plus wider six-inch checkpoints.
+4. For TOP COMM, first tries the direct height above Top Comm, then the pole maximum when direct space does not exist, then exact Midspan-driven boundaries. Only unresolved cases open the wider one-inch and six-inch fallback candidates.
 5. Builds a clearance-aware stack for TOP COMM or LOW COMM.
 6. Preserves user-entered HOA Change and Proposed values.
 7. Applies each candidate to a clean state copy and runs the existing pole, Proposed and Midspan validations.
-8. Keeps the best candidate rather than rejecting every candidate that still has a violation.
-9. Repeats for up to three passes and stops early when the movement signature converges or repeats.
+8. Accepts the first `SAFE` TOP COMM candidate because progressive order already represents the preferred field workflow; otherwise keeps the best available evaluated candidate.
+9. Processes every pole once. A later connected change retries only a previously processed pole that now has a violation or may remove an automatic movement, with at most three evaluations per pole.
 
 An Environment or Power MS shortfall is converted into the local HOA movement
 required to correct that endpoint's half of the Midspan change. For example, a

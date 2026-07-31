@@ -63,7 +63,8 @@ function recalculate() {
   row.flaggingMessage = midspan < 180 ? `Environment: ${formatHeight(midspan)} < 15'.` : "OK";
   row.clearanceMSStatus = "OK";
   row.clearanceMSMessage = "OK";
-  const poleProblem = proposed !== null && (proposed > 264 || proposed - effective < 12);
+  const maxPole = parseHeight(state.poles.P1.maxCommHeight || "");
+  const poleProblem = proposed !== null && (proposed > maxPole || proposed - effective < 12);
   side.proposedFlaggingStatus = poleProblem ? "PROBLEM" : "OK";
   side.proposedFlaggingMessage = poleProblem ? `Proposed ${formatHeight(proposed)} does not respect Pole · Comm-comm 12\" against CATV ${formatHeight(effective)}.` : "OK";
   side.clearanceMSStatus = "OK";
@@ -94,11 +95,20 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date,
   assert.equal(candidateProgress.at(-1).candidateIndex, candidateProgress.at(-1).candidateCount);
 
   state = JSON.parse(initialState);
+  state.poles.P1.maxCommHeight = "23'";
+  const direct = await window.AutoCalculateSolver.solvePole("P1", "TOP_COMM");
+  assert.equal(direct.status, "SAFE");
+  assert.equal(state.spanSides.S1__P1.proposedHOA, "22'6\"");
+  assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "");
+  assert.equal(direct.result.candidateCount, 1, "A direct TOP COMM solution must stop after the first satisfactory candidate.");
+
+  state = JSON.parse(initialState);
   const runProgress = [];
   const summary = await window.AutoCalculateSolver.autoCalculateMovements({
     onProgress: detail => runProgress.push(detail)
   });
   assert.equal(summary.disabled, false);
+  assert.equal(summary.passes, 1, "An unchanged one-pole job must not run three global passes.");
   assert.equal(runProgress[0].phase, "starting");
   assert.equal(runProgress.at(-1).phase, "complete");
   assert.equal(runProgress.at(-1).progress, 100);

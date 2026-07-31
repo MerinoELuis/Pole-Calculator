@@ -121,7 +121,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `groupsForPole(poleId)` | Group duplicate span relationships that represent one physical comm. |
 | `proposedSpansForPole(poleId)` | Return eligible forward/manual Proposed relationships. |
 | `idealProposedHeight(groups, mode, state?)` | Calculate Top Comm + clearance or Low Comm - clearance. |
-| `candidateHeights(options)` | Generate bounded integer-inch candidates around rule boundaries. |
+| `candidateHeights(options)` | Generate progressive direct, pole-limit, Midspan-boundary and fallback integer-inch candidates. |
 | `buildStackPlan(groups, proposed, mode, maxPole, state?)` | Build a TOP downward or LOW upward comm stack. |
 | `collectIssues(poleId)` | Separate current-pole violations from physical-span Midspan violations. |
 | `issueSeverity(message)` | Estimate remaining clearance shortfall from a validation message. |
@@ -130,7 +130,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `statusForAnalysis(value)` | Return SAFE, BEST_AVAILABLE, or CRITICAL. |
 | `analyzeCurrentState(poleId, mode)` | Return violations, movement cost, and ideal-distance metrics. |
 | `solvePole(poleId, mode, options?)` | Asynchronously evaluate and retain the best aerial arrangement for one pole. `onCandidateProgress(detail)` reports candidate batches. |
-| `autoCalculateMovements(options?)` | Process all poles for up to three converging passes. `onProgress(detail)` reports phase, percentage, pass, pole and candidate. |
+| `autoCalculateMovements(options?)` | Process every pole once, then selectively retry only affected poles that can improve, with a three-attempt cap per pole. `onProgress(detail)` reports phase, percentage, pass, pole and candidate. |
 | `install()` | Replace `Calculations.autoCalculateMovements()` with the solver entry point. |
 
 ## AutoCalculateSourceCompat

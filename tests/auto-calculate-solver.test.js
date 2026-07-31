@@ -114,6 +114,15 @@ const groups = [
 
 const topCandidates = solver.candidateHeights({ groups, maxPole: 288, mode: "TOP_COMM", currentProposed: [], state });
 assert.ok(topCandidates.includes(264), "TOP COMM must include Top Comm + Comm-comm as the ideal candidate.");
+assert.equal(topCandidates[0], 264, "TOP COMM must try the direct position above Top Comm first.");
+const noSpaceCandidates = solver.candidateHeights({
+  groups: [{ key: "high", ownerToken: "catv", existingInches: 282, effectiveInches: 282, locked: false }],
+  maxPole: 288,
+  mode: "TOP_COMM",
+  currentProposed: [],
+  state
+});
+assert.equal(noSpaceCandidates[0], 288, "When direct TOP COMM space does not exist, the pole maximum must be tried first.");
 const lowCandidates = solver.candidateHeights({ groups, maxPole: 288, mode: "LOW_COMM", currentProposed: [], state });
 assert.ok(lowCandidates.includes(228), "LOW COMM must include Low Comm - Comm-comm as the ideal candidate.");
 

@@ -14,6 +14,15 @@ Proposed = Top Comm + Pole Comm-comm clearance
 
 The solver first tries to keep existing comms in place. When the ideal Proposed does not fit, it builds the smallest downward stack permitted by Pole Comm-comm and Pole Bolt-bolt rules.
 
+TOP COMM uses a progressive operational search:
+
+1. If space exists, try Proposed directly above Top Comm without moving communications.
+2. If that direct position exceeds Max Height on Pole, try Proposed at the pole maximum and build the minimum downward stack.
+3. If Midspan flagging requires a correction, try the exact height boundary that moves only the necessary communication groups, propagating spacing only where the stack requires it.
+4. Open the wider one-inch and six-inch fallback candidates only when those direct arrangements are not satisfactory.
+
+The first `SAFE` result in this order is accepted immediately. Full fallback ranking is retained only when no progressive candidate is safe.
+
 When a comm Midspan is below Environment or above Max Height at MS, the
 solver converts the shortfall into the local HOA movement required to correct
 half of that Midspan difference. It may therefore raise a TOP COMM stack when
@@ -79,7 +88,7 @@ A user-entered `HOA Change` is locked during Auto Calculate. A user-entered `Pro
 
 ## Network recalculation
 
-Each candidate recalculates the selected pole, connected endpoints and matching Wire IDs. The complete job is processed for up to three passes and stops early when the movement/Proposed signature converges or repeats.
+Each candidate recalculates the selected pole, connected endpoints and matching Wire IDs. Every pole is processed once initially. A completed pole is queued again only when a later connected change leaves it with a violation or gives it an opportunity to remove an automatic movement. Selective retries remain capped at three evaluations per pole and stop when the movement/Proposed signature converges or repeats.
 
 ## Responsive execution and progress
 
