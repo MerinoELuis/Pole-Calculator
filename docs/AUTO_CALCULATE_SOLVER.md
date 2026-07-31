@@ -18,10 +18,14 @@ TOP COMM uses a progressive operational search:
 
 1. If space exists, try Proposed directly above Top Comm without moving communications.
 2. If that direct position exceeds Max Height on Pole, try Proposed at the pole maximum and build the minimum downward stack.
-3. If Midspan flagging requires a correction, try the exact height boundary that moves only the necessary communication groups, propagating spacing only where the stack requires it.
-4. Open the wider one-inch and six-inch fallback candidates only when those direct arrangements are not satisfactory.
+3. If the current arrangement has Midspan flagging, try Proposed at Max Height on Pole first and arrange the comm stack downward from the highest legal positions. Existing bolt points may be reused, but every new position must keep Bolt-bolt clearance from all other existing points.
+4. Try the exact Midspan correction boundary that moves only the necessary communication groups, propagating spacing only where the stack requires it.
+5. Open the wider one-inch and six-inch fallback candidates only when those direct arrangements are not satisfactory.
 
-The first `SAFE` result in this order is accepted immediately. Full fallback ranking is retained only when no progressive candidate is safe.
+The first `SAFE` result in this order is accepted immediately. After all direct
+progressive candidates have been evaluated, a pole-compliant
+`BEST_AVAILABLE` result is also final; the wider fallback scan opens only when
+those meaningful candidates still leave a pole violation.
 
 When a comm Midspan is below Environment or above Max Height at MS, the
 solver converts the shortfall into the local HOA movement required to correct
@@ -75,6 +79,12 @@ The categories are:
 | `SKIPPED` | No eligible Proposed span exists, or the pole is already UG/PCO. |
 
 A pole-compliant result always outranks a result that fixes Midspan while leaving a pole violation. This is intentional even when the remaining Midspan shortfall is larger.
+
+During TOP COMM Midspan recovery, candidates with the same pole and Midspan
+violation profile prefer the highest Proposed before movement cost. This keeps
+Proposed at the available pole ceiling when extra height cannot improve the
+remaining Midspan issue, without accepting a new pole or upper-clearance
+violation.
 
 ## Existing validation remains authoritative
 

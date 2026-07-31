@@ -118,7 +118,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 
 1. The button is available in TOP COMM and LOW COMM when poles are loaded.
 2. TOP COMM includes `Top Comm + Pole Comm-comm` as the ideal candidate.
-3. TOP COMM tries the ideal direct candidate first and tries Max Height first when the direct height does not fit.
+3. Healthy TOP COMM tries the ideal direct candidate first; a TOP COMM arrangement with an existing Midspan violation tries Max Height first.
 4. A direct SAFE TOP COMM result stops after one candidate without moving comms.
 5. LOW COMM includes `Low Comm - Pole Comm-comm` as the ideal candidate.
 6. Healthy TOP COMM with space above proposes at the ideal without moving comms.
@@ -139,6 +139,9 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 21. Non-SAFE INTEC results recommend UG/PCO review but never activate either option.
 22. Every pole receives one initial evaluation; only affected poles with remaining violations or removable automatic movements are retried, with a three-attempt cap.
 23. Streetlight Ground/Raise, Transformer Redress, Power Riser Raise, Re-sag, and Transfer remain user-controlled but active values participate in validation.
+24. Midspan recovery stacks comms downward from the highest legal positions while reusing or clearing every existing bolt point.
+25. P15 recovery retains Proposed at `20'10"` when the same residual Midspan issues remain, and P16 recovery uses `23'2"` while reducing the real debug case from three Midspan issues to one without adding a pole violation.
+26. A pole-compliant result reached within the direct progressive candidates stops before the broad fallback height scan.
 
 ### Make Ready Controls
 

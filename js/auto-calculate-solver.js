@@ -222,7 +222,7 @@
     if (rounded >= 0 && rounded <= maxPole) set.add(rounded);
   }
 
-  function candidateHeights({ groups, maxPole, mode, currentProposed = [], manualReference = null, state = S()?.getState?.() }) {
+  function candidateHeights({ groups, maxPole, mode, currentProposed = [], manualReference = null, preferMaximum = false, state = S()?.getState?.() }) {
     if (!Number.isFinite(maxPole) || maxPole < 0) return [];
     if (manualReference !== null) return [Math.round(manualReference)];
     const values = new Set();
@@ -274,25 +274,54 @@
     for (let offset = 0; offset <= 12; offset += 1) addCandidate(values, maxPole - offset, maxPole);
     const preferred = ideal ?? maxPole;
     if (mode === "TOP_COMM") {
+      if (preferMaximum) addProgressive(maxPole);
       addProgressive(ideal);
-      if (ideal === null || ideal > maxPole) addProgressive(maxPole);
+      if (!preferMaximum && (ideal === null || ideal > maxPole)) addProgressive(maxPole);
       Array.from(requiredValues).forEach(addProgressive);
       addProgressive(maxPole);
       currentProposed.forEach(addProgressive);
     }
-    return [
+    const orderedCandidates = [
       ...progressive,
       ...Array.from(values)
         .filter(value => !progressiveSeen.has(value))
         .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || (mode === "LOW_COMM" ? a - b : b - a))
     ]
       .slice(0, MAX_CANDIDATES);
+    Object.defineProperty(orderedCandidates, "progressiveCount", {
+      value: Math.min(progressive.length, orderedCandidates.length),
+      enumerable: false
+    });
+    return orderedCandidates;
   }
 
-  function buildStackPlan(groups, proposedInches, mode, maxPole, state = S()?.getState?.()) {
+  function isLegalExistingBoltTarget(target, existingBoltPoints, state) {
+    const requiredClearance = boltClearance(state);
+    return existingBoltPoints.every(existing => {
+      const difference = Math.abs(target - existing);
+      return difference === 0 || difference >= requiredClearance;
+    });
+  }
+
+  function highestLegalTarget(ceiling, floor, existingBoltPoints, state) {
+    const roundedCeiling = Math.max(0, Math.floor(ceiling));
+    const roundedFloor = Math.max(0, Math.ceil(floor));
+    for (let target = roundedCeiling; target >= roundedFloor; target -= 1) {
+      if (isLegalExistingBoltTarget(target, existingBoltPoints, state)) return target;
+    }
+    for (let target = Math.min(roundedCeiling, roundedFloor - 1); target >= 0; target -= 1) {
+      if (isLegalExistingBoltTarget(target, existingBoltPoints, state)) return target;
+    }
+    return roundedCeiling;
+  }
+
+  function buildStackPlan(groups, proposedInches, mode, maxPole, state = S()?.getState?.(), options = {}) {
     const ordered = mode === "LOW_COMM"
       ? [...groups].sort((a, b) => a.existingInches - b.existingInches)
       : [...groups].sort((a, b) => b.existingInches - a.existingInches);
+    const existingBoltPoints = Array.from(new Set(
+      ordered.map(group => group.existingInches).filter(Number.isFinite)
+    ));
     const topCommFloors = mode === "TOP_COMM"
       ? ordered.map(group => {
         if (group.locked && group.lockedInches !== null) return group.lockedInches;
@@ -328,7 +357,9 @@
           : Math.min(maximum, maxPole);
         const floor = topCommFloors[index] || 0;
         let preferred = group.existingInches;
-        if (ceiling >= floor) {
+        if (options.preferHighest) {
+          target = highestLegalTarget(ceiling, floor, existingBoltPoints, state);
+        } else if (ceiling >= floor) {
           target = Math.max(floor, Math.min(preferred, ceiling));
         } else {
           // This Proposed candidate cannot fit the required stack. Keep the
@@ -493,6 +524,9 @@
       movedCommCount,
       totalMovementInches,
       idealProposedInches: ideal,
+      selectedProposedInches: proposals.length
+        ? (mode === "LOW_COMM" ? Math.min(...proposals) : Math.max(...proposals))
+        : null,
       proposedDistanceFromIdeal: ideal === null || !proposals.length
         ? Number.MAX_SAFE_INTEGER
         : proposals.reduce((sum, value) => sum + Math.abs(value - ideal), 0)
@@ -524,6 +558,23 @@
     const a = rankAnalysis(left);
     const b = rankAnalysis(right);
     for (let index = 0; index < a.length; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
+    return 0;
+  }
+
+  function compareTopRecoveryAnalyses(left, right) {
+    if (!left) return 1;
+    if (!right) return -1;
+    const a = rankAnalysis(left);
+    const b = rankAnalysis(right);
+    for (let index = 0; index <= 4; index += 1) {
+      if (a[index] !== b[index]) return a[index] - b[index];
+    }
+    const leftProposed = Number.isFinite(left.selectedProposedInches) ? left.selectedProposedInches : -1;
+    const rightProposed = Number.isFinite(right.selectedProposedInches) ? right.selectedProposedInches : -1;
+    if (leftProposed !== rightProposed) return rightProposed - leftProposed;
+    for (let index = 5; index < a.length; index += 1) {
+      if (a[index] !== b[index]) return a[index] - b[index];
+    }
     return 0;
   }
 
@@ -601,37 +652,62 @@
 
     const baseline = clone(S().getState());
     const groups = groupsForPole(poleId);
+    const baselineAnalysis = analyzeCurrentState(poleId, mode);
+    const recoverMidspanUpward = mode === "TOP_COMM" && baselineAnalysis.midspanViolationCount > 0;
     const manualReference = manualProposedReference(spans, poleId, mode);
     const current = currentProposed(spans, poleId);
-    const candidates = candidateHeights({ groups, maxPole, mode, currentProposed: current, manualReference, state: baseline });
+    const candidates = candidateHeights({
+      groups,
+      maxPole,
+      mode,
+      currentProposed: current,
+      manualReference,
+      preferMaximum: recoverMidspanUpward,
+      state: baseline
+    });
     let best = null;
     if (spans.every(span => parse(S()?.getSpanSide?.(span.spanId, poleId)?.proposedHOA || "") !== null)) {
-      best = { analysis: analyzeCurrentState(poleId, mode), state: clone(S().getState()) };
+      best = { analysis: baselineAnalysis, state: clone(S().getState()) };
     }
     let evaluatedCount = 0;
     for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
       const proposedInches = candidates[candidateIndex];
       S().setState(clone(baseline));
       applyProposed(spans, poleId, proposedInches, mode);
-      const candidatePlan = buildStackPlan(groupsForPole(poleId), proposedInches, mode, maxPole, S().getState());
+      const candidatePlan = buildStackPlan(
+        groupsForPole(poleId),
+        proposedInches,
+        mode,
+        maxPole,
+        S().getState(),
+        { preferHighest: recoverMidspanUpward }
+      );
       applyPlan(candidatePlan);
       recalculateAffected(poleId);
       const analysis = analyzeCurrentState(poleId, mode);
-      if (!best || compareAnalyses(analysis, best.analysis) < 0) {
+      const comparison = recoverMidspanUpward
+        ? compareTopRecoveryAnalyses(analysis, best?.analysis)
+        : compareAnalyses(analysis, best?.analysis);
+      if (!best || comparison < 0) {
         best = { analysis, state: clone(S().getState()) };
       }
       const evaluated = candidateIndex + 1;
       evaluatedCount = evaluated;
       const safe = statusForAnalysis(analysis) === STATUS.SAFE;
-      if (evaluated % CANDIDATE_YIELD_INTERVAL === 0 || evaluated === candidates.length || safe) {
+      const progressiveBestAvailable = mode === "TOP_COMM"
+        && Number.isInteger(candidates.progressiveCount)
+        && candidates.progressiveCount > 0
+        && evaluated >= candidates.progressiveCount
+        && best?.analysis?.poleViolationCount === 0;
+      if (evaluated % CANDIDATE_YIELD_INTERVAL === 0 || evaluated === candidates.length || safe || progressiveBestAvailable) {
         reportProgress(options.onCandidateProgress, {
           poleId,
           candidateIndex: evaluated,
-          candidateCount: safe ? evaluated : candidates.length
+          candidateCount: safe || progressiveBestAvailable ? evaluated : candidates.length
         });
         await yieldToBrowser();
       }
-      if (safe) break;
+      if (safe || progressiveBestAvailable) break;
     }
     if (!best) {
       S().setState(baseline);
@@ -853,6 +929,7 @@
     categoryForAnalysis,
     rankAnalysis,
     compareAnalyses,
+    compareTopRecoveryAnalyses,
     statusForAnalysis,
     resultMessage,
     analyzeCurrentState,

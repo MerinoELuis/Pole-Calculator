@@ -70,4 +70,8 @@ Auto Calculate may recommend manual UG/PCO review for INTEC, but it never activa
 
 ## DEC-013 — TOP COMM uses progressive search and selective retries
 
-TOP COMM tries the direct Proposed position first, the pole ceiling when direct space is unavailable, and exact Midspan-driven movement boundaries before opening the wider fallback search. The first SAFE result is final. Connected poles are not processed in unconditional global passes; a pole is retried only when a later connected change creates an opportunity to remove automatic movements or improve a remaining violation.
+TOP COMM tries the direct Proposed position first, the pole ceiling when direct space is unavailable, and exact Midspan-driven movement boundaries before opening the wider fallback search. The first SAFE result is final. A pole-compliant BEST_AVAILABLE result after all direct progressive candidates is also final, so the wider scan is reserved for cases that still violate the pole. Connected poles are not processed in unconditional global passes; a pole is retried only when a later connected change creates an opportunity to remove automatic movements or improve a remaining violation.
+
+## DEC-014 — TOP COMM Midspan recovery starts at the pole ceiling
+
+When the current TOP COMM arrangement has a Midspan violation, the first recovery candidate places Proposed at Max Height on Pole and arranges comms downward from their highest legal positions. The stack may reuse an existing bolt height but avoids the clearance exclusion around every other existing bolt point. Pole and upper-clearance compliance remain mandatory; if the remaining Midspan profile cannot improve, the highest equally safe Proposed is retained.

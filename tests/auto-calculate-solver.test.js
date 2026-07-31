@@ -107,6 +107,23 @@ const safe = {
 assert.equal(solver.statusForAnalysis(safe), "SAFE");
 assert.ok(solver.compareAnalyses(safe, smallerMidspanProblem) < 0);
 
+const lowerRecovery = {
+  ...poleSafeMidspanBad,
+  selectedProposedInches: 248,
+  movedCommCount: 1,
+  totalMovementInches: 4
+};
+const higherRecovery = {
+  ...poleSafeMidspanBad,
+  selectedProposedInches: 250,
+  movedCommCount: 3,
+  totalMovementInches: 18
+};
+assert.ok(
+  solver.compareTopRecoveryAnalyses(higherRecovery, lowerRecovery) < 0,
+  "When safety and Midspan shortfall tie, recovery must use the highest safe Proposed before minimizing movement."
+);
+
 const groups = [
   { key: "catv", ownerToken: "catv", existingInches: 252, effectiveInches: 252, locked: false },
   { key: "ctl", ownerToken: "ctl", existingInches: 240, effectiveInches: 240, locked: false }
@@ -123,6 +140,19 @@ const noSpaceCandidates = solver.candidateHeights({
   state
 });
 assert.equal(noSpaceCandidates[0], 288, "When direct TOP COMM space does not exist, the pole maximum must be tried first.");
+const midspanRecoveryCandidates = solver.candidateHeights({
+  groups,
+  maxPole: 288,
+  mode: "TOP_COMM",
+  currentProposed: [264],
+  preferMaximum: true,
+  state
+});
+assert.equal(midspanRecoveryCandidates[0], 288, "A TOP COMM Midspan recovery must start at Max Height on Pole.");
+assert.ok(
+  midspanRecoveryCandidates.progressiveCount < midspanRecoveryCandidates.length,
+  "The solver must distinguish direct progressive candidates from the wider fallback scan."
+);
 const lowCandidates = solver.candidateHeights({ groups, maxPole: 288, mode: "LOW_COMM", currentProposed: [], state });
 assert.ok(lowCandidates.includes(228), "LOW COMM must include Low Comm - Comm-comm as the ideal candidate.");
 
@@ -146,6 +176,32 @@ const lockedGroups = [
 ];
 const lockedPlan = solver.buildStackPlan(lockedGroups, 258, "TOP_COMM", 288, state);
 assert.equal(lockedPlan[0].targetInches, 248, "A user-entered HOA Change must remain fixed.");
+
+const p16MaximumPlan = solver.buildStackPlan([
+  { key: "p16-catv", ownerToken: "catv", existingInches: 246, effectiveInches: 222, minimumInches: 246, maximumInches: null, locked: false },
+  { key: "p16-catv-ref", ownerToken: "catv", existingInches: 242, effectiveInches: 218, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p16-ctl-high", ownerToken: "ctl", existingInches: 230, effectiveInches: 206, minimumInches: 248, maximumInches: null, locked: false },
+  { key: "p16-ctl-high-ref", ownerToken: "ctl", existingInches: 226, effectiveInches: 202, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p16-ctl-low", ownerToken: "ctl", existingInches: 214, effectiveInches: 198, minimumInches: 292, maximumInches: null, locked: false },
+  { key: "p16-ctl-low-ref", ownerToken: "ctl", existingInches: 212, effectiveInches: 194, minimumInches: null, maximumInches: null, locked: false }
+], 278, "TOP_COMM", 278, state, { preferHighest: true });
+assert.deepEqual(
+  JSON.parse(JSON.stringify(p16MaximumPlan.map(item => item.targetInches))),
+  [266, 262, 250, 246, 242, 238],
+  "P16 recovery must use the 23'2\" ceiling and avoid every existing bolt point while stacking downward."
+);
+
+const p15MaximumPlan = solver.buildStackPlan([
+  { key: "p15-catv", ownerToken: "catv", existingInches: 244, effectiveInches: 236, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p15-ctl-high", ownerToken: "ctl", existingInches: 236, effectiveInches: 224, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p15-ctl-middle", ownerToken: "ctl", existingInches: 228, effectiveInches: 220, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p15-ctl-low", ownerToken: "ctl", existingInches: 216, effectiveInches: 216, minimumInches: null, maximumInches: null, locked: false }
+], 250, "TOP_COMM", 250, state, { preferHighest: true });
+assert.deepEqual(
+  JSON.parse(JSON.stringify(p15MaximumPlan.map(item => item.targetInches))),
+  [236, 224, 220, 216],
+  "P15 recovery must keep Proposed at 20'10\" and reuse legal bolt points below it."
+);
 
 const environmentCorrectionPlan = solver.buildStackPlan([
   { key: "catv-env", ownerToken: "catv", existingInches: 208, effectiveInches: 208, minimumInches: 226, maximumInches: null, locked: false },
