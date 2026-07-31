@@ -33,6 +33,12 @@ half of that Midspan difference. It may therefore raise a TOP COMM stack when
 space exists. Candidate validation remains authoritative and rejects any
 result that breaks pole, bolt, power, or comm spacing.
 
+Before solving a pole again, prior `AUTO` Proposed and HOA Change values on
+that pole are cleared from the candidate baseline. Imported heights and
+user-entered locked changes remain authoritative. A propagated TOP COMM floor
+is generated only when a comm has a real Midspan minimum or a locked manual
+height; zero placeholders never create a near-ground Proposed candidate.
+
 ### LOW COMM
 
 The ideal pole attachment is:

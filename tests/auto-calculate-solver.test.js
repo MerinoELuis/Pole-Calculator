@@ -153,6 +153,33 @@ assert.ok(
   midspanRecoveryCandidates.progressiveCount < midspanRecoveryCandidates.length,
   "The solver must distinguish direct progressive candidates from the wider fallback scan."
 );
+const p17RecoveryCandidates = solver.candidateHeights({
+  groups: [
+    { key: "p17-catv", ownerToken: "catv", existingInches: 252, effectiveInches: 16, locked: false },
+    { key: "p17-ctl-high", ownerToken: "ctl", existingInches: 242, effectiveInches: 4, locked: false },
+    { key: "p17-ctl-low", ownerToken: "ctl", existingInches: 220, effectiveInches: 0, locked: false }
+  ],
+  maxPole: 244,
+  mode: "TOP_COMM",
+  currentProposed: [28],
+  preferMaximum: true,
+  state
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(p17RecoveryCandidates.slice(0, p17RecoveryCandidates.progressiveCount))),
+  [244, 242],
+  "P17 recovery must try the pole ceiling and nearest legal Proposed without treating the prior AUTO 2'4\" value as progressive."
+);
+const p17RecoveryPlan = solver.buildStackPlan([
+  { key: "p17-catv", ownerToken: "catv", existingInches: 252, effectiveInches: 16, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p17-ctl-high", ownerToken: "ctl", existingInches: 242, effectiveInches: 4, minimumInches: null, maximumInches: null, locked: false },
+  { key: "p17-ctl-low", ownerToken: "ctl", existingInches: 220, effectiveInches: 0, minimumInches: null, maximumInches: null, locked: false }
+], 242, "TOP_COMM", 244, state, { preferHighest: true });
+assert.deepEqual(
+  JSON.parse(JSON.stringify(p17RecoveryPlan.map(item => item.targetInches))),
+  [230, 216, 212],
+  "P17 recovery must produce 19'2\", 18', and 17'8\" below Proposed 20'2\"."
+);
 const lowCandidates = solver.candidateHeights({ groups, maxPole: 288, mode: "LOW_COMM", currentProposed: [], state });
 assert.ok(lowCandidates.includes(228), "LOW COMM must include Low Comm - Comm-comm as the ideal candidate.");
 

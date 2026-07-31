@@ -189,7 +189,9 @@
 
   function idealProposedHeight(groups, mode, state = S()?.getState?.()) {
     const values = groups
-      .map(group => group.effectiveInches ?? group.existingInches)
+      .map(group => group.locked && group.lockedInches !== null
+        ? group.lockedInches
+        : group.existingInches)
       .filter(Number.isFinite);
     if (!values.length) return null;
     return mode === "LOW_COMM"
@@ -203,6 +205,11 @@
   function minimumTopCommHeight(groups, state = S()?.getState?.()) {
     const ordered = [...groups].sort((a, b) => b.existingInches - a.existingInches);
     if (!ordered.length) return null;
+    const hasRequiredFloor = ordered.some(group =>
+      (group.locked && group.lockedInches !== null)
+      || Number.isFinite(group.minimumInches)
+    );
+    if (!hasRequiredFloor) return null;
     const floors = ordered.map(group => {
       if (group.locked && group.lockedInches !== null) return group.lockedInches;
       return Number.isFinite(group.minimumInches) ? group.minimumInches : 0;
@@ -241,6 +248,14 @@
       progressive.push(rounded);
     };
     const minimumTop = mode === "TOP_COMM" ? minimumTopCommHeight(groups, state) : null;
+    const highestLegalProposed = mode === "TOP_COMM"
+      ? highestLegalTarget(
+        maxPole,
+        0,
+        groups.map(group => group.existingInches).filter(Number.isFinite),
+        state
+      )
+      : null;
     if (minimumTop !== null) {
       const requiredProposed = Math.round(minimumTop + comm);
       anchors.push(requiredProposed);
@@ -274,12 +289,18 @@
     for (let offset = 0; offset <= 12; offset += 1) addCandidate(values, maxPole - offset, maxPole);
     const preferred = ideal ?? maxPole;
     if (mode === "TOP_COMM") {
-      if (preferMaximum) addProgressive(maxPole);
+      if (preferMaximum) {
+        addProgressive(maxPole);
+        addProgressive(highestLegalProposed);
+      }
       addProgressive(ideal);
-      if (!preferMaximum && (ideal === null || ideal > maxPole)) addProgressive(maxPole);
+      if (!preferMaximum && (ideal === null || ideal > maxPole)) {
+        addProgressive(maxPole);
+        addProgressive(highestLegalProposed);
+      }
       Array.from(requiredValues).forEach(addProgressive);
       addProgressive(maxPole);
-      currentProposed.forEach(addProgressive);
+      addProgressive(highestLegalProposed);
     }
     const orderedCandidates = [
       ...progressive,
@@ -629,6 +650,27 @@
     pole.metadata.autoCalculateResult = result;
   }
 
+  function clearAutomaticPolePlan(poleId) {
+    (S()?.getSpanCommsForPole?.(poleId) || []).forEach(row => {
+      if (row.autoCalcStatus !== AUTO) return;
+      S().upsertSpanComm({
+        ...row,
+        existingHOAChange: "",
+        autoCalcStatus: "",
+        autoCalcMessage: ""
+      });
+    });
+    (S()?.getSpanSidesForPole?.(poleId) || []).forEach(side => {
+      if (side.autoCalcProposedStatus !== AUTO) return;
+      S().upsertSpanSide({
+        ...side,
+        proposedHOA: "",
+        autoCalcProposedStatus: "",
+        autoCalcProposedMode: ""
+      });
+    });
+  }
+
   async function solvePole(poleId, mode, options = {}) {
     const pole = S()?.getPole?.(poleId);
     if (!pole) return { status: STATUS.SKIPPED, applied: false };
@@ -650,6 +692,8 @@
       return { status: result.status, applied: false, result };
     }
 
+    clearAutomaticPolePlan(poleId);
+    recalculateAffected(poleId);
     const baseline = clone(S().getState());
     const groups = groupsForPole(poleId);
     const baselineAnalysis = analyzeCurrentState(poleId, mode);

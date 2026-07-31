@@ -142,6 +142,8 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 24. Midspan recovery stacks comms downward from the highest legal positions while reusing or clearing every existing bolt point.
 25. P15 recovery retains Proposed at `20'10"` when the same residual Midspan issues remain, and P16 recovery uses `23'2"` while reducing the real debug case from three Midspan issues to one without adding a pole violation.
 26. A pole-compliant result reached within the direct progressive candidates stops before the broad fallback height scan.
+27. A stale automatic P17-style plan at `2'4"` is discarded before retry; recovery evaluates `20'4"` and the nearest legal `20'2"` rather than treating the old AUTO value as progressive.
+28. With Proposed `20'2"`, P17 stacks at `19'2"`, `18'`, and `17'8"`; a zero-only propagated floor is never generated when no comm has a real Midspan minimum.
 
 ### Make Ready Controls
 

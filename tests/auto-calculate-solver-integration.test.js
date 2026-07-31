@@ -103,6 +103,23 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date,
   assert.equal(direct.result.candidateCount, 1, "A direct TOP COMM solution must stop after the first satisfactory candidate.");
 
   state = JSON.parse(initialState);
+  state.spanSides.S1__P1.proposedHOA = "2'4\"";
+  state.spanSides.S1__P1.autoCalcProposedStatus = "AUTO";
+  state.spanSides.S1__P1.autoCalcProposedMode = "TOP_COMM";
+  state.spanComms.S1__P1__CATV__.existingHOAChange = "1'4\"";
+  state.spanComms.S1__P1__CATV__.autoCalcStatus = "AUTO";
+  recalculate();
+  const recoveredAutoPlan = await window.AutoCalculateSolver.solvePole("P1", "TOP_COMM");
+  assert.equal(recoveredAutoPlan.status, "BEST_AVAILABLE");
+  assert.equal(state.spanSides.S1__P1.proposedHOA, "22'");
+  assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "21'");
+  assert.equal(
+    recoveredAutoPlan.result.candidateCount,
+    1,
+    "A stale low AUTO plan must be cleared and replaced from imported heights without opening the fallback scan."
+  );
+
+  state = JSON.parse(initialState);
   const runProgress = [];
   const summary = await window.AutoCalculateSolver.autoCalculateMovements({
     onProgress: detail => runProgress.push(detail)

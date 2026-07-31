@@ -75,3 +75,7 @@ TOP COMM tries the direct Proposed position first, the pole ceiling when direct 
 ## DEC-014 — TOP COMM Midspan recovery starts at the pole ceiling
 
 When the current TOP COMM arrangement has a Midspan violation, the first recovery candidate places Proposed at Max Height on Pole and arranges comms downward from their highest legal positions. The stack may reuse an existing bolt height but avoids the clearance exclusion around every other existing bolt point. Pole and upper-clearance compliance remain mandatory; if the remaining Midspan profile cannot improve, the highest equally safe Proposed is retained.
+
+## DEC-015 — Automatic retries rebuild from imported geometry
+
+A previous automatic arrangement is replaceable output, not the geometric baseline for the next retry. The solver clears local `AUTO` Proposed and HOA Change values before generating candidates, preserves manual values, and creates a propagated Midspan floor only when a real minimum or lock exists. This prevents automatic results from recursively lowering Top Comm toward zero.

@@ -271,6 +271,12 @@ During one Auto Calculate run the solver:
 8. Accepts the first `SAFE` TOP COMM candidate. After the direct progressive candidates, it also accepts a pole-compliant `BEST_AVAILABLE` result without opening the broad fallback scan; otherwise it keeps searching for a pole-compliant arrangement.
 9. Processes every pole once. A later connected change retries only a previously processed pole that now has a violation or may remove an automatic movement, with at most three evaluations per pole.
 
+Before a retry, the pole's previous `AUTO` Proposed and HOA Change values are
+removed from its baseline. Candidate geometry starts from imported Existing
+HOA values, while manual changes remain locked. A Midspan-driven minimum stack
+is created only when at least one group has a real calculated minimum; an
+all-zero placeholder stack is not a valid boundary.
+
 An Environment or Power MS shortfall is converted into the local HOA movement
 required to correct that endpoint's half of the Midspan change. For example, a
 Midspan that is `2"` below Environment contributes a `4"` local pole target.
