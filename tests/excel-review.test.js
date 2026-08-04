@@ -203,6 +203,20 @@ const codes = new Set(output.results[0].checks.map(item => item.code));
 });
 assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own communication midspan must warn in HOA Review");
 
+state.excelReviewSource.spanWires.rows.push({
+  Id: "P3",
+  Owner: "UTILITY > APS (Joint use)",
+  Size: "Neutral > R1/0V Raven 1/0 ACSR 6/1 > Tension to Sag",
+  Construction: "ON_POLE",
+  Insulator: "Pin 8.38\" APS"
+});
+output = review.runReview();
+assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "INVALID_NEUTRAL_INSULATOR"),
+  false,
+  "INTEC Neutral must allow a Pin 8.38 APS insulator"
+);
+
 state.poles = { PUG: { poleId: "PUG", ugActive: true } };
 state.spans = {};
 state.spanSides = {};

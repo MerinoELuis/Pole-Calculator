@@ -100,6 +100,25 @@ assert.equal(state.settings.attachmentMessengerSize, "0.188");
 assert.equal(state.settings.fiberSizes["144CT Fiber"], "0.44");
 
 state = baseState("INTEC");
+state.settings.proposedOwner = "Cox";
+state.makeReadyReferences = [{ attachmentFiber: "96CT Fiber" }];
+assert.equal(api.applyAttachmentDefaults(state), true);
+assert.equal(state.settings.attachmentMessengerSize, "0.25");
+assert.equal(state.settings.fiberSizes["96CT Fiber"], "0.53");
+
+state.settings.attachmentMessengerSize = "0.22";
+state.settings.fiberSizes["96CT Fiber"] = "0.49";
+assert.equal(api.applyAttachmentDefaults(state), false);
+assert.equal(state.settings.attachmentMessengerSize, "0.22");
+assert.equal(state.settings.fiberSizes["96CT Fiber"], "0.49");
+
+state = baseState("INTEC");
+state.makeReadyReferences = [{ attachmentFiber: "96CT Fiber" }];
+window.AppStore.updateSetting("proposedOwner", "Cox");
+assert.equal(state.settings.attachmentMessengerSize, "0.25");
+assert.equal(state.settings.fiberSizes["96CT Fiber"], "0.53");
+
+state = baseState("INTEC");
 state.settings.attachmentMessengerSize = "0.242";
 state.settings.fiberSizes = { "144CT Fiber": "0.51" };
 state.poles = {

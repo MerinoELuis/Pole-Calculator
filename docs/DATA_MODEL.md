@@ -47,8 +47,8 @@ Important settings and defaults:
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
 | `showResagServiceDrop` | `true` | Whether INTEC exposes the Re-sag Service Drop control. |
-| `attachmentMessengerSize` | blank | Messenger diameter exported to AutoProposed. |
-| `fiberSizes` | `{}` | Fiber diameter by detected count, such as `24CT Fiber`. |
+| `attachmentMessengerSize` | blank | Messenger diameter exported to AutoProposed. Defaults to `0.25` for Cox 96CT and `0.242` for detected 144CT when empty. |
+| `fiberSizes` | `{}` | Fiber diameter by detected count. Cox 96CT defaults to `0.53`; detected 144CT defaults to `0.51`. User-entered values are preserved. |
 
 ## Pole
 

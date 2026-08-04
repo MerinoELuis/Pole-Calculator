@@ -26,6 +26,7 @@
   const COMM_INSULATORS = ["single bolt", "three bolt", "j-hook"];
   const PRIMARY_INSULATORS = ["deadend aps", "horizontal line post", "post 15\""];
   const SECONDARY_INSULATORS = ["pin 7.5in", "deadend aps", "spool 3in", "suspension aps"];
+  const NEUTRAL_INSULATORS = [...SECONDARY_INSULATORS, "pin 8.38"];
   const MIDAM_POWER_SIZES = {
     PRIMARY: "primary > aac 477.0 kcm 19 strand cosmos > static",
     SECONDARY: "secondary > triplex 2 awg > static",
@@ -600,12 +601,19 @@
       }
       const validInsulator = powerType === "PRIMARY"
         ? (insulator.includes("pin 8.38") || PRIMARY_INSULATORS.includes(insulator))
-        : SECONDARY_INSULATORS.includes(insulator);
+        : powerType === "NEUTRAL"
+          ? (insulator.includes("pin 8.38") || NEUTRAL_INSULATORS.includes(insulator))
+          : SECONDARY_INSULATORS.includes(insulator);
       if (!validInsulator) {
+        const expectedInsulators = powerType === "PRIMARY"
+          ? "Pin 8.38, Deadend APS, Horizontal Line Post, or Post 15\""
+          : powerType === "NEUTRAL"
+            ? `${SECONDARY_INSULATORS.join(", ")}, or Pin 8.38`
+            : SECONDARY_INSULATORS.join(", ");
         add(result, {
           phase: "HOA", section: "Span.Wire", code: `INVALID_${powerType}_INSULATOR`, status: "ERROR",
           title: `${powerType} Insulator`, message: `Invalid ${powerType.toLowerCase()} insulator for ${descriptor}.`,
-          expected: powerType === "PRIMARY" ? "Pin 8.38, Deadend APS, Horizontal Line Post, or Post 15\"" : SECONDARY_INSULATORS.join(", "),
+          expected: expectedInsulators,
           actual: text(pick(row, ["Insulator"])) || "Empty"
         });
       }

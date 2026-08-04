@@ -3,6 +3,8 @@
 
   const DEFAULT_MESSENGER_144 = "0.242";
   const DEFAULT_FIBER_144 = "0.51";
+  const DEFAULT_COX_MESSENGER_96 = "0.25";
+  const DEFAULT_COX_FIBER_96 = "0.53";
   const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET"]);
   const OPPOSITE_DIRECTION = {
     N: "S",
@@ -85,7 +87,10 @@
 
   function applyAttachmentDefaults(state = S()?.getState?.()) {
     if (!state || !SUPPORTED_PROFILES.has(profileName(state))) return false;
-    if (!detectedReferenceFiberCounts(state).has("144")) return false;
+    const detectedCounts = detectedReferenceFiberCounts(state);
+    const has144 = detectedCounts.has("144");
+    const hasCox96 = text(state?.settings?.proposedOwner).toUpperCase() === "COX" && detectedCounts.has("96");
+    if (!has144 && !hasCox96) return false;
 
     state.settings = state.settings || {};
     state.settings.fiberSizes = state.settings.fiberSizes && typeof state.settings.fiberSizes === "object"
@@ -94,14 +99,23 @@
 
     let changed = false;
     if (!text(state.settings.attachmentMessengerSize)) {
-      state.settings.attachmentMessengerSize = DEFAULT_MESSENGER_144;
+      state.settings.attachmentMessengerSize = hasCox96 ? DEFAULT_COX_MESSENGER_96 : DEFAULT_MESSENGER_144;
       changed = true;
     }
 
-    const key = configuredFiberKey(state, "144");
-    if (!text(state.settings.fiberSizes[key])) {
-      state.settings.fiberSizes[key] = DEFAULT_FIBER_144;
-      changed = true;
+    if (has144) {
+      const key144 = configuredFiberKey(state, "144");
+      if (!text(state.settings.fiberSizes[key144])) {
+        state.settings.fiberSizes[key144] = DEFAULT_FIBER_144;
+        changed = true;
+      }
+    }
+    if (hasCox96) {
+      const key96 = configuredFiberKey(state, "96");
+      if (!text(state.settings.fiberSizes[key96])) {
+        state.settings.fiberSizes[key96] = DEFAULT_COX_FIBER_96;
+        changed = true;
+      }
     }
     return changed;
   }
@@ -741,7 +755,7 @@
       const originalUpdateSetting = store.updateSetting.bind(store);
       store.updateSetting = function (field, value) {
         const result = originalUpdateSetting(field, value);
-        if (field === "projectProfile") applyAttachmentDefaults(store.getState?.());
+        if (field === "projectProfile" || field === "proposedOwner") applyAttachmentDefaults(store.getState?.());
         return result;
       };
     }
@@ -764,7 +778,7 @@
         if (event.target?.dataset?.scope === "attachmentSettings") markSaveDirty();
       });
       global.document.addEventListener("change", event => {
-        if (event.target?.dataset?.field === "projectProfile" || event.target?.dataset?.scope === "attachmentSettings") {
+        if (["projectProfile", "proposedOwner"].includes(event.target?.dataset?.field) || event.target?.dataset?.scope === "attachmentSettings") {
           global.setTimeout?.(syncFiberSettingsUi, 0);
         }
       });
