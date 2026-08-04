@@ -1931,6 +1931,10 @@
     };
   }
 
+  function poleHasProposed(poleId) {
+    return S.getSpanSidesForPole(poleId).some(side => String(side?.proposedHOA || "").trim() !== "");
+  }
+
   function poleFlaggingSummary(poleId) {
     const pole = S.getPole(poleId);
     const commIssues = S.getSpanCommsForPole(poleId)
@@ -1987,6 +1991,7 @@
   function renderPoleListItem(poleId) {
     const state = S.getState();
     const { pole, warnings, hasChanges } = poleSummary(poleId);
+    const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
     const hidden = (state.ui.hiddenPoleIds || []).includes(poleId);
     const active = state.selectedPoleId === poleId ? " active" : "";
@@ -1997,7 +2002,7 @@
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
       ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="mini-dot danger">Flag ${flagging.calculationIssueCount}</span>` : ""}
       ${flagging.heightCritical ? `<span class="mini-dot danger" title="Critical pole height issue">&#9888; Height</span>` : ""}
-      ${hasChanges ? `<span class="mini-dot changed">Changed</span>` : ""}
+      ${hasProposed ? `<span class="mini-dot changed">Proposed</span>` : ""}
     </button>`;
   }
 
@@ -2066,6 +2071,7 @@
 
   function renderPoleEditableHeader(poleId) {
     const { pole, spans, hasChanges } = poleSummary(poleId);
+    const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
     return `<div class="pole-workspace-header">
       <div class="pole-heading-block">
@@ -2083,7 +2089,7 @@
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
           ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="badge danger">Flagging ${flagging.calculationIssueCount}</span>` : ""}
           ${flagging.heightCritical ? `<span class="badge danger" title="Critical pole height issue">&#9888; Height Critical</span>` : ""}
-          ${hasChanges ? `<span class="badge changed">Changed</span>` : ""}
+          ${hasProposed ? `<span class="badge changed">Proposed</span>` : ""}
         </div>
       </div>
       <div class="pole-kpis two-up">
