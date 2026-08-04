@@ -216,4 +216,78 @@ assert.equal(
   "the old Existing HOA must retain Bolt-bolt validation when the comm is not transferred"
 );
 
+seedSpan("INTEC", "SERVICE-DROP-BOLT", "100'", "");
+const regularSameOwner = S.createSpanComm({
+  spanId: "SERVICE-DROP-BOLT",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "REGULAR-WIRE",
+  existingHOA: "18'10\""
+});
+const serviceDropSameOwner = S.createSpanComm({
+  spanId: "SERVICE-DROP-BOLT",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "SERVICE-WIRE",
+  existingHOA: "18'8\"",
+  serviceDrop: true
+});
+S.upsertSpanComm(regularSameOwner);
+S.upsertSpanComm(serviceDropSameOwner);
+assert.doesNotMatch(
+  C.evaluateCommFlagging(regularSameOwner, "").flaggingMessage,
+  /bolt-bolt/i,
+  "a regular comm must not receive Bolt-bolt flagging against a same-owner Service Drop 2 inches away"
+);
+assert.doesNotMatch(
+  C.evaluateCommFlagging(serviceDropSameOwner, "").flaggingMessage,
+  /bolt-bolt/i,
+  "a Service Drop must not receive Bolt-bolt flagging 2 inches from a same-owner comm"
+);
+
+seedSpan("INTEC", "DG-STILL-BOLT", "100'", "");
+const regularWithDg = S.createSpanComm({
+  spanId: "DG-STILL-BOLT",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "DG-WIRE",
+  existingHOA: "18'10\"",
+  downGuy: true
+});
+const regularWithoutDrop = S.createSpanComm({
+  spanId: "DG-STILL-BOLT",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "REGULAR-WIRE",
+  existingHOA: "18'8\""
+});
+S.upsertSpanComm(regularWithDg);
+S.upsertSpanComm(regularWithoutDrop);
+assert.match(
+  C.evaluateCommFlagging(regularWithDg, "").flaggingMessage,
+  /Pole bolt-bolt: 2"/i,
+  "DG alone must not receive the Service Drop Bolt-bolt exception"
+);
+
+seedSpan("INTEC", "PROPOSED-SERVICE-BOLT", "100'", "18'10\"");
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "PROPOSED-SERVICE-BOLT",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "SERVICE-WIRE",
+  existingHOA: "18'8\"",
+  serviceDrop: true
+}));
+const proposedAgainstServiceDrop = C.evaluateProposedPoleClearance(S.getSpanSide("PROPOSED-SERVICE-BOLT", "P1"));
+assert.doesNotMatch(
+  proposedAgainstServiceDrop.message,
+  /Bolt-bolt/i,
+  "a Service Drop Existing HOA must not reserve a Bolt-bolt exclusion point for Proposed"
+);
+assert.match(
+  proposedAgainstServiceDrop.message,
+  /Comm-comm/i,
+  "the Service Drop Bolt-bolt exception must not remove Proposed Comm-comm clearance"
+);
+
 console.log("Proposed midspan fallback tests passed.");

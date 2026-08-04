@@ -204,6 +204,16 @@ const lockedGroups = [
 const lockedPlan = solver.buildStackPlan(lockedGroups, 258, "TOP_COMM", 288, state);
 assert.equal(lockedPlan[0].targetInches, 248, "A user-entered HOA Change must remain fixed.");
 
+const serviceDropPlan = solver.buildStackPlan([
+  { key: "ctl-regular", ownerToken: "ctl", existingInches: 252, effectiveInches: 252, minimumInches: null, maximumInches: null, locked: false, serviceDrop: false },
+  { key: "ctl-service", ownerToken: "ctl", existingInches: 250, effectiveInches: 250, minimumInches: null, maximumInches: null, locked: false, serviceDrop: true }
+], 258, "TOP_COMM", 288, state, { preferHighest: true });
+assert.deepEqual(
+  JSON.parse(JSON.stringify(serviceDropPlan.map(item => item.targetInches))),
+  [246, 246],
+  "A same-owner Service Drop may share the comm bolt height without Bolt-bolt separation."
+);
+
 const p16MaximumPlan = solver.buildStackPlan([
   { key: "p16-catv", ownerToken: "catv", existingInches: 246, effectiveInches: 222, minimumInches: 246, maximumInches: null, locked: false },
   { key: "p16-catv-ref", ownerToken: "catv", existingInches: 242, effectiveInches: 218, minimumInches: null, maximumInches: null, locked: false },

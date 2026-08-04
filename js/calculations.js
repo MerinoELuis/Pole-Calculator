@@ -644,7 +644,7 @@
       const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
-      if (sc.existingHOAChange && !sc.transferToNewPole && ownExistingHeight !== null) {
+      if (sc.existingHOAChange && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
         const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
         if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
           issues.push(`Pole bolt-bolt: ${format(ownBoltDiff)} against Existing HOA ${format(ownExistingHeight)}; minimum ${format(boltClearance)}.`);
@@ -664,9 +664,8 @@
         const diff = Math.abs(poleHeight - otherHeight);
         const required = sameOwner ? boltClearance : poleClearance;
         const label = sameOwner ? "Pole bolt-bolt" : "Pole comm-comm";
-        const sameOwnerServiceDropSameBolt = sameOwner && diff === 0 && (sc.serviceDrop || other.serviceDrop);
-        if (sameOwnerServiceDropSameBolt) return;
-        if (diff < required) {
+        const serviceDropBoltExempt = Boolean(sc.serviceDrop || other.serviceDrop);
+        if (!(sameOwner && serviceDropBoltExempt) && diff < required) {
           issues.push(`${label}: ${format(diff)} with ${otherOwner || "no owner"}; minimum ${format(required)}.`);
         }
 
@@ -675,7 +674,7 @@
         // the new bolt is only 2" from that existing point, even if the other
         // comm was moved down to 21'. That must still flag.
         const otherExistingHeight = H().parseHeight(other.existingHOA || "");
-        if (!other.transferToNewPole && otherExistingHeight !== null) {
+        if (!serviceDropBoltExempt && !other.transferToNewPole && otherExistingHeight !== null) {
           const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
           if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
             issues.push(`Pole bolt-bolt: ${format(existingPointDiff)} against Existing HOA ${format(otherExistingHeight)} from ${otherOwner || "no owner"}; minimum ${format(boltClearance)}.`);
@@ -714,7 +713,8 @@
         existing: H().parseHeight(sc.existingHOA || ""),
         effective: H().parseHeight(getEffectiveCommHOA(sc)),
         moved: Boolean(sc.existingHOAChange),
-        transferred: Boolean(sc.transferToNewPole)
+        transferred: Boolean(sc.transferToNewPole),
+        serviceDrop: Boolean(sc.serviceDrop)
       }))
       .filter(item => item.effective !== null || item.existing !== null)
       .forEach(item => {
@@ -727,7 +727,7 @@
             issues.push(`Proposed ${format(proposed)} does not respect Pole · Comm-comm ${format(commRequired)} against ${item.owner} ${format(item.effective)}.`);
           }
         }
-        if (item.existing !== null && !item.transferred) {
+        if (item.existing !== null && !item.transferred && !item.serviceDrop) {
           const boltDiff = Math.abs(proposed - item.existing);
           if (boltDiff > 0 && boltDiff < boltRequired) {
             issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against Existing HOA ${format(item.existing)}.`);

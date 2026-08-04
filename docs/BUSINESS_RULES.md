@@ -161,7 +161,7 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 5. The normalized Sequence and first Id block must be exactly equal; `058` does not match `058A`.
 6. Collection Owner must be `UTILITY > MidAm`; empty is an error and another populated owner is a warning.
 
-A same-owner Service Drop may reuse exactly the same bolt height. This exception applies only when the separation is zero; nearby nonzero placements still use Bolt-bolt clearance.
+A Service Drop does not create or receive Pole Bolt-bolt violations. For the same owner it may reuse the same bolt or sit within the normal Bolt-bolt clearance zone. Its Existing HOA also does not reserve a Bolt-bolt exclusion point for Proposed. This exception is exclusive to rows marked `Service Drop`; `DG` alone does not qualify. Comm-comm, power, maximum-height, Environment, and every other applicable rule remain active.
 
 When `Transfer to New Pole` is active, the old `Existing HOA` bolt belongs to the prior pole and is excluded from Bolt-bolt checks on the destination pole. The transferred comm's effective HOA remains subject to Comm-comm and every other applicable clearance.
 

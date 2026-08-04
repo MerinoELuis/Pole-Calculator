@@ -202,6 +202,7 @@
   }
 
   function groupsForPole(poleId) {
+    const spanComms = S()?.getState?.()?.spanComms || {};
     const groups = new Map();
     (S()?.getSpanCommsForPole?.(poleId) || [])
       .filter(row => !C()?.isPofComm?.(row))
@@ -230,11 +231,16 @@
         }
       });
     return Array.from(groups.values())
-      .map(group => ({ ...group, ...midspanBoundsForGroup(group) }))
+      .map(group => ({
+        ...group,
+        serviceDrop: group.rowKeys.length > 0 && group.rowKeys.every(key => Boolean(spanComms[key]?.serviceDrop)),
+        ...midspanBoundsForGroup(group)
+      }))
       .sort((a, b) => b.existingInches - a.existingInches);
   }
 
   function gap(upper, lower, state) {
+    if (upper?.ownerToken && upper.ownerToken === lower?.ownerToken && (upper.serviceDrop || lower.serviceDrop)) return 0;
     return upper?.ownerToken && upper.ownerToken === lower?.ownerToken
       ? boltClearance(state)
       : commClearance(state);
@@ -332,7 +338,9 @@
       ? highestLegalTarget(
         maxPole,
         0,
-        groups.map(group => group.existingInches).filter(Number.isFinite),
+        groups
+          .filter(group => Number.isFinite(group.existingInches))
+          .map(group => ({ height: group.existingInches, serviceDrop: Boolean(group.serviceDrop) })),
         state
       )
       : null;
@@ -396,22 +404,25 @@
     return orderedCandidates;
   }
 
-  function isLegalExistingBoltTarget(target, existingBoltPoints, state) {
+  function isLegalExistingBoltTarget(target, existingBoltPoints, state, movingServiceDrop = false) {
+    if (movingServiceDrop) return true;
     const requiredClearance = boltClearance(state);
-    return existingBoltPoints.every(existing => {
+    return existingBoltPoints.every(point => {
+      const existing = typeof point === "number" ? point : point?.height;
+      if (!Number.isFinite(existing) || point?.serviceDrop) return true;
       const difference = Math.abs(target - existing);
       return difference === 0 || difference >= requiredClearance;
     });
   }
 
-  function highestLegalTarget(ceiling, floor, existingBoltPoints, state) {
+  function highestLegalTarget(ceiling, floor, existingBoltPoints, state, movingServiceDrop = false) {
     const roundedCeiling = Math.max(0, Math.floor(ceiling));
     const roundedFloor = Math.max(0, Math.ceil(floor));
     for (let target = roundedCeiling; target >= roundedFloor; target -= 1) {
-      if (isLegalExistingBoltTarget(target, existingBoltPoints, state)) return target;
+      if (isLegalExistingBoltTarget(target, existingBoltPoints, state, movingServiceDrop)) return target;
     }
     for (let target = Math.min(roundedCeiling, roundedFloor - 1); target >= 0; target -= 1) {
-      if (isLegalExistingBoltTarget(target, existingBoltPoints, state)) return target;
+      if (isLegalExistingBoltTarget(target, existingBoltPoints, state, movingServiceDrop)) return target;
     }
     return roundedCeiling;
   }
@@ -420,9 +431,9 @@
     const ordered = mode === "LOW_COMM"
       ? [...groups].sort((a, b) => a.existingInches - b.existingInches)
       : [...groups].sort((a, b) => b.existingInches - a.existingInches);
-    const existingBoltPoints = Array.from(new Set(
-      ordered.map(group => group.existingInches).filter(Number.isFinite)
-    ));
+    const existingBoltPoints = ordered
+      .filter(group => Number.isFinite(group.existingInches))
+      .map(group => ({ height: group.existingInches, serviceDrop: Boolean(group.serviceDrop) }));
     const topCommFloors = mode === "TOP_COMM"
       ? ordered.map(group => {
         if (group.locked && group.lockedInches !== null) return group.lockedInches;
@@ -459,7 +470,7 @@
         const floor = topCommFloors[index] || 0;
         let preferred = group.existingInches;
         if (options.preferHighest) {
-          target = highestLegalTarget(ceiling, floor, existingBoltPoints, state);
+          target = highestLegalTarget(ceiling, floor, existingBoltPoints, state, group.serviceDrop);
         } else if (ceiling >= floor) {
           target = Math.max(floor, Math.min(preferred, ceiling));
         } else {

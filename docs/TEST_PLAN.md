@@ -87,9 +87,10 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 3. Comm below Environment minimum.
 4. Different owners closer than Pole Comm-comm.
 5. Same owner closer than Pole Bolt-bolt.
-6. New bolt too close to a previous Existing HOA point.
-7. Same-owner Service Drop at the exact same bolt is allowed.
-8. Two comms on the same span closer than Midspan Comm-comm.
+6. A same-owner Service Drop at zero or nonzero separation does not flag Bolt-bolt; a DG-only row still flags.
+7. New bolt too close to a previous Existing HOA point.
+8. Same-owner Service Drop at the exact same bolt is allowed.
+9. Two comms on the same span closer than Midspan Comm-comm.
 9. Similar comms on different spans are not compared for Comm-comm MS.
 10. Reversed pole/midspan order produces crossing flagging.
 
