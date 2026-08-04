@@ -73,6 +73,8 @@ Imported, editable, and derived values live together but have different ownershi
 | `ugReason` | editable | Specific INTEC UG reason reused by connected span instructions. |
 | `ugMRText` | editable | Full multiline INTEC UG template; its first line supplies the adjacent-span reason. |
 | `pcoMRText` | editable | Full multiline PCO replacement template used exactly as edited by the operator. |
+| `poleInsetActive` | editable | Adds the Pole Inset Make Ready action on a normal pole. UG/PCO takes priority over this action. |
+| `poleInsetReason` | editable | `OVERLOADED` or `FAILING_CLEARANCES`; selects the Pole Inset wording. |
 | `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
 | `riserActive` | editable tri-state | `null` keeps automatic Fore/Back adjacent-UG behavior; `true` adds and `false` suppresses riser MR on a normal pole. UG/PCO disables the action. |
 | `notes` | editable | User-owned pole notes. |

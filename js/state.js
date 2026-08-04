@@ -10,6 +10,12 @@
   const DEFAULT_COMM_CLEARANCE = "12\"";
   const DEFAULT_BOLT_CLEARANCE = "4\"";
 
+  function normalizePoleInsetReason(value) {
+    return String(value || "").trim().toUpperCase() === "FAILING_CLEARANCES"
+      ? "FAILING_CLEARANCES"
+      : "OVERLOADED";
+  }
+
   // Convert imported/save filenames into the editable job label. Keep this
   // logic in AppStore so Save, AutoProposed and import all use one source.
   function jobNameFromFileName(value) {
@@ -238,6 +244,8 @@
         riserActive: data.riserActive === true ? true : data.riserActive === false ? false : null,
         pcoActive: Boolean(data.pcoActive),
         pcoMRText: trim(data.pcoMRText || ""),
+        poleInsetActive: Boolean(data.poleInsetActive),
+        poleInsetReason: normalizePoleInsetReason(data.poleInsetReason),
         pcoScope: trim(data.pcoScope || ""),
         pcoType: trim(data.pcoType || ""),
         pcoDetail: trim(data.pcoDetail || ""),
@@ -268,6 +276,8 @@
       riserActive: extra.riserActive === true ? true : extra.riserActive === false ? false : null,
       pcoActive: Boolean(extra.pcoActive),
       pcoMRText: trim(extra.pcoMRText || ""),
+      poleInsetActive: Boolean(extra.poleInsetActive),
+      poleInsetReason: normalizePoleInsetReason(extra.poleInsetReason),
       pcoScope: trim(extra.pcoScope || ""),
       pcoType: trim(extra.pcoType || ""),
       pcoDetail: trim(extra.pcoDetail || ""),
@@ -518,9 +528,10 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "ugRiserDirection", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
     if (field === "ugRiserDirection") pole[field] = pole[field].toUpperCase();
+    if (field === "poleInsetReason") pole[field] = normalizePoleInsetReason(value);
     return pole;
   }
 

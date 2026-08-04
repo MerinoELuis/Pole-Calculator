@@ -521,6 +521,14 @@
     });
   }
 
+  function generatePoleInsetMR(pole) {
+    if (!pole?.poleInsetActive || pole.ugActive || pole.pcoActive) return "";
+    const reason = String(pole.poleInsetReason || "").toUpperCase() === "FAILING_CLEARANCES"
+      ? "failing clearances"
+      : "overloaded";
+    return `Pole ${reason} unless comm inset pole placed at midspan to reduce span length.`;
+  }
+
   /**
    * Replaces the generated Make Ready block for one pole using current state.
    * @param {string} poleId
@@ -532,6 +540,7 @@
 
     const ug = [];
     const power = [];
+    const poleInset = [];
     const commMoves = [];
     const dropMoves = [];
     const proposed = [];
@@ -550,6 +559,8 @@
       if (/^pl\s+(?:new\s+)?riser\b/i.test(line)) risers.push(line);
       else ug.push(line);
     });
+    const inset = generatePoleInsetMR(pole);
+    if (inset) poleInset.push(inset);
     power.push(...generatePowerEquipmentMRForPole(poleId));
     commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
@@ -578,7 +589,7 @@
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
 
-    const lines = [...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
+    const lines = [...poleInset, ...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
     const unique = Array.from(new Set(lines.map(line => line.trim()).filter(Boolean)));
     if (unique.length) state.mr.push({ poleId, spanId: "", owner: "MR", text: unique.join("\n"), imported: false });
     return state.mr.filter(item => item.poleId === poleId);
@@ -603,6 +614,7 @@
     generateMRForComm,
     generateResagServiceDropMR,
     generatePowerEquipmentMRForPole,
+    generatePoleInsetMR,
     getEditableUGTemplate: editableUGTemplate,
     getEditablePCOTemplate: editablePCOTemplate,
     getImportedRiserDirection: importedRiserDirection,

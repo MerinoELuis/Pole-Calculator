@@ -131,6 +131,23 @@ assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/
 assert.equal(sandbox.window.MRLogic.isRiserAvailable("P1"), false, "Riser control must be unavailable while the pole is PCO");
 state.poles.P1.pcoActive = false;
 
+state.poles.P1.poleInsetActive = true;
+state.poles.P1.poleInsetReason = "OVERLOADED";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(
+  state.mr.find(item => item.poleId === "P1").text.split("\n")[0],
+  "Pole overloaded unless comm inset pole placed at midspan to reduce span length.",
+  "Pole Inset must generate the overloaded Make Ready wording"
+);
+state.poles.P1.poleInsetReason = "FAILING_CLEARANCES";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(
+  state.mr.find(item => item.poleId === "P1").text.split("\n")[0],
+  "Pole failing clearances unless comm inset pole placed at midspan to reduce span length.",
+  "Pole Inset must generate the failing-clearances Make Ready wording"
+);
+state.poles.P1.poleInsetActive = false;
+
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, [
   "Unable to attach due to red tag.",

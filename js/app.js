@@ -894,6 +894,8 @@
         poleId: targetPoleId,
         ugActive: Boolean(mappedOldPole.ugActive || preservedPole.ugActive),
         pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
+        poleInsetActive: Boolean(mappedOldPole.poleInsetActive || preservedPole.poleInsetActive),
+        poleInsetReason: mappedOldPole.poleInsetReason || preservedPole.poleInsetReason || "OVERLOADED",
         riserActive: mappedOldPole.riserActive === true || mappedOldPole.riserActive === false
           ? mappedOldPole.riserActive
           : preservedPole.riserActive,
@@ -2040,6 +2042,10 @@
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
     const riserAvailable = isIntec && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
+    const poleInsetEnabled = Boolean(pole?.poleInsetActive);
+    const poleInsetReason = String(pole?.poleInsetReason || "OVERLOADED").toUpperCase() === "FAILING_CLEARANCES"
+      ? "FAILING_CLEARANCES"
+      : "OVERLOADED";
     const showRiserDirection = isIntec && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
@@ -2053,8 +2059,16 @@
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
+      <button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
     </div>
+    ${poleInsetEnabled ? `<label class="pole-action-field">
+      <span>Pole Inset Reason</span>
+      <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetReason">
+        <option value="OVERLOADED" ${poleInsetReason === "OVERLOADED" ? "selected" : ""}>Overloaded</option>
+        <option value="FAILING_CLEARANCES" ${poleInsetReason === "FAILING_CLEARANCES" ? "selected" : ""}>Failing clearances</option>
+      </select>
+    </label>` : ""}
     ${showUGReason ? `<label class="pole-action-field">
       <span>UG Make Ready</span>
       <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
@@ -2409,6 +2423,7 @@
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
@@ -2451,6 +2466,19 @@
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+  }
+
+  function togglePoleInset(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole || pole.ugActive || pole.pcoActive) return;
+    recordUndoSnapshot();
+    S.upsertPole({
+      ...pole,
+      poleInsetActive: !pole.poleInsetActive,
+      poleInsetReason: pole.poleInsetReason === "FAILING_CLEARANCES" ? "FAILING_CLEARANCES" : "OVERLOADED"
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
   }
 
   async function copyMR(poleId) {
@@ -2581,6 +2609,7 @@
       "ugReason",
       "ugMRText",
       "pcoMRText",
+      "poleInsetReason",
       "ugRiserDirection",
       "actionActive",
       "actionHeight",
