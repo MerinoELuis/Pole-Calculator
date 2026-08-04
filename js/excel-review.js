@@ -1066,7 +1066,7 @@
     const unableToAttach = notes.match(/\bunable\s+to\s+attach\s+due\s+to\s+([^\r\n.]+)/i);
     if (!unableToAttach) return false;
     const reason = normalizedText(unableToAttach[1]).replace(/[()[\]]/g, "").trim();
-    return Boolean(reason && !/^(reason|reasoning|specify reason|insert reason)$/.test(reason));
+    return Boolean(reason && !/^(reason|reasoning|specify reason|insert reason|specific reason|enter specific reason)$/.test(reason));
   }
 
   function expectedTransfers(poleId) {

@@ -235,12 +235,18 @@
   }
 
   function cleanUGReason(value) {
-    return String(value || "").trim().replace(/[.]+$/, "") || "(reasoning)";
+    const reason = String(value || "")
+      .trim()
+      .replace(/[.]+$/, "")
+      .replace(/^[[\](){}]+|[[\](){}]+$/g, "")
+      .trim();
+    if (!reason || /^(?:reason|reasoning|specify reason|insert reason|specific reason|enter specific reason)$/i.test(reason)) return "";
+    return reason;
   }
 
   function defaultIntecUGLines(pole) {
     return [
-      `Unable to attach due to ${cleanUGReason(pole?.ugReason)}.`,
+      `Unable to attach due to ${cleanUGReason(pole?.ugReason) || "[enter specific reason]"}.`,
       "Red tag",
       "Inability to place ANC",
       "TDU replace required",
@@ -452,6 +458,7 @@
         return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`];
       }
       const adjacentReason = ugReasonFromPole(S().getPole(item.otherPoleId));
+      if (!adjacentReason) return [];
       return [`${item.relation} to go UG${direction} due to on adj pole ${adjacentReason}.`];
     });
 

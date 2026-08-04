@@ -93,7 +93,7 @@ state.poles.P1.riserActive = null;
 state.poles.P3.ugActive = true;
 sandbox.window.MRLogic.generateMRForPole("P1");
 const automaticForeSpanRiser = state.mr.find(item => item.poleId === "P1").text;
-assert.match(automaticForeSpanRiser, /Forespan to go UG N due to on adj pole \(reasoning\)\./, "Fore Span toward an adjacent UG pole must generate its relation instruction");
+assert.doesNotMatch(automaticForeSpanRiser, /Forespan to go UG/i, "an adjacent UG without a specific reason must not export a placeholder relation instruction");
 assert.equal(automaticForeSpanRiser.trim().split("\n").at(-1), "Pl riser N at HOA 18'.", "Fore Span toward an adjacent UG pole must receive an automatic riser");
 state.poles.P3.ugActive = false;
 state.poles.P2.ugActive = true;
