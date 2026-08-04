@@ -11,6 +11,7 @@
   const delayedMidspanRenderPoleIds = new Set();
   const editableInputTimers = new Map();
   const undoHistory = [];
+  const redoHistory = [];
   const MAX_UNDO_STEPS = 100;
   let restoringUndo = false;
   let saveFileHandle = null;
@@ -184,6 +185,7 @@
     if (previous && previous.serialized === serialized) return;
     undoHistory.push({ serialized, snapshot });
     if (undoHistory.length > MAX_UNDO_STEPS) undoHistory.shift();
+    redoHistory.length = 0;
     markDirty();
   }
 
@@ -1028,17 +1030,45 @@
   function undoLastAction() {
     const previous = undoHistory.pop();
     if (!previous) return toast("No changes to undo.", "info");
+    const currentSnapshot = cloneCurrentState();
+    redoHistory.push({ serialized: JSON.stringify(currentSnapshot), snapshot: currentSnapshot });
+    if (redoHistory.length > MAX_UNDO_STEPS) redoHistory.shift();
     restoringUndo = true;
-    clearTimeout(delayedMidspanRenderTimer);
-    delayedMidspanRenderTimer = null;
-    delayedMidspanRenderPoleIds.clear();
-    S.setState(previous.snapshot);
-    global.Calculations.recalculateAll();
-    if (S.getState().excelReviewSource?.collection?.rows?.length) global.ExcelReview.runReview();
-    render();
-    restoringUndo = false;
+    try {
+      clearTimeout(delayedMidspanRenderTimer);
+      delayedMidspanRenderTimer = null;
+      delayedMidspanRenderPoleIds.clear();
+      S.setState(previous.snapshot);
+      global.Calculations.recalculateAll();
+      if (S.getState().excelReviewSource?.collection?.rows?.length) global.ExcelReview.runReview();
+      render();
+    } finally {
+      restoringUndo = false;
+    }
     markDirty();
     toast("Last change undone.", "success");
+  }
+
+  function redoLastAction() {
+    const next = redoHistory.pop();
+    if (!next) return toast("No changes to redo.", "info");
+    const currentSnapshot = cloneCurrentState();
+    undoHistory.push({ serialized: JSON.stringify(currentSnapshot), snapshot: currentSnapshot });
+    if (undoHistory.length > MAX_UNDO_STEPS) undoHistory.shift();
+    restoringUndo = true;
+    try {
+      clearTimeout(delayedMidspanRenderTimer);
+      delayedMidspanRenderTimer = null;
+      delayedMidspanRenderPoleIds.clear();
+      S.setState(next.snapshot);
+      global.Calculations.recalculateAll();
+      if (S.getState().excelReviewSource?.collection?.rows?.length) global.ExcelReview.runReview();
+      render();
+    } finally {
+      restoringUndo = false;
+    }
+    markDirty();
+    toast("Last change redone.", "success");
   }
 
   function spanLabel(span) {
@@ -3116,6 +3146,12 @@
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
         event.preventDefault();
         undoLastAction();
+      }
+      if ((event.ctrlKey || event.metaKey)
+        && ((!event.shiftKey && event.key.toLowerCase() === "y")
+          || (event.shiftKey && event.key.toLowerCase() === "z"))) {
+        event.preventDefault();
+        redoLastAction();
       }
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
