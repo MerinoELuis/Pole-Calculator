@@ -11,10 +11,14 @@ const state = {
   spans: {
     F1: { spanId: "F1", fromPole: "P1", toPole: "P2", direction: "E" },
     F2: { spanId: "F2", fromPole: "P2", toPole: "P1", direction: "W" },
-    B2: { spanId: "B2", fromPole: "P2", toPole: "P1", direction: "E" }
+    B2: { spanId: "B2", fromPole: "P2", toPole: "P1", direction: "E" },
+    M1: { spanId: "M1", fromPole: "P1", toPole: "P2", direction: "E" },
+    M2: { spanId: "M2", fromPole: "P1", toPole: "P2", direction: "E" }
   },
   spanSides: {
-    F1__P1: { spanId: "F1", poleId: "P1", proposedHOA: "23'2\"", finalMidspan: "20'1\"" }
+    F1__P1: { spanId: "F1", poleId: "P1", proposedHOA: "23'2\"", finalMidspan: "20'1\"" },
+    M1__P1: { spanId: "M1", poleId: "P1", proposedHOA: "23'2\"", isManualProposed: true },
+    M2__P1: { spanId: "M2", poleId: "P1", proposedHOA: "23'2\"", isManualProposed: true, isAdditionalProposed: true }
   },
   spanComms: {},
   mr: [{ poleId: "P2", text: "Attach Metronet at HOA 20'." }],
@@ -111,6 +115,16 @@ const p2 = review.reviewPole("P2");
 assert.equal(p1.hoaStatus, "WARNING", "Other must not count as Fore/Back and zero Back must warn");
 assert.ok(p1.checks.some(item => item.code === "MISSING_BACK_SPAN" && item.status === "WARNING"), "zero Back Span must create a warning, not an error");
 assert.equal(p1.finalStatus, "PASS", "decimal feet must match feet/inches");
+assert.equal(
+  p1.checks.filter(item => ["MISSING_PROPOSED_ATTACHMENT", "PROPOSED_HOA_MISMATCH"].includes(item.code)).length,
+  0,
+  "manual/additional references at the same proposed HOA must share one Make Ready attachment"
+);
+assert.equal(
+  p1.checks.filter(item => item.code === "ATTACHMENT_SIZE_NOT_APPLICABLE").length,
+  1,
+  "duplicate state-side references must not create duplicate Make Ready comparisons"
+);
 assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power fallback columns must not satisfy the exact display check");
 assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");
 assert.equal(output.summary.total, 2);

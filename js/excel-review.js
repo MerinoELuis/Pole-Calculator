@@ -820,12 +820,30 @@
           otherPole: span ? S().getOtherPoleId(span, poleId) : "",
           direction: span?.fromPole === poleId ? span.direction : oppositeDirection(span?.direction),
           proposedHOA: side.proposedHOA,
-          proposedMidspan: finalMidspan(side)
+          proposedMidspan: finalMidspan(side),
+          isManualProposed: Boolean(side.isManualProposed),
+          isAdditionalProposed: Boolean(side.isAdditionalProposed)
         };
       });
     const standalone = poleById(poleId)?.standaloneProposedHOA;
     if (text(standalone)) items.push({ spanId: "", otherPole: "", direction: "", proposedHOA: standalone, proposedMidspan: "" });
-    return items;
+
+    // Make Ready stores the physical proposed attachment at a pole. A pole
+    // can have several state-side references to that same attachment (for
+    // example the imported span plus manually added destination spans), so
+    // matching every reference to a separate Excel row incorrectly reports
+    // duplicate MISSING_PROPOSED_ATTACHMENT errors. Keep distinct proposed
+    // heights, but consolidate equivalent heights and prefer the primary
+    // imported side over manual/additional references.
+    const unique = new Map();
+    items.forEach(item => {
+      const parsed = H().parseHeight(item.proposedHOA);
+      const key = parsed === null ? `text:${normalizedText(item.proposedHOA)}` : `height:${parsed}`;
+      const rank = Number(Boolean(item.isManualProposed)) + Number(Boolean(item.isAdditionalProposed));
+      const previous = unique.get(key);
+      if (!previous || rank < previous.rank) unique.set(key, { item, rank });
+    });
+    return Array.from(unique.values()).map(entry => entry.item);
   }
 
   function oppositeDirection(direction) {
