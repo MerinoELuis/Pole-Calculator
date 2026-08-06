@@ -187,6 +187,7 @@ state.excelReviewSource = {
     headers: ["Id", "Owner", "Size", "Construction", "Insulator"],
     rows: [
       { Id: "P3", Owner: "COMMUNICATION > Unknown Network", Size: "Fiber", Construction: " DAVIT ", Insulator: "Hook" },
+      { Id: "P3", Owner: "COMMUNICATION > Eagle West LLC", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
       { Id: "P3", Owner: "UTILITY > Other", Size: "Primary", Construction: "ON_POLE", Insulator: "Spool 3in" }
     ]
   },
@@ -216,6 +217,11 @@ const codes = new Set(output.results[0].checks.map(item => item.code));
   assert.ok(codes.has(code), `expected INTEC check ${code}`);
 });
 assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own communication midspan must warn in HOA Review");
+assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Eagle West LLC/i.test(item.actual)),
+  false,
+  "Eagle West LLC must be accepted as an INTEC communication owner"
+);
 
 state.excelReviewSource.spanWires.rows.push({
   Id: "P3",
