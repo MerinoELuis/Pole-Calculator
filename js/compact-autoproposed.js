@@ -438,7 +438,11 @@
         from,
         to,
         service: Boolean(row.serviceDrop),
-        dg: Boolean(row.downGuy),
+        // Service drops are never relocated with a down guy. Keep this
+        // invariant at the movement-candidate boundary so both the MR text
+        // and the compact payload stay consistent even when imported data
+        // incorrectly carries a DG flag on a drop.
+        dg: !row.serviceDrop && Boolean(row.downGuy),
         transfer: Boolean(row.transferToNewPole)
       };
       const key = movementInstructionKey(candidate);
@@ -459,7 +463,7 @@
     return movementCandidates(state, poleId).map(candidate => {
       const item = { owner: candidate.owner, from: candidate.from, to: candidate.to };
       if (candidate.service) item.service = true;
-      if (candidate.dg) item.dg = true;
+      if (candidate.dg && !candidate.service) item.dg = true;
       return item;
     });
   }
@@ -567,8 +571,8 @@
     if (candidate.transfer) return "";
     const from = H()?.formatHeight?.(candidate.from) || String(candidate.from);
     const to = H()?.formatHeight?.(candidate.to) || String(candidate.to);
+    if (candidate.service) return `Relocate ${candidate.owner} drop at HOA ${from} to HOA ${to}.`;
     const dg = candidate.dg ? " with DG" : "";
-    if (candidate.service) return `Relocate ${candidate.owner} drop at HOA ${from} to HOA ${to}${dg}.`;
     const verb = candidate.to > candidate.from ? "raise" : "lower";
     return `At HOA ${from} ${verb} ${candidate.owner} to HOA ${to}${dg}.`;
   }

@@ -179,6 +179,8 @@ Transfer <owner> to new pole at HOA <HOA Change> [with DG].
 Re-sag <owner> comm drop <direction>, ensure 15'6" at midspan.
 ```
 
+Service Drop relocations never include `with DG`, and compact AutoProposed movement payloads never set `DG` for a service drop, even if imported data has a down-guy flag on that row.
+
 Comm-comm MS comparisons are restricted to the same `spanId`. The message includes the physical span label, both owners, both midspans, calculated separation, and required minimum.
 
 ## Proposed on the Pole

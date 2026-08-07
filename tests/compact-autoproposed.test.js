@@ -157,7 +157,7 @@ state.spanComms = {
   regularFore: { spanId: "S1", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W1", existingHOA: "18'10\"", existingHOAChange: "20'" },
   regularOtherRelation: { spanId: "S3", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W1", existingHOA: "18'10\"", existingHOAChange: "20'" },
   duplicatePhysicalInstruction: { spanId: "S4", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W9", existingHOA: "18'10\"", existingHOAChange: "20'" },
-  service: { spanId: "S1", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W2", existingHOA: "18'10\"", existingHOAChange: "20'", serviceDrop: true },
+  service: { spanId: "S1", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W2", existingHOA: "18'10\"", existingHOAChange: "20'", serviceDrop: true, downGuy: true },
   dg: { spanId: "S1", poleId: "P1", owner: "CATV", wireId: "W3", existingHOA: "23'6\"", existingHOAChange: "21'8\"", downGuy: true },
   duplicateDgInstruction: { spanId: "S3", poleId: "P1", owner: "CATV", wireId: "W8", existingHOA: "23'6\"", existingHOAChange: "21'8\"", downGuy: false },
   transfer: { spanId: "S1", poleId: "P1", owner: "Cox", wireId: "W4", existingHOA: "18'", existingHOAChange: "20'", transferToNewPole: true },
@@ -186,7 +186,9 @@ assert.equal("hoa" in northNotSelected, false);
 
 assert.equal(p1.moves.length, 4, "identical physical instructions must collapse while service and normal remain separate");
 assert.ok(p1.moves.some(move => move.owner === "CTL" && !move.service && move.from === 226 && move.to === 240));
-assert.ok(p1.moves.some(move => move.owner === "CTL" && move.service === true && move.from === 226 && move.to === 240));
+const ctlDropMove = p1.moves.find(move => move.owner === "CTL" && move.service === true && move.from === 226 && move.to === 240);
+assert.ok(ctlDropMove);
+assert.equal("dg" in ctlDropMove, false, "service drop moves must never carry DG");
 assert.ok(p1.moves.some(move => move.owner === "CATV" && move.dg === true && move.from === 282 && move.to === 260));
 assert.ok(p1.moves.some(move => move.owner === "Cox" && move.from === 216 && move.to === 240));
 
@@ -220,6 +222,7 @@ state.mr = [];
 window.MRLogic.generateMRForPole("P1");
 const mr = state.mr.find(item => item.poleId === "P1").text;
 assert.match(mr, /Relocate CTL drop/);
+assert.doesNotMatch(mr, /Relocate CTL drop[^\n]*with DG/i, "service drop MR must never include with DG");
 assert.match(mr, /At HOA 18'10" raise CTL to HOA 20'\./, "regular fiber movement must remain beside service drop movement");
 
 state.settings.attachmentMessengerSize = "";

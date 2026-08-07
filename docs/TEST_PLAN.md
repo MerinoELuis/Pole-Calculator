@@ -151,13 +151,14 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 
 1. Transfer to New Pole appears once per grouped comm and includes `with DG` when appropriate.
 2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"` without overwriting the imported baseline.
-3. Transfer without HOA Change uses Existing HOA; multiple heights are ordered and joined correctly.
-4. Adjacent UG relation reason/direction and riser precedence remain correct.
-5. Partial Update Data keeps omitted poles in Excel Review and Pole Type Check.
-6. Active INTEC UG replaces normal MR with the six-line editable template.
-7. MidAm Streetlight Ground remains mandatory and locked.
-8. Transformer Redress and Power Riser Raise update effective Low Power when limiting.
-9. Disabling optional equipment work restores imported baseline.
+3. Service Drop relocation text and compact movement payloads never include `with DG`/`DG`.
+4. Transfer without HOA Change uses Existing HOA; multiple heights are ordered and joined correctly.
+5. Adjacent UG relation reason/direction and riser precedence remain correct.
+6. Partial Update Data keeps omitted poles in Excel Review and Pole Type Check.
+7. Active INTEC UG replaces normal MR with the six-line editable template.
+8. MidAm Streetlight Ground remains mandatory and locked.
+9. Transformer Redress and Power Riser Raise update effective Low Power when limiting.
+10. Disabling optional equipment work restores imported baseline.
 10. Update Data preserves equipment actions and refreshes baseline values.
 11. INTEC Streetlight Raise accepts at most 12 inches above Attachment Height.
 
