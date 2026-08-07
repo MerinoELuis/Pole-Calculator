@@ -120,6 +120,7 @@ button:disabled { cursor: not-allowed; }
   margin-bottom: 20px;
 }
 .topbar h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1; letter-spacing: -0.06em; }
+.app-version { margin: 8px 0 0; color: var(--muted); font-size: .76rem; font-weight: 800; letter-spacing: .03em; }
 .subtitle { margin: 10px 0 0; color: var(--muted); max-width: 760px; }
 .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 0.76rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
 .topbar-actions {

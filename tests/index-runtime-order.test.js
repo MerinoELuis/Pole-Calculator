@@ -13,6 +13,7 @@ function position(filename) {
   return index;
 }
 
+assert.ok(position("js/deployment-version.js") < position("js/app.js"));
 assert.ok(position("js/compact-autoproposed.js") < position("js/auto-calculate-solver.js"));
 assert.ok(position("js/auto-calculate-solver.js") < position("js/auto-calculate-source-compat.js"));
 assert.ok(position("js/auto-calculate-source-compat.js") < position("js/app.js"));
@@ -24,5 +25,6 @@ assert.doesNotMatch(html, /auto-calculate-status/);
 assert.doesNotMatch(html, /compact-autoproposed-ug-guard\.js/);
 assert.doesNotMatch(html, /comm-table-columns\.js/);
 assert.doesNotMatch(html, /span-color-reset\.js/);
+assert.match(html, /id="deploymentVersion"/);
 
 console.log("runtime script order tests passed");

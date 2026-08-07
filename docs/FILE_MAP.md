@@ -9,6 +9,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `index.html` | Loads the static application in dependency order. |
 | `css/styles.css` | Application layout, table presentation, status and span colors. |
 | `libs/xlsx.full.min.js` | Browser Excel parser. Third-party file; do not edit for application behavior. |
+| `js/deployment-version.js` | Deployment metadata shown in the page header; GitHub Pages replaces it with the published commit metadata. |
 
 ## Domain modules
 

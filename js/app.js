@@ -27,6 +27,24 @@
 
   function qs(id) { return document.getElementById(id); }
 
+  function renderDeploymentVersion() {
+    if (!els.deploymentVersion) return;
+    const build = global.AppDeploymentVersion || {};
+    const shortCommit = String(build.shortCommit || build.commit || "unknown").trim() || "unknown";
+    const source = String(build.source || "").trim();
+    const branch = String(build.branch || "").trim();
+    const deployedAt = String(build.deployedAt || "").trim();
+    const label = source === "development" ? "development" : branch ? `${branch}` : "deployed";
+    els.deploymentVersion.textContent = `Build ${shortCommit} · ${label}`;
+    const details = [
+      build.commit ? `Commit: ${build.commit}` : "",
+      branch ? `Branch: ${branch}` : "",
+      deployedAt ? `Deployed: ${deployedAt}` : "",
+      build.runId ? `GitHub Actions run: ${build.runId}` : ""
+    ].filter(Boolean).join("\n");
+    if (details) els.deploymentVersion.title = details;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -3244,6 +3262,7 @@
       toastHost: qs("toastHost")
     });
 
+    renderDeploymentVersion();
     bindEvents();
     global.FloatingCalculator?.setupFloatingCalculator();
     S.resetState();
