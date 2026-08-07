@@ -603,6 +603,19 @@
     return state.mr;
   }
 
+  // Editing the UG reason changes the relation-specific instruction on the
+  // adjacent pole's Forespan/Backspan. Regenerate the UG pole and every
+  // directly connected pole so those handoff instructions never remain stale.
+  function generateMRForUGChange(poleId) {
+    const affectedPoleIds = new Set([poleId]);
+    S().getConnectedSpans(poleId).forEach(span => {
+      const otherPoleId = S().getOtherPoleId(span, poleId);
+      if (otherPoleId) affectedPoleIds.add(otherPoleId);
+    });
+    affectedPoleIds.forEach(generateMRForPole);
+    return Array.from(affectedPoleIds);
+  }
+
   function getEffectiveCommHOAForMR(spanComm) {
     return spanComm?.existingHOAChange || spanComm?.existingHOA || "";
   }
@@ -625,6 +638,7 @@
     generateRiserInstruction,
     generateMRForSpanSide,
     generateAllMR,
+    generateMRForUGChange,
     detectAttach: detectAttachFromSpanSide,
     detectRaiseLower,
     detectOverlash,

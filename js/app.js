@@ -2847,7 +2847,13 @@
       }
       const poleId = el.dataset.pole || "";
       S.updatePoleField(poleId, el.dataset.field, el.value);
-      global.MRLogic.generateMRForPole(poleId);
+      const affectedPoleIds = el.dataset.field === "ugMRText"
+        ? (global.MRLogic.generateMRForUGChange?.(poleId) || [poleId])
+        : (global.MRLogic.generateMRForPole(poleId), [poleId]);
+      // Keep the active editor in place while refreshing adjacent cards. This
+      // makes a changed UG reason appear on the previous pole's Forespan
+      // without replacing the textarea under the user's cursor.
+      affectedPoleIds.filter(id => id !== poleId).forEach(replacePoleCard);
       const generated = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
       const output = el.closest("[data-pole-card]")?.querySelector(".mr-output");
       if (output) output.textContent = generated;

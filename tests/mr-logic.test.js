@@ -105,7 +105,8 @@ state.poles.P2.ugMRText = [
   "Red tag",
   "Inability to place ANC"
 ].join("\n");
-sandbox.window.MRLogic.generateMRForPole("P1");
+const ugChangePoleIds = sandbox.window.MRLogic.generateMRForUGChange("P2");
+assert.ok(ugChangePoleIds.includes("P1"), "editing UG MR must include the adjacent previous pole");
 assert.match(
   state.mr.find(item => item.poleId === "P1").text,
   /Backspan to go UG SE due to on adj pole red tag\./,
