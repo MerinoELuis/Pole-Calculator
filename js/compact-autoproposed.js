@@ -17,6 +17,17 @@
     NW: "SE"
   };
   const BEARING_DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const DIRECTION_DEGREES = {
+    N: 0,
+    NE: 45,
+    E: 90,
+    SE: 135,
+    S: 180,
+    SW: 225,
+    W: 270,
+    NW: 315
+  };
+  const DIRECTION_MATCH_TOLERANCE_DEGREES = 45;
 
   const S = () => global.AppStore;
   const H = () => global.HeightUtils;
@@ -160,6 +171,27 @@
     return BEARING_DIRECTIONS[Math.round(normalized / 45) % 8];
   }
 
+  function normalizeBearing(value) {
+    const bearing = Number(value);
+    if (!Number.isFinite(bearing)) return null;
+    return ((bearing % 360) + 360) % 360;
+  }
+
+  function directionBearing(value) {
+    const direction = text(value).toUpperCase();
+    return Object.prototype.hasOwnProperty.call(DIRECTION_DEGREES, direction)
+      ? DIRECTION_DEGREES[direction]
+      : null;
+  }
+
+  function angularDistance(first, second) {
+    const a = normalizeBearing(first);
+    const b = normalizeBearing(second);
+    if (a === null || b === null) return null;
+    const difference = Math.abs(a - b);
+    return Math.min(difference, 360 - difference);
+  }
+
   function directionFromPole(span, poleId) {
     if (!span) return "";
     const imported = text(span.direction).toUpperCase();
@@ -167,6 +199,15 @@
     if (imported) return OPPOSITE_DIRECTION[imported] || "";
     const bearing = bearingDegrees(span);
     return bearing === null ? "" : directionFromBearing(bearing + 180);
+  }
+
+  function bearingFromPole(span, poleId) {
+    if (!span) return null;
+    const importedBearing = normalizeBearing(bearingDegrees(span));
+    if (importedBearing !== null) {
+      return span.fromPole === poleId ? importedBearing : normalizeBearing(importedBearing + 180);
+    }
+    return directionBearing(directionFromPole(span, poleId));
   }
 
   function directionTokensForReference(ref) {
@@ -201,6 +242,23 @@
       ? refs.find(ref => directionTokensForReference(ref).includes(direction))
       : null;
     if (exact) return exact;
+
+    // Make Ready directions are often entered visually (for example, SE for
+    // a span whose actual bearing is closer to E). Accept the nearest
+    // directional reference within one adjacent compass sector instead of
+    // dropping an otherwise valid proposed attachment.
+    const spanBearing = bearingFromPole(span, poleId);
+    if (spanBearing !== null) {
+      let nearest = null;
+      refs.forEach(ref => {
+        const distance = Math.min(...directionTokensForReference(ref)
+          .map(token => angularDistance(spanBearing, directionBearing(token)))
+          .filter(value => value !== null));
+        if (!Number.isFinite(distance) || distance > DIRECTION_MATCH_TOLERANCE_DEGREES) return;
+        if (!nearest || distance < nearest.distance) nearest = { ref, distance };
+      });
+      if (nearest) return nearest.ref;
+    }
 
     return refs.find(ref => directionTokensForReference(ref).length === 0) || null;
   }

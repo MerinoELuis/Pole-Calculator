@@ -89,6 +89,8 @@ For Excel Review, original headers and row values from Collection, Span, Span.Wi
 
 An attachment such as `6.6M 24CT Fiber (E/W)` is preserved raw and parsed into messenger, fiber, and direction tokens for AutoProposed export.
 
+When an attachment direction is entered approximately, AutoProposed associates it with the nearest span bearing within 45 degrees (one adjacent compass sector). This keeps a proposed forespan from becoming geometry-only when, for example, a visual `SE` reference is physically closer to an `E` span.
+
 ## Project Detection
 
 The raw filename and Span.Wire owners are inspected:

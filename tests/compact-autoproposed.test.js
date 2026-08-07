@@ -127,6 +127,7 @@ state.poles = {
   "P3 UG": { poleId: "P3 UG", ugActive: true },
   P4: { poleId: "P4", standaloneProposedHOA: "18'10\"" },
   P5: { poleId: "P5" },
+  P6: { poleId: "P6" },
   P10: { poleId: "P10" },
   P11: { poleId: "P11", ugActive: true },
   P12: { poleId: "P12" }
@@ -137,6 +138,7 @@ state.spans = {
   S2: { spanId: "S2", fromPole: "P1", toPole: "P3 UG", type: "Back Span", direction: "W", bearingDegrees: 265.06, lengthDisplay: "167'9\"" },
   S3: { spanId: "S3", fromPole: "P1", toPole: "P4", type: "Other", direction: "S", bearingDegrees: 171.83, lengthDisplay: "109'7\"" },
   S4: { spanId: "S4", fromPole: "P1", toPole: "P5", type: "Other", direction: "N", bearingDegrees: 0, lengthDisplay: "70'" },
+  S6: { spanId: "S6", fromPole: "P6", toPole: "P7", type: "Fore Span", direction: "E", bearingDegrees: 102.64, lengthDisplay: "173'6\"" },
   P10_TO_P11: { spanId: "P10_TO_P11", fromPole: "P10", toPole: "P11", type: "Fore Span", direction: "N", bearingDegrees: 0, lengthDisplay: "100'" },
   P10_TO_P12: { spanId: "P10_TO_P12", fromPole: "P10", toPole: "P12", type: "Other", direction: "E", bearingDegrees: 90, lengthDisplay: "80'" },
   P11_TO_P10: { spanId: "P11_TO_P10", fromPole: "P11", toPole: "P10", type: "Back Span", direction: "S", bearingDegrees: 180, lengthDisplay: "100'" },
@@ -145,13 +147,15 @@ state.spans = {
 state.spanSides = {
   S1_P1: { spanId: "S1", poleId: "P1", proposedHOA: "23'" },
   S1_DUP_P1: { spanId: "S1_DUP", poleId: "P1", proposedHOA: "23'", endDrop: "-4\"", proposedHOAChange: "22'8\"", isAdditionalProposed: true },
+  S6_P6: { spanId: "S6", poleId: "P6", proposedHOA: "19'10\"" },
   P10_E: { spanId: "P10_TO_P12", poleId: "P10", proposedHOA: "22'" },
   P11_S: { spanId: "P11_TO_P10", poleId: "P11", proposedHOA: "20'10\"" }
 };
 state.makeReadyReferences = [
   { poleId: "P1", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["E", "W", "S"] },
   { poleId: "P10", attachmentSizeRaw: "144CT Fiber N/E", attachmentDirectionTokens: ["N", "E"] },
-  { poleId: "P11", attachmentSizeRaw: "144CT Fiber S/E", attachmentDirectionTokens: ["S", "E"] }
+  { poleId: "P11", attachmentSizeRaw: "144CT Fiber S/E", attachmentDirectionTokens: ["S", "E"] },
+  { poleId: "P6", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["SE"] }
 ];
 state.spanComms = {
   regularFore: { spanId: "S1", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W1", existingHOA: "18'10\"", existingHOAChange: "20'" },
@@ -183,6 +187,10 @@ assert.equal(other.fiber, 144);
 const northNotSelected = p1.spans.find(span => span.to === "P5");
 assert.equal("fiber" in northNotSelected, false, "a span outside Fiber E/W/S must stay geometry-only");
 assert.equal("hoa" in northNotSelected, false);
+
+const tolerant = payload.poles.find(pole => pole.id === "P6").spans.find(span => span.to === "P7");
+assert.equal(tolerant.hoa, 238, "a nearby directional fiber reference must preserve the proposed HOA");
+assert.equal(tolerant.fiber, 144, "a nearby directional fiber reference must be accepted");
 
 assert.equal(p1.moves.length, 4, "identical physical instructions must collapse while service and normal remain separate");
 assert.ok(p1.moves.some(move => move.owner === "CTL" && !move.service && move.from === 226 && move.to === 240));
