@@ -6,7 +6,9 @@ This document describes the current runtime architecture of Pole Span MR Calcula
 
 The application is a static browser application. It has no backend, framework, runtime package dependency, or production build step. GitHub Pages serves the HTML, CSS, and JavaScript files directly.
 
-Node and `package.json` are development tooling only. They provide the dependency-free `npm test` command and do not change how the application runs in the browser.
+Node and `package.json` provide the dependency-free `npm test` tooling; the package's numeric version is also used as the release identifier during deployment. They do not add a runtime dependency to the browser application.
+
+The numeric application version follows `package.json` semantic versioning. GitHub Pages injects that version plus the exact commit, branch, deployment time, and Actions run into `js/deployment-version.js`; the header displays the numeric version and build identifier.
 
 Every browser module is an IIFE that publishes a small API on `window`.
 

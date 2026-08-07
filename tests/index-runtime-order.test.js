@@ -5,6 +5,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+const deploymentVersion = fs.readFileSync(path.join(__dirname, "..", "js", "deployment-version.js"), "utf8");
 const scripts = Array.from(html.matchAll(/<script src="([^"]+)"/g), match => match[1]);
 
 function position(filename) {
@@ -26,5 +28,7 @@ assert.doesNotMatch(html, /compact-autoproposed-ug-guard\.js/);
 assert.doesNotMatch(html, /comm-table-columns\.js/);
 assert.doesNotMatch(html, /span-color-reset\.js/);
 assert.match(html, /id="deploymentVersion"/);
+assert.match(packageJson.version, /^\d+\.\d+\.\d+$/, "package version must use numeric semantic versioning");
+assert.match(deploymentVersion, new RegExp(`version:\\s*"${packageJson.version.replace(/\./g, "\\.")}"`));
 
 console.log("runtime script order tests passed");

@@ -36,10 +36,12 @@ jobs:
       - name: Write deployment version
         shell: bash
         run: |
+          APP_VERSION=$(node -p "require('./package.json').version")
           cat > js/deployment-version.js <<EOF
           (function (global) {
             "use strict";
             global.AppDeploymentVersion = Object.freeze({
+              version: "${APP_VERSION}",
               commit: "${GITHUB_SHA}",
               shortCommit: "${GITHUB_SHA:0:7}",
               branch: "${GITHUB_REF_NAME}",

@@ -30,13 +30,15 @@
   function renderDeploymentVersion() {
     if (!els.deploymentVersion) return;
     const build = global.AppDeploymentVersion || {};
+    const version = String(build.version || "unknown").trim() || "unknown";
     const shortCommit = String(build.shortCommit || build.commit || "unknown").trim() || "unknown";
     const source = String(build.source || "").trim();
     const branch = String(build.branch || "").trim();
     const deployedAt = String(build.deployedAt || "").trim();
     const label = source === "development" ? "development" : branch ? `${branch}` : "deployed";
-    els.deploymentVersion.textContent = `Build ${shortCommit} · ${label}`;
+    els.deploymentVersion.textContent = `Version ${version} · Build ${shortCommit} · ${label}`;
     const details = [
+      `Version: ${version}`,
       build.commit ? `Commit: ${build.commit}` : "",
       branch ? `Branch: ${branch}` : "",
       deployedAt ? `Deployed: ${deployedAt}` : "",
