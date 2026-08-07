@@ -170,6 +170,10 @@
       && text(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
   }
 
+  function isIntecProject() {
+    return text(S().getState().settings?.projectProfile).toUpperCase() === "INTEC";
+  }
+
   function collectionPoleId(row) {
     return text(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"]));
   }
@@ -353,11 +357,19 @@
     }
 
     const year = pick(entry.row, ["Year Installed"], { contains: false });
-    if (!isMidAmProject() && !text(year)) {
+    if (isIntecProject() && !text(year)) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_YEAR_INSTALLED", status: "WARNING",
         title: "Year Installed", message: "Year Installed is missing. Review the required project loading manually.",
         expected: "Non-empty value", actual: "Empty"
+      });
+    }
+    const yearNumber = Number(text(year).match(/\b(\d{4})\b/)?.[1] || "");
+    if (isIntecProject() && Number.isFinite(yearNumber) && yearNumber > 2018) {
+      add(result, {
+        phase: "HOA", section: "Collection", code: "INTEC_POLE_AFTER_2018", status: "WARNING",
+        title: "Year Installed", message: `Pole was installed in ${yearNumber}, after the INTEC 2018 threshold. Review the project loading manually.`,
+        expected: "Year Installed 2018 or earlier", actual: String(yearNumber)
       });
     }
   }
@@ -556,7 +568,7 @@
   }
 
   function addIntecWireChecks(result, poleId) {
-    if (text(S().getState().settings?.projectProfile).toUpperCase() !== "INTEC") return;
+    if (!isIntecProject()) return;
     rowsForPole("spanWires", poleId).forEach((row, index) => {
       const ownerRaw = text(pick(row, ["Owner", "owner"]));
       const owner = normalizedText(ownerRaw).replace(/^communication\s*>\s*/i, "").trim();
@@ -845,6 +857,21 @@
       if (!previous || rank < previous.rank) unique.set(key, { item, rank });
     });
     return Array.from(unique.values()).map(entry => entry.item);
+  }
+
+  function addIntecEquipmentChecks(result, poleId) {
+    if (!isIntecProject()) return;
+    rowsForPole("equipment", poleId).forEach((row, index) => {
+      const type = text(pick(row, ["Type"]));
+      if (!/riser/i.test(type)) return;
+      const riserType = text(pick(row, ["Riser Type", "Riser Type.display"], { contains: true }));
+      if (riserType) return;
+      add(result, {
+        phase: "HOA", section: "Equipment", code: "MISSING_RISER_TYPE", status: "ERROR",
+        title: "Riser Type", message: `Equipment Riser Type is empty for ${type || `Riser row ${index + 2}`}.`,
+        expected: "Non-empty Riser Type", actual: "Empty"
+      });
+    });
   }
 
   function oppositeDirection(direction) {
@@ -1325,6 +1352,7 @@
       addReciprocalChecks(result, poleSpans, spans);
       addEnvironmentChecks(result, poleSpans, spans, environmentPairsSeen);
       if (entry.poleId) addIntecWireChecks(result, entry.poleId);
+      if (entry.poleId) addIntecEquipmentChecks(result, entry.poleId);
       if (entry.poleId) addMidAmChecks(result, entry.poleId);
       if (finalReviewApplicable) addFinalChecks(result, entry);
       return finalizeResult(result);

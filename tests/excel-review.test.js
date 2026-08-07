@@ -181,7 +181,7 @@ state.spans = {};
 state.spanSides = {};
 state.mr = [];
 state.excelReviewSource = {
-  collection: { headers: ["Id"], rows: [{ Id: "P3", Sequence: "P3", "Year Installed": 2010, "Low Power Attachment.display": "25'" }] },
+  collection: { headers: ["Id"], rows: [{ Id: "P3", Sequence: "P3", "Year Installed": 2020, "Low Power Attachment.display": "25'" }] },
   spans: { headers: [], rows: [] },
   spanWires: {
     headers: ["Id", "Owner", "Size", "Construction", "Insulator"],
@@ -190,6 +190,10 @@ state.excelReviewSource = {
       { Id: "P3", Owner: "COMMUNICATION > Eagle West LLC", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
       { Id: "P3", Owner: "UTILITY > Other", Size: "Primary", Construction: "ON_POLE", Insulator: "Spool 3in" }
     ]
+  },
+  equipment: {
+    headers: ["Id", "Type", "Riser Type"],
+    rows: [{ Id: "P3", Type: 'Risers > Riser 4" diameter', "Riser Type": "" }]
   },
   makeReady: { headers: [], rows: [] },
   commTransfers: { headers: [], rows: [] }
@@ -217,11 +221,19 @@ const codes = new Set(output.results[0].checks.map(item => item.code));
   assert.ok(codes.has(code), `expected INTEC check ${code}`);
 });
 assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own communication midspan must warn in HOA Review");
+assert.ok(codes.has("INTEC_POLE_AFTER_2018"), "INTEC must warn when Year Installed is after 2018");
+assert.ok(codes.has("MISSING_RISER_TYPE"), "INTEC must error when a Riser Type is empty");
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Eagle West LLC/i.test(item.actual)),
   false,
   "Eagle West LLC must be accepted as an INTEC communication owner"
 );
+
+state.settings.projectProfile = "METRONET";
+output = review.runReview();
+assert.equal(review.reviewPole("P3").checks.some(item => item.code === "INTEC_POLE_AFTER_2018"), false, "post-2018 pole warning must be INTEC-only");
+assert.equal(review.reviewPole("P3").checks.some(item => item.code === "MISSING_RISER_TYPE"), false, "Riser Type requirement must be INTEC-only");
+state.settings.projectProfile = "INTEC";
 
 state.excelReviewSource.spanWires.rows.push({
   Id: "P3",
