@@ -20,7 +20,7 @@ Pole results are ordered by Overall severity and then naturally by Sequence or I
 
 ## HOA Review
 
-Collection checks require Id, matching Sequence, and a non-empty Low Power display value. `Lowest Power.display` is preferred for MidAm and `Low Power Attachment.display` remains supported for older workbooks. Low Power format is not interpreted. INTEC warns when Year Installed is missing or later than 2018; Metronet/MidAm does not require that column. INTEC also raises an error when an Equipment row whose Type is a Riser has an empty Riser Type.
+Collection checks require Id, matching Sequence, and a non-empty Low Power display value. `Lowest Power.display` is preferred for MidAm and `Low Power Attachment.display` remains supported for older workbooks. Low Power format is not interpreted. INTEC warns when Year Installed is missing. A post-2018 INTEC pole is also a warning that asks the reviewer to verify all 3 Load Cases; Metronet/MidAm does not require that check. INTEC also raises an error when an Equipment row whose Type is a Riser has an empty Riser Type.
 
 For MidAm, the first Collection Id block is the authoritative Sequence and must use `000` or `000A`. The Sequence cell is normalized to the same format and must equal the ID-derived value exactly. This prevents `058` from failing when the workbook reader exposes Sequence as numeric `58`, while still rejecting `058` versus `058A`. MidAm Collection Owner must equal `UTILITY > MidAm`; empty produces an error and another populated owner produces a warning.
 

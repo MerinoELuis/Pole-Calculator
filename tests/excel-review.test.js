@@ -223,6 +223,9 @@ const codes = new Set(output.results[0].checks.map(item => item.code));
 assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own communication midspan must warn in HOA Review");
 assert.ok(codes.has("INTEC_POLE_AFTER_2018"), "INTEC must warn when Year Installed is after 2018");
 assert.ok(codes.has("MISSING_RISER_TYPE"), "INTEC must error when a Riser Type is empty");
+const post2018Check = review.reviewPole("P3").checks.find(item => item.code === "INTEC_POLE_AFTER_2018");
+assert.equal(post2018Check.status, "WARNING", "post-2018 Load Case check must remain a warning");
+assert.match(post2018Check.message, /all 3 Load Cases/i, "post-2018 warning must request all three Load Cases");
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Eagle West LLC/i.test(item.actual)),
   false,

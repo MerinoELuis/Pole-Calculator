@@ -368,8 +368,8 @@
     if (isIntecProject() && Number.isFinite(yearNumber) && yearNumber > 2018) {
       add(result, {
         phase: "HOA", section: "Collection", code: "INTEC_POLE_AFTER_2018", status: "WARNING",
-        title: "Year Installed", message: `Pole was installed in ${yearNumber}, after the INTEC 2018 threshold. Review the project loading manually.`,
-        expected: "Year Installed 2018 or earlier", actual: String(yearNumber)
+        title: "Load Cases", message: `Pole was installed in ${yearNumber}, after the INTEC 2018 threshold. Verify that all 3 Load Cases are included for this pole.`,
+        expected: "3 Load Cases", actual: `Year Installed ${yearNumber}`
       });
     }
   }
