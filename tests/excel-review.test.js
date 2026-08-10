@@ -213,6 +213,14 @@ state.excelReviewSource.spanWires.rows.push({
   Construction: "ON_POLE",
   Insulator: "Single Bolt",
   "Mid Span Height.display": "18'10\""
+}, {
+  Id: "P3",
+  "Span Id": "P3-BACK",
+  Owner: "UTILITY > APS",
+  Size: "Primary",
+  Construction: "ON_POLE",
+  Insulator: "Pin",
+  "Mid Span Height.display": "24'"
 });
 
 output = review.runReview();
@@ -221,6 +229,9 @@ const codes = new Set(output.results[0].checks.map(item => item.code));
   assert.ok(codes.has(code), `expected INTEC check ${code}`);
 });
 assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own communication midspan must warn in HOA Review");
+const backspanMidspanCheck = review.reviewPole("P3").checks.find(item => item.code === "INTEC_BACKSPAN_MIDSPAN");
+assert.match(backspanMidspanCheck.actual, /CATV: 18'10\"/);
+assert.match(backspanMidspanCheck.actual, /UTILITY > APS: 24'/);
 assert.ok(codes.has("INTEC_POLE_AFTER_2018"), "INTEC must warn when Year Installed is after 2018");
 assert.ok(codes.has("MISSING_RISER_TYPE"), "INTEC must error when a Riser Type is empty");
 const post2018Check = review.reviewPole("P3").checks.find(item => item.code === "INTEC_POLE_AFTER_2018");

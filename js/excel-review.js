@@ -457,9 +457,10 @@
   }
 
   // INTEC normally stores the physical midspan on the forward/owning side.
-  // A measured Back Span value is still valid calculator input, but HOA
-  // Review calls it out so the analyst can confirm that the workbook intended
-  // to place the measurement on this directed span.
+  // A measured Back Span value on either a communication or power row is
+  // still valid calculator input, but HOA Review calls it out so the analyst
+  // can confirm that the workbook intended to place the measurement on this
+  // directed span.
   function addIntecBackspanMidspanChecks(result, poleId, poleSpans) {
     if (text(S().getState().settings?.projectProfile).toUpperCase() !== "INTEC") return;
     const backSpans = poleSpans.filter(span => span.type === "BACK" && span.spanId);
@@ -475,11 +476,15 @@
           row,
           ["Mid Span Height.display", "Midspan.display"],
           ["Mid Span Height", "Midspan"]
-        )
+        ),
+        isPower: I().isPowerWire ? I().isPowerWire(row) : /^utility\s*>/i.test(text(pick(row, ["Owner", "owner"]))),
+        isCommunication: I().isCommunicationWire
+          ? I().isCommunicationWire(row)
+          : !/^utility\s*>/i.test(text(pick(row, ["Owner", "owner"])))
       })).filter(item => (
         normalizedText(item.spanId) === normalizedText(span.spanId)
         && text(item.midspan)
-        && (I().isCommunicationWire ? I().isCommunicationWire(item.row) : !/^utility\s*>/i.test(item.owner))
+        && (item.isCommunication || item.isPower)
       ));
       if (!measured.length) return;
 
@@ -487,8 +492,8 @@
       add(result, {
         phase: "HOA", section: "Span.Wire", code: "INTEC_BACKSPAN_MIDSPAN", status: "WARNING",
         title: "Back Span Midspan",
-        message: `${spanDescription(span)} contains an imported communication midspan. It will be calculated, but INTEC normally leaves Back Span midspan empty.`,
-        expected: "Empty Back Span communication midspan",
+        message: `${spanDescription(span)} contains an imported communication or power midspan. It will be calculated, but INTEC normally leaves Back Span midspan empty.`,
+        expected: "Empty Back Span communication and power midspan",
         actual: values.join("; "),
         details: [span.details]
       });
