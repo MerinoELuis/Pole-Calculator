@@ -122,7 +122,7 @@ One compact comm flagging field combines these checks:
 
 1. Midspan is not below Environment clearance.
 2. Midspan does not exceed Max Height at MS.
-3. Different comms on the same `spanId` keep Midspan Comm-comm clearance.
+3. Regular comms on the same `spanId` keep Midspan Comm-comm clearance, including separate wires from the same owner. Service Drops are excluded from this 4-inch spacing and crossing-order check; their Midspan still must satisfy Environment and Low Power limits.
 4. Comm order at the pole and midspan does not reverse, preventing cable crossings.
 5. Top Comm mode leaves room above the highest comm midspan for Proposed.
 6. Effective HOA does not exceed Max Height on Pole.
@@ -163,7 +163,7 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 5. The normalized Sequence and first Id block must be exactly equal; `058` does not match `058A`.
 6. Collection Owner must be `UTILITY > MidAm`; empty is an error and another populated owner is a warning.
 
-A Service Drop does not create or receive Pole Bolt-bolt violations. For the same owner it may reuse the same bolt or sit within the normal Bolt-bolt clearance zone. Its Existing HOA also does not reserve a Bolt-bolt exclusion point for Proposed. This exception is exclusive to rows marked `Service Drop`; `DG` alone does not qualify. Comm-comm, power, maximum-height, Environment, and every other applicable rule remain active.
+A Service Drop does not create or receive Pole Bolt-bolt violations. For the same owner it may reuse the same bolt or sit within the normal Bolt-bolt clearance zone. Its Existing HOA also does not reserve a Bolt-bolt exclusion point for Proposed. This exception is exclusive to rows marked `Service Drop`; `DG` alone does not qualify. Service Drops are also excluded from the 4-inch Midspan comm-comm and crossing-order checks; their Midspan remains subject to Low Power and Environment limits.
 
 When `Transfer to New Pole` is active, the old `Existing HOA` bolt belongs to the prior pole and is excluded from Bolt-bolt checks on the destination pole. The transferred comm's effective HOA remains subject to Comm-comm and every other applicable clearance.
 

@@ -232,6 +232,8 @@ const serviceDropSameOwner = S.createSpanComm({
   existingHOA: "18'8\"",
   serviceDrop: true
 });
+regularSameOwner.midspan = "15'6\"";
+serviceDropSameOwner.midspan = "15'4\"";
 S.upsertSpanComm(regularSameOwner);
 S.upsertSpanComm(serviceDropSameOwner);
 assert.doesNotMatch(
@@ -243,6 +245,36 @@ assert.doesNotMatch(
   C.evaluateCommFlagging(serviceDropSameOwner, "").flaggingMessage,
   /bolt-bolt/i,
   "a Service Drop must not receive Bolt-bolt flagging 2 inches from a same-owner comm"
+);
+assert.doesNotMatch(
+  C.evaluateCommFlagging(serviceDropSameOwner, "").flaggingMessage,
+  /Comm-comm MS/i,
+  "a Service Drop must not receive Midspan comm-comm flagging"
+);
+
+seedSpan("INTEC", "SAME-OWNER-MIDSPAN", "100'", "");
+const regularMidspanA = S.createSpanComm({
+  spanId: "SAME-OWNER-MIDSPAN",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "REGULAR-A",
+  existingHOA: "18'10\"",
+  midspan: "15'6\""
+});
+const regularMidspanB = S.createSpanComm({
+  spanId: "SAME-OWNER-MIDSPAN",
+  poleId: "P1",
+  owner: "COMMUNICATION > Century Link Communications",
+  wireId: "REGULAR-B",
+  existingHOA: "18'4\"",
+  midspan: "15'3\""
+});
+S.upsertSpanComm(regularMidspanA);
+S.upsertSpanComm(regularMidspanB);
+assert.match(
+  C.evaluateCommFlagging(regularMidspanA, "").flaggingMessage,
+  /Comm-comm MS.*separation 3".*minimum 4"/i,
+  "regular same-owner comms must receive Midspan clearance flagging"
 );
 
 seedSpan("INTEC", "DG-STILL-BOLT", "100'", "");

@@ -458,7 +458,8 @@
       .map(sc => ({
         owner: commOwnerLabel(sc),
         poleHeight: H().parseHeight(getEffectiveCommHOA(sc)),
-        midspan: getMidspanInchesForComm(sc)
+        midspan: getMidspanInchesForComm(sc),
+        serviceDrop: Boolean(sc.serviceDrop)
       }))
       .filter(item => item.poleHeight !== null && item.midspan !== null);
   }
@@ -597,7 +598,10 @@
     if (midspan !== null) {
       S().getSpanCommsForSpan(sc.spanId).forEach(other => {
         if (spanCommKey(other) === spanCommKey(sc)) return;
-        if (commOwnerLabel(other) && commOwnerLabel(other) === owner) return;
+        // Service drops are exempt from Midspan comm-comm separation. This
+        // is intentionally independent of owner: two regular wires from the
+        // same owner still need the configured clearance between them.
+        if (sc.serviceDrop || other.serviceDrop) return;
         const otherFresh = calculateCommMidspanDetails(other);
         const otherDetails = commMidspanValueDetails(other, otherFresh.calculated);
         const otherMidspan = otherDetails.inches;
@@ -615,6 +619,7 @@
       const ordered = getOrderedReferenceMidspans(sc.spanId);
       ordered.forEach(other => {
         if (!other.owner || other.owner === owner) return;
+        if (sc.serviceDrop || other.serviceDrop) return;
         const samePoleRows = S().getSpanCommsForSpan(sc.spanId).filter(row => commOwnerLabel(row) === other.owner);
         const otherAtPole = samePoleRows.find(row => row.poleId === sc.poleId);
         const otherPoleHeight = H().parseHeight(getEffectiveCommHOA(otherAtPole));
