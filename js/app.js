@@ -915,7 +915,7 @@
         ugActive: Boolean(mappedOldPole.ugActive || preservedPole.ugActive),
         pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
         poleInsetActive: Boolean(mappedOldPole.poleInsetActive || preservedPole.poleInsetActive),
-        poleInsetReason: mappedOldPole.poleInsetReason || preservedPole.poleInsetReason || "OVERLOADED",
+        poleInsetReason: mappedOldPole.poleInsetReason || preservedPole.poleInsetReason || "FAILING_CLEARANCES",
         riserActive: mappedOldPole.riserActive === true || mappedOldPole.riserActive === false
           ? mappedOldPole.riserActive
           : preservedPole.riserActive,
@@ -1687,8 +1687,11 @@
       els.exportProposedJsonBtn.classList.toggle("btn-success", hasPoleData);
     }
     if (els.exportDebugJsonBtn) {
-      els.exportDebugJsonBtn.disabled = !hasPoleData;
-      els.exportDebugJsonBtn.classList.toggle("btn-disabled", !hasPoleData);
+      const buildSource = String(global.AppDeploymentVersion?.source || "development").toLowerCase();
+      const localOnly = buildSource !== "github-pages";
+      els.exportDebugJsonBtn.disabled = !hasPoleData || !localOnly;
+      els.exportDebugJsonBtn.classList.toggle("btn-disabled", !hasPoleData || !localOnly);
+      els.exportDebugJsonBtn.classList.toggle("hidden", !localOnly);
     }
   }
 
@@ -2063,9 +2066,9 @@
     const riserAvailable = isIntec && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
     const poleInsetEnabled = Boolean(pole?.poleInsetActive);
-    const poleInsetReason = String(pole?.poleInsetReason || "OVERLOADED").toUpperCase() === "FAILING_CLEARANCES"
-      ? "FAILING_CLEARANCES"
-      : "OVERLOADED";
+    const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
+      ? "OVERLOADED"
+      : "FAILING_CLEARANCES";
     const showRiserDirection = isIntec && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
@@ -2498,7 +2501,7 @@
     S.upsertPole({
       ...pole,
       poleInsetActive: !pole.poleInsetActive,
-      poleInsetReason: pole.poleInsetReason === "FAILING_CLEARANCES" ? "FAILING_CLEARANCES" : "OVERLOADED"
+      poleInsetReason: pole.poleInsetReason === "OVERLOADED" ? "OVERLOADED" : "FAILING_CLEARANCES"
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);

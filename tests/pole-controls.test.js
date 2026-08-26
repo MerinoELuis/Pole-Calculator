@@ -15,6 +15,11 @@ for (const file of ["height-utils.js", "project-config.js", "state.js"]) {
 
 const S = window.AppStore;
 S.resetState();
+assert.equal(
+  S.createPole({ poleId: "P0" }).poleInsetReason,
+  "FAILING_CLEARANCES",
+  "Pole Inset must default to failing clearances"
+);
 S.upsertPole(S.createPole({ poleId: "P1 STEEL" }));
 S.upsertPole(S.createPole({ poleId: "P2" }));
 S.upsertPole(S.createPole({ poleId: "P3" }));

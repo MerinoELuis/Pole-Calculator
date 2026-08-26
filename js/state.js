@@ -11,9 +11,9 @@
   const DEFAULT_BOLT_CLEARANCE = "4\"";
 
   function normalizePoleInsetReason(value) {
-    return String(value || "").trim().toUpperCase() === "FAILING_CLEARANCES"
-      ? "FAILING_CLEARANCES"
-      : "OVERLOADED";
+    return String(value || "").trim().toUpperCase() === "OVERLOADED"
+      ? "OVERLOADED"
+      : "FAILING_CLEARANCES";
   }
 
   // Convert imported/save filenames into the editable job label. Keep this

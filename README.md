@@ -261,7 +261,7 @@ The `Export Proposed` button creates a `.json` package for downstream O-Calc aut
 
 The proposed export intentionally omits internal app IDs such as `spanId` and avoids repeating environment or Low Power clearance fields that O-Calc does not need for placing the proposal.
 
-`Export Debug` creates a separate diagnostic JSON. It contains the full calculator state, multiple-wire groups for the same owner, the result of the latest Excel reconciliation and one midspan trace per comm showing the imported value, local half-movement, selected remote comm, remote half-movement, expected result and displayed result.
+`Export Debug` creates a separate diagnostic JSON when the app is running locally. It contains the full calculator state, multiple-wire groups for the same owner, the result of the latest Excel reconciliation and one midspan trace per comm showing the imported value, local half-movement, selected remote comm, remote half-movement, expected result and displayed result. The diagnostic export is hidden on the public GitHub Pages build.
 
 ## Main Files
 

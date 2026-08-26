@@ -368,6 +368,7 @@
 
   /** Recalculates and downloads full state plus midspan diagnostic traces. */
   function exportDebugJson() {
+    if (String(global.AppDeploymentVersion?.source || "development").toLowerCase() === "github-pages") return;
     global.Calculations.recalculateAll();
     const state = S().getState();
     const jobName = safeJobFilePart(state.jobName || state.importedFileName || "pole_job");

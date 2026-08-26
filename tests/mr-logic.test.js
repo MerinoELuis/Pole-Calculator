@@ -62,6 +62,35 @@ assert.match(p1Text, /Transfer CTL to new pole at HOA 19'10", 20'2" and 20'6"\./
 assert.ok(p1Text.indexOf("Transfer CATV") < p1Text.indexOf("Transfer CTL"), "transfer groups must follow the pole from highest to lowest comm");
 assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser must be final and use the imported IO direction");
 
+state.spanComms.MOVE = {
+  spanId: "PROP",
+  poleId: "P1",
+  owner: "Cable One, Prescott",
+  ownerBase: "Cable One, Prescott",
+  existingHOA: "22'6\"",
+  existingHOAChange: "21'",
+  transferToNewPole: false,
+  serviceDrop: false,
+  downGuy: false
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+const movementText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(
+  movementText,
+  /At HOA 22'6\" lower Cable One to HOA 21'\./,
+  "an HOA Change must produce a regular comm movement in MR"
+);
+state.spanComms.MOVE.mr = "Review attachment and maintain existing route.";
+sandbox.window.MRLogic.generateMRForPole("P1");
+const customMovementText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(customMovementText, /Review attachment and maintain existing route\./);
+assert.match(
+  customMovementText,
+  /At HOA 22'6\" lower Cable One to HOA 21'\./,
+  "an imported custom MR note must not hide its HOA movement"
+);
+delete state.spanComms.MOVE;
+
 state.makeReadyReferences = [];
 sandbox.window.MRLogic.generateMRForPole("P1");
 let generatedWithoutDirection = state.mr.find(item => item.poleId === "P1").text;

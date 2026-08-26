@@ -248,7 +248,8 @@ EXCEL_Wecom-SUPRAZ1.1_2026-07-13.xlsx
 
 ## Debug JSON
 
-Export Debug is intentionally verbose. It contains:
+Export Debug is intentionally verbose and is available only in the local app
+copy (it is hidden and blocked on the public GitHub Pages build). It contains:
 
 - Full current state
 - Entity counts

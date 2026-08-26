@@ -136,6 +136,24 @@
     };
   }
 
+  function generatedCommMovementMR(spanComm, action, dg = "") {
+    if (!spanComm || !action) return "";
+    const settings = S().getState().settings || {};
+    const owner = ownerForMR(spanComm);
+    const existing = mrHeight(spanComm.existingHOA);
+    const changed = mrHeight(spanComm.existingHOAChange);
+    if (isMetronetMR()) {
+      const verb = action === "Lower" ? "lower" : "raise";
+      return `At HOA ${existing} ${verb} ${owner} to HOA ${changed}${dg}.`;
+    }
+    // Service drops use different MR wording than regular comm movement.
+    if (spanComm.serviceDrop && settings.showServiceDrop !== false) {
+      return `Relocate ${owner} drop at HOA ${existing} to HOA ${changed}.`;
+    }
+    const verb = action === "Lower" ? "lower" : "raise";
+    return `At HOA ${existing} ${verb} ${ownerForIntecMovementMR(spanComm)} to HOA ${changed}${dg}.`;
+  }
+
   function generateTransferMRForPole(poleId) {
     const groups = new Map();
     S().getSpanCommsForPole(poleId).forEach(row => {
@@ -167,7 +185,7 @@
 
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
-    if (spanComm.mr && spanComm.mr.trim()) return spanComm.mr.trim();
+    const custom = String(spanComm.mr || "").trim();
     const resag = generateResagServiceDropMR(spanComm);
     const owner = ownerForMR(spanComm);
     const transferContext = commGroupTransferContext(spanComm);
@@ -178,24 +196,20 @@
       const transferHeight = spanComm.existingHOAChange || spanComm.existingHOA;
       if (!transferHeight) return resag;
       const transfer = `Transfer ${owner} to new pole at HOA ${mrHeight(transferHeight)}${dg}.`;
-      return [transfer, resag].filter(Boolean).join("\n");
+      const customContainsTransfer = custom
+        && custom.includes(mrHeight(spanComm.existingHOAChange || spanComm.existingHOA));
+      return [custom || transfer, custom && !customContainsTransfer ? transfer : "", resag].filter(Boolean).join("\n");
     }
     const action = detectRaiseLower(spanComm);
-    if (!action) return resag;
-    if (isMetronetMR()) {
-      const verb = action === "Lower" ? "lower" : "raise";
-      const movement = `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${owner} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
-      return [movement, resag].filter(Boolean).join("\n");
-    }
-    // Service drops use different MR wording than regular comm movement.
-    const settings = S().getState().settings || {};
-    if (spanComm.serviceDrop && settings.showServiceDrop !== false) {
-      const relocation = `Relocate ${owner} drop at HOA ${mrHeight(spanComm.existingHOA)} to HOA ${mrHeight(spanComm.existingHOAChange)}.`;
-      return [relocation, resag].filter(Boolean).join("\n");
-    }
-    const verb = action === "Lower" ? "lower" : "raise";
-    const movement = `At HOA ${mrHeight(spanComm.existingHOA)} ${verb} ${ownerForIntecMovementMR(spanComm)} to HOA ${mrHeight(spanComm.existingHOAChange)}${dg}.`;
-    return [movement, resag].filter(Boolean).join("\n");
+    if (!action) return [custom, resag].filter(Boolean).join("\n");
+    const movement = generatedCommMovementMR(spanComm, action, dg);
+    // Keep a user/imported MR note, but do not let it hide a real HOA movement
+    // that is present in the calculator state. If the note already contains
+    // both heights, avoid duplicating the generated instruction.
+    const customContainsMovement = custom
+      && custom.includes(mrHeight(spanComm.existingHOA))
+      && custom.includes(mrHeight(spanComm.existingHOAChange));
+    return [custom, customContainsMovement ? "" : movement, resag].filter(Boolean).join("\n");
   }
 
   function generateMRForSpanSide(spanSide) {
