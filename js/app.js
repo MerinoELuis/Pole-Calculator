@@ -2349,10 +2349,13 @@
           <p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>
           ${renderCommMovementTable(poleId)}
         </section>
-        <section class="subsection wide">
-          <h4>Imported Power / Clearance</h4>
+        <details class="subsection wide power-section">
+          <summary class="subsection-collapse-summary">
+            <h4>Imported Power / Clearance</h4>
+            <span class="collapse-hint">Show</span>
+          </summary>
           ${renderPowerTable(poleId)}
-        </section>
+        </details>
         <section class="subsection wide">
           <h4>Equipment</h4>
           ${renderEquipmentTable(poleId)}

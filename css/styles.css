@@ -778,6 +778,42 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   font-size: 1rem;
 }
 
+.subsection-collapse-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.subsection-collapse-summary::-webkit-details-marker { display: none; }
+.subsection-collapse-summary::before {
+  content: "▸";
+  color: var(--primary);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.subsection-collapse-summary h4 {
+  flex: 1;
+  margin: 0;
+}
+.collapse-hint {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.power-section[open] .subsection-collapse-summary {
+  margin-bottom: 8px;
+}
+.power-section[open] .subsection-collapse-summary::before { content: "▾"; }
+.power-section[open] .collapse-hint { font-size: 0; }
+.power-section[open] .collapse-hint::after {
+  content: "Hide";
+  font-size: .72rem;
+}
+
 .manual-proposed-starter {
   display: flex;
   flex-wrap: wrap;
