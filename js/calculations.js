@@ -407,6 +407,7 @@
     let issue = false;
     let needsAdjustment = false;
     let impossible = false;
+    let environmentIssue = false;
     let clearanceMSReason = "";
     const messages = [];
 
@@ -419,12 +420,6 @@
         needsAdjustment = true;
         messages.push(`Adjusted to keep ${format(commClearance)} from comm midspan ${format(reference)}.`);
       }
-    }
-    if (envMin !== null && target < envMin) {
-      target = envMin;
-      issue = true;
-      needsAdjustment = true;
-      messages.push(`Adjusted to environment minimum ${format(envMin)}.`);
     }
     if (maxMS !== null && target > maxMS) {
       issue = true;
@@ -440,10 +435,21 @@
         : `MS ${format(target)} exceeds max height at MS ${format(maxMS)}.`);
     }
     if (maxMS !== null && target > maxMS) impossible = true;
+    // Environment clearance is a validation floor, not an automatic Proposed
+    // MS target. A low O-CALC MS must remain visible as a violation so the
+    // operator can decide how to resolve it. Proposed MS is only raised by the
+    // Top/Low Comm spacing rule above; it is never raised merely to reach the
+    // environment minimum.
+    if (envMin !== null && target < envMin) {
+      issue = true;
+      environmentIssue = true;
+      if (!clearanceMSReason) clearanceMSReason = "ENVIRONMENT";
+      messages.push(`Environment: ${format(target)} < ${format(envMin)}.`);
+    }
     return {
       baseFormatted: format(baseInches),
       finalFormatted: format(target),
-      status: issue ? (impossible ? "PROBLEM" : "ADJUSTED") : "OK",
+      status: issue ? (impossible || environmentIssue ? "PROBLEM" : "ADJUSTED") : "OK",
       issue,
       impossible,
       needsAdjustment,

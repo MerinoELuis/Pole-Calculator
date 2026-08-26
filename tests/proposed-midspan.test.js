@@ -58,6 +58,31 @@ S.upsertSpanSide({ ...S.getSpanSide("WITH-MS", "P1"), ocalcMS: "17.5" });
 C.calculateSpanSideMidspan("WITH-MS", "P1");
 assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "17'6\"", "INTEC must convert a manually entered decimal O-CALC MS for display");
 
+S.upsertPole(S.createPole({ poleId: "P3", lowPower: "35'" }));
+S.upsertPole(S.createPole({ poleId: "P4", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("ENV-ONLY", "P3", "P4", "E", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "150'"
+}));
+S.upsertSpanSide(S.createSpanSide({ spanId: "ENV-ONLY", poleId: "P3", ocalcMS: "11.93" }));
+C.calculateSpanSideMidspan("ENV-ONLY", "P3");
+assert.equal(
+  S.getSpanSide("ENV-ONLY", "P3").finalMidspan,
+  "11'11\"",
+  "Environment clearance must not raise Proposed MS automatically"
+);
+assert.equal(
+  S.getSpanSide("ENV-ONLY", "P3").clearanceMSStatus,
+  "PROBLEM",
+  "An O-CALC MS below the environment minimum must remain a visible issue"
+);
+assert.match(
+  S.getSpanSide("ENV-ONLY", "P3").clearanceMSMessage,
+  /Environment: 11'11\" < 15'6\"/,
+  "The environment shortfall must explain why Proposed MS is flagged"
+);
+
 S.upsertSpan(S.createSpan("POWER-ONLY", "P1", "P2", "E", "", {
   type: "Fore Span",
   rawType: "Fore Span",

@@ -222,7 +222,10 @@ In Low Comm mode:
 maximum Proposed MS = lowest applicable comm MS - Midspan Comm-comm clearance
 ```
 
-The Environment minimum is then applied. Finally, Max Height at MS is checked.
+The Max Height at MS is then checked. The Environment minimum is checked as a
+validation floor, but it is not used as an automatic Proposed MS target. A
+Proposed value below the environment minimum remains at its calculated height
+and is reported as a visible clearance issue.
 
 - INTEC can cap Adjusted Final MS to Max Height at MS and generates the low-power Make Ready reminder when applicable.
 - Metronet does not silently cap this value. The violation stays visible and must be solved by lowering comms.
