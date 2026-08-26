@@ -45,7 +45,8 @@ const state = {
     P2: { poleId: "P2", pcoActive: true, standaloneProposedHOA: "21'4\"", pcoMRText: "Replace pole. Transfer CATV to new pole." },
     P3: { poleId: "P3", ugActive: true, standaloneProposedHOA: "20'10\"", ugMRText: "Unable to attach due to clearance violation." },
     P4: { poleId: "P4", pcoActive: true, ugActive: true, standaloneProposedHOA: "20'6\"", ugMRText: "Unable to attach due to pole condition." },
-    P5: { poleId: "P5", pcoActive: true, standaloneProposedHOA: "19'6\"", pcoMRText: "Replace pole." }
+    P5: { poleId: "P5", pcoActive: true, standaloneProposedHOA: "19'6\"", pcoMRText: "Replace pole." },
+    "P6 UG": { poleId: "P6 UG" }
   },
   spans: {
     P1_TO_P2: { spanId: "P1_TO_P2", fromPole: "P1", toPole: "P2", type: "Fore Span", direction: "E", bearingDegrees: 90, lengthDisplay: "100'" },
@@ -67,7 +68,8 @@ const state = {
     P2_CTL_SERVICE: { spanId: "P2_TO_P1", poleId: "P2", owner: "CenturyLink", existingHOA: "16'10\"", existingHOAChange: "17'2\"", serviceDrop: true },
     P3_CTL: { spanId: "P3_TO_P1", poleId: "P3", owner: "CenturyLink", existingHOA: "18'", existingHOAChange: "19'" },
     P4_3J: { spanId: "P4_TO_P1", poleId: "P4", owner: "3J Communications", existingHOA: "17'", existingHOAChange: "18'" },
-    P5_CATV: { spanId: "", poleId: "P5", owner: "CATV", existingHOA: "18'", existingHOAChange: "19'" }
+    P5_CATV: { spanId: "", poleId: "P5", owner: "CATV", existingHOA: "18'", existingHOAChange: "19'" },
+    P6_CTL: { spanId: "", poleId: "P6 UG", owner: "CenturyLink", existingHOA: "18'", existingHOAChange: "19'" }
   },
   makeReadyReferences: [
     { poleId: "P1", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["E", "N"] },
@@ -137,6 +139,11 @@ const both = payload.poles.find(pole => pole.id === "P4");
 assert.ok(both);
 assert.ok(both.spans.every(span => span.ug === true), "UG takes priority over PCO");
 assert.equal(payload.poles.some(pole => pole.id === "P5"), false, "blocked pole with only local data is omitted");
+
+const namedUg = payload.poles.find(pole => pole.id === "P6 UG");
+assert.ok(namedUg, "a pole named with UG remains exportable while its UG action is inactive");
+assert.equal(api.isPoleFullyUg(state, "P6 UG"), false);
+assert.ok(namedUg.moves.some(move => move.owner === "CTL" && move.from === 216 && move.to === 228));
 
 window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /At HOA 20' raise CATV to HOA 21'\./);

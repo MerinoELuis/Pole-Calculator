@@ -279,10 +279,6 @@
     return /(?:^|\s)UG(?:\s|$)/i.test(text(value));
   }
 
-  function hasPcoToken(value) {
-    return /(?:^|\s)PCO(?:\s|$)/i.test(text(value));
-  }
-
   function findPole(state, poleId) {
     if (!poleId) return null;
     if (state?.poles?.[poleId]) return state.poles[poleId];
@@ -297,12 +293,16 @@
 
   function isPoleFullyUg(state, poleId) {
     const pole = findPole(state, poleId);
-    return Boolean(pole?.ugActive || hasUgToken(poleId));
+    // A pole name may contain an imported status token such as "UG" while the
+    // operator is still evaluating it as an aerial pole.  Only the explicit
+    // Pole Actions state makes the pole UG; otherwise local comm movements
+    // must remain exportable and visible in Make Ready.
+    return Boolean(pole?.ugActive);
   }
 
   function isPolePco(state, poleId) {
     const pole = findPole(state, poleId);
-    return Boolean(pole?.pcoActive || hasPcoToken(poleId));
+    return Boolean(pole?.pcoActive);
   }
 
   function blocksLocalActions(state, poleId) {
@@ -354,9 +354,12 @@
     if (!span) return false;
     if (isPoleFullyUg(state, poleId || span.fromPole)) return true;
 
-    const targetId = text(span.toPole);
-    const targetPole = findPole(state, targetId);
-    const explicitSource = `${targetId} ${span.rawType || ""} ${span.notes || ""}`;
+    const targetPole = findPole(state, span.toPole);
+    // Do not infer UG from a pole identifier ending in "UG".  That token is
+    // commonly part of an imported name, while the calculator must only mark
+    // the relation UG when the destination action is active or the span's own
+    // metadata explicitly identifies it as UG.
+    const explicitSource = `${span.rawType || ""} ${span.notes || ""}`;
     return Boolean(targetPole?.ugActive || hasUgToken(explicitSource));
   }
 
