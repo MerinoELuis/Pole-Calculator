@@ -16,6 +16,7 @@
     "century link communications",
     "commnet",
     "cox communications",
+    "cablevision of flagstaff",
     "eagle west llc",
     "mci metro",
     "wecom inc",
@@ -572,6 +573,10 @@
     return normalizedText(value).replace(/\s+/g, " ").replace(/\.+$/g, "");
   }
 
+  function isSelfSupportingFiber(value) {
+    return /\bself[\s-]?supporting\s+fiber\b/i.test(text(value));
+  }
+
   function addIntecWireChecks(result, poleId) {
     if (!isIntecProject()) return;
     rowsForPole("spanWires", poleId).forEach((row, index) => {
@@ -599,11 +604,17 @@
         });
       }
 
-      if (communication && !COMM_INSULATORS.includes(insulator)) {
+      const selfSupportingFiber = communication && isSelfSupportingFiber(size);
+      const validCommunicationInsulator = COMM_INSULATORS.includes(insulator)
+        || (selfSupportingFiber && insulator === "suspension aps");
+      if (communication && !validCommunicationInsulator) {
         add(result, {
           phase: "HOA", section: "Span.Wire", code: "INVALID_COMM_INSULATOR", status: "ERROR",
           title: "Communication Insulator", message: `Invalid communication insulator for ${descriptor}.`,
-          expected: COMM_INSULATORS.join(", "), actual: text(pick(row, ["Insulator"])) || "Empty"
+          expected: selfSupportingFiber
+            ? `${COMM_INSULATORS.join(", ")}, or suspension aps for Self-Supporting Fiber`
+            : COMM_INSULATORS.join(", "),
+          actual: text(pick(row, ["Insulator"])) || "Empty"
         });
       }
 

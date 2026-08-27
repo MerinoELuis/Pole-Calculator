@@ -33,7 +33,7 @@ Span checks operate on original rows:
 - Missing or unknown Linked Collection.Title is a low-level warning.
 - Environment differs between reciprocal representations of one physical connection is an error.
 
-For INTEC, Span.Wire also checks DAVIT construction, permitted communication owners, APS ownership for Primary/Secondary/Neutral, and the configured insulator lists. Neutral permits the Secondary insulator family plus Pin 8.38 APS. Duplicate wire detection is intentionally excluded.
+For INTEC, Span.Wire also checks DAVIT construction, permitted communication owners, APS ownership for Primary/Secondary/Neutral, and the configured insulator lists. `Cablevision of Flagstaff` is an allowed communication owner. Communication wires normally require Single Bolt, Three Bolt, or J-Hook; Self-Supporting Fiber additionally permits Suspension APS. Neutral permits the Secondary insulator family plus Pin 8.38 APS. Duplicate wire detection is intentionally excluded.
 
 For Metronet/MidAm, Span.Wire checks `UTILITY > MidAm`, the configured Primary/Secondary/Neutral sizes, communication versus power insulator families, and Anchor.Guys sizes (`1/2\"` utility, `3/8\"` communication). Streetlight rows require MidAm ownership plus Bottom Height and Drip Loop Height so the calculator can apply the project-specific pole ceiling. The workbook does not expose a reliable completed-grounding field, so the grounding requirement is retained as project metadata rather than reported as a false pass.
 

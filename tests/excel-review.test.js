@@ -188,6 +188,7 @@ state.excelReviewSource = {
     rows: [
       { Id: "P3", Owner: "COMMUNICATION > Unknown Network", Size: "Fiber", Construction: " DAVIT ", Insulator: "Hook" },
       { Id: "P3", Owner: "COMMUNICATION > Eagle West LLC", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
+      { Id: "P3", Owner: "COMMUNICATION > Cablevision of Flagstaff", Size: "Fiber / Self-Supporting Fiber > ADSS 2-60 FIBERS (0.47)", Construction: "ON_POLE", Insulator: "Suspension APS" },
       { Id: "P3", Owner: "UTILITY > Other", Size: "Primary", Construction: "ON_POLE", Insulator: "Spool 3in" }
     ]
   },
@@ -241,6 +242,16 @@ assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Eagle West LLC/i.test(item.actual)),
   false,
   "Eagle West LLC must be accepted as an INTEC communication owner"
+);
+assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Cablevision of Flagstaff/i.test(item.actual)),
+  false,
+  "Cablevision of Flagstaff must be accepted as an INTEC communication owner"
+);
+assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "INVALID_COMM_INSULATOR" && /Suspension APS/i.test(item.actual)),
+  false,
+  "Suspension APS must be accepted for INTEC Self-Supporting Fiber"
 );
 
 state.settings.projectProfile = "METRONET";
