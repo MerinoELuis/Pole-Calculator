@@ -17,7 +17,13 @@
 
   function getEffectiveCommHOA(sc) {
     // A changed HOA replaces the imported HOA for downstream calculations.
-    return sc ? (sc.existingHOAChange || sc.existingHOA || "") : "";
+    if (!sc) return "";
+    const active = S().getPole(sc.poleId)?.commMovementsActive !== false;
+    return active ? (sc.existingHOAChange || sc.existingHOA || "") : (sc.existingHOA || "");
+  }
+
+  function isCommMovementsActive(poleId) {
+    return S().getPole(poleId)?.commMovementsActive !== false;
   }
 
   function getSpanLengthFeet(span) {
@@ -654,7 +660,7 @@
       const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
-      if (sc.existingHOAChange && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
+      if (isCommMovementsActive(sc.poleId) && sc.existingHOAChange && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
         const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
         if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
           issues.push(`Pole bolt-bolt: ${format(ownBoltDiff)} against Existing HOA ${format(ownExistingHeight)}; minimum ${format(boltClearance)}.`);
@@ -695,7 +701,7 @@
 
     const maxPole = H().parseHeight(pole?.maxCommHeight || "");
     if (poleHeight !== null && maxPole !== null && poleHeight > maxPole) {
-      const source = sc.existingHOAChange ? "HOA Change" : "Existing HOA";
+      const source = isCommMovementsActive(sc.poleId) && sc.existingHOAChange ? "HOA Change" : "Existing HOA";
       issues.push(`Pole: ${source} ${format(poleHeight)} exceeds max ${format(maxPole)}.`);
     }
 
@@ -722,7 +728,7 @@
         owner: commOwnerLabel(sc) || "sin owner",
         existing: H().parseHeight(sc.existingHOA || ""),
         effective: H().parseHeight(getEffectiveCommHOA(sc)),
-        moved: Boolean(sc.existingHOAChange),
+        moved: isCommMovementsActive(sc.poleId) && Boolean(sc.existingHOAChange),
         transferred: Boolean(sc.transferToNewPole),
         serviceDrop: Boolean(sc.serviceDrop)
       }))
@@ -1620,6 +1626,10 @@
       next.autoCalcMessage = "";
     }
     S().upsertSpanComm(next);
+    if (field === "existingHOAChange") {
+      const hasChanges = S().getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+      S().upsertPole({ ...S().getPole(poleId), commMovementsActive: hasChanges });
+    }
     recalculateSpan(spanId);
     const span = S().getSpan(spanId);
     const affectedPoles = span ? [span.fromPole, span.toPole].filter(Boolean) : [poleId];
@@ -1790,6 +1800,7 @@
     calculateOcalcValues,
     recalculateAll,
     getEffectiveCommHOA,
+    isCommMovementsActive,
     getEstimatedSagInches,
     spanHasRealMidspan,
     isSpanEligibleForProposed,

@@ -161,11 +161,12 @@
   }
 
   function effective(row) {
-    return parse(row?.existingHOAChange || row?.existingHOA || "");
+    return parse(C()?.getEffectiveCommHOA?.(row) || row?.existingHOA || "");
   }
 
   function manualComm(row) {
-    return Boolean(row?.existingHOAChange && row?.autoCalcStatus !== AUTO);
+    const active = C()?.isCommMovementsActive ? C().isCommMovementsActive(row?.poleId) : true;
+    return Boolean(active && row?.existingHOAChange && row?.autoCalcStatus !== AUTO);
   }
 
   // A local HOA movement changes its span midspan by half that movement.
@@ -913,14 +914,14 @@
 
   function signature() {
     const state = S()?.getState?.() || {};
-    const comms = Object.values(state.spanComms || {}).map(row => [commKey(row), row.existingHOAChange || "", row.autoCalcStatus || ""]).sort((a, b) => a[0].localeCompare(b[0]));
+    const comms = Object.values(state.spanComms || {}).map(row => [commKey(row), row.existingHOAChange || "", row.autoCalcStatus || "", C()?.isCommMovementsActive?.(row.poleId) !== false]).sort((a, b) => a[0].localeCompare(b[0]));
     const proposed = Object.values(state.spanSides || {}).map(side => [S()?.keyForSpanSide?.(side.spanId, side.poleId) || `${side.spanId}__${side.poleId}`, side.proposedHOA || "", side.autoCalcProposedStatus || ""]).sort((a, b) => a[0].localeCompare(b[0]));
     return JSON.stringify({ comms, proposed });
   }
 
   function poleAutomaticSignature(poleId) {
     const comms = (S()?.getSpanCommsForPole?.(poleId) || [])
-      .map(row => [commKey(row), row.existingHOAChange || "", row.autoCalcStatus || ""])
+      .map(row => [commKey(row), row.existingHOAChange || "", row.autoCalcStatus || "", C()?.isCommMovementsActive?.(row.poleId) !== false])
       .sort((a, b) => a[0].localeCompare(b[0]));
     const proposed = (S()?.getSpanSidesForPole?.(poleId) || [])
       .map(side => [
@@ -934,7 +935,8 @@
 
   function hasAutomaticMovement(poleId) {
     return (S()?.getSpanCommsForPole?.(poleId) || [])
-      .some(row => row.autoCalcStatus === AUTO && text(row.existingHOAChange));
+      .some(row => row.autoCalcStatus === AUTO && text(row.existingHOAChange)
+        && C()?.isCommMovementsActive?.(row.poleId) !== false);
   }
 
   function needsSelectiveRetry(poleId, mode) {

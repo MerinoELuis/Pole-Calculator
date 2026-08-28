@@ -2078,6 +2078,8 @@
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
     const showRiserDirection = isIntec && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
+    const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+    const commMovementsActive = hasCommMovements && pole?.commMovementsActive !== false;
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
         || pole?.ugRiserDirection
@@ -2092,6 +2094,7 @@
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
       <button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
+      <button class="mini-btn ${commMovementsActive ? "active-action" : ""}" type="button" data-toggle-comm-movements data-pole="${escapeHtml(poleId)}" ${hasCommMovements ? "" : "disabled"} title="${hasCommMovements ? (commMovementsActive ? "Ignore comm HOA changes in calculations" : "Use comm HOA changes in calculations") : "Enter a comm HOA Change first"}">Comm Moves ${commMovementsActive ? "ON" : "OFF"}</button>
     </div>
     ${poleInsetEnabled ? `<label class="pole-action-field">
       <span>Pole Inset Reason</span>
@@ -2461,6 +2464,7 @@
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-comm-movements]").forEach(btn => btn.addEventListener("click", () => toggleCommMovements(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
     root.querySelectorAll("[data-delete-proposed-span]").forEach(btn => btn.addEventListener("click", () => deleteProposedSpan(btn.dataset.pole, btn.dataset.span)));
@@ -2500,6 +2504,16 @@
       ...pole,
       riserActive: !global.MRLogic.isRiserEnabled?.(poleId)
     });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+  }
+
+  function toggleCommMovements(poleId) {
+    const pole = S.getPole(poleId);
+    const hasChanges = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+    if (!pole || !hasChanges) return;
+    recordUndoSnapshot();
+    S.upsertPole({ ...pole, commMovementsActive: pole.commMovementsActive === false });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
   }

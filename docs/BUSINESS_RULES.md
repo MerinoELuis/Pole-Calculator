@@ -23,7 +23,7 @@ Max Height on Pole       = minimum available ceiling
 
 MidAm comms and Proposed must also remain at least `3"` from imported MidAm utility guy attachment heights.
 
-The highest and lowest effective comm heights use `HOA Change` when present; otherwise they use `Existing HOA`. In INTEC, Self-Supporting Fiber is eligible for the manually activated `POF` control (normally after Re-sag). A marked POF stays visible but does not define Top Comm or Low Comm for Proposed placement.
+The highest and lowest effective comm heights use `HOA Change` when present; otherwise they use `Existing HOA`. Each pole has one Comm Moves toggle: when off, stored HOA Change values remain visible but calculations use the imported Existing HOA values. Entering a change turns the toggle on; clearing the last change turns it off. In INTEC, Self-Supporting Fiber is eligible for the manually activated `POF` control (normally after Re-sag). A marked POF stays visible but does not define Top Comm or Low Comm for Proposed placement.
 
 ## Derived Midspan Power Limit
 
