@@ -293,6 +293,7 @@
       ownerBase: trim(extra.ownerBase || owner),
       existingHOA: trim(existingHOA),
       existingHOAChange: trim(extra.existingHOAChange || ""),
+      pofActive: Boolean(extra.pofActive),
       notes: trim(notes),
       rawOwner: trim(extra.rawOwner || ""),
       unknownOwner: Boolean(extra.unknownOwner),
@@ -393,6 +394,7 @@
       downGuy: Boolean(data.downGuy),
       transferToNewPole: Boolean(data.transferToNewPole),
       resagServiceDrop: Boolean(data.resagServiceDrop),
+      pofActive: Boolean(data.pofActive),
       difference: trim(data.difference || ""),
       remotePoleId: trim(data.remotePoleId || ""),
       remoteHOA: trim(data.remoteHOA || ""),
@@ -581,6 +583,7 @@
         ownerBase: trim(extra.ownerBase || pole.comms[idx].ownerBase || ownerKey),
         existingHOA: trim(existingHOA) || pole.comms[idx].existingHOA,
         existingHOAChange: trim(extra.existingHOAChange || pole.comms[idx].existingHOAChange || ""),
+        pofActive: Boolean(extra.pofActive || pole.comms[idx].pofActive),
         notes: trim(notes) || pole.comms[idx].notes,
         rawOwner: trim(extra.rawOwner || pole.comms[idx].rawOwner || ""),
         unknownOwner: Boolean(extra.unknownOwner || pole.comms[idx].unknownOwner),
@@ -630,6 +633,13 @@
     const key = keyForSpanComm(data.spanId, data.poleId, data.owner, data.wireId || "");
     const existing = state.spanComms[key] || createSpanComm(data);
     state.spanComms[key] = createSpanComm({ ...existing, ...data, updatedAt: new Date().toISOString() });
+    const pole = state.poles[data.poleId];
+    const poleComm = pole?.comms?.find(comm =>
+      comm.owner === data.owner && (!data.wireId || !comm.wireId || comm.wireId === data.wireId)
+    );
+    if (poleComm && Object.prototype.hasOwnProperty.call(data, "pofActive")) {
+      poleComm.pofActive = Boolean(state.spanComms[key].pofActive);
+    }
     return state.spanComms[key];
   }
 
@@ -897,6 +907,7 @@
               ownerBase: comm.ownerBase || comm.owner,
               existingHOA: comm.existingHOA,
               existingHOAChange: comm.existingHOAChange || "",
+              pofActive: Boolean(comm.pofActive),
               rawOwner: comm.rawOwner || "",
               unknownOwner: Boolean(comm.unknownOwner),
               size: comm.size || "",

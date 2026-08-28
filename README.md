@@ -120,7 +120,7 @@ Used to create comm and power rows by span:
 
 The visible Owner/Comm value comes from the `Owner` column.
 
-For INTEC, `Size` values containing `Self-Supporting Fiber` are treated as POF. They remain visible in the Existing Comm Movements table with a `POF` badge, but they do not define the Top Comm reference and are not moved by Auto Calculate.
+For INTEC, Self-Supporting Fiber can be marked manually with the `POF` control in the Existing Comm Movements table (normally after applying Re-sag). Marked POF rows remain visible with a `POF` badge, but they do not define the Top Comm reference and are not moved by Auto Calculate.
 
 ### Equipment
 

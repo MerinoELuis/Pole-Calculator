@@ -550,6 +550,7 @@
       if (poleId && owner) S().upsertComm(poleId, owner, pick(row, ["existingHOA", "Existing HOA", "Altura actual"]), pick(row, ["notes", "Notas"]), {
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
+        pofActive: truthyCell(pick(row, ["pofActive", "POF", "POF Active"])),
         serviceDrop: truthyCell(pick(row, ["serviceDrop", "Service Drop"])),
         rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
         unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
@@ -570,6 +571,7 @@
         downGuy: truthyCell(pick(row, ["downGuy", "DG", "Down Guy", "Has DG"])),
         transferToNewPole: truthyCell(pick(row, ["transferToNewPole", "Transfer to New Pole", "Pole Transfer"])),
         resagServiceDrop: truthyCell(pick(row, ["resagServiceDrop", "Re-sag Service Drop", "Resag Service Drop"])),
+        pofActive: truthyCell(pick(row, ["pofActive", "POF", "POF Active"])),
         difference: pick(row, ["difference", "Difference"]),
         remotePoleId: pick(row, ["remotePoleId", "Remote Pole"]),
         remoteHOA: pick(row, ["remoteHOA", "Remote HOA"]),

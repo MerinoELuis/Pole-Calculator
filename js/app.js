@@ -1207,12 +1207,16 @@
           owner: commOwnerLabel(sc),
           existingHOA: normalizedHeightLabel(sc.existingHOA || ""),
           existingHOAChange: sc.existingHOAChange || "",
+          pofActive: Boolean(sc.pofActive),
+          pofEligible: isSelfSupportingComm(sc),
           isPof: false,
           rows: []
         });
       }
       const group = groups.get(key);
       if (!group.existingHOAChange && sc.existingHOAChange) group.existingHOAChange = sc.existingHOAChange;
+      group.pofActive = group.pofActive || Boolean(sc.pofActive);
+      group.pofEligible = group.pofEligible || isSelfSupportingComm(sc);
       if (global.Calculations.isPofComm && global.Calculations.isPofComm(sc)) group.isPof = true;
       group.rows.push(sc);
     });
@@ -1956,6 +1960,10 @@
     };
   }
 
+  function isSelfSupportingComm(sc) {
+    return /self[\s-]*supporting\s*fiber/i.test(`${sc?.size || ""} ${sc?.rawOwner || ""} ${sc?.owner || ""}`);
+  }
+
   function poleHasProposed(poleId) {
     return S.getSpanSidesForPole(poleId).some(side => String(side?.proposedHOA || "").trim() !== "");
   }
@@ -2218,9 +2226,10 @@
     const showServiceDrop = settings.showServiceDrop !== false;
     const showResagServiceDrop = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC"
       && settings.showResagServiceDrop !== false;
+    const showPof = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Transfer to New Pole</th>${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}<th>Actions</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Transfer to New Pole</th>${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -2248,6 +2257,7 @@
           <td>${renderCommDownGuyValues(group, poleId)}</td>
           <td>${renderCommTransferValues(group, poleId)}</td>
           ${showResagServiceDrop ? `<td>${renderCommResagValues(group, poleId)}</td>` : ""}
+          ${showPof ? `<td>${group.pofEligible ? `<label class="equipment-action-control" title="Activar POF manualmente después de Re-sag"><input type="checkbox" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="pofActive" ${group.pofActive ? "checked" : ""}><span>POF</span></label>` : `<span class="muted">&mdash;</span>`}</td>` : ""}
           <td><div class="row-actions">
             <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm" aria-label="Edit comm">&#9998;</button>
             <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm spans" aria-label="Edit comm spans">&#8644;</button>
@@ -2632,6 +2642,7 @@
       "downGuy",
       "transferToNewPole",
       "resagServiceDrop",
+      "pofActive",
       "ugReason",
       "ugMRText",
       "pcoMRText",
@@ -2645,7 +2656,7 @@
   }
 
   function updateCommGroupField(poleId, groupKey, field, value) {
-    if (!["existingHOAChange", "transferToNewPole"].includes(field)) return [poleId].filter(Boolean);
+    if (!["existingHOAChange", "transferToNewPole", "pofActive"].includes(field)) return [poleId].filter(Boolean);
     const nextValue = field === "transferToNewPole" ? Boolean(value) : value;
     const affected = new Set([poleId].filter(Boolean));
     S.getSpanCommsForPole(poleId)

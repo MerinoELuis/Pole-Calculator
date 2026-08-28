@@ -72,13 +72,12 @@
   }
 
   function isPofComm(sc) {
-    // INTEC can import Self-Supporting Fiber. Operators need to see that cable,
-    // but it is POF and should not define the Top Comm reference used to place
-    // proposed attachments above the comm stack.
+    // POF is an operator decision. Self-Supporting Fiber is eligible for POF,
+    // but its imported size alone must not silently change the pole stack.
     const settings = S().getState().settings || {};
     const template = String(settings.mrTemplate || settings.projectProfile || "").toUpperCase();
-    if (template !== "INTEC") return false;
-    return /self[-\s]*supporting\s*fiber/i.test(`${sc?.size || ""} ${sc?.rawOwner || ""} ${sc?.owner || ""}`);
+    const selfSupporting = /self[-\s]*supporting\s*fiber/i.test(`${sc?.size || ""} ${sc?.rawOwner || ""} ${sc?.owner || ""}`);
+    return template === "INTEC" && selfSupporting && Boolean(sc?.pofActive);
   }
 
   function countsAsTopCommReference(sc) {
@@ -1611,7 +1610,7 @@
   }
 
   function updateSpanCommField(spanId, poleId, owner, wireId, field, value) {
-    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "ocalcMS", "midspan", "notes", "mr"];
+    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "pofActive", "ocalcMS", "midspan", "notes", "mr"];
     if (!allowed.includes(field)) return null;
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
     const next = { ...sc, [field]: value || "" };

@@ -61,7 +61,7 @@ Bearing is normalized to one of eight cardinal directions. A missing linked pole
 
 Power classification is evaluated before comm creation. Communication owners come from the `Owner` column; missing owners receive stable UNKNOWN labels instead of being discarded.
 
-`Size` values containing Communication Drop/Service Drop mark that span relationship as a Service Drop. INTEC `Self-Supporting Fiber` is marked as POF by calculation logic.
+`Size` values containing Communication Drop/Service Drop mark that span relationship as a Service Drop. In INTEC, Self-Supporting Fiber is eligible for manual POF activation from the comm table; the `POF` state is preserved in JSON and Excel exports.
 
 ## Anchor
 

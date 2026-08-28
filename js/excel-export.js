@@ -75,13 +75,14 @@
       side.notes || ""
     ]));
 
-    const comms = [["poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "rawOwner", "unknownOwner", "size", "wireId", "notes"]];
+    const comms = [["poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "pofActive", "rawOwner", "unknownOwner", "size", "wireId", "notes"]];
     Object.values(state.poles).forEach(pole => pole.comms.forEach(comm => comms.push([
       pole.poleId,
       comm.owner,
       comm.ownerBase || comm.owner,
       comm.existingHOA,
       comm.existingHOAChange || "",
+      comm.pofActive ? "Yes" : "",
       comm.rawOwner || "",
       comm.unknownOwner ? "Yes" : "No",
       comm.size || "",
@@ -89,7 +90,7 @@
       comm.notes || ""
     ])));
 
-    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
+    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "pofActive", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
     Object.values(state.spanComms).forEach(sc => spanComms.push([
       sc.spanId,
       sc.poleId,
@@ -101,6 +102,7 @@
       sc.downGuy ? "Yes" : "",
       sc.transferToNewPole ? "Yes" : "",
       sc.resagServiceDrop ? "Yes" : "",
+      sc.pofActive ? "Yes" : "",
       sc.difference,
       sc.remotePoleId,
       sc.remoteHOA,
