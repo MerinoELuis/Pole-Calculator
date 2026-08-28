@@ -2078,8 +2078,6 @@
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
     const showRiserDirection = isIntec && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
-    const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
-    const commMovementsActive = hasCommMovements && pole?.commMovementsActive !== false;
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
         || pole?.ugRiserDirection
@@ -2094,7 +2092,6 @@
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
       <button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
-      <button class="mini-btn ${commMovementsActive ? "active-action" : ""}" type="button" data-toggle-comm-movements data-pole="${escapeHtml(poleId)}" ${hasCommMovements ? "" : "disabled"} title="${hasCommMovements ? (commMovementsActive ? "Ignore comm HOA changes in calculations" : "Use comm HOA changes in calculations") : "Enter a comm HOA Change first"}">Comm Moves ${commMovementsActive ? "ON" : "OFF"}</button>
     </div>
     ${poleInsetEnabled ? `<label class="pole-action-field">
       <span>Pole Inset Reason</span>
@@ -2347,6 +2344,8 @@
 
   function renderPoleWorkspace(poleId) {
     const pole = S.getPole(poleId);
+    const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+    const commMovementsActive = hasCommMovements && pole?.commMovementsActive !== false;
     return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""} ${pole?.pcoActive ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
       <div class="workspace-grid">
@@ -2360,7 +2359,10 @@
         <section class="subsection wide" id="comms-${escapeHtml(poleId)}">
           <div class="subsection-title-row">
             <h4>Existing Comm Movements</h4>
-            <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
+            <div class="pole-action-buttons">
+              <button class="mini-btn ${commMovementsActive ? "active-action" : ""}" type="button" data-toggle-comm-movements data-pole="${escapeHtml(poleId)}" ${hasCommMovements ? "" : "disabled"} title="${hasCommMovements ? (commMovementsActive ? "Ignore comm HOA changes in calculations" : "Use comm HOA changes in calculations") : "Enter a comm HOA Change first"}">Comm Moves ${commMovementsActive ? "ON" : "OFF"}</button>
+              <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
+            </div>
           </div>
           <p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>
           ${renderCommMovementTable(poleId)}
