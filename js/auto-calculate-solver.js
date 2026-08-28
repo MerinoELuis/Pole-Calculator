@@ -519,6 +519,13 @@
     return ids;
   }
 
+  function syncCommMovementToggle(poleId) {
+    const pole = S()?.getPole?.(poleId);
+    if (!pole) return;
+    const hasChanges = (S()?.getSpanCommsForPole?.(poleId) || []).some(row => text(row.existingHOAChange));
+    S()?.upsertPole?.({ ...pole, commMovementsActive: hasChanges });
+  }
+
   function applyPlan(plan) {
     const state = S()?.getState?.();
     plan.forEach(item => item.group.rowKeys.forEach(key => {
@@ -532,6 +539,10 @@
         autoCalcMessage: ""
       });
     }));
+    const poleIds = new Set(plan.flatMap(item => item.group.rowKeys
+      .map(key => state?.spanComms?.[key]?.poleId)
+      .filter(Boolean)));
+    poleIds.forEach(syncCommMovementToggle);
   }
 
   function applyProposed(spans, poleId, proposedInches, mode) {
@@ -761,6 +772,7 @@
         autoCalcProposedMode: ""
       });
     });
+    syncCommMovementToggle(poleId);
   }
 
   async function solvePole(poleId, mode, options = {}) {
