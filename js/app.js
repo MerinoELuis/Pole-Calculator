@@ -1577,6 +1577,7 @@
     ).join("");
     const clearanceRows = [
       ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
+      ["primaryPowerCommsClearance", "Pole · Primary-comm", settings.primaryPowerCommsClearance || "43\""],
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
       ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
       ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
@@ -2644,6 +2645,7 @@
       "midspanCommCommClearance",
       "midspanPowerCommClearance",
       "polePowerCommsClearance",
+      "primaryPowerCommsClearance",
       "clearanceToPower",
       "commClearance",
       "boltClearance",
@@ -3050,7 +3052,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }

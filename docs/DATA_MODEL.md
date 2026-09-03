@@ -35,6 +35,7 @@ Important settings and defaults:
 | `projectProfile` | `INTEC` | Active project behavior. |
 | `position` | `TOP_COMM` | Proposed is placed above or below the comm stack. Auto Calculate supports both values. |
 | `polePowerCommsClearance` | `40"` | Low Power to comm clearance on the pole. |
+| `primaryPowerCommsClearance` | `43"` | Primary-to-communication clearance on the pole when a Primary row is present. |
 | `commClearance` | `12"` | Different-owner comm spacing on the pole. |
 | `boltClearance` | `4"` | Same-owner and bolt-point spacing on the pole. |
 | `midspanPowerCommClearance` | `30"` | Power-to-comm spacing at midspan. |

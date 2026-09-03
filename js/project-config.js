@@ -12,6 +12,7 @@
         position: "TOP_COMM",
         mrCase: "LOWER",
         proposedOwner: "Wecom",
+        primaryPowerCommsClearance: "43\"",
         // INTEC Back Span midspans are unusual, but when the workbook really
         // supplies one it must follow endpoint HOA movements and remain
         // visible for review instead of being treated as an empty reference.
@@ -39,6 +40,7 @@
         // Metronet uses a separate WI selector. MidAm is the currently
         // supported work issuer and is exported as the Proposed owner.
         proposedOwner: "MidAm",
+        primaryPowerCommsClearance: "43\"",
         // MidAm records the measured midspan on some Back Span rows. Its value
         // follows movements made at either physical endpoint of the connection.
         calculateBackspanMidspan: true,

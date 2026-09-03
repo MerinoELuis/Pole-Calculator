@@ -12,6 +12,11 @@ All heights are parsed to integer inches before calculations. Decimal feet are r
 Max Height on Pole = Low Power on Pole - Pole Power-comms clearance
 ```
 
+When a Primary power row is present, every communication must also remain
+`43"` below the lowest Primary attachment. The resulting Primary ceiling is
+combined with the normal Low Power and Equipment ceilings, and the lowest
+ceiling controls `Max Height on Pole` in either Top Comm or Low Comm mode.
+
 For Metronet/MidAm, the final maximum is the lowest available ceiling:
 
 ```text

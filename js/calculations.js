@@ -86,6 +86,22 @@
     return template === "INTEC" && selfSupporting && Boolean(sc?.pofActive);
   }
 
+  function getPrimaryPowerCommsClearance() {
+    const settings = S().getState().settings || {};
+    return H().parseHeight(settings.primaryPowerCommsClearance || "43\"") ?? 43;
+  }
+
+  function isPrimaryPowerRow(row) {
+    return /\bprimary\b/i.test(`${row?.label || ""} ${row?.size || ""} ${row?.type || ""}`);
+  }
+
+  function getPrimaryPowerHeightsForPole(poleId) {
+    return S().getSpanPowerForPole(poleId)
+      .filter(isPrimaryPowerRow)
+      .map(row => H().parseHeight(row.attachmentHeight || ""))
+      .filter(value => value !== null);
+  }
+
   function countsAsTopCommReference(sc) {
     return !isPofComm(sc);
   }
@@ -973,6 +989,15 @@
     const clearance = H().parseHeight(settings.polePowerCommsClearance || settings.clearanceToPower || "40\"");
     const ceilings = [];
     if (lowPower !== null && clearance !== null) ceilings.push(lowPower - clearance);
+    // A Primary-to-communications separation is stricter than the generic
+    // power-to-communications rule. Apply it to the pole-wide comm ceiling
+    // so every communication, including the Top Comm, stays 43 inches below
+    // the lowest Primary attachment whenever a Primary is imported.
+    const primaryHeights = getPrimaryPowerHeightsForPole(poleId);
+    const primaryClearance = getPrimaryPowerCommsClearance();
+    if (primaryHeights.length && primaryClearance !== null) {
+      ceilings.push(Math.min(...primaryHeights) - primaryClearance);
+    }
     equipment.forEach(item => {
       const equipmentCeiling = powerEquipmentCeilingInches(item);
       if (equipmentCeiling !== null) ceilings.push(equipmentCeiling);

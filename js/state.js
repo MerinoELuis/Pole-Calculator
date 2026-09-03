@@ -110,6 +110,7 @@
     settings: {
       clearanceToPower: DEFAULT_CLEARANCE_TO_POWER,
       polePowerCommsClearance: "40\"",
+      primaryPowerCommsClearance: "43\"",
       commClearance: DEFAULT_COMM_CLEARANCE,
       boltClearance: DEFAULT_BOLT_CLEARANCE,
       midspanPowerCommClearance: "30\"",
