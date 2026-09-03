@@ -70,6 +70,14 @@ C.recalculateAll();
 assert.equal(S.getPole("RISER").lowPower, "23'6\"", "a Riser target that does not raise the attachment must be ignored");
 assert.equal(mrText("RISER"), "", "an invalid Riser raise must not generate MR");
 
+S.updatePowerEquipmentField("RISER", 0, "secureActive", true);
+C.recalculateAll();
+assert.match(
+  mrText("RISER"),
+  /^secure riser drip loop to HOA 22'10\"\.$/i,
+  "Riser Secure must work independently and place the drip loop 8 inches below the existing riser"
+);
+
 S.upsertPole(S.createPole({
   poleId: "STREETLIGHT",
   lowPower: "25'",
@@ -101,7 +109,7 @@ S.upsertPole(S.createPole({
     powerEquipment: [
       { category: "TRANSFORMER", dripLoopHeight: "23'", actionActive: true, actionHeight: "25'8\"" },
       { category: "STREETLIGHT", attachmentHeight: "24'", actionActive: true, actionHeight: "", raiseActive: true, raiseHeight: "25'" },
-      { category: "RISER", attachmentHeight: "27'", actionActive: true, actionHeight: "28'2\"" }
+      { category: "RISER", attachmentHeight: "27'", actionActive: true, actionHeight: "28'2\"", secureActive: true }
     ]
   }
 }));
@@ -111,6 +119,7 @@ assert.match(intecEquipmentMR, /Secure transformer drip loop to HOA 25'8"\./);
 assert.match(intecEquipmentMR, /Install flex conduit to STLT circuit\. bond STLT housing to pole GRND\/NEUT\./);
 assert.match(intecEquipmentMR, /Raise streetlight from HOA 24' to 25'\./);
 assert.match(intecEquipmentMR, /Raise APS riser from HOA 27' to HOA 28'2"\./);
+assert.match(intecEquipmentMR, /Secure riser drip loop to HOA 27'6"\./);
 assert.equal(
   C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", actionActive: true }),
   "23'2\"",

@@ -526,10 +526,17 @@
       }
       if (category.includes("RISER")) {
         const source = H().parseHeight(row.attachmentHeight || "");
-        if (source === null || target <= source) return [];
-        return [isMetronetMR()
-          ? `AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`
-          : `Raise APS riser from HOA ${H().formatHeight(source)} to HOA ${targetText}.`];
+        const lines = [];
+        if (row.actionActive && source !== null && target !== null && target > source) {
+          lines.push(isMetronetMR()
+            ? `AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`
+            : `Raise APS riser from HOA ${H().formatHeight(source)} to HOA ${targetText}.`);
+        }
+        if (row.secureActive && source !== null) {
+          const effectiveRiser = row.actionActive && target !== null && target > source ? target : source;
+          lines.push(`Secure riser drip loop to HOA ${H().formatHeight(effectiveRiser - 8)}.`);
+        }
+        return lines;
       }
       return [];
     });

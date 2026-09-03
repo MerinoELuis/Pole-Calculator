@@ -722,7 +722,7 @@
   function mergePowerEquipmentUserWork(importedRows, oldRows, reconciliation) {
     const rows = Array.isArray(importedRows) ? importedRows.map(row => ({ ...row })) : [];
     const claimed = new Set();
-    (oldRows || []).filter(row => row.actionActive || row.actionHeight || row.raiseActive || row.raiseHeight).forEach(oldRow => {
+    (oldRows || []).filter(row => row.actionActive || row.actionHeight || row.raiseActive || row.secureActive || row.raiseHeight).forEach(oldRow => {
       const match = rows
         .map((row, index) => ({ index, score: claimed.has(index) ? -1 : equipmentMatchScore(row, oldRow) }))
         .filter(item => item.score >= 0)
@@ -734,6 +734,7 @@
           actionActive: Boolean(oldRow.actionActive),
           actionHeight: oldRow.actionHeight || "",
           raiseActive: Boolean(oldRow.raiseActive),
+          secureActive: Boolean(oldRow.secureActive),
           raiseHeight: oldRow.raiseHeight || ""
         };
         reconciliation.equipmentActionsPreserved += 1;
@@ -2311,6 +2312,8 @@
           && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
         const isIntecStreetlight = category === "STREETLIGHT"
           && String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
+        const isRiser = category === "RISER";
+        const isTransformer = category === "TRANSFORMER";
         const actionControls = isIntecStreetlight
           ? `<div class="equipment-action-stack">
               <label class="equipment-action-control">
@@ -2322,9 +2325,20 @@
                 <span>Raise</span>
               </label>
             </div>`
-          : `<label class="equipment-action-control">
+          : isRiser
+            ? `<div class="equipment-action-stack">
+                <label class="equipment-action-control">
+                  <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive ? "checked" : ""}>
+                  <span>Raise</span>
+                </label>
+                <label class="equipment-action-control">
+                  <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="secureActive" ${row.secureActive ? "checked" : ""}>
+                  <span>Secure</span>
+                </label>
+              </div>`
+            : `<label class="equipment-action-control">
               <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
-              <span>${escapeHtml(actionLabels[category] || "Apply")}</span>
+              <span>${escapeHtml(isTransformer ? "Secure" : (actionLabels[category] || "Apply"))}</span>
             </label>`;
         const heightField = isIntecStreetlight ? "raiseHeight" : "actionHeight";
         const heightEnabled = isIntecStreetlight ? row.raiseActive : row.actionActive;
@@ -2668,6 +2682,7 @@
       "ugRiserDirection",
       "actionActive",
       "actionHeight",
+      "secureActive",
       "raiseActive",
       "raiseHeight"
     ].includes(field);

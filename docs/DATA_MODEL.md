@@ -81,7 +81,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes, project constraints, Power Equipment actions and the latest Auto Calculate result. |
 
-`metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Ground, Transformer Redress, and Power Riser Raise work. `raiseActive` and `raiseHeight` separately preserve the optional INTEC Streetlight Raise action.
+`metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Streetlight Ground, Transformer Secure, and Power Riser Raise work. `secureActive` separately preserves the Power Riser Secure action; its drip-loop target is the effective riser HOA minus `8"`. `raiseActive` and `raiseHeight` separately preserve the optional INTEC Streetlight Raise action.
 
 `metadata.autoCalculateResult` stores the latest per-pole solver explanation:
 

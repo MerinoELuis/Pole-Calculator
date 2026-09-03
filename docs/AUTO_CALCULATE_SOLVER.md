@@ -126,4 +126,4 @@ For INTEC, `BEST_AVAILABLE` and `CRITICAL` results display a recommendation to r
 
 ## Deferred actions
 
-Streetlight Ground/Raise, Transformer Redress, Power Riser Raise, Re-sag and Transfer remain user-controlled actions in this version. Their active values still participate in normal recalculation and candidate validation. A future solver stage may evaluate them as explicit optional actions, but it must continue to show and require confirmation before applying construction decisions.
+Streetlight Ground/Raise, Transformer Secure, Power Riser Raise/Secure, Re-sag and Transfer remain user-controlled actions in this version. Their active values still participate in normal recalculation and candidate validation. A future solver stage may evaluate them as explicit optional actions, but it must continue to show and require confirmation before applying construction decisions.

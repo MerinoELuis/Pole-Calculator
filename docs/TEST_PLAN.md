@@ -139,7 +139,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 20. Existing UG/PCO poles are skipped.
 21. Non-SAFE INTEC results recommend UG/PCO review but never activate either option.
 22. Every pole receives one initial evaluation; only affected poles with remaining violations or removable automatic movements are retried, with a three-attempt cap.
-23. Streetlight Ground/Raise, Transformer Redress, Power Riser Raise, Re-sag, and Transfer remain user-controlled but active values participate in validation.
+23. Streetlight Ground/Raise, Transformer Secure, Power Riser Raise/Secure, Re-sag, and Transfer remain user-controlled but active values participate in validation.
 24. Midspan recovery stacks comms downward from the highest legal positions while reusing or clearing every existing bolt point.
 25. P15 recovery retains Proposed at `20'10"` when the same residual Midspan issues remain, and P16 recovery uses `23'2"` while reducing the real debug case from three Midspan issues to one without adding a pole violation.
 26. A pole-compliant result reached within the direct progressive candidates stops before the broad fallback height scan.
@@ -157,7 +157,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 6. Partial Update Data keeps omitted poles in Excel Review and Pole Type Check.
 7. Active INTEC UG replaces normal MR with the six-line editable template.
 8. MidAm Streetlight Ground remains mandatory and locked.
-9. Transformer Redress and Power Riser Raise update effective Low Power when limiting.
+9. Transformer Secure and Power Riser Raise update effective Low Power when limiting; Power Riser Secure generates a drip-loop instruction independently.
 10. Disabling optional equipment work restores imported baseline.
 10. Update Data preserves equipment actions and refreshes baseline values.
 11. INTEC Streetlight Raise accepts at most 12 inches above Attachment Height.

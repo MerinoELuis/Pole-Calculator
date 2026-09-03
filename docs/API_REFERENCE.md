@@ -162,7 +162,7 @@ The module wraps `AppStore.upsertSpanSide()` and `AppStore.setState()` before `a
 | --- | --- |
 | `generateMRForComm(spanComm)` | Generate one movement line. |
 | `generateResagServiceDropMR(spanComm)` | Generate the INTEC re-sag instruction when its conditions apply. |
-| `generatePowerEquipmentMRForPole(poleId)` | Generate Ground, Transformer Redress, and Power Riser Raise instructions. |
+| `generatePowerEquipmentMRForPole(poleId)` | Generate Ground, Transformer Secure, and independent Power Riser Raise/Secure instructions. |
 | `generateMRForSpanSide(spanSide)` | Generate Proposed/anchor/riser/slack lines. |
 | `generateMRForSpan(spanId)` | Generate all lines related to one span. |
 | `generateMRForPole(poleId)` | Replace one pole's ordered MR block. CompactAutoProposed augments and filters this method after load. |

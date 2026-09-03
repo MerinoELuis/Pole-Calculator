@@ -732,10 +732,11 @@
    * Stores the user action attached to one normalized Power Equipment row.
    * The imported physical heights remain unchanged; actionHeight is the
    * proposed redress/raise height used by calculations and Make Ready. INTEC
-   * Streetlights keep Ground and Raise as independent user actions.
+   * Streetlights keep Ground and Raise as independent user actions. Risers
+   * keep Raise and Secure as independent user actions.
    */
   function updatePowerEquipmentField(poleId, equipmentIndex, field, value) {
-    if (!["actionActive", "actionHeight", "raiseActive", "raiseHeight"].includes(field)) return null;
+    if (!["actionActive", "actionHeight", "raiseActive", "raiseHeight", "secureActive"].includes(field)) return null;
     const pole = state.poles[poleId];
     const rows = pole?.metadata?.powerEquipment;
     const index = Number(equipmentIndex);
@@ -743,7 +744,7 @@
     const nextRows = rows.map((row, rowIndex) => rowIndex === index
       ? {
           ...row,
-          [field]: ["actionActive", "raiseActive"].includes(field) ? Boolean(value) : trim(value)
+          [field]: ["actionActive", "raiseActive", "secureActive"].includes(field) ? Boolean(value) : trim(value)
         }
       : row);
     pole.metadata = { ...(pole.metadata || {}), powerEquipment: nextRows };
@@ -791,7 +792,7 @@
     const sideChange = getSpanSidesForPole(poleId).some(side => side.proposedHOA || side.proposedMidspan || side.ocalcMS || side.msProposed || side.finalMidspan || side.endDrop || side.notes);
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
-      .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || trim(row.raiseHeight || "")));
+      .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
     return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection)
       || state.poles[poleId]?.riserActive === true
       || state.poles[poleId]?.riserActive === false
