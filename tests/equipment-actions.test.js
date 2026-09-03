@@ -71,6 +71,8 @@ assert.equal(S.getPole("RISER").lowPower, "23'6\"", "a Riser target that does no
 assert.equal(mrText("RISER"), "", "an invalid Riser raise must not generate MR");
 
 S.updatePowerEquipmentField("RISER", 0, "secureActive", true);
+S.updatePowerEquipmentField("RISER", 0, "actionActive", false);
+S.updatePowerEquipmentField("RISER", 0, "actionHeight", "");
 C.recalculateAll();
 assert.match(
   mrText("RISER"),

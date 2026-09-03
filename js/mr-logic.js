@@ -514,12 +514,10 @@
         return lines;
       }
 
-      if (!row.actionActive) return [];
-
       const target = H().parseHeight(row.actionHeight || "");
-      if (target === null) return [];
-      const targetText = H().formatHeight(target);
       if (category.includes("TRANSFORMER")) {
+        if (!row.actionActive || target === null) return [];
+        const targetText = H().formatHeight(target);
         return [isMetronetMR()
           ? `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA ${targetText}.`
           : `Secure transformer drip loop to HOA ${targetText}.`];
@@ -528,6 +526,7 @@
         const source = H().parseHeight(row.attachmentHeight || "");
         const lines = [];
         if (row.actionActive && source !== null && target !== null && target > source) {
+          const targetText = H().formatHeight(target);
           lines.push(isMetronetMR()
             ? `AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`
             : `Raise APS riser from HOA ${H().formatHeight(source)} to HOA ${targetText}.`);
@@ -538,6 +537,7 @@
         }
         return lines;
       }
+      if (!row.actionActive || target === null) return [];
       return [];
     });
   }
