@@ -77,6 +77,60 @@
         },
         mrTemplate: "METRONET"
       }
+    },
+    CSU: {
+      id: "CSU",
+      label: "CSU",
+      settings: {
+        // CSU is the Colorado Springs MetroNet work instruction. It follows
+        // the MetroNet low-communication workflow, but has its own owner,
+        // clearances, equipment rules, and ground-clearance table.
+        position: "LOW_COMM",
+        mrCase: "UPPER",
+        proposedOwner: "MNT",
+        calculateBackspanMidspan: true,
+        borrowMidspanFromPhysicalSpan: false,
+        proposeForeSpanWithoutMidspan: true,
+        allowLowPowerMidspanAdjustment: false,
+        showServiceDrop: false,
+        showResagServiceDrop: false,
+        hideProposedOwner: true,
+        polePowerCommsClearance: "52\"",
+        clearanceToPower: "52\"",
+        // The CSU WI does not provide a separate primary-to-comm value. Use
+        // the stated low-power-to-top-comm value instead of inventing 43 in.
+        primaryPowerCommsClearance: "52\"",
+        commClearance: "12\"",
+        boltClearance: "4\"",
+        midspanCommCommClearance: "12\"",
+        transformerCommClearance: "42\"",
+        streetlightBracketCommClearance: "16\"",
+        streetlightUngroundedBracketCommClearance: "52\"",
+        streetlightDripLoopCommClearance: "24\"",
+        powerGuyCommClearance: "",
+        streetlightGroundingRequired: false,
+        environmentClearances: {
+          NONE: "15'6\"",
+          STREET: "15'6\"",
+          HIGHWAY: "15'6\"",
+          PEDESTRIAN: "9'6\"",
+          PARALLEL_TO_STREET: "15'6\"",
+          OBSTRUCTED_PARALLEL_TO_STREET: "15'6\"",
+          UNLIKELY_PARALLEL_TO_STREET: "15'6\"",
+          RESIDENTIAL_DRIVEWAY: "15'6\"",
+          COMMERCIAL_DRIVEWAY: "15'6\"",
+          PARKING_LOT: "15'6\"",
+          ALLEY: "15'6\"",
+          RAILROAD: "23'6\"",
+          RURAL: "15'6\"",
+          FARM: "15'6\"",
+          WATER_WITHOUT_SAILBOATS: "14'",
+          WATER_WITH_SAILBOATS: "Variable"
+        },
+        // Reuse the MetroNet MR wording, but keep CSU as the selectable
+        // project so Excel review does not apply the MidAm-only checks.
+        mrTemplate: "METRONET"
+      }
     }
   };
 
@@ -100,6 +154,7 @@
 
   function detectProfile({ fileName = "", owners = [] } = {}) {
     const text = [fileName, ...owners].join(" ").toLowerCase();
+    if (/\bcsu\b|colorado\s*springs|\bcocs\d*/.test(text)) return "CSU";
     if (/metronet|proposed\s*mnt|\bmnt\b|utility\s*>\s*midam|\bmidam\b/.test(text)) return "METRONET";
     return "INTEC";
   }

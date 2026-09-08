@@ -156,7 +156,9 @@
 
   function generateTransferMRForPole(poleId) {
     const groups = new Map();
+    const settings = S().getState().settings || {};
     S().getSpanCommsForPole(poleId).forEach(row => {
+      if (row.serviceDrop && settings.showServiceDrop === false) return;
       const context = commGroupTransferContext(row);
       const height = H().parseHeight(row.existingHOAChange || row.existingHOA || "");
       if (!context.enabled || height === null) return;
@@ -185,6 +187,11 @@
 
   function generateMRForComm(spanComm) {
     if (!spanComm) return "";
+    const settings = S().getState().settings || {};
+    // Profiles that do not require service drops (including CSU) must not
+    // emit movement or re-sag instructions for imported drop rows, even if an
+    // old save contains a stale HOA change or custom MR note.
+    if (spanComm.serviceDrop && settings.showServiceDrop === false) return "";
     const custom = String(spanComm.mr || "").trim();
     const resag = generateResagServiceDropMR(spanComm);
     const owner = ownerForMR(spanComm);

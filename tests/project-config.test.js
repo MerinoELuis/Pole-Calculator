@@ -12,6 +12,7 @@ vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: mod
 const profiles = sandbox.window.ProjectProfiles;
 const metronet = profiles.applyProfileSettings({}, "METRONET");
 const intec = profiles.applyProfileSettings({}, "INTEC");
+const csu = profiles.applyProfileSettings({}, "CSU");
 
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
@@ -25,5 +26,13 @@ assert.equal(metronet.streetlightDripLoopCommClearance, "12\"", "MidAm uncovered
 assert.equal(metronet.powerGuyCommClearance, "", "MidAm must not apply the removed power guy-to-comm clearance");
 assert.equal(profiles.detectProfile({ owners: ["UTILITY > MidAm"] }), "METRONET", "MidAm utility ownership must select Metronet automatically");
 assert.equal(profiles.normalizeProfileId("WI"), "INTEC", "WI is a Metronet field, not a separate project profile");
+assert.equal(csu.projectProfile, "CSU");
+assert.equal(csu.proposedOwner, "MNT", "CSU must use Proposed MNT as its proposed owner");
+assert.equal(csu.position, "LOW_COMM", "CSU must place the proposed attachment at bottom comm");
+assert.equal(csu.showServiceDrop, false, "CSU must not expose service-drop movements");
+assert.equal(csu.showResagServiceDrop, false, "CSU must not generate service-drop re-sag MR");
+assert.equal(csu.polePowerCommsClearance, "52\"", "CSU must reserve 52 inches below low power");
+assert.equal(csu.environmentClearances.RAILROAD, "23'6\"", "CSU railroad clearance must use 23 feet 6 inches");
+assert.equal(profiles.detectProfile({ fileName: "EXCEL_COCS174 92026.xlsx", owners: ["UTILITY > CSU"] }), "CSU", "CSU workbook should select the CSU profile automatically");
 
 console.log("Project profile tests passed.");

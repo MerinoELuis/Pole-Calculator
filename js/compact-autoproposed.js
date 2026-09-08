@@ -5,7 +5,7 @@
   const DEFAULT_FIBER_144 = "0.51";
   const DEFAULT_COX_MESSENGER_96 = "0.25";
   const DEFAULT_COX_FIBER_96 = "0.53";
-  const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET"]);
+  const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET", "CSU"]);
   const OPPOSITE_DIRECTION = {
     N: "S",
     NE: "SW",

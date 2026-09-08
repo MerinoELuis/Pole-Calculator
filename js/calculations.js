@@ -164,6 +164,10 @@
       && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
   }
 
+  function isCsuProfile() {
+    return String(S().getState().settings?.projectProfile || "").toUpperCase() === "CSU";
+  }
+
   function isCalculatedBackspanComm(sc) {
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
@@ -868,10 +872,16 @@
       const bracket = bottom !== null ? bottom : attachment;
       const bracketClearance = isMidAmProfile()
         ? H().parseHeight(settings.streetlightBracketCommClearance || "")
-        : H().parseHeight(equipment.actionActive ? "12\"" : (settings.polePowerCommsClearance || settings.clearanceToPower || "40\""));
+        : isCsuProfile()
+          ? H().parseHeight(equipment.actionActive
+            ? (settings.streetlightBracketCommClearance || "16\"")
+            : (settings.streetlightUngroundedBracketCommClearance || "52\""))
+          : H().parseHeight(equipment.actionActive ? "12\"" : (settings.polePowerCommsClearance || settings.clearanceToPower || "40\""));
       const dripLoopClearance = isMidAmProfile()
         ? H().parseHeight(settings.streetlightDripLoopCommClearance || "")
-        : genericClearance;
+        : isCsuProfile()
+          ? H().parseHeight(settings.streetlightDripLoopCommClearance || "24\"")
+          : genericClearance;
       if (bracket !== null && bracketClearance !== null) specialCeilings.push(bracket - bracketClearance);
       if (dripLoop !== null && dripLoopClearance !== null) specialCeilings.push(dripLoop - dripLoopClearance);
       if (specialCeilings.length) return Math.min(...specialCeilings);
@@ -882,8 +892,11 @@
       // workbook omits it, use the secured/current drip loop, then attachment.
       const transformerHeights = [bottom, dripLoop].filter(value => value !== null);
       const transformerBottom = transformerHeights.length ? Math.min(...transformerHeights) : attachment;
-      return transformerBottom !== null && genericClearance !== null
-        ? transformerBottom - genericClearance
+      const transformerClearance = isCsuProfile()
+        ? H().parseHeight(settings.transformerCommClearance || "42\"")
+        : genericClearance;
+      return transformerBottom !== null && transformerClearance !== null
+        ? transformerBottom - transformerClearance
         : null;
     }
 
@@ -1097,10 +1110,10 @@
   }
 
   function supportsAutomaticProposedMidspan() {
-    // INTEC/Wecom requires an engineer-provided O-CALC MS. Only the
-    // Metronet/MidAm workflow may derive Proposed MS from measured comm
+    // INTEC/Wecom requires an engineer-provided O-CALC MS. MetroNet-family
+    // workflows (including CSU) may derive Proposed MS from measured comm
     // midspans or, when none exist, from the span-length sag estimate.
-    return isMidAmProfile();
+    return isMidAmProfile() || isCsuProfile();
   }
 
   function calculateProposedMidspanBase(side, span) {

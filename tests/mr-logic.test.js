@@ -91,6 +91,24 @@ assert.match(
 );
 delete state.spanComms.MOVE;
 
+state.settings.showServiceDrop = false;
+state.spanComms.DROP = {
+  spanId: "PROP",
+  poleId: "P1",
+  owner: "DropCo",
+  ownerBase: "DropCo",
+  existingHOA: "18'",
+  existingHOAChange: "17'",
+  serviceDrop: true,
+  transferToNewPole: true,
+  resagServiceDrop: true
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+const noDropMR = state.mr.find(item => item.poleId === "P1")?.text || "";
+assert.doesNotMatch(noDropMR, /DropCo|Re-sag/i, "disabled service drops must not generate movement or re-sag MR");
+delete state.spanComms.DROP;
+state.settings.showServiceDrop = true;
+
 state.makeReadyReferences = [];
 sandbox.window.MRLogic.generateMRForPole("P1");
 let generatedWithoutDirection = state.mr.find(item => item.poleId === "P1").text;
