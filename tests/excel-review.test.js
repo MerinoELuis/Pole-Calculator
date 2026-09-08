@@ -442,6 +442,15 @@ let collectionChecks = review.reviewPole("058 14998783").checks;
 assert.equal(collectionChecks.some(item => ["INVALID_MIDAM_SEQUENCE", "SEQUENCE_ID_MISMATCH"].includes(item.code)), false, "numeric 58 must normalize to MidAm Sequence 058");
 assert.equal(collectionChecks.some(item => item.code.includes("MIDAM_COLLECTION_OWNER")), false, "UTILITY > MidAm must pass the Collection Owner rule");
 
+state.settings = { projectProfile: "METRONET", metronetWI: "CSU", proposedOwner: "MNT" };
+state.excelReviewSource.collection.rows[0] = { Id: "001 OH006466", Sequence: 1, "Lowest Power.display": "27'" };
+review.runReview();
+collectionChecks = review.reviewPole("001 OH006466").checks;
+assert.equal(collectionChecks.some(item => ["INVALID_MIDAM_SEQUENCE", "SEQUENCE_ID_MISMATCH"].includes(item.code)), false, "CSU must validate the Sequence column as 001 without deriving it from Id");
+
+state.settings = { projectProfile: "METRONET", proposedOwner: "MidAm" };
+state.excelReviewSource.collection.rows[0] = { Id: "058 14998783", Sequence: 58, Owner: "UTILITY > MidAm", "Lowest Power.display": "26'8\"" };
+
 state.excelReviewSource.collection.rows[0].Owner = "";
 review.runReview();
 collectionChecks = review.reviewPole("058 14998783").checks;

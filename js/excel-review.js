@@ -171,6 +171,14 @@
       && text(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
   }
 
+  function isCsuProject() {
+    const settings = S().getState().settings || {};
+    const profile = text(settings.projectProfile).toUpperCase();
+    const wi = text(settings.metronetWI).toUpperCase();
+    const owner = text(settings.proposedOwner).toUpperCase();
+    return profile === "CSU" || (profile === "METRONET" && (wi === "CSU" || owner === "MNT"));
+  }
+
   function isIntecProject() {
     return text(S().getState().settings?.projectProfile).toUpperCase() === "INTEC";
   }
@@ -296,16 +304,19 @@
     }
 
     const midAm = isMidAmProject();
-    const normalizedSequence = midAm ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
+    const csu = isCsuProject();
+    const normalizedSequence = (midAm || csu) ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
     const idSequence = midAm ? midAmIdSequence(entry.poleId) : "";
     if (!entry.sequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_SEQUENCE", status: "ERROR",
-        title: "Sequence", message: "Sequence is empty.", expected: "Sequence matching the start of Id", actual: "Empty"
+        title: "Sequence", message: "Sequence is empty.",
+        expected: csu ? "Three-digit value in the Sequence column (for example 001)" : "Sequence matching the start of Id",
+        actual: "Empty"
       });
-    } else if (midAm && !normalizedSequence) {
+    } else if ((midAm || csu) && !normalizedSequence) {
       add(result, {
-        phase: "HOA", section: "Collection", code: "INVALID_MIDAM_SEQUENCE", status: "ERROR",
+        phase: "HOA", section: "Collection", code: csu ? "INVALID_CSU_SEQUENCE" : "INVALID_MIDAM_SEQUENCE", status: "ERROR",
         title: "Sequence", message: `Sequence ${entry.sequence} must contain three digits and may end with one letter.`,
         expected: "000 or 000A", actual: entry.sequence
       });
@@ -323,7 +334,7 @@
         title: "Sequence", message: `Sequence must equal ${idSequence}, derived from Id ${entry.poleId}.`,
         expected: idSequence, actual: normalizedSequence
       });
-    } else if (!midAm && entry.poleId && !normalizedText(entry.poleId).startsWith(normalizedText(normalizedSequence))) {
+    } else if (!midAm && !csu && entry.poleId && !normalizedText(entry.poleId).startsWith(normalizedText(normalizedSequence))) {
       add(result, {
         phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
         title: "Sequence", message: `Sequence ${entry.sequence} does not match the start of Id ${entry.poleId}.`,
