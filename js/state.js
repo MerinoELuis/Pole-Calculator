@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.6.0";
+  const CURRENT_VERSION = "1.6.1";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -116,6 +116,7 @@
       midspanPowerCommClearance: "30\"",
       midspanCommCommClearance: "4\"",
       projectProfile: "INTEC",
+      metronetWI: "MIDAM",
       position: "TOP_COMM",
       mrCase: "LOWER",
       proposedOwner: "Wecom",
@@ -542,6 +543,14 @@
 
   function updateSetting(field, value) {
     if (!state.settings || !Object.prototype.hasOwnProperty.call(emptyState().settings, field)) return null;
+    if (field === "metronetWI" && global.ProjectProfiles) {
+      const profileId = String(value || "").trim().toUpperCase() === "CSU" ? "CSU" : "METRONET";
+      state.settings = global.ProjectProfiles.applyProfileSettings(state.settings, profileId);
+      Object.values(state.spans || {}).forEach(span => {
+        span.environmentClearance = defaultEnvironmentClearance(span.environment || "NONE");
+      });
+      return state.settings;
+    }
     if (field === "projectProfile" && global.ProjectProfiles) {
       state.settings = global.ProjectProfiles.applyProfileSettings(state.settings, value);
       Object.values(state.spans || {}).forEach(span => {
@@ -970,6 +979,7 @@
     const next = { ...emptyState(), ...raw };
     next.jobName = trim(next.jobName) || jobNameFromFileName(next.importedFileName);
     const rawSettings = raw && raw.settings ? raw.settings : {};
+    const requestedProfile = String(rawSettings.projectProfile || "").trim().toUpperCase();
     const profileDefaults = global.ProjectProfiles
       ? (global.ProjectProfiles.getProfile(rawSettings.projectProfile || "INTEC")?.settings || {})
       : {};
@@ -977,6 +987,10 @@
     // while older JSON files automatically receive newly introduced profile
     // rules such as MidAm streetlight and Back Span behavior.
     next.settings = { ...emptyState().settings, ...profileDefaults, ...rawSettings };
+    if (requestedProfile === "CSU") {
+      next.settings.projectProfile = "METRONET";
+      next.settings.metronetWI = "CSU";
+    }
     // Back Span calculation is a profile rule, not an operator preference.
     // Older INTEC saves persisted the former `false` default, which made an
     // imported Back Span midspan visible but prevented it from responding to

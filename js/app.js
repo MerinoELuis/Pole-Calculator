@@ -1573,7 +1573,10 @@
     const settings = S.getState().settings || {};
     const profiles = global.ProjectProfiles?.PROFILES || {};
     const selectedProfile = settings.projectProfile || "INTEC";
-    const projectOptions = Object.values(profiles).map(profile =>
+    const projectOptions = Object.values(profiles)
+      .filter(profile => profile.visible !== false)
+      .filter((profile, index, all) => all.findIndex(item => item.id === profile.id) === index)
+      .map(profile =>
       `<option value="${escapeHtml(profile.id)}" ${selectedProfile === profile.id ? "selected" : ""}>${escapeHtml(profile.label)}</option>`
     ).join("");
     const clearanceRows = [
@@ -1592,6 +1595,7 @@
     }
     const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
     const proposedOwner = settings.proposedOwner || "Wecom";
+    const metronetWI = String(settings.metronetWI || (String(proposedOwner).toUpperCase() === "MNT" ? "CSU" : "MIDAM")).toUpperCase();
     const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
     const detectedFibers = new Set(Object.keys(fiberSizes));
     (S.getState().makeReadyReferences || []).forEach(ref => {
@@ -1643,8 +1647,9 @@
           </label>
           ${selectedProfile === "METRONET" ? `<label class="clearance-row position-row">
             <span>WI</span>
-            <select class="input position-select" data-scope="settings" data-field="proposedOwner">
-              <option value="MidAm" selected>MidAm</option>
+            <select class="input position-select" data-scope="settings" data-field="metronetWI">
+              <option value="MIDAM" ${metronetWI === "MIDAM" ? "selected" : ""}>MidAm</option>
+              <option value="CSU" ${metronetWI === "CSU" ? "selected" : ""}>CSU</option>
             </select>
           </label>` : settings.hideProposedOwner ? "" : `<label class="clearance-row position-row">
             <span>Proposed Owner</span>
@@ -2667,6 +2672,7 @@
       "streetlightDripLoopCommClearance",
       "powerGuyCommClearance",
       "projectProfile",
+      "metronetWI",
       "position",
       "mrCase",
       "proposedOwner",

@@ -39,6 +39,7 @@
         mrCase: "UPPER",
         // Metronet uses a separate WI selector. MidAm is the currently
         // supported work issuer and is exported as the Proposed owner.
+        metronetWI: "MIDAM",
         proposedOwner: "MidAm",
         primaryPowerCommsClearance: "43\"",
         // MidAm records the measured midspan on some Back Span rows. Its value
@@ -79,14 +80,19 @@
       }
     },
     CSU: {
-      id: "CSU",
+      // CSU is a MetroNet WI, not a third top-level project. Keep this
+      // profile key for Excel detection and settings, but let the UI expose
+      // it through Project=Metronet / WI=CSU.
+      id: "METRONET",
       label: "CSU",
+      visible: false,
       settings: {
         // CSU is the Colorado Springs MetroNet work instruction. It follows
         // the MetroNet low-communication workflow, but has its own owner,
         // clearances, equipment rules, and ground-clearance table.
         position: "LOW_COMM",
         mrCase: "UPPER",
+        metronetWI: "CSU",
         proposedOwner: "MNT",
         calculateBackspanMidspan: true,
         borrowMidspanFromPhysicalSpan: false,
@@ -127,8 +133,8 @@
           WATER_WITHOUT_SAILBOATS: "14'",
           WATER_WITH_SAILBOATS: "Variable"
         },
-        // Reuse the MetroNet MR wording, but keep CSU as the selectable
-        // project so Excel review does not apply the MidAm-only checks.
+        // Reuse the MetroNet MR wording, while keeping CSU as the WI so Excel
+        // review does not apply the MidAm-only checks.
         mrTemplate: "METRONET"
       }
     }

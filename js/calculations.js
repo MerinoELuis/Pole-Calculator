@@ -165,7 +165,10 @@
   }
 
   function isCsuProfile() {
-    return String(S().getState().settings?.projectProfile || "").toUpperCase() === "CSU";
+    const settings = S().getState().settings || {};
+    return String(settings.projectProfile || "").toUpperCase() === "CSU"
+      || (String(settings.projectProfile || "").toUpperCase() === "METRONET"
+        && String(settings.metronetWI || "").toUpperCase() === "CSU");
   }
 
   function isCalculatedBackspanComm(sc) {
