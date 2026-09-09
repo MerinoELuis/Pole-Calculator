@@ -206,6 +206,23 @@ side = S.getSpanSide("CSU-MIDSPAN", "P1");
 C.calculateSpanSideMidspan("CSU-MIDSPAN", "P1");
 assert.equal(S.getSpanSide("CSU-MIDSPAN", "P1").finalMidspan, "20'6\"", "CSU with a comm movement must use the rounded one-foot-per-100-feet sag rule");
 
+seedSpan("CSU", "CSU-MOVES-OFF", "150'", "22'");
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "CSU-MOVES-OFF",
+  poleId: "P1",
+  owner: "COMMUNICATION > Fiber",
+  existingHOA: "20'",
+  existingHOAChange: "19'",
+  midspan: "18'"
+}));
+S.upsertPole({ ...S.getPole("P1"), commMovementsActive: false });
+C.calculateSpanSideMidspan("CSU-MOVES-OFF", "P1");
+assert.equal(
+  S.getSpanSide("CSU-MOVES-OFF", "P1").finalMidspan,
+  "17'",
+  "CSU with Comm Moves OFF must ignore HOA changes and stay one foot below the imported midspan"
+);
+
 [
   ["100'", 12],
   ["150'", 18],

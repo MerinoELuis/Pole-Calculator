@@ -308,6 +308,19 @@
     });
   }
 
+  function importedReferenceMidspansForSpanSide(spanId, poleId) {
+    const targetSpan = S().getSpan(spanId);
+    if (!targetSpan) return [];
+    const rows = Object.values(S().getState().spanComms || {}).filter(row => {
+      const rowSpan = S().getSpan(row.spanId);
+      return row.spanId === spanId || samePhysicalSpan(rowSpan, targetSpan);
+    });
+    return rows
+      .filter(countsAsTopCommReference)
+      .map(row => parseMidspanValue(row.midspan || row.ocalcMS || ""))
+      .filter(value => value !== null);
+  }
+
   function getEnvironmentMinimum(span) {
     if (!span || !span.environmentClearance || span.environmentClearance === "Variable") return null;
     return H().parseHeight(span.environmentClearance);
@@ -453,7 +466,9 @@
     let clearanceMSReason = "";
     const messages = [];
 
-    const csuMovementRule = isCsuProfile() && hasActiveCommMovementOnSpan(span.spanId);
+    const csuMovementRule = isCsuProfile()
+      && S().getPole(poleId)?.commMovementsActive !== false
+      && hasActiveCommMovementOnSpan(span.spanId);
     if (references.length && !csuMovementRule) {
       const reference = position === "TOP_COMM" ? Math.max(...references) : Math.min(...references);
       const required = position === "TOP_COMM" ? reference + commClearance : reference - commClearance;
@@ -1143,10 +1158,17 @@
     // existing comm on this physical span is actively moved. With no comm
     // movement, the proposed attachment remains one foot below the imported
     // existing comm midspan (the reference logic below).
-    if (isCsuProfile() && hasActiveCommMovementOnSpan(span.spanId)) {
-      const proposed = H().parseHeight(side.proposedHOA || "");
-      if (proposed !== null && Number.isFinite(getSpanLengthFeet(span))) {
-        return proposed - getEstimatedSagInches(span);
+    if (isCsuProfile()) {
+      const movementActive = S().getPole(side.poleId)?.commMovementsActive !== false;
+      const hasMovement = movementActive && hasActiveCommMovementOnSpan(span.spanId);
+      if (hasMovement) {
+        const proposed = H().parseHeight(side.proposedHOA || "");
+        if (proposed !== null && Number.isFinite(getSpanLengthFeet(span))) {
+          return proposed - getEstimatedSagInches(span);
+        }
+      } else {
+        const importedReferences = importedReferenceMidspansForSpanSide(span.spanId, side.poleId);
+        if (importedReferences.length) return Math.min(...importedReferences) - 12;
       }
     }
 
