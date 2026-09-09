@@ -2156,6 +2156,12 @@
   function renderSpanProposedTable(poleId) {
     const spans = proposedSpansForPole(poleId);
     const pole = S.getPole(poleId);
+    const settings = S.getState().settings || {};
+    const isCsuMetronet = String(settings.projectProfile || "").toUpperCase() === "METRONET"
+      && (String(settings.metronetWI || "").toUpperCase() === "CSU"
+        || String(settings.proposedOwner || "").toUpperCase() === "MNT");
+    const showEndDrop = !isCsuMetronet;
+    const showNextPoleProposed = !isCsuMetronet;
     const showStandalone = !spans.length || Boolean(pole?.standaloneProposedHOA);
     const standaloneFlagging = global.Calculations.evaluateSpanSideFlagging({
       spanId: "",
@@ -2164,7 +2170,7 @@
     });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th><th>End Drop</th><th>Next Pole Proposed</th><th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
+        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}<th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -2185,8 +2191,8 @@
             ${spanLengthDisplay(physicalSpan) ? `<span class="span-distance-line">${escapeHtml(spanLengthDisplay(physicalSpan))}</span>` : ""}
           </td>
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
-          <td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>
-          <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>
+          ${showEndDrop ? `<td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>` : ""}
+          ${showNextPoleProposed ? `<td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>` : ""}
           <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}"></td>
           <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
           <td>${escapeHtml(physicalSpan.midspanMaxCommHeight || "")}</td>
@@ -2201,7 +2207,7 @@
       }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
           <td class="span-cell"></td>
           <td><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="standaloneProposedHOA" value="${escapeHtml(pole?.standaloneProposedHOA || "")}" aria-label="Proposed attachment on terminal pole"></td>
-          <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          ${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}<td></td><td></td><td></td><td></td><td></td>
           <td>${renderSpanSideFlagging({ proposedFlaggingStatus: standaloneFlagging.status, proposedFlaggingMessage: standaloneFlagging.message })}</td>
           <td></td><td></td><td></td><td></td>
         </tr>` : ""}</tbody>
@@ -2232,13 +2238,17 @@
     const groups = groupedCommsForPole(poleId);
     if (!groups.length) return `<p class="muted">No comms imported from Span.Wire for this pole.</p>`;
     const settings = S.getState().settings || {};
+    const isCsuMetronet = String(settings.projectProfile || "").toUpperCase() === "METRONET"
+      && (String(settings.metronetWI || "").toUpperCase() === "CSU"
+        || String(settings.proposedOwner || "").toUpperCase() === "MNT");
     const showServiceDrop = settings.showServiceDrop !== false;
+    const showTransferToNewPole = !isCsuMetronet;
     const showResagServiceDrop = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC"
       && settings.showResagServiceDrop !== false;
     const showPof = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th><th>Transfer to New Pole</th>${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th>${showTransferToNewPole ? "<th>Transfer to New Pole</th>" : ""}${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
@@ -2264,7 +2274,7 @@
           <td>${renderCommFlagging(group)}</td>
           ${showServiceDrop ? `<td>${renderCommServiceDropValues(group, poleId)}</td>` : ""}
           <td>${renderCommDownGuyValues(group, poleId)}</td>
-          <td>${renderCommTransferValues(group, poleId)}</td>
+          ${showTransferToNewPole ? `<td>${renderCommTransferValues(group, poleId)}</td>` : ""}
           ${showResagServiceDrop ? `<td>${renderCommResagValues(group, poleId)}</td>` : ""}
           ${showPof ? `<td>${group.pofEligible ? `<label class="equipment-action-control" title="Activar POF manualmente después de Re-sag"><input type="checkbox" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="pofActive" ${group.pofActive ? "checked" : ""}><span>POF</span></label>` : `<span class="muted">&mdash;</span>`}</td>` : ""}
           <td><div class="row-actions">
