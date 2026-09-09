@@ -294,6 +294,20 @@
     return Array.from(new Set(values));
   }
 
+  function hasActiveCommMovementOnSpan(spanId) {
+    const targetSpan = S().getSpan(spanId);
+    if (!targetSpan) return false;
+    return Object.values(S().getState().spanComms || {}).some(row => {
+      if (row.serviceDrop) return false;
+      const rowSpan = S().getSpan(row.spanId);
+      if (!(row.spanId === spanId || samePhysicalSpan(rowSpan, targetSpan))) return false;
+      if (S().getPole(row.poleId)?.commMovementsActive === false) return false;
+      const existing = parseMidspanValue(row.existingHOA || "");
+      const changed = parseMidspanValue(row.existingHOAChange || "");
+      return existing !== null && changed !== null && existing !== changed;
+    });
+  }
+
   function getEnvironmentMinimum(span) {
     if (!span || !span.environmentClearance || span.environmentClearance === "Variable") return null;
     return H().parseHeight(span.environmentClearance);
@@ -439,7 +453,8 @@
     let clearanceMSReason = "";
     const messages = [];
 
-    if (references.length) {
+    const csuMovementRule = isCsuProfile() && hasActiveCommMovementOnSpan(span.spanId);
+    if (references.length && !csuMovementRule) {
       const reference = position === "TOP_COMM" ? Math.max(...references) : Math.min(...references);
       const required = position === "TOP_COMM" ? reference + commClearance : reference - commClearance;
       if ((position === "TOP_COMM" && target < required) || (position === "LOW_COMM" && target > required)) {
@@ -1123,6 +1138,17 @@
     // A manually entered/imported O-CALC value remains authoritative.
     const explicit = parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
     if (explicit !== null || !side || !span || !supportsAutomaticProposedMidspan()) return explicit;
+
+    // CSU uses the rounded one-foot-per-100-feet sag rule whenever an
+    // existing comm on this physical span is actively moved. With no comm
+    // movement, the proposed attachment remains one foot below the imported
+    // existing comm midspan (the reference logic below).
+    if (isCsuProfile() && hasActiveCommMovementOnSpan(span.spanId)) {
+      const proposed = H().parseHeight(side.proposedHOA || "");
+      if (proposed !== null && Number.isFinite(getSpanLengthFeet(span))) {
+        return proposed - getEstimatedSagInches(span);
+      }
+    }
 
     // Automatic Proposed MS only uses comm midspans on this physical span.
     // When several comms are present, the highest measured/calculated MS is

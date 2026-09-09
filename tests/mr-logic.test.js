@@ -203,4 +203,22 @@ assert.equal(state.mr.find(item => item.poleId === "P2").text, [
   "Inability to place ANC"
 ].join("\n"));
 
+state.settings = { projectProfile: "METRONET", metronetWI: "CSU", proposedOwner: "MNT", mrCase: "UPPER" };
+state.poles.P2.ugMRText = "";
+sandbox.window.MRLogic.generateMRForPole("P2");
+assert.equal(
+  state.mr.find(item => item.poleId === "P2").text,
+  "SUGGEST GOING UG DUE TO [CLEARANCE VIOLATION / 500FT/1500FT AERIAL REQUIREMENT].",
+  "Metronet UG must use the editable CSU/MetroNet template"
+);
+state.poles.P2.ugMRText = "CUSTOM CSU UG INSTRUCTION.";
+sandbox.window.MRLogic.generateMRForPole("P2");
+assert.equal(state.mr.find(item => item.poleId === "P2").text, "CUSTOM CSU UG INSTRUCTION.", "Metronet UG text must be editable");
+state.poles.P2.ugMRText = "";
+state.poles.P2.ugActive = true;
+state.poles.P1.riserActive = true;
+state.poles.P1.ugActive = false;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /PL RISER .* AT HOA 18'/, "Metronet must generate the enabled Riser MR");
+
 console.log("Make Ready logic tests passed.");

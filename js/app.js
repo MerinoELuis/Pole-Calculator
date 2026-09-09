@@ -2068,8 +2068,10 @@
 
   function renderPoleActions(poleId) {
     const pole = S.getPole(poleId);
-    const isIntec = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase() === "INTEC";
-    const showUGReason = pole?.ugActive && isIntec;
+    const projectProfile = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase();
+    const isIntec = projectProfile === "INTEC";
+    const isMetronet = projectProfile === "METRONET";
+    const showUGReason = pole?.ugActive && (isIntec || isMetronet);
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
       : "";
@@ -2078,13 +2080,13 @@
       ? global.MRLogic.getEditablePCOTemplate(pole)
       : "";
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
-    const riserAvailable = isIntec && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
+    const riserAvailable = (isIntec || isMetronet) && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
     const poleInsetEnabled = Boolean(pole?.poleInsetActive);
     const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
-    const showRiserDirection = isIntec && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
+    const showRiserDirection = (isIntec || isMetronet) && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
         || pole?.ugRiserDirection

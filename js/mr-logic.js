@@ -276,8 +276,14 @@
     ];
   }
 
+  function defaultMetronetUGLines() {
+    return ["SUGGEST GOING UG DUE TO [CLEARANCE VIOLATION / 500FT/1500FT AERIAL REQUIREMENT]."];
+  }
+
   function editableUGTemplate(pole) {
-    return String(pole?.ugMRText || "").trim() || defaultIntecUGLines(pole).join("\n");
+    const saved = String(pole?.ugMRText || "").trim();
+    if (saved) return saved;
+    return (isMetronetMR() ? defaultMetronetUGLines() : defaultIntecUGLines(pole)).join("\n");
   }
 
   function ugReasonFromPole(pole) {
@@ -287,11 +293,6 @@
   }
 
   function ugReplacementMR(pole) {
-    if (isMetronetMR()) {
-      return [
-        "Suggest going UG due to [clearance violation / 2 span aerial requirement]."
-      ];
-    }
     return editableUGTemplate(pole).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   }
 
@@ -451,7 +452,7 @@
   }
 
   function generateRiserInstruction(poleId) {
-    if (isMetronetMR() || !isRiserAvailable(poleId) || !isRiserEnabled(poleId)) return "";
+    if (!isRiserAvailable(poleId) || !isRiserEnabled(poleId)) return "";
     const connection = riserConnectionForPole(poleId);
     const proposedSides = S().getSpanSidesForPole(poleId)
       .filter(side => side.proposedHOA)
@@ -476,7 +477,7 @@
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
-        return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines. Pl new riser for UG transfer${direction}.`];
+        return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines.`];
       }
       const adjacentReason = ugReasonFromPole(S().getPole(item.otherPoleId));
       if (!adjacentReason) return [];
