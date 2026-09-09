@@ -2071,6 +2071,9 @@
     const projectProfile = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase();
     const isIntec = projectProfile === "INTEC";
     const isMetronet = projectProfile === "METRONET";
+    const isCsuMetronet = isMetronet
+      && (String(S.getState().settings?.metronetWI || "").toUpperCase() === "CSU"
+        || String(S.getState().settings?.proposedOwner || "").toUpperCase() === "MNT");
     const showUGReason = pole?.ugActive && (isIntec || isMetronet);
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
@@ -2082,7 +2085,7 @@
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
     const riserAvailable = (isIntec || isMetronet) && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
-    const poleInsetEnabled = Boolean(pole?.poleInsetActive);
+    const poleInsetEnabled = !isCsuMetronet && Boolean(pole?.poleInsetActive);
     const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
@@ -2099,7 +2102,7 @@
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
-      <button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>
+      ${!isCsuMetronet ? `<button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>` : ""}
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
     </div>
     ${poleInsetEnabled ? `<label class="pole-action-field">
@@ -2162,6 +2165,7 @@
         || String(settings.proposedOwner || "").toUpperCase() === "MNT");
     const showEndDrop = !isCsuMetronet;
     const showNextPoleProposed = !isCsuMetronet;
+    const showOcalcMS = !isCsuMetronet;
     const showStandalone = !spans.length || Boolean(pole?.standaloneProposedHOA);
     const standaloneFlagging = global.Calculations.evaluateSpanSideFlagging({
       spanId: "",
@@ -2170,7 +2174,7 @@
     });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}<th>O-CALC MS</th><th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
+        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -2193,7 +2197,7 @@
           <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
           ${showEndDrop ? `<td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>` : ""}
           ${showNextPoleProposed ? `<td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>` : ""}
-          <td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}"></td>
+          ${showOcalcMS ? `<td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}"></td>` : ""}
           <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
           <td>${escapeHtml(physicalSpan.midspanMaxCommHeight || "")}</td>
           <td><span class="calculated-value midspan-highlight-display ${spanColorClass(poleId, physicalSpan.spanId)}">${escapeHtml(side.finalMidspan || "")}</span></td>
@@ -2207,7 +2211,7 @@
       }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
           <td class="span-cell"></td>
           <td><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="standaloneProposedHOA" value="${escapeHtml(pole?.standaloneProposedHOA || "")}" aria-label="Proposed attachment on terminal pole"></td>
-          ${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}<td></td><td></td><td></td><td></td><td></td>
+          ${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}${showOcalcMS ? "<td></td>" : ""}<td></td><td></td><td></td><td></td>
           <td>${renderSpanSideFlagging({ proposedFlaggingStatus: standaloneFlagging.status, proposedFlaggingMessage: standaloneFlagging.message })}</td>
           <td></td><td></td><td></td><td></td>
         </tr>` : ""}</tbody>

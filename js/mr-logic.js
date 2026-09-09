@@ -552,6 +552,11 @@
 
   function generatePoleInsetMR(pole) {
     if (!pole?.poleInsetActive || pole.ugActive || pole.pcoActive) return "";
+    const settings = S().getState().settings || {};
+    const isCsuMetronet = String(settings.projectProfile || "").toUpperCase() === "METRONET"
+      && (String(settings.metronetWI || "").toUpperCase() === "CSU"
+        || String(settings.proposedOwner || "").toUpperCase() === "MNT");
+    if (isCsuMetronet) return "";
     const reason = String(pole.poleInsetReason || "").toUpperCase() === "FAILING_CLEARANCES"
       ? "failing clearances"
       : "overloaded";
