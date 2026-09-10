@@ -40,13 +40,21 @@
   function ownerForMR(spanComm) {
     const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
     if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
-    return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
+    return displayOwnerName(raw);
   }
 
   function ownerForIntecMovementMR(spanComm) {
     const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
     if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
-    return String(raw).replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
+    return displayOwnerName(raw);
+  }
+
+  function displayOwnerName(value) {
+    return String(value || "COMM")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/,\s*.*$/, "")
+      .replace(/\s+inc\.?$/i, "")
+      .trim() || "COMM";
   }
 
   function proposedOwnerForMR() {
@@ -56,6 +64,11 @@
 
   function mrHeight(value) {
     return String(value || "");
+  }
+
+  function formattedMRHeight(value) {
+    const parsed = H().parseHeight(value);
+    return parsed === null ? mrHeight(value) : H().formatHeight(parsed);
   }
 
   // Make Ready height lists follow normal English punctuation while keeping
@@ -76,6 +89,7 @@
     return String(value || "")
       .replace(/[’‘]/g, "'")
       .replace(/[“”]/g, '"')
+      .replace(/(\d+)'(\d+)(?:")?(?=\s|[.,]|$)/g, '$1\'$2"')
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
@@ -149,8 +163,8 @@
     if (!spanComm || !action) return "";
     const settings = S().getState().settings || {};
     const owner = ownerForMR(spanComm);
-    const existing = mrHeight(spanComm.existingHOA);
-    const changed = mrHeight(spanComm.existingHOAChange);
+    const existing = formattedMRHeight(spanComm.existingHOA);
+    const changed = formattedMRHeight(spanComm.existingHOAChange);
     if (isMetronetMR()) {
       const verb = action === "Lower" ? "lower" : "raise";
       return `At HOA ${existing} ${verb} ${owner} to HOA ${changed}${dg}.`;

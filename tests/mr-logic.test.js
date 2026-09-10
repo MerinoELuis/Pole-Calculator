@@ -106,6 +106,22 @@ assert.match(
   /At HOA 22'6\" lower Cable One to HOA 21'\./,
   "an imported custom MR note must not hide its HOA movement"
 );
+state.spanComms.WECOM_MOVE = {
+  spanId: "PROP",
+  poleId: "P1",
+  owner: "COMMUNICATION > Wecom Inc",
+  ownerBase: "COMMUNICATION > Wecom Inc",
+  existingHOA: "23'6\"",
+  existingHOAChange: "23'",
+  transferToNewPole: false,
+  serviceDrop: false,
+  downGuy: false
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+const normalizedOwnerMR = state.mr.find(item => item.poleId === "P1").text;
+assert.match(normalizedOwnerMR, /lower Wecom to HOA 23'\./, "MR movement owners must omit the Inc suffix");
+assert.doesNotMatch(normalizedOwnerMR, /Wecom Inc/, "MR text must not include the Wecom Inc suffix");
+delete state.spanComms.WECOM_MOVE;
 delete state.spanComms.MOVE;
 delete state.spanComms.MOVE_DUPLICATE;
 

@@ -155,7 +155,11 @@
   function ownerForMove(row) {
     const raw = text(row?.rawOwner || row?.ownerBase || row?.owner || "COMM");
     if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
-    return raw.replace(/^COMMUNICATION\s*>\s*/i, "").replace(/,\s*.*$/, "").trim() || "COMM";
+    return raw
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/,\s*.*$/, "")
+      .replace(/\s+inc\.?$/i, "")
+      .trim() || "COMM";
   }
 
   function bearingDegrees(span) {
@@ -713,6 +717,7 @@
     return text(value)
       .replace(/[’‘]/g, "'")
       .replace(/[“”]/g, '"')
+      .replace(/(\d+)'(\d+)(?:")?(?=\s|[.,]|$)/g, '$1\'$2"')
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
