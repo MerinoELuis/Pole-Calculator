@@ -74,12 +74,28 @@ state.spanComms.MOVE = {
   serviceDrop: false,
   downGuy: false
 };
+state.spanComms.MOVE_DUPLICATE = {
+  spanId: "OTHER",
+  poleId: "P1",
+  owner: "Cable One, Prescott",
+  ownerBase: "Cable One, Prescott",
+  existingHOA: "22’6”",
+  existingHOAChange: "21’",
+  transferToNewPole: false,
+  serviceDrop: false,
+  downGuy: false
+};
 sandbox.window.MRLogic.generateMRForPole("P1");
 const movementText = state.mr.find(item => item.poleId === "P1").text;
 assert.match(
   movementText,
   /At HOA 22'6\" lower Cable One to HOA 21'\./,
   "an HOA Change must produce a regular comm movement in MR"
+);
+assert.equal(
+  movementText.split("\n").filter(line => /lower Cable One to HOA 21'\./i.test(line)).length,
+  1,
+  "the same movement must be emitted only once when source rows use different quote characters"
 );
 state.spanComms.MOVE.mr = "Review attachment and maintain existing route.";
 sandbox.window.MRLogic.generateMRForPole("P1");
@@ -91,6 +107,7 @@ assert.match(
   "an imported custom MR note must not hide its HOA movement"
 );
 delete state.spanComms.MOVE;
+delete state.spanComms.MOVE_DUPLICATE;
 
 state.settings.showServiceDrop = false;
 state.spanComms.DROP = {

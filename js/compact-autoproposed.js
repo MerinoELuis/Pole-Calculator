@@ -710,7 +710,12 @@
   }
 
   function normalizeMrLine(value) {
-    return text(value).replace(/\s+/g, " ").toLowerCase();
+    return text(value)
+      .replace(/[’‘]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
   }
 
   function generatedMovementLineKeys(state, poleId) {
@@ -763,14 +768,14 @@
       state.mr.push(item);
     }
     const lines = text(item.text).split(/\n+/).map(line => line.trim()).filter(Boolean);
-    const seen = new Set(lines.map(line => line.toLowerCase()));
+    const seen = new Set(lines.map(normalizeMrLine));
     generated.forEach(line => {
-      const key = line.toLowerCase();
+      const key = normalizeMrLine(line);
       if (seen.has(key)) return;
       const withoutDg = key.replace(/ with dg\.$/, ".");
-      const baseIndex = lines.findIndex(existing => existing.toLowerCase() === withoutDg);
+      const baseIndex = lines.findIndex(existing => normalizeMrLine(existing) === withoutDg);
       if (baseIndex >= 0 && withoutDg !== key) {
-        seen.delete(lines[baseIndex].toLowerCase());
+        seen.delete(normalizeMrLine(lines[baseIndex]));
         lines[baseIndex] = line;
         seen.add(key);
         return;

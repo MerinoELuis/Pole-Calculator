@@ -72,6 +72,15 @@
     return (settings.mrCase || "LOWER") === "UPPER" ? text.toUpperCase() : text;
   }
 
+  function normalizeMRLine(value) {
+    return String(value || "")
+      .replace(/[’‘]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
   function isMetronetMR() {
     const settings = S().getState().settings || {};
     return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "METRONET";
@@ -706,7 +715,13 @@
     if (attach) proposed.unshift(attach);
 
     const lines = [...poleInset, ...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
-    const unique = Array.from(new Set(lines.map(line => line.trim()).filter(Boolean)));
+    const seen = new Set();
+    const unique = lines.map(line => line.trim()).filter(Boolean).filter(line => {
+      const key = normalizeMRLine(line);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     if (unique.length) state.mr.push({ poleId, spanId: "", owner: "MR", text: unique.join("\n"), imported: false });
     return state.mr.filter(item => item.poleId === poleId);
   }
