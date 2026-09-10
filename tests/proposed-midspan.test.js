@@ -204,7 +204,7 @@ S.upsertSpanComm(S.createSpanComm({
 }));
 side = S.getSpanSide("CSU-MIDSPAN", "P1");
 C.calculateSpanSideMidspan("CSU-MIDSPAN", "P1");
-assert.equal(S.getSpanSide("CSU-MIDSPAN", "P1").finalMidspan, "20'6\"", "CSU with a comm movement must use the rounded one-foot-per-100-feet sag rule");
+assert.equal(S.getSpanSide("CSU-MIDSPAN", "P1").finalMidspan, "16'6\"", "CSU with a comm movement must keep the calculated comm midspan and place Proposed one foot below it");
 
 seedSpan("CSU", "CSU-MOVES-OFF", "150'", "22'");
 S.upsertSpanComm(S.createSpanComm({
@@ -223,6 +223,17 @@ assert.equal(
   "CSU with Comm Moves OFF must ignore HOA changes and stay one foot below the imported midspan"
 );
 
+seedSpan("CSU", "CSU-NO-MS-LOW", "100'", "22'");
+side = S.getSpanSide("CSU-NO-MS-LOW", "P1");
+S.upsertSpanSide({ ...side, proposedHOA: "10'6\"" });
+span = S.getSpan("CSU-NO-MS-LOW");
+C.calculateSpanSideMidspan("CSU-NO-MS-LOW", "P1");
+assert.equal(
+  S.getSpanSide("CSU-NO-MS-LOW", "P1").finalMidspan,
+  "9'6\"",
+  "CSU without an imported Midspan must be allowed to use the one-foot-per-100-feet estimate down to 9'6\""
+);
+
 [
   ["100'", 12],
   ["150'", 18],
@@ -232,9 +243,10 @@ assert.equal(
   assert.equal(C.getEstimatedSagInches({ lengthDisplay }), expectedSag, `${lengthDisplay} must produce ${expectedSag} inches of sag`);
 });
 
+side = S.getSpanSide("CSU-NO-MS-LOW", "P1");
 S.upsertSpanSide({ ...side, ocalcMS: "19.25" });
-side = S.getSpanSide("CSU-MIDSPAN", "P1");
-span = S.getSpan("CSU-MIDSPAN");
+side = S.getSpanSide("CSU-NO-MS-LOW", "P1");
+span = S.getSpan("CSU-NO-MS-LOW");
 assert.equal(C.calculateProposedMidspanBase(side, span), 19 * 12 + 3, "manual O-CALC MS must override the automatic Proposed calculation");
 
 seedSpan("METRONET", "FORE", "101'6\"", "20'");

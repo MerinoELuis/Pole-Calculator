@@ -325,6 +325,23 @@
       .filter(value => value !== null);
   }
 
+  function calculatedReferenceMidspansForSpanSide(spanId, poleId) {
+    const targetSpan = S().getSpan(spanId);
+    if (!targetSpan) return [];
+    const rows = Object.values(S().getState().spanComms || {}).filter(row => {
+      const rowSpan = S().getSpan(row.spanId);
+      return row.spanId === spanId || samePhysicalSpan(rowSpan, targetSpan);
+    });
+    return rows
+      .filter(countsAsTopCommReference)
+      .map(row => {
+        const details = calculateCommMidspanDetails(row);
+        const calculated = parseMidspanValue(details.calculated);
+        return calculated === null ? getMidspanInchesForComm(row) : applyResagServiceDropHeight(row, calculated);
+      })
+      .filter(value => value !== null);
+  }
+
   function getEnvironmentMinimum(span) {
     if (!span || !span.environmentClearance || span.environmentClearance === "Variable") return null;
     return H().parseHeight(span.environmentClearance);
@@ -1230,21 +1247,16 @@
     const explicit = parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
     if (explicit !== null || !side || !span || !supportsAutomaticProposedMidspan()) return explicit;
 
-    // CSU uses the rounded one-foot-per-100-feet sag rule whenever an
-    // existing comm on this physical span is actively moved. With no comm
-    // movement, the proposed attachment remains one foot below the imported
-    // existing comm midspan (the reference logic below).
+    // CSU keeps the measured Midspan calculation active whenever the physical
+    // span has one. Endpoint HOA changes update each comm's calculatedMidspan;
+    // Proposed stays one foot below the resulting lowest comm midspan. The
+    // span-length sag estimate is only a fallback when no Midspan exists.
     if (isCsuProfile()) {
-      const movementActive = S().getPole(side.poleId)?.commMovementsActive !== false;
-      const hasMovement = movementActive && hasActiveCommMovementOnSpan(span.spanId);
-      if (hasMovement) {
-        const proposed = H().parseHeight(side.proposedHOA || "");
-        if (proposed !== null && Number.isFinite(getSpanLengthFeet(span))) {
-          return proposed - getEstimatedSagInches(span);
-        }
-      } else {
-        const importedReferences = importedReferenceMidspansForSpanSide(span.spanId, side.poleId);
-        if (importedReferences.length) return Math.min(...importedReferences) - 12;
+      const importedReferences = importedReferenceMidspansForSpanSide(span.spanId, side.poleId);
+      if (importedReferences.length) {
+        const calculatedReferences = calculatedReferenceMidspansForSpanSide(span.spanId, side.poleId);
+        const references = calculatedReferences.length ? calculatedReferences : importedReferences;
+        return Math.min(...references) - 12;
       }
     }
 

@@ -64,6 +64,12 @@ calculated midspan = imported midspan
                    + remote movement / 2
 ```
 
+For CSU, when an imported communication Midspan exists, that calculation remains
+active after either endpoint is raised or lowered. The Proposed Midspan is placed
+12 inches below the lowest resulting communication Midspan. If no communication
+Midspan exists, CSU estimates sag at one foot per 100 feet of span (rounded to
+the nearest 50-foot bucket); this estimate may reach 9'6".
+
 Example:
 
 - Imported midspan: `18'`
