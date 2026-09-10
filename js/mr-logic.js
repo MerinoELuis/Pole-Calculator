@@ -281,6 +281,10 @@
       .filter(reference => makeReadyReferenceMatchesSpan(reference, span));
   }
 
+  function isBackSpan(span) {
+    return /back\s*span|backspan/i.test(`${span?.type || ""} ${span?.rawType || ""}`);
+  }
+
   function isOverlashSpanSide(spanSide) {
     return Boolean(spanSide && overlashReferencesForSpan(S().getSpan(spanSide.spanId || "")).length);
   }
@@ -316,7 +320,10 @@
   function generateOverlashMRForPole(poleId) {
     const heights = new Set();
     S().getConnectedSpans(poleId)
-      .filter(span => span.fromPole === poleId)
+      // Overlash is installed on the proposed/forward span owned by this
+      // pole. A reciprocal Back Span is only a reference to the adjacent
+      // pole and must not add a second Overlash height to this pole's MR.
+      .filter(span => span.fromPole === poleId && !isBackSpan(span))
       .forEach(span => {
         if (!overlashReferencesForSpan(span).length) return;
         const messenger = existingJobMessengerForSpan(span);

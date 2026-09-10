@@ -229,13 +229,31 @@ state.makeReadyReferences = [{
   attachmentSizeRaw: "72CT Fiber (N)",
   attachmentDirectionTokens: ["N"]
 }];
+state.spanSides.BACK__P1 = { spanId: "BACK", poleId: "P1", proposedHOA: "24'8\"" };
+state.spanComms.OVERLASH_BACK_MESSENGER = {
+  spanId: "BACK",
+  poleId: "P1",
+  owner: "COMMUNICATION > Wecom Inc",
+  rawOwner: "COMMUNICATION > Wecom Inc",
+  existingHOA: "24'8\"",
+  size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
+};
+state.makeReadyReferences.push({
+  poleId: "P2",
+  attachmentType: "Overlash",
+  attachmentSizeRaw: "72CT Fiber (N)",
+  attachmentDirectionTokens: []
+});
 sandbox.window.MRLogic.generateMRForPole("P1");
 const mixedNewOverlashMR = state.mr.find(item => item.poleId === "P1").text;
 assert.match(mixedNewOverlashMR, /Overlash Wecom at HOA 22'6"\./, "Overlash must generate its own MR instruction");
+assert.doesNotMatch(mixedNewOverlashMR, /Overlash Wecom .*24'8"/, "a reciprocal Back Span must not add an Overlash height to this pole's MR");
 assert.match(mixedNewOverlashMR, /Attach Wecom at HOA 19'\./, "a New proposal must still generate its Attach MR on the same pole");
 assert.doesNotMatch(mixedNewOverlashMR, /^Attach Wecom at HOA .*22'6"/m, "Overlash must not be merged into the New Attach instruction");
 delete state.spanComms.OVERLASH_MESSENGER;
+delete state.spanComms.OVERLASH_BACK_MESSENGER;
 delete state.spanSides.OTHER__P1;
+delete state.spanSides.BACK__P1;
 
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, [
