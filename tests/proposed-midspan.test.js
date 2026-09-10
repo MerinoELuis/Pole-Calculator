@@ -227,11 +227,17 @@ seedSpan("CSU", "CSU-NO-MS-LOW", "100'", "22'");
 side = S.getSpanSide("CSU-NO-MS-LOW", "P1");
 S.upsertSpanSide({ ...side, proposedHOA: "10'6\"" });
 span = S.getSpan("CSU-NO-MS-LOW");
+S.upsertSpan({ ...span, environmentClearance: "15'6\"" });
 C.calculateSpanSideMidspan("CSU-NO-MS-LOW", "P1");
 assert.equal(
   S.getSpanSide("CSU-NO-MS-LOW", "P1").finalMidspan,
   "9'6\"",
   "CSU without an imported Midspan must be allowed to use the one-foot-per-100-feet estimate down to 9'6\""
+);
+assert.equal(
+  S.getSpanSide("CSU-NO-MS-LOW", "P1").clearanceMSStatus,
+  "OK",
+  "CSU without an imported Fore Span Midspan must use the 9'6\" environmental floor"
 );
 
 [

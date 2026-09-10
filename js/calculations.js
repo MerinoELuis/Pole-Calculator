@@ -325,14 +325,15 @@
       .filter(value => value !== null);
   }
 
-  function calculatedReferenceMidspansForSpanSide(spanId, poleId) {
-    const targetSpan = S().getSpan(spanId);
-    if (!targetSpan) return [];
-    const rows = Object.values(S().getState().spanComms || {}).filter(row => {
-      const rowSpan = S().getSpan(row.spanId);
-      return row.spanId === spanId || samePhysicalSpan(rowSpan, targetSpan);
-    });
-    return rows
+  function importedCsuMidspansForSpan(spanId) {
+    return S().getSpanCommsForSpan(spanId)
+      .filter(countsAsTopCommReference)
+      .map(row => parseMidspanValue(row.midspan || row.ocalcMS || ""))
+      .filter(value => value !== null);
+  }
+
+  function calculatedCsuMidspansForSpan(spanId) {
+    return S().getSpanCommsForSpan(spanId)
       .filter(countsAsTopCommReference)
       .map(row => {
         const details = calculateCommMidspanDetails(row);
@@ -547,9 +548,17 @@
       };
     }
     const commClearance = getMidspanCommCommClearance();
-    const references = getReferenceMidspansForSpanSide(span.spanId, poleId);
+    const references = isCsuProfile()
+      ? S().getSpanCommsForSpan(span.spanId)
+        .filter(countsAsTopCommReference)
+        .map(getMidspanInchesForComm)
+        .filter(value => value !== null)
+      : getReferenceMidspansForSpanSide(span.spanId, poleId);
     const maxMS = H().parseHeight(span.midspanMaxCommHeight || "");
-    const envMin = getEnvironmentMinimum(span);
+    const csuHasImportedMidspan = isCsuProfile() && importedCsuMidspansForSpan(span.spanId).length > 0;
+    const envMin = isCsuProfile() && !csuHasImportedMidspan
+      ? H().parseHeight("9'6\"")
+      : getEnvironmentMinimum(span);
     const position = getSettingPosition();
     let target = baseInches;
     let issue = false;
@@ -1252,9 +1261,9 @@
     // Proposed stays one foot below the resulting lowest comm midspan. The
     // span-length sag estimate is only a fallback when no Midspan exists.
     if (isCsuProfile()) {
-      const importedReferences = importedReferenceMidspansForSpanSide(span.spanId, side.poleId);
+      const importedReferences = importedCsuMidspansForSpan(span.spanId);
       if (importedReferences.length) {
-        const calculatedReferences = calculatedReferenceMidspansForSpanSide(span.spanId, side.poleId);
+        const calculatedReferences = calculatedCsuMidspansForSpan(span.spanId);
         const references = calculatedReferences.length ? calculatedReferences : importedReferences;
         return Math.min(...references) - 12;
       }
