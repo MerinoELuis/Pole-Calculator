@@ -463,4 +463,39 @@ assert.ok(
   "a Fore Span with a Make Ready fiber reference must remain available even without an imported midspan"
 );
 
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "P1", lowPower: "35'" }));
+S.upsertPole(S.createPole({ poleId: "P2", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("RECIPROCAL-FORE", "P1", "P2", "E", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "73'8\""
+}));
+S.upsertSpan(S.createSpan("RECIPROCAL-BACK", "P2", "P1", "W", "", {
+  type: "Back Span",
+  rawType: "Back Span",
+  lengthDisplay: "73'8\""
+}));
+S.getState().makeReadyReferences = [{
+  poleId: "P2",
+  attachmentType: "New",
+  attachmentSizeRaw: "6.6M 24CT Fiber (S) + 72CT Fiber (N)",
+  attachmentDirectionTokens: ["S", "N"]
+}];
+assert.equal(
+  C.isReciprocalBackSpan(S.getSpan("RECIPROCAL-BACK")),
+  true,
+  "a Back Span with a matching opposite Fore Span must be recognized as reciprocal"
+);
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("RECIPROCAL-BACK"), "P2"),
+  false,
+  "a reciprocal Back Span must not become Proposed from a directional fiber reference"
+);
+assert.ok(
+  !C.autoCalcProposedSpansForPole("P2").some(span => span.spanId === "RECIPROCAL-BACK"),
+  "Auto Calculate must not return a reciprocal Back Span"
+);
+
 console.log("Proposed midspan fallback tests passed.");

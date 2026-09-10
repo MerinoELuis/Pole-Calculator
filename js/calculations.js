@@ -392,6 +392,18 @@
     );
   }
 
+  function isReciprocalBackSpan(span) {
+    const type = String(span?.type || span?.rawType || "").toLowerCase();
+    if (!span || !/back\s*span|backspan/.test(type)) return false;
+    return S().getConnectedSpans(span.fromPole).some(candidate => {
+      if (candidate === span) return false;
+      const candidateType = String(candidate?.type || candidate?.rawType || "").toLowerCase();
+      return candidate.fromPole === span.toPole
+        && candidate.toPole === span.fromPole
+        && /fore\s*span|forespan/.test(candidateType);
+    });
+  }
+
   function hasOverlashMakeReadyReference(span) {
     return makeReadyReferencesForSpan(span)
       .some(reference => isDirectionalFiberOnlyOverlash(reference, span));
@@ -1371,6 +1383,7 @@
    * Other and Back Span relationships remain reference/manual.
    */
   function isSpanEligibleForProposed(span, poleId) {
+    if (isReciprocalBackSpan(span)) return false;
     const type = String(span?.type || span?.rawType || "").toLowerCase();
     if (/fore\s*span|forespan/.test(type) && span?.fromPole === poleId) return true;
     // An Overlash Make Ready row can live on the opposite endpoint of an
@@ -1385,6 +1398,7 @@
     return S().getConnectedSpans(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isProposedExcluded)
+      .filter(span => !isReciprocalBackSpan(span))
       .filter(span => allowNoMidspan
         || spanHasRealMidspan(span.spanId)
         || S().getSpanSide(span.spanId, poleId)?.isManualProposed
@@ -1964,6 +1978,7 @@
     getEstimatedSagInches,
     spanHasRealMidspan,
     hasMakeReadyFiberReference,
+    isReciprocalBackSpan,
     isSpanEligibleForProposed,
     autoCalcProposedSpansForPole,
     findRemoteComm,

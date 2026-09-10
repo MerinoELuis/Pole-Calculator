@@ -1185,6 +1185,7 @@
     const allowNoMidspan = S.getState().settings?.proposeForeSpanWithoutMidspan === true;
     return connectedSpansSorted(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => !global.Calculations.isReciprocalBackSpan?.(span))
       .filter(span => !S.getSpanSide(span.spanId, poleId)?.isProposedExcluded)
       .filter(span => allowNoMidspan
         || spanHasRealMidspan(span.spanId)
