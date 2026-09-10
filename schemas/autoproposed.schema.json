@@ -61,6 +61,10 @@
         "fiber": { "type": "integer", "minimum": 1 },
         "endDrop": { "$ref": "#/$defs/integerInches" },
         "nextHoa": { "$ref": "#/$defs/integerInches" },
+        "overlash": {
+          "type": "boolean",
+          "description": "Place the proposed fiber over the existing messenger owned by the exported job owner; do not create a new messenger."
+        },
         "ug": { "type": "boolean" }
       },
       "allOf": [

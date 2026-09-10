@@ -217,6 +217,9 @@ Example:
 - `bearing`: degrees in `[0, 360)` when known.
 - `length`: whole inches when known.
 - `hoa` and `fiber`: explicit aerial proposal.
+- `overlash: true`: the proposal is a fiber overlash and must reuse the
+  existing messenger for the exported job owner instead of creating another
+  messenger.
 - `endDrop` and `nextHoa`: optional endpoint proposal values.
 - `ug: true`: geometry-only underground relation; it cannot include aerial proposal fields.
 - Geometry without `ug`, `hoa`, or `fiber` is a reference-only span and creates no proposed attachment.

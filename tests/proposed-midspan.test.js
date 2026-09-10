@@ -389,4 +389,30 @@ assert.match(
   "the Service Drop Bolt-bolt exception must not remove Proposed Comm-comm clearance"
 );
 
+seedSpan("INTEC", "OVERLASH-CONNECTION", "124'7\"", "22'");
+S.upsertSpan(S.createSpan("OVERLASH-CONNECTION", "P1", "P2", "E", "", {
+  type: "Other",
+  rawType: "Other",
+  lengthDisplay: "124'7\""
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "OVERLASH-CONNECTION",
+  poleId: "P1",
+  owner: "COMMUNICATION > Wecom Inc",
+  existingHOA: "22'6\"",
+  midspan: "20'11\"",
+  size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
+}));
+S.getState().makeReadyReferences = [{
+  poleId: "P2",
+  attachmentType: "Overlash",
+  attachmentSizeRaw: "72CT Fiber (W)",
+  attachmentDirectionTokens: ["W"]
+}];
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("OVERLASH-CONNECTION"), "P1"),
+  true,
+  "an Overlash reference on the opposite endpoint must keep the physical connection eligible for Proposed"
+);
+
 console.log("Proposed midspan fallback tests passed.");

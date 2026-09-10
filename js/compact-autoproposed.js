@@ -263,8 +263,61 @@
     return refs.find(ref => directionTokensForReference(ref).length === 0) || null;
   }
 
+  function otherPoleForSpan(span, poleId) {
+    if (!span) return "";
+    if (span.fromPole === poleId) return text(span.toPole);
+    if (span.toPole === poleId) return text(span.fromPole);
+    return "";
+  }
+
+  function referencesForPhysicalSpan(state, poleId, span) {
+    const endpoints = Array.from(new Set([poleId, otherPoleForSpan(span, poleId)].filter(Boolean)));
+    const seen = new Set();
+    return endpoints
+      .map(endpoint => referenceForSpan(state, endpoint, span))
+      .filter(ref => {
+        if (!ref) return false;
+        const key = `${ref.poleId || ""}|${ref.makeReadyId || ref.makeReadyIndex || ref.attachmentSizeRaw || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => Number(/overlash/i.test(String(b.attachmentType || "")))
+        - Number(/overlash/i.test(String(a.attachmentType || ""))));
+  }
+
+  function preferredReferenceForSpan(state, poleId, span) {
+    return referencesForPhysicalSpan(state, poleId, span)[0] || null;
+  }
+
+  function normalizedOwnerToken(value) {
+    const normalized = text(value)
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/\b(?:inc|llc|communications?)\b/gi, "")
+      .replace(/[^a-z0-9]+/gi, "")
+      .toLowerCase();
+    if (/wecom/.test(normalized)) return "wecom";
+    return normalized;
+  }
+
+  function hasExistingJobMessenger(state, span, owner) {
+    if (!span) return false;
+    const targetOwner = normalizedOwnerToken(owner || state?.settings?.proposedOwner || "");
+    if (!targetOwner) return false;
+    const poles = new Set([span.fromPole, span.toPole].filter(Boolean));
+    return Object.values(state?.spanComms || {}).some(row => {
+      const rowSpan = state?.spans?.[row.spanId];
+      if (!rowSpan) return false;
+      const rowPoles = new Set([rowSpan.fromPole, rowSpan.toPole].filter(Boolean));
+      if (rowPoles.size !== poles.size || Array.from(poles).some(id => !rowPoles.has(id))) return false;
+      const wireSize = `${row.size || ""} ${row.construction || ""}`;
+      return normalizedOwnerToken(row.rawOwner || row.owner || "") === targetOwner
+        && /\bmsgr\b|messenger/i.test(wireSize);
+    });
+  }
+
   function fiberForSpan(state, poleId, span) {
-    const ref = referenceForSpan(state, poleId, span);
+    const ref = preferredReferenceForSpan(state, poleId, span);
     return ref ? fiberCount(`${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`) : "";
   }
 
@@ -394,7 +447,8 @@
       return item;
     }
 
-    const fiber = fiberForSpan(state, poleId, span);
+    const reference = preferredReferenceForSpan(state, poleId, span);
+    const fiber = reference ? fiberCount(`${reference.attachmentFiber || ""} ${reference.attachmentSizeRaw || ""}`) : "";
     if (!fiber) return item;
 
     const exactSide = sideForSpan(state, poleId, span.spanId);
@@ -404,6 +458,19 @@
 
     item.hoa = hoa;
     item.fiber = Number(fiber);
+    const isOverlash = /overlash/i.test(String(reference?.attachmentType || ""));
+    if (isOverlash && !hasExistingJobMessenger(state, span, state.settings?.proposedOwner || "")) {
+      // Never turn an Excel Overlash into a new messenger when the expected
+      // job-owner messenger is absent from Span.Wire.
+      delete item.hoa;
+      delete item.fiber;
+      return item;
+    }
+    if (isOverlash) {
+      // The exported job owner identifies the existing messenger to reuse;
+      // Overlash must not create a second messenger.
+      item.overlash = true;
+    }
 
     if (proposal === exactSide) {
       const endDrop = inches(exactSide?.endDrop);

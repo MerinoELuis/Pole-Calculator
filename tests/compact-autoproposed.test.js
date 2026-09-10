@@ -184,6 +184,22 @@ assert.equal("hoa" in backUg, false);
 const other = p1.spans.find(span => span.to === "P4");
 assert.equal(other.hoa, 276);
 assert.equal(other.fiber, 144);
+
+state.makeReadyReferences.push({
+  poleId: "P4",
+  attachmentSizeRaw: "72CT Fiber (N)",
+  attachmentType: "Overlash",
+  attachmentDirectionTokens: ["N"]
+});
+state.spanComms.overlashMessenger = {
+  spanId: "S3",
+  poleId: "P1",
+  owner: "COMMUNICATION > Wecom Inc",
+  rawOwner: "COMMUNICATION > Wecom Inc",
+  size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
+};
+const overlash = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P4");
+assert.equal(overlash.overlash, true, "an Overlash Make Ready row on the opposite endpoint must reuse the job-owner messenger");
 const northNotSelected = p1.spans.find(span => span.to === "P5");
 assert.equal("fiber" in northNotSelected, false, "a span outside Fiber E/W/S must stay geometry-only");
 assert.equal("hoa" in northNotSelected, false);

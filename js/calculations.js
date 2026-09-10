@@ -6,6 +6,10 @@
   const H = () => global.HeightUtils;
   const S = () => global.AppStore;
   const CLEARANCE_FIX_DELAY_MS = 700;
+  const OPPOSITE_DIRECTION = {
+    N: "S", NE: "SW", E: "W", SE: "NW",
+    S: "N", SW: "NE", W: "E", NW: "SE"
+  };
 
   function getHeightInches(value) {
     return H().parseHeight(value);
@@ -331,6 +335,41 @@
     const aPoles = [a.fromPole, a.toPole].filter(Boolean).sort().join("|");
     const bPoles = [b.fromPole, b.toPole].filter(Boolean).sort().join("|");
     return Boolean(aPoles && bPoles && aPoles === bPoles);
+  }
+
+  function spanDirectionForPole(span, poleId) {
+    if (!span) return "";
+    const raw = String(span.direction || "").trim().toUpperCase();
+    if (!raw) return "";
+    return span.fromPole === poleId || span.toPole !== poleId
+      ? raw
+      : (OPPOSITE_DIRECTION[raw] || raw);
+  }
+
+  function makeReadyReferenceMatchesSpan(reference, span) {
+    if (!reference || !span) return false;
+    const endpoint = reference.poleId === span.fromPole
+      ? span.fromPole
+      : reference.poleId === span.toPole ? span.toPole : "";
+    if (!endpoint) return false;
+    const rawTokens = Array.isArray(reference.attachmentDirectionTokens)
+      ? reference.attachmentDirectionTokens
+      : String(reference.attachmentDirection || "").match(/\b(?:NE|NW|SE|SW|N|E|S|W)\b/gi) || [];
+    const tokens = rawTokens.map(token => String(token || "").trim().toUpperCase()).filter(Boolean);
+    if (!tokens.length) return true;
+    const direction = spanDirectionForPole(span, endpoint);
+    return !direction || tokens.includes(direction);
+  }
+
+  function makeReadyReferencesForSpan(span) {
+    if (!span) return [];
+    return (S().getState().makeReadyReferences || [])
+      .filter(reference => makeReadyReferenceMatchesSpan(reference, span));
+  }
+
+  function hasOverlashMakeReadyReference(span) {
+    return makeReadyReferencesForSpan(span)
+      .some(reference => /overlash/i.test(String(reference.attachmentType || "")));
   }
 
   function getLocalCommCandidate(spanId, poleId, ownerBase = "", preferredWireId = "") {
@@ -1308,7 +1347,11 @@
    */
   function isSpanEligibleForProposed(span, poleId) {
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    return /fore\s*span|forespan/.test(type) && span?.fromPole === poleId;
+    if (/fore\s*span|forespan/.test(type) && span?.fromPole === poleId) return true;
+    // An Overlash Make Ready row can live on the opposite endpoint of an
+    // Other/Back relationship. Keep that physical connection available for
+    // Proposed so the fiber is placed on the existing job-owner messenger.
+    return hasOverlashMakeReadyReference(span);
   }
 
   function autoCalcProposedSpansForPole(poleId) {
