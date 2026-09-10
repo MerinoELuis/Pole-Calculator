@@ -361,6 +361,25 @@
     return !direction || tokens.includes(direction);
   }
 
+  function isDirectionalFiberOnlyOverlash(reference, span) {
+    if (!reference || !span) return false;
+    if (/overlash/i.test(String(reference.attachmentType || ""))) return true;
+    const endpoint = reference.poleId === span.fromPole
+      ? span.fromPole
+      : reference.poleId === span.toPole ? span.toPole : "";
+    if (!endpoint) return false;
+    const direction = spanDirectionForPole(span, endpoint);
+    if (!direction) return false;
+    const raw = String(reference.attachmentSizeRaw || reference.attachmentFiber || "");
+    return raw.split(/\s*\+\s*/).some(part => {
+      const directionMatch = part.match(/\(([^)]+)\)\s*$/);
+      if (!directionMatch) return false;
+      const tokens = directionMatch[1].split(/[\/,;\s]+/).map(token => token.trim().toUpperCase()).filter(Boolean);
+      if (!tokens.includes(direction)) return false;
+      return !/\b\d+(?:\.\d+)?\s*M\b/i.test(part);
+    });
+  }
+
   function makeReadyReferencesForSpan(span) {
     if (!span) return [];
     return (S().getState().makeReadyReferences || [])
@@ -369,7 +388,7 @@
 
   function hasOverlashMakeReadyReference(span) {
     return makeReadyReferencesForSpan(span)
-      .some(reference => /overlash/i.test(String(reference.attachmentType || "")));
+      .some(reference => isDirectionalFiberOnlyOverlash(reference, span));
   }
 
   function getLocalCommCandidate(spanId, poleId, ownerBase = "", preferredWireId = "") {

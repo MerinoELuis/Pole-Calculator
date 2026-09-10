@@ -420,4 +420,26 @@ assert.equal(
   "the reciprocal Back Span must not display the same Overlash Proposed row on the other pole"
 );
 
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "P1", lowPower: "35'" }));
+S.upsertPole(S.createPole({ poleId: "P2", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("MIXED-NEW-OVERLASH", "P1", "P2", "E", "", {
+  type: "Other",
+  rawType: "Other",
+  lengthDisplay: "120'"
+}));
+S.upsertSpanSide(S.createSpanSide({ spanId: "MIXED-NEW-OVERLASH", poleId: "P1", proposedHOA: "22'" }));
+S.getState().makeReadyReferences = [{
+  poleId: "P1",
+  attachmentType: "New",
+  attachmentSizeRaw: "6.6M 72CT Fiber (S) + 72CT Fiber (E/W)",
+  attachmentDirectionTokens: ["S", "E", "W"]
+}];
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("MIXED-NEW-OVERLASH"), "P1"),
+  true,
+  "a fiber-only directional component must make an otherwise New reference eligible for Overlash Proposed"
+);
+
 console.log("Proposed midspan fallback tests passed.");

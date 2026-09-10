@@ -230,6 +230,25 @@
     return Array.from(new Set(source.match(/\b(?:NE|NW|SE|SW|N|E|S|W)\b/g) || []));
   }
 
+  function isDirectionalFiberOnlyOverlash(reference, span) {
+    if (!reference || !span) return false;
+    if (/overlash/i.test(String(reference.attachmentType || ""))) return true;
+    const endpoint = reference.poleId === span.fromPole
+      ? span.fromPole
+      : reference.poleId === span.toPole ? span.toPole : "";
+    if (!endpoint) return false;
+    const direction = directionFromPole(span, endpoint);
+    if (!direction) return false;
+    const raw = text(reference.attachmentSizeRaw || reference.attachmentFiber);
+    return raw.split(/\s*\+\s*/).some(part => {
+      const directionMatch = part.match(/\(([^)]+)\)\s*$/);
+      if (!directionMatch) return false;
+      const tokens = directionMatch[1].split(/[\/,;\s]+/).map(token => text(token).toUpperCase()).filter(Boolean);
+      if (!tokens.includes(direction)) return false;
+      return !/\b\d+(?:\.\d+)?\s*M\b/i.test(part);
+    });
+  }
+
   function fiberReferencesForPole(state, poleId) {
     return (state?.makeReadyReferences || []).filter(ref => {
       if (ref?.poleId !== poleId) return false;
@@ -286,8 +305,8 @@
         seen.add(key);
         return true;
       })
-      .sort((a, b) => Number(/overlash/i.test(String(b.attachmentType || "")))
-        - Number(/overlash/i.test(String(a.attachmentType || ""))));
+      .sort((a, b) => Number(isDirectionalFiberOnlyOverlash(b, span))
+        - Number(isDirectionalFiberOnlyOverlash(a, span)));
   }
 
   function preferredReferenceForSpan(state, poleId, span) {
@@ -462,7 +481,7 @@
 
     item.hoa = hoa;
     item.fiber = Number(fiber);
-    const isOverlash = /overlash/i.test(String(reference?.attachmentType || ""));
+    const isOverlash = isDirectionalFiberOnlyOverlash(reference, span);
     if (isOverlash && !hasExistingJobMessenger(state, span, state.settings?.proposedOwner || "")) {
       // Never turn an Excel Overlash into a new messenger when the expected
       // job-owner messenger is absent from Span.Wire.

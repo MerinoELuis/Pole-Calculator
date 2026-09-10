@@ -277,7 +277,7 @@
   }
 
   function makeReadyReferenceMatchesSpan(reference, span) {
-    if (!reference || !span || !/overlash/i.test(String(reference.attachmentType || ""))) return false;
+    if (!reference || !span) return false;
     const endpoint = reference.poleId === span.fromPole
       ? span.fromPole
       : reference.poleId === span.toPole ? span.toPole : "";
@@ -290,9 +290,31 @@
     return !direction || tokens.includes(direction);
   }
 
+  function isDirectionalFiberOnlyOverlash(reference, span) {
+    if (!reference || !span) return false;
+    if (/overlash/i.test(String(reference.attachmentType || ""))) return true;
+    const endpoint = reference.poleId === span.fromPole
+      ? span.fromPole
+      : reference.poleId === span.toPole ? span.toPole : "";
+    if (!endpoint) return false;
+    const direction = span.fromPole === endpoint
+      ? String(span.direction || "").toUpperCase()
+      : oppositeDirection(String(span.direction || "").toUpperCase());
+    if (!direction) return false;
+    const raw = String(reference.attachmentSizeRaw || reference.attachmentFiber || "");
+    return raw.split(/\s*\+\s*/).some(part => {
+      const directionMatch = part.match(/\(([^)]+)\)\s*$/);
+      if (!directionMatch) return false;
+      const tokens = directionMatch[1].split(/[\/,;\s]+/).map(token => String(token || "").trim().toUpperCase()).filter(Boolean);
+      if (!tokens.includes(direction)) return false;
+      return !/\b\d+(?:\.\d+)?\s*M\b/i.test(part);
+    });
+  }
+
   function overlashReferencesForSpan(span) {
     return (S().getState().makeReadyReferences || [])
-      .filter(reference => makeReadyReferenceMatchesSpan(reference, span));
+      .filter(reference => makeReadyReferenceMatchesSpan(reference, span))
+      .filter(reference => isDirectionalFiberOnlyOverlash(reference, span));
   }
 
   function isBackSpan(span) {

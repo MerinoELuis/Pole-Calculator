@@ -200,6 +200,22 @@ state.spanComms.overlashMessenger = {
 };
 const overlash = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P4");
 assert.equal(overlash.overlash, true, "an Overlash Make Ready row on the opposite endpoint must reuse the job-owner messenger");
+
+state.makeReadyReferences = [{
+  poleId: "P1",
+  attachmentType: "New",
+  attachmentSizeRaw: "6.6M 72CT Fiber (S) + 72CT Fiber (E/W)",
+  attachmentDirectionTokens: ["S", "E", "W"]
+}];
+state.spanComms.overlashMessenger = {
+  spanId: "S1",
+  poleId: "P1",
+  owner: "COMMUNICATION > Wecom Inc",
+  rawOwner: "COMMUNICATION > Wecom Inc",
+  size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
+};
+const mixedAttachment = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P2");
+assert.equal(mixedAttachment.overlash, true, "a fiber-only directional component must export as Overlash even when the row type is New");
 const northNotSelected = p1.spans.find(span => span.to === "P5");
 assert.equal("fiber" in northNotSelected, false, "a span outside Fiber E/W/S must stay geometry-only");
 assert.equal("hoa" in northNotSelected, false);
