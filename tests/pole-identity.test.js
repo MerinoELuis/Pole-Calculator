@@ -43,7 +43,7 @@ const workbook = {
     ],
     "Make Ready": [
       ["Id", "Attachment Size", "Attachment Height.display"],
-      ["P01-LX339927 PCO", "6.6M 24CT Fiber (E/W)", "22'"]
+      ["P01-LX339927 PCO", "6.6M 24CT Fiber (S) + 72CT Fiber (E/W)", "22'"]
     ]
   }
 };
@@ -64,5 +64,10 @@ assert.equal(state.spans.S2.fromPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.toPole, "P01-LX339927 STEEL");
 assert.ok(AppStore.getSpanCommsForPole("P01-LX339927 STEEL").some(row => row.spanId === "S1" && row.existingHOA === "20'"));
 assert.equal(state.makeReadyReferences[0].poleId, "P01-LX339927 STEEL");
+assert.deepEqual(
+  state.makeReadyReferences[0].attachmentDirectionTokens,
+  ["S", "E", "W"],
+  "Make Ready attachment sizes must retain every directional component"
+);
 
 console.log("Canonical pole identity import tests passed.");

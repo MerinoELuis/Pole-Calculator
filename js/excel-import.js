@@ -334,16 +334,19 @@
       };
     }
 
-    const directionMatch = raw.match(/\(([^)]+)\)\s*$/);
-    const attachmentDirection = directionMatch ? directionMatch[1].trim() : "";
-    const withoutDirection = raw.replace(/\s*\([^)]+\)\s*$/, "").trim();
+    const directionGroups = Array.from(raw.matchAll(/\(([^)]+)\)/g))
+      .map(match => String(match[1] || "").trim())
+      .filter(Boolean);
+    const attachmentDirection = directionGroups.join(" / ");
+    const withoutDirection = raw.replace(/\s*\([^)]+\)/g, "").trim();
     const parts = withoutDirection.split(/\s+/).filter(Boolean);
     const attachmentMessenger = parts.shift() || "";
     const attachmentFiber = parts.join(" ");
-    const attachmentDirectionTokens = attachmentDirection
-      .split(/[\/,;\s]+/)
+    const attachmentDirectionTokens = directionGroups
+      .flatMap(group => group.split(/[\/,;\s]+/))
       .map(token => token.trim().toUpperCase())
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((token, index, tokens) => tokens.indexOf(token) === index);
 
     return {
       attachmentSizeRaw: raw,
