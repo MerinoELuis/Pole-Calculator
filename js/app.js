@@ -1186,7 +1186,10 @@
     return connectedSpansSorted(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S.getSpanSide(span.spanId, poleId)?.isProposedExcluded)
-      .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => allowNoMidspan
+        || spanHasRealMidspan(span.spanId)
+        || S.getSpanSide(span.spanId, poleId)?.isManualProposed
+        || global.Calculations.hasMakeReadyFiberReference?.(span))
       .filter(span => {
         const side = S.getSpanSide(span.spanId, poleId);
         const key = side?.isAdditionalProposed

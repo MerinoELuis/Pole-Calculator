@@ -442,4 +442,25 @@ assert.equal(
   "a fiber-only directional component must make an otherwise New reference eligible for Overlash Proposed"
 );
 
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "P1", lowPower: "35'" }));
+S.upsertPole(S.createPole({ poleId: "P2", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("FORE-NO-MS", "P1", "P2", "S", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "200'"
+}));
+S.upsertSpanSide(S.createSpanSide({ spanId: "FORE-NO-MS", poleId: "P1" }));
+S.getState().makeReadyReferences = [{
+  poleId: "P1",
+  attachmentType: "New",
+  attachmentSizeRaw: "6.6M 24CT Fiber (S)",
+  attachmentDirectionTokens: ["S"]
+}];
+assert.ok(
+  C.autoCalcProposedSpansForPole("P1").some(span => span.spanId === "FORE-NO-MS"),
+  "a Fore Span with a Make Ready fiber reference must remain available even without an imported midspan"
+);
+
 console.log("Proposed midspan fallback tests passed.");

@@ -386,6 +386,12 @@
       .filter(reference => makeReadyReferenceMatchesSpan(reference, span));
   }
 
+  function hasMakeReadyFiberReference(span) {
+    return makeReadyReferencesForSpan(span).some(reference =>
+      /\b\d+\s*CT\s*(?:Fiber|FIBER)\b/i.test(`${reference.attachmentSizeRaw || ""} ${reference.attachmentFiber || ""}`)
+    );
+  }
+
   function hasOverlashMakeReadyReference(span) {
     return makeReadyReferencesForSpan(span)
       .some(reference => isDirectionalFiberOnlyOverlash(reference, span));
@@ -1379,7 +1385,10 @@
     return S().getConnectedSpans(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isProposedExcluded)
-      .filter(span => allowNoMidspan || spanHasRealMidspan(span.spanId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
+      .filter(span => allowNoMidspan
+        || spanHasRealMidspan(span.spanId)
+        || S().getSpanSide(span.spanId, poleId)?.isManualProposed
+        || hasMakeReadyFiberReference(span))
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isAdditionalProposed)
       .filter(span => {
         const key = `${span.fromPole || ""}->${span.toPole || ""}`;
@@ -1954,6 +1963,7 @@
     isCommMovementsActive,
     getEstimatedSagInches,
     spanHasRealMidspan,
+    hasMakeReadyFiberReference,
     isSpanEligibleForProposed,
     autoCalcProposedSpansForPole,
     findRemoteComm,
