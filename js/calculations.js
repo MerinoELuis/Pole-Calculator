@@ -1351,7 +1351,7 @@
     // An Overlash Make Ready row can live on the opposite endpoint of an
     // Other/Back relationship. Keep that physical connection available for
     // Proposed so the fiber is placed on the existing job-owner messenger.
-    return hasOverlashMakeReadyReference(span);
+    return span?.fromPole === poleId && hasOverlashMakeReadyReference(span);
   }
 
   function autoCalcProposedSpansForPole(poleId) {

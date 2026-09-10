@@ -414,5 +414,10 @@ assert.equal(
   true,
   "an Overlash reference on the opposite endpoint must keep the physical connection eligible for Proposed"
 );
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("OVERLASH-CONNECTION"), "P2"),
+  false,
+  "the reciprocal Back Span must not display the same Overlash Proposed row on the other pole"
+);
 
 console.log("Proposed midspan fallback tests passed.");
