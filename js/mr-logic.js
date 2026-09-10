@@ -242,9 +242,90 @@
     return items.join("\n");
   }
 
+  function makeReadyDirectionTokens(reference) {
+    if (Array.isArray(reference?.attachmentDirectionTokens) && reference.attachmentDirectionTokens.length) {
+      return reference.attachmentDirectionTokens
+        .map(value => String(value || "").trim().toUpperCase())
+        .filter(Boolean);
+    }
+    return String(reference?.attachmentDirection || "")
+      .toUpperCase()
+      .match(/\b(?:NE|NW|SE|SW|N|E|S|W)\b/g) || [];
+  }
+
+  function makeReadyReferenceMatchesSpan(reference, span) {
+    if (!reference || !span || !/overlash/i.test(String(reference.attachmentType || ""))) return false;
+    const endpoint = reference.poleId === span.fromPole
+      ? span.fromPole
+      : reference.poleId === span.toPole ? span.toPole : "";
+    if (!endpoint) return false;
+    const tokens = makeReadyDirectionTokens(reference);
+    if (!tokens.length) return true;
+    const direction = span.fromPole === endpoint
+      ? String(span.direction || "").toUpperCase()
+      : oppositeDirection(String(span.direction || "").toUpperCase());
+    return !direction || tokens.includes(direction);
+  }
+
+  function overlashReferencesForSpan(span) {
+    return (S().getState().makeReadyReferences || [])
+      .filter(reference => makeReadyReferenceMatchesSpan(reference, span));
+  }
+
+  function isOverlashSpanSide(spanSide) {
+    return Boolean(spanSide && overlashReferencesForSpan(S().getSpan(spanSide.spanId || "")).length);
+  }
+
+  function normalizedOwnerToken(value) {
+    const normalized = String(value || "")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/\b(?:inc|llc|communications?)\b/gi, "")
+      .replace(/[^a-z0-9]+/gi, "")
+      .toLowerCase();
+    if (/wecom/.test(normalized)) return "wecom";
+    return normalized;
+  }
+
+  function samePhysicalSpan(first, second) {
+    if (!first || !second) return false;
+    const left = [first.fromPole, first.toPole].filter(Boolean).sort().join("|");
+    const right = [second.fromPole, second.toPole].filter(Boolean).sort().join("|");
+    return Boolean(left && right && left === right);
+  }
+
+  function existingJobMessengerForSpan(span) {
+    const owner = normalizedOwnerToken(proposedOwnerForMR());
+    if (!owner || !span) return null;
+    return Object.values(S().getState().spanComms || {}).find(row => {
+      const rowSpan = S().getSpan(row.spanId || "");
+      if (!samePhysicalSpan(rowSpan, span)) return false;
+      return normalizedOwnerToken(row.rawOwner || row.ownerBase || row.owner || "") === owner
+        && /\bmsgr\b|messenger/i.test(`${row.size || ""} ${row.construction || ""}`);
+    }) || null;
+  }
+
+  function generateOverlashMRForPole(poleId) {
+    const heights = new Set();
+    S().getConnectedSpans(poleId)
+      .filter(span => span.fromPole === poleId)
+      .forEach(span => {
+        if (!overlashReferencesForSpan(span).length) return;
+        const messenger = existingJobMessengerForSpan(span);
+        if (!messenger) return;
+        const side = S().getSpanSide(span.spanId, poleId);
+        const proposed = H().parseHeight(side?.proposedHOA || "");
+        const height = proposed !== null ? proposed : H().parseHeight(getEffectiveCommHOAForMR(messenger));
+        if (height !== null) heights.add(height);
+      });
+    if (!heights.size) return [];
+    const values = Array.from(heights).sort((a, b) => a - b).map(value => H().formatHeight(value));
+    return [`Overlash ${proposedOwnerForMR()} at HOA ${joinMRList(values)}.`];
+  }
+
   function generateAttachMRForPole(poleId) {
     if (isMetronetMR()) return "";
     const heights = S().getSpanSidesForPole(poleId)
+      .filter(side => !isOverlashSpanSide(side))
       .map(side => H().parseHeight(side.proposedHOA || ""))
       .concat(H().parseHeight(S().getPole(poleId)?.standaloneProposedHOA || ""))
       .filter(value => value !== null)
@@ -620,6 +701,7 @@
         else commMoves.push(line);
       });
     });
+    proposed.push(...generateOverlashMRForPole(poleId));
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
 
@@ -661,6 +743,7 @@
     generateMRForComm,
     generateResagServiceDropMR,
     generatePowerEquipmentMRForPole,
+    generateOverlashMRForPole,
     generatePoleInsetMR,
     getEditableUGTemplate: editableUGTemplate,
     getEditablePCOTemplate: editablePCOTemplate,

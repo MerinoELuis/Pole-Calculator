@@ -39,6 +39,7 @@ const AppStore = {
   getOtherPoleId: (span, poleId) => span.fromPole === poleId ? span.toPole : span.fromPole,
   getSpanSidesForPole: poleId => Object.values(state.spanSides).filter(side => side.poleId === poleId),
   getSpanSidesForSpan: spanId => Object.values(state.spanSides).filter(side => side.spanId === spanId),
+  getSpanSide: (spanId, poleId) => Object.values(state.spanSides).find(side => side.spanId === spanId && side.poleId === poleId) || null,
   getSpanCommsForPole: poleId => Object.values(state.spanComms).filter(row => row.poleId === poleId),
   getSpanCommsForSpan: spanId => Object.values(state.spanComms).filter(row => row.spanId === spanId)
 };
@@ -195,6 +196,29 @@ assert.equal(
   "Pole Inset must generate the failing-clearances Make Ready wording"
 );
 state.poles.P1.poleInsetActive = false;
+
+state.spanSides.OTHER__P1 = { spanId: "OTHER", poleId: "P1", proposedHOA: "22'6\"" };
+state.spanComms.OVERLASH_MESSENGER = {
+  spanId: "OTHER",
+  poleId: "P1",
+  owner: "COMMUNICATION > Wecom Inc",
+  rawOwner: "COMMUNICATION > Wecom Inc",
+  existingHOA: "22'6\"",
+  size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
+};
+state.makeReadyReferences = [{
+  poleId: "P2",
+  attachmentType: "Overlash",
+  attachmentSizeRaw: "72CT Fiber (N)",
+  attachmentDirectionTokens: ["N"]
+}];
+sandbox.window.MRLogic.generateMRForPole("P1");
+const mixedNewOverlashMR = state.mr.find(item => item.poleId === "P1").text;
+assert.match(mixedNewOverlashMR, /Overlash Wecom at HOA 22'6"\./, "Overlash must generate its own MR instruction");
+assert.match(mixedNewOverlashMR, /Attach Wecom at HOA 19'\./, "a New proposal must still generate its Attach MR on the same pole");
+assert.doesNotMatch(mixedNewOverlashMR, /^Attach Wecom at HOA .*22'6"/m, "Overlash must not be merged into the New Attach instruction");
+delete state.spanComms.OVERLASH_MESSENGER;
+delete state.spanSides.OTHER__P1;
 
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, [
