@@ -31,12 +31,12 @@
     if (!els.deploymentVersion) return;
     const build = global.AppDeploymentVersion || {};
     const version = String(build.version || "unknown").trim() || "unknown";
-    const shortCommit = String(build.shortCommit || build.commit || "unknown").trim() || "unknown";
-    const source = String(build.source || "").trim();
     const branch = String(build.branch || "").trim();
     const deployedAt = String(build.deployedAt || "").trim();
-    const label = source === "development" ? "development" : branch ? `${branch}` : "deployed";
-    els.deploymentVersion.textContent = `Version ${version} · Build ${shortCommit} · ${label}`;
+    // Keep the visible badge focused on the numeric application version. Build
+    // and deployment details remain available in the tooltip without exposing
+    // local/development labels in either the desktop or GitHub Pages UI.
+    els.deploymentVersion.textContent = `Version ${version}`;
     const details = [
       `Version: ${version}`,
       build.commit ? `Commit: ${build.commit}` : "",
