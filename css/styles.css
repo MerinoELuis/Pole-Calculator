@@ -1438,3 +1438,292 @@ tr.span-color-row:not(.warning-row) td:first-child {
     min-width: 100%;
   }
 }
+
+/* === Android/Samsung responsive workspace === */
+@media (max-width: 700px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app-shell {
+    width: 100%;
+    padding: 12px 10px calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .topbar h1 {
+    font-size: clamp(1.8rem, 8vw, 2.45rem);
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+
+  .app-version {
+    font-size: .68rem;
+    line-height: 1.25;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .topbar-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 9px 6px;
+    font-size: .76rem;
+    text-align: center;
+  }
+
+  .view-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .view-tab {
+    min-width: 0;
+    min-height: 42px;
+    justify-content: center;
+    padding: 8px 5px;
+    font-size: .74rem;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .view-tab-warning {
+    gap: 2px;
+    padding: 2px 4px;
+    font-size: .61rem;
+  }
+
+  .panel {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .panel-header {
+    gap: 10px;
+  }
+
+  .panel-header > * {
+    min-width: 0;
+  }
+
+  .index-panel .panel-header > div:first-child,
+  .index-actions {
+    width: 100%;
+  }
+
+  .index-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    justify-items: stretch;
+  }
+
+  .index-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 9px 6px;
+    font-size: .75rem;
+  }
+
+  .toolbar.compact-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+    overflow: visible;
+  }
+
+  .toolbar.compact-toolbar .input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .pole-index-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .pole-index-link {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    padding: 8px 5px;
+    font-size: .72rem;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+  }
+
+  .job-name-field {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .settings-grid {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: auto;
+    overflow: visible;
+  }
+
+  .clearance-grid,
+  .adjustments-grid,
+  .fiber-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: auto;
+  }
+
+  .clearance-settings.compact .clearance-row,
+  .clearance-settings.compact .position-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clearance-settings.compact .clearance-row .input,
+  .clearance-settings.compact .position-row .input {
+    width: 100%;
+  }
+
+  .table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: auto;
+  }
+
+  .table-wrap table {
+    font-size: .76rem;
+  }
+
+  table th,
+  table td {
+    padding: 7px 8px;
+    font-size: .72rem;
+  }
+
+  .span-proposed-table {
+    min-width: 1120px;
+  }
+
+  .comm-movement-table {
+    min-width: 1060px;
+  }
+
+  .power-table {
+    min-width: 720px;
+  }
+
+  .equipment-table {
+    min-width: 840px;
+  }
+
+  .span-cell {
+    min-width: 180px;
+    font-size: .72rem;
+  }
+
+  .flagging-cell {
+    min-width: 180px;
+  }
+
+  .notes-cell,
+  .notes-cell textarea.input {
+    min-width: 160px;
+  }
+
+  .manual-proposed-starter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .manual-proposed-starter label {
+    min-width: 0;
+  }
+
+  .manual-proposed-starter button {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .icon-action {
+    width: 40px;
+    height: 40px;
+  }
+
+  .floating-open-btn,
+  .floating-top-btn {
+    right: 10px;
+    width: 50px;
+    height: 50px;
+  }
+
+  .floating-open-btn {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .floating-top-btn {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    font-size: 1.35rem;
+  }
+
+  .floating-calculator {
+    right: 10px;
+    bottom: calc(128px + env(safe-area-inset-bottom));
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .calc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toast-host {
+    right: 10px;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    left: 10px;
+  }
+
+  .toast {
+    max-width: none;
+  }
+
+  .app-dialog-backdrop {
+    padding: 10px;
+  }
+
+  .app-dialog-form {
+    padding: 14px;
+  }
+
+  /* Android zooms focused controls below 16px; keep forms at a readable size. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
