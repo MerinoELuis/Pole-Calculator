@@ -2479,7 +2479,9 @@
       if (input.classList.contains("height-input") || input.classList.contains("decimal-height-input")) {
         const decimal = input.classList.contains("decimal-height-input");
         const allowed = decimal ? /[0-9.\s-]/ : /[0-9.'"\s-]/;
-        input.setAttribute("inputmode", decimal ? "decimal" : "numeric");
+        // Feet/inch notation needs apostrophes and quotes, so use the normal
+        // keyboard instead of Samsung's numeric-only layout.
+        input.setAttribute("inputmode", "text");
         input.setAttribute("enterkeyhint", "next");
         input.setAttribute("pattern", decimal ? "[0-9.\\s-]*" : "[0-9.'\"\\s-]*");
         input.addEventListener("input", () => {
