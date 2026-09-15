@@ -1636,7 +1636,7 @@
             </select>
           </label>
           <label class="clearance-row position-row">
-            <span>Position</span>
+            <span class="position-label">Position</span>
             <select class="input position-select" data-scope="settings" data-field="position">
               <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
               <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
@@ -2014,12 +2014,17 @@
     }
   }
 
-  function filteredPoles({ includeHidden = true } = {}) {
+  function filteredPoles({ includeHidden = true, includeUnknown = true } = {}) {
     const state = S.getState();
     const search = (state.ui.search || "").toLowerCase();
     const filter = state.ui.filter || "all";
     const hidden = new Set(state.ui.hiddenPoleIds || []);
     return Object.keys(state.poles).filter(poleId => {
+      // Generated endpoint placeholders (and imported poles whose identifier
+      // contains "Unknown") are useful for span geometry, but they should not
+      // clutter either user-facing pole index. Keep them in state so the
+      // calculations remain intact and only filter them at the index render.
+      if (!includeUnknown && /unknown/i.test(String(poleId))) return false;
       if (!includeHidden && hidden.has(poleId)) return false;
       const summary = poleSummary(poleId);
       const pole = summary.pole;
@@ -2051,7 +2056,7 @@
   }
 
   function renderPoleLists() {
-    const poleIds = filteredPoles();
+    const poleIds = filteredPoles({ includeUnknown: false });
     els.poleSearchInput.value = S.getState().ui.search || "";
     els.warningFilterSelect.value = S.getState().ui.filter || "all";
     els.poleSearchInputTop.value = S.getState().ui.search || "";
