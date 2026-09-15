@@ -3279,7 +3279,10 @@
     els.warningFilterSelect.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
     els.poleSearchInputTop.addEventListener("input", event => { S.getState().ui.search = event.target.value; render(); });
     els.warningFilterSelectTop.addEventListener("change", event => { S.getState().ui.filter = event.target.value; render(); });
-    els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
+    els.poleIndexToggle.addEventListener("click", () => {
+      const isOpen = els.poleIndexDrawer?.classList.contains("open");
+      setPoleIndexOpen(!isOpen);
+    });
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
     els.jobNameInput?.addEventListener("change", event => {
