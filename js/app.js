@@ -106,6 +106,9 @@
     els.poleIndexBackdrop?.classList.toggle("hidden", !isOpen);
     // Opening navigation must not focus the search field: on Samsung this
     // would immediately raise the software keyboard over the pole list.
+    if (isOpen && document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur?.();
+    }
   }
 
   function updatePoleIndexToggleVisibility() {

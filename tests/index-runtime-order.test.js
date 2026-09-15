@@ -10,7 +10,7 @@ const deploymentVersion = fs.readFileSync(path.join(__dirname, "..", "js", "depl
 const scripts = Array.from(html.matchAll(/<script src="([^"]+)"/g), match => match[1]);
 
 function position(filename) {
-  const index = scripts.indexOf(filename);
+  const index = scripts.findIndex(src => src.split("?", 1)[0] === filename);
   assert.notEqual(index, -1, `${filename} must be loaded`);
   return index;
 }
