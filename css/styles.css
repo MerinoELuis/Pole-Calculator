@@ -1806,6 +1806,10 @@ tr.span-color-row:not(.warning-row) td:first-child {
     background: var(--primary);
     color: #fff;
   }
+
+  .mobile-calc-keyboard .mobile-keyboard-enter {
+    grid-column: span 2;
+  }
 }
 
 /* Samsung browsers often report a wide CSS viewport in landscape mode. Apply
@@ -1897,5 +1901,13 @@ tr.span-color-row:not(.warning-row) td:first-child {
     grid-column: span 2;
     background: var(--primary);
     color: #fff;
+  }
+
+  .mobile-calc-keyboard {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .mobile-calc-keyboard .mobile-keyboard-enter {
+    grid-column: span 2;
   }
 }

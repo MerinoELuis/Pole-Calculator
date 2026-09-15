@@ -38,6 +38,7 @@
     const closeBtn = document.getElementById("closeCalculatorBtn");
     const expression = document.getElementById("calcExpression");
     const result = document.getElementById("calcResult");
+    const keyboard = document.getElementById("mobileCalcKeyboard");
     const H = global.HeightUtils;
 
     if (!panel || !openBtn || !scrollTopBtn || !closeBtn || !expression || !result || !H) return;
@@ -77,10 +78,47 @@
       runCalculation();
     }
 
+    function mobileViewport() {
+      return Boolean(window.matchMedia?.("(max-width: 700px), (orientation: landscape) and (max-height: 700px)").matches);
+    }
+
+    function setKeyboardOpen(open) {
+      const shouldOpen = Boolean(open && mobileViewport());
+      keyboard?.classList.toggle("open", shouldOpen);
+      keyboard?.setAttribute("aria-hidden", String(!shouldOpen));
+    }
+
+    function applyKeyboardKey(key) {
+      expression.focus({ preventScroll: true });
+      const start = Number.isInteger(expression.selectionStart) ? expression.selectionStart : expression.value.length;
+      const end = Number.isInteger(expression.selectionEnd) ? expression.selectionEnd : start;
+      if (key === "Backspace") {
+        if (start !== end) expression.setRangeText("", start, end, "end");
+        else if (start > 0) expression.setRangeText("", start - 1, start, "end");
+      } else if (key === "Enter") {
+        normalizeExpressionInput(expression);
+        runCalculation();
+        expression.blur();
+        setKeyboardOpen(false);
+        return;
+      } else {
+        expression.setRangeText(key, start, end, "end");
+      }
+      handleExpressionInput();
+    }
+
     openBtn.addEventListener("click", () => panel.classList.toggle("hidden"));
     scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
     closeBtn.addEventListener("click", () => panel.classList.add("hidden"));
     expression.addEventListener("input", handleExpressionInput);
+    expression.addEventListener("focus", () => setKeyboardOpen(true));
+    expression.addEventListener("blur", () => global.setTimeout(() => {
+      if (!keyboard?.contains(document.activeElement)) setKeyboardOpen(false);
+    }, 0));
+    keyboard?.querySelectorAll("[data-calc-key]").forEach(button => {
+      button.addEventListener("pointerdown", event => event.preventDefault());
+      button.addEventListener("click", () => applyKeyboardKey(button.dataset.calcKey || ""));
+    });
     expression.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         event.preventDefault();
