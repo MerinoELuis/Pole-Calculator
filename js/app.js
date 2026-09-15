@@ -126,22 +126,44 @@
   function bindPoleIndexSwipe() {
     const drawer = els.poleIndexDrawer;
     if (!drawer) return;
-    let startX = 0;
-    let startY = 0;
+    let startX = null;
+    let startY = null;
     drawer.addEventListener("touchstart", event => {
       if (event.touches.length !== 1) return;
       startX = event.touches[0].clientX;
       startY = event.touches[0].clientY;
     }, { passive: true });
     drawer.addEventListener("touchend", event => {
-      if (!startX || !event.changedTouches.length) return;
+      if (startX === null || !event.changedTouches.length) return;
       const end = event.changedTouches[0];
       const deltaX = end.clientX - startX;
       const deltaY = end.clientY - startY;
-      startX = 0;
-      startY = 0;
+      startX = null;
+      startY = null;
       if (deltaX < -56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
         setPoleIndexOpen(false);
+      }
+    }, { passive: true });
+
+    // When the drawer is closed, a right swipe beginning at the left edge
+    // opens it. Restricting the start area prevents normal page scrolling from
+    // unexpectedly opening navigation.
+    document.addEventListener("touchstart", event => {
+      if (drawer.classList.contains("open") || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (touch.clientX > 32) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    }, { passive: true });
+    document.addEventListener("touchend", event => {
+      if (drawer.classList.contains("open") || startX === null || !event.changedTouches.length) return;
+      const end = event.changedTouches[0];
+      const deltaX = end.clientX - startX;
+      const deltaY = end.clientY - startY;
+      startX = null;
+      startY = null;
+      if (deltaX > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+        setPoleIndexOpen(true);
       }
     }, { passive: true });
   }

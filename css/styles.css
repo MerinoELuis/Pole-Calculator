@@ -1540,10 +1540,20 @@ tr.span-color-row:not(.warning-row) td:first-child {
     width: 100%;
   }
 
-  /* On a phone the drawer is the only pole index. This removes a very tall
-     duplicate section from the page while leaving search/filter in the tab. */
-  #topIndexPanel {
+  /* On a phone the drawer is the only pole index. Keep the job name and its
+     two primary actions, but remove the duplicate pole navigation itself. */
+  #topIndexPanel .panel-header > div:first-child > .eyebrow,
+  #topIndexPanel .panel-header > div:first-child > h2,
+  #topIndexPanel .toolbar.compact-toolbar,
+  #topIndexPanel #polesListTop {
     display: none;
+  }
+
+  .pole-index-drawer {
+    top: 12px;
+    bottom: 12px;
+    height: calc(100dvh - 24px);
+    border-radius: 0 16px 16px 0;
   }
 
   .index-actions {
