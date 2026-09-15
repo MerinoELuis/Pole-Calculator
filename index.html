@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#eef4ff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Pole Span MR Calculator</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.17" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.19" />
 </head>
 <body>
   <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
@@ -34,7 +34,7 @@
     <header class="topbar">
       <div>
         <h1>Pole Span MR Calculator</h1>
-        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.17</p>
+        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.19</p>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
@@ -165,7 +165,7 @@
   </section>
 
   <script src="libs/xlsx.full.min.js"></script>
-  <script src="js/deployment-version.js?v=1.8.17"></script>
+  <script src="js/deployment-version.js?v=1.8.19"></script>
   <script src="js/height-utils.js"></script>
   <script src="js/project-config.js"></script>
   <script src="js/state.js"></script>
@@ -180,10 +180,26 @@
   <script src="js/auto-calculate-solver.js"></script>
   <script src="js/auto-calculate-source-compat.js"></script>
   <script src="js/floating-calculator.js"></script>
-  <script src="js/app.js?v=1.8.17"></script>
+  <script src="js/app.js?v=1.8.19"></script>
   <script src="js/ui/dom-contract.js"></script>
   <script src="js/ui/comm-table.js"></script>
   <script src="js/ui/span-colors.js"></script>
   <script src="js/ui/runtime.js"></script>
+  <div id="mobileHeightKeyboard" class="mobile-height-keyboard" aria-label="Feet and inches keypad">
+    <button type="button" data-mobile-key="1">1</button>
+    <button type="button" data-mobile-key="2">2</button>
+    <button type="button" data-mobile-key="3">3</button>
+    <button type="button" data-mobile-key="4">4</button>
+    <button type="button" data-mobile-key="5">5</button>
+    <button type="button" data-mobile-key="6">6</button>
+    <button type="button" data-mobile-key="7">7</button>
+    <button type="button" data-mobile-key="8">8</button>
+    <button type="button" data-mobile-key="9">9</button>
+    <button type="button" data-mobile-key="0">0</button>
+    <button type="button" data-mobile-key="'">&prime;</button>
+    <button type="button" data-mobile-key="&quot;">&Prime;</button>
+    <button type="button" class="mobile-keyboard-backspace" data-mobile-key="Backspace" aria-label="Backspace">&#9003;</button>
+    <button type="button" class="mobile-keyboard-enter" data-mobile-key="Enter">Enter</button>
+  </div>
 </body>
 </html>

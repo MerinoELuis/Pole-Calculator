@@ -23,6 +23,7 @@
   const SAVE_HANDLE_KEY = "currentSaveFile";
   const JSON_PICKER_ID = "pole-calculator-json";
   let autoCalculateRunning = false;
+  let mobileHeightInput = null;
 
 
   function qs(id) { return document.getElementById(id); }
@@ -98,6 +99,7 @@
 
   function setPoleIndexOpen(open) {
     const isOpen = Boolean(open);
+    if (isOpen) setMobileHeightKeyboardOpen(false);
     document.body.classList.toggle("pole-index-open", isOpen);
     els.poleIndexDrawer?.classList.toggle("open", isOpen);
     els.poleIndexDrawer?.setAttribute("aria-hidden", String(!isOpen));
@@ -109,6 +111,53 @@
     if (isOpen && document.activeElement && document.activeElement !== document.body) {
       document.activeElement.blur?.();
     }
+  }
+
+  function isMobileHeightKeyboardViewport() {
+    return Boolean(window.matchMedia?.("(max-width: 700px), (orientation: landscape) and (max-height: 700px)").matches);
+  }
+
+  function setMobileHeightKeyboardOpen(open, input = mobileHeightInput) {
+    const keyboard = els.mobileHeightKeyboard;
+    const shouldOpen = Boolean(open && input && !input.disabled && !input.readOnly && isMobileHeightKeyboardViewport());
+    mobileHeightInput = shouldOpen ? input : null;
+    keyboard?.classList.toggle("open", shouldOpen);
+    keyboard?.setAttribute("aria-hidden", String(!shouldOpen));
+    document.body.classList.toggle("mobile-height-keyboard-open", shouldOpen);
+  }
+
+  function applyMobileHeightKey(key) {
+    const input = mobileHeightInput;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+    if (key === "Backspace") {
+      if (start !== end) input.setRangeText("", start, end, "end");
+      else if (start > 0) input.setRangeText("", start - 1, start, "end");
+    } else if (key === "Enter") {
+      input.blur();
+      setMobileHeightKeyboardOpen(false);
+      return;
+    } else {
+      input.setRangeText(key, start, end, "end");
+    }
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function bindMobileHeightKeyboard() {
+    const keyboard = els.mobileHeightKeyboard;
+    if (!keyboard) return;
+    keyboard.querySelectorAll("[data-mobile-key]").forEach(button => {
+      button.addEventListener("pointerdown", event => event.preventDefault());
+      button.addEventListener("click", () => applyMobileHeightKey(button.dataset.mobileKey || ""));
+    });
+    document.addEventListener("focusin", event => {
+      const target = event.target;
+      if (!target?.classList?.contains("height-input") && !target?.classList?.contains("decimal-height-input")) {
+        setMobileHeightKeyboardOpen(false);
+      }
+    });
   }
 
   function updatePoleIndexToggleVisibility() {
@@ -2481,9 +2530,18 @@
         const allowed = decimal ? /[0-9.\s-]/ : /[0-9.'"\s-]/;
         // Feet/inch notation needs apostrophes and quotes, so use the normal
         // keyboard instead of Samsung's numeric-only layout.
-        input.setAttribute("inputmode", "text");
+        input.setAttribute("inputmode", isMobileHeightKeyboardViewport() ? "none" : "text");
         input.setAttribute("enterkeyhint", "next");
         input.setAttribute("pattern", decimal ? "[0-9.\\s-]*" : "[0-9.'\"\\s-]*");
+        input.addEventListener("focus", () => setMobileHeightKeyboardOpen(true, input));
+        input.addEventListener("blur", () => {
+          if (mobileHeightInput !== input) return;
+          global.setTimeout(() => {
+            if (document.activeElement !== input && !els.mobileHeightKeyboard?.contains(document.activeElement)) {
+              setMobileHeightKeyboardOpen(false);
+            }
+          }, 0);
+        });
         input.addEventListener("input", () => {
           const filtered = Array.from(input.value).filter(character => allowed.test(character)).join("");
           if (filtered !== input.value) {
@@ -3377,11 +3435,13 @@
       rerunExcelReviewBtn: qs("rerunExcelReviewBtn"),
       appLayout: qs("appLayout"),
       clearanceSettings: qs("clearanceSettings"),
-      toastHost: qs("toastHost")
+      toastHost: qs("toastHost"),
+      mobileHeightKeyboard: qs("mobileHeightKeyboard")
     });
 
     renderDeploymentVersion();
     bindEvents();
+    bindMobileHeightKeyboard();
     global.FloatingCalculator?.setupFloatingCalculator();
     S.resetState();
     render();
