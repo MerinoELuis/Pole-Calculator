@@ -113,8 +113,37 @@
       els.poleIndexToggle.classList.remove("visible");
       return;
     }
+    // On a phone the full-page index is intentionally hidden, so the drawer
+    // tab must remain available instead of waiting for a scroll threshold.
+    if (window.matchMedia?.("(max-width: 700px)").matches) {
+      els.poleIndexToggle.classList.add("visible");
+      return;
+    }
     const panelIsAboveViewport = els.topIndexPanel.getBoundingClientRect().bottom <= 0;
     els.poleIndexToggle.classList.toggle("visible", panelIsAboveViewport);
+  }
+
+  function bindPoleIndexSwipe() {
+    const drawer = els.poleIndexDrawer;
+    if (!drawer) return;
+    let startX = 0;
+    let startY = 0;
+    drawer.addEventListener("touchstart", event => {
+      if (event.touches.length !== 1) return;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+    }, { passive: true });
+    drawer.addEventListener("touchend", event => {
+      if (!startX || !event.changedTouches.length) return;
+      const end = event.changedTouches[0];
+      const deltaX = end.clientX - startX;
+      const deltaY = end.clientY - startY;
+      startX = 0;
+      startY = 0;
+      if (deltaX < -56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+        setPoleIndexOpen(false);
+      }
+    }, { passive: true });
   }
 
   // Native prompt/confirm dialogs ignore the app theme. These small helpers
@@ -3258,6 +3287,7 @@
     els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
+    bindPoleIndexSwipe();
     els.jobNameInput?.addEventListener("change", event => {
       const nextName = String(event.target.value || "").trim()
         || S.jobNameFromFileName(S.getState().importedFileName);
