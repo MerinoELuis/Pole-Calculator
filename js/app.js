@@ -104,7 +104,8 @@
     if (els.poleIndexDrawer) els.poleIndexDrawer.inert = !isOpen;
     els.poleIndexToggle?.setAttribute("aria-expanded", String(isOpen));
     els.poleIndexBackdrop?.classList.toggle("hidden", !isOpen);
-    if (isOpen) els.poleSearchInput?.focus();
+    // Opening navigation must not focus the search field: on Samsung this
+    // would immediately raise the software keyboard over the pole list.
   }
 
   function updatePoleIndexToggleVisibility() {
@@ -121,51 +122,6 @@
     }
     const panelIsAboveViewport = els.topIndexPanel.getBoundingClientRect().bottom <= 0;
     els.poleIndexToggle.classList.toggle("visible", panelIsAboveViewport);
-  }
-
-  function bindPoleIndexSwipe() {
-    const drawer = els.poleIndexDrawer;
-    if (!drawer) return;
-    let startX = null;
-    let startY = null;
-    drawer.addEventListener("touchstart", event => {
-      if (event.touches.length !== 1) return;
-      startX = event.touches[0].clientX;
-      startY = event.touches[0].clientY;
-    }, { passive: true });
-    drawer.addEventListener("touchend", event => {
-      if (startX === null || !event.changedTouches.length) return;
-      const end = event.changedTouches[0];
-      const deltaX = end.clientX - startX;
-      const deltaY = end.clientY - startY;
-      startX = null;
-      startY = null;
-      if (deltaX < -56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
-        setPoleIndexOpen(false);
-      }
-    }, { passive: true });
-
-    // When the drawer is closed, a right swipe beginning at the left edge
-    // opens it. Restricting the start area prevents normal page scrolling from
-    // unexpectedly opening navigation.
-    document.addEventListener("touchstart", event => {
-      if (drawer.classList.contains("open") || event.touches.length !== 1) return;
-      const touch = event.touches[0];
-      if (touch.clientX > 32) return;
-      startX = touch.clientX;
-      startY = touch.clientY;
-    }, { passive: true });
-    document.addEventListener("touchend", event => {
-      if (drawer.classList.contains("open") || startX === null || !event.changedTouches.length) return;
-      const end = event.changedTouches[0];
-      const deltaX = end.clientX - startX;
-      const deltaY = end.clientY - startY;
-      startX = null;
-      startY = null;
-      if (deltaX > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
-        setPoleIndexOpen(true);
-      }
-    }, { passive: true });
   }
 
   // Native prompt/confirm dialogs ignore the app theme. These small helpers
@@ -1740,12 +1696,12 @@
     els.autoCalculateBtn.classList.toggle("btn-disabled", disableAuto);
     els.autoCalculateBtn.classList.toggle("btn-primary", !disableAuto);
     els.autoCalculateBtn.textContent = autoCalculateRunning
-      ? "Auto Calculate Moves · Processing"
+      ? "Auto Proposed · Processing"
       : !hasPoleData
-      ? "Auto Calculate Moves · Import Data First"
+      ? "Auto Proposed · Import Data First"
       : isLowComm
-        ? "Auto Calculate Moves · Top Comm Required"
-        : "Auto Calculate Moves";
+        ? "Auto Proposed · Top Comm Required"
+        : "Auto Proposed";
 
     if (els.exportProposedJsonBtn) {
       els.exportProposedJsonBtn.disabled = !hasPoleData;
@@ -3309,7 +3265,6 @@
     els.poleIndexToggle.addEventListener("click", () => setPoleIndexOpen(true));
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
-    bindPoleIndexSwipe();
     els.jobNameInput?.addEventListener("change", event => {
       const nextName = String(event.target.value || "").trim()
         || S.jobNameFromFileName(S.getState().importedFileName);
