@@ -2476,6 +2476,20 @@
 
   function wireEditableEvents(root) {
     root.querySelectorAll("input[data-scope], textarea[data-scope], select[data-scope]").forEach(input => {
+      if (input.classList.contains("height-input") || input.classList.contains("decimal-height-input")) {
+        const decimal = input.classList.contains("decimal-height-input");
+        const allowed = decimal ? /[0-9.\s-]/ : /[0-9.'"\s-]/;
+        input.setAttribute("inputmode", decimal ? "decimal" : "numeric");
+        input.setAttribute("enterkeyhint", "next");
+        input.setAttribute("pattern", decimal ? "[0-9.\\s-]*" : "[0-9.'\"\\s-]*");
+        input.addEventListener("input", () => {
+          const filtered = Array.from(input.value).filter(character => allowed.test(character)).join("");
+          if (filtered !== input.value) {
+            input.value = filtered;
+            input.setSelectionRange(filtered.length, filtered.length);
+          }
+        });
+      }
       if (input.classList.contains("pole-mr-editor")) {
         // Capture one undo point when a new editing session starts. The input
         // handler updates MR in place, so the textarea keeps focus while the
