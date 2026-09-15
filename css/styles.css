@@ -1763,3 +1763,32 @@ tr.span-color-row:not(.warning-row) td:first-child {
     font-size: 16px;
   }
 }
+
+/* Samsung browsers often report a wide CSS viewport in landscape mode. Apply
+   the same compact navigation rules there using the short viewport height. */
+@media (orientation: landscape) and (max-height: 700px) {
+  #topIndexPanel .panel-header > div:first-child > .eyebrow,
+  #topIndexPanel .panel-header > div:first-child > h2,
+  #topIndexPanel .toolbar.compact-toolbar,
+  #topIndexPanel #polesListTop {
+    display: none;
+  }
+
+  .pole-index-drawer {
+    top: 12px;
+    bottom: 12px;
+    height: calc(100dvh - 24px);
+    border-radius: 0 16px 16px 0;
+  }
+
+  .pole-index-drawer .pole-index-links {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .pole-index-drawer .pole-index-link {
+    min-height: 34px;
+    padding: 7px 10px;
+    justify-content: space-between;
+  }
+}

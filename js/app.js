@@ -119,7 +119,7 @@
     }
     // On a phone the full-page index is intentionally hidden, so the drawer
     // tab must remain available instead of waiting for a scroll threshold.
-    if (window.matchMedia?.("(max-width: 700px)").matches) {
+    if (window.matchMedia?.("(max-width: 700px), (orientation: landscape) and (max-height: 700px)").matches) {
       els.poleIndexToggle.classList.add("visible");
       return;
     }
