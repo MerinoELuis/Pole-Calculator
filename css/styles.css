@@ -1573,6 +1573,19 @@ tr.span-color-row:not(.warning-row) td:first-child {
     overflow: visible;
   }
 
+  /* The drawer is a directional navigation list: keep each pole on its own
+     row so labels and status badges do not collide on Samsung screens. */
+  .pole-index-drawer .pole-index-links {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .pole-index-drawer .pole-index-link {
+    min-height: 38px;
+    padding: 9px 10px;
+    justify-content: space-between;
+  }
+
   .pole-index-link {
     width: 100%;
     min-width: 0;
