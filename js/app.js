@@ -2085,10 +2085,17 @@
       const summary = poleSummary(poleId);
       const pole = summary.pole;
       const comms = Array.isArray(pole.comms) ? pole.comms : [];
+      const flagging = poleFlaggingSummary(poleId);
+      const hasComms = comms.length > 0 || S.getSpanCommsForPole(poleId).length > 0;
       const text = `${poleId} ${pole.sequence || ""} ${pole.poleHeight || ""} ${pole.lowPower || ""} ${pole.maxCommHeight || ""} ${comms.map(c => `${c.owner || ""} ${c.existingHOA || ""}`).join(" ")}`.toLowerCase();
       if (search && !text.includes(search)) return false;
-      if (filter === "warnings" && summary.warnings.length === 0 && poleFlaggingSummary(poleId).issueCount === 0) return false;
+      if (filter === "warnings" && summary.warnings.length === 0 && flagging.issueCount === 0) return false;
       if (filter === "changed" && !summary.hasChanges) return false;
+      if (filter === "ug" && !pole.ugActive) return false;
+      if (filter === "pco" && !pole.pcoActive) return false;
+      if (filter === "height" && !flagging.heightCritical) return false;
+      if (filter === "ready" && flagging.issueCount > 0) return false;
+      if (filter === "comms" && !hasComms) return false;
       return true;
     }).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }
@@ -3201,7 +3208,6 @@
     state.selectedPoleId = poleId;
     state.selectedSpanId = "";
     state.ui.activeView = "calculator";
-    setPoleIndexOpen(false);
     render();
     scrollToPole(poleId);
   }
