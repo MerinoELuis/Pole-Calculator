@@ -1873,6 +1873,24 @@ tr.span-color-row:not(.warning-row) td:first-child {
   }
 }
 
+/* Desktop/web layout: the open index is a real left rail, not a modal. The
+   calculator keeps its own space and remains clickable while the rail is open. */
+@media (min-width: 701px) {
+  body.pole-index-open {
+    overflow: auto;
+  }
+
+  body.pole-index-open .app-shell {
+    width: min(1900px, calc(100% - 372px));
+    margin: 0 12px 24px 360px;
+  }
+
+  body.pole-index-open .pole-index-backdrop {
+    display: none;
+    pointer-events: none;
+  }
+}
+
 /* Samsung browsers often report a wide CSS viewport in landscape mode. Apply
    the same compact navigation rules there using the short viewport height. */
 @media (orientation: landscape) and (max-height: 700px) {
