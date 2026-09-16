@@ -36,7 +36,8 @@ body.pole-index-open { overflow: hidden; }
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 49;
+  /* Stay above the open drawer so the same tab can close it on the next tap. */
+  z-index: 52;
   border: 1px solid #bfdbfe;
   border-left: 0;
   border-radius: 0 8px 8px 0;
