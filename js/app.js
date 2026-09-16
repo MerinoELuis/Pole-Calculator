@@ -3365,6 +3365,13 @@
       });
     });
     document.addEventListener("keydown", event => {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.code === "Space") {
+        if ((S.getState().ui.activeView || "calculator") !== "calculator") return;
+        event.preventDefault();
+        const isOpen = els.poleIndexDrawer?.classList.contains("open");
+        setPoleIndexOpen(!isOpen);
+        return;
+      }
       if (event.key === "Escape" && els.poleIndexDrawer?.classList.contains("open")) {
         setPoleIndexOpen(false);
         return;
@@ -3442,6 +3449,11 @@
     global.FloatingCalculator?.setupFloatingCalculator();
     S.resetState();
     render();
+    // Desktop/web layouts have enough room for the navigation drawer up
+    // front. Phones keep it closed so the calculator remains unobstructed.
+    if (window.matchMedia?.("(min-width: 701px)").matches) {
+      setPoleIndexOpen(true);
+    }
     updatePoleIndexToggleVisibility();
     markClean(serializedSavePayload());
   }

@@ -57,6 +57,14 @@ body.pole-index-open { overflow: hidden; }
   pointer-events: auto;
   transform: translateY(0);
 }
+/* On desktop the drawer starts open, so its blue launcher is intentionally
+   hidden until the drawer is closed again. Ctrl+Space remains the toggle. */
+body.pole-index-open .pole-index-toggle {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
 .pole-class-view .pole-index-toggle,
 .pole-class-view .pole-index-drawer,
 .pole-class-view .pole-index-backdrop {
