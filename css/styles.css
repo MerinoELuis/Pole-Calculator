@@ -220,6 +220,30 @@ button:disabled { cursor: not-allowed; }
 #topIndexPanel #polesListTop {
   display: none;
 }
+/* With the duplicate navigation removed, keep the remaining project controls
+   in one intentional horizontal action bar instead of a tall button stack. */
+#topIndexPanel .panel-header {
+  align-items: center;
+  gap: 16px;
+}
+#topIndexPanel .panel-header > div:first-child {
+  flex: 1 1 320px;
+  min-width: 240px;
+}
+#topIndexPanel .index-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+#topIndexPanel .index-actions .btn {
+  min-width: 148px;
+  min-height: 42px;
+  padding: 9px 14px;
+  text-align: center;
+}
 .job-name-field {
   display: grid;
   grid-template-columns: auto minmax(180px, 360px);
@@ -1552,6 +1576,12 @@ tr.span-color-row:not(.warning-row) td:first-child {
     width: 100%;
   }
 
+  #topIndexPanel .panel-header > div:first-child {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
   /* On a phone the drawer is the only pole index. Keep the job name and its
      two primary actions, but remove the duplicate pole navigation itself. */
   #topIndexPanel .panel-header > div:first-child > .eyebrow,
@@ -1574,12 +1604,26 @@ tr.span-color-row:not(.warning-row) td:first-child {
     justify-items: stretch;
   }
 
+  #topIndexPanel .index-actions {
+    display: grid;
+    flex: 1 1 100%;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    justify-items: stretch;
+  }
+
   .index-actions .btn {
     width: 100%;
     min-width: 0;
     min-height: 42px;
     padding: 9px 6px;
     font-size: .75rem;
+  }
+
+  #topIndexPanel .index-actions .btn {
+    width: 100%;
+    min-width: 0;
   }
 
   .toolbar.compact-toolbar {
