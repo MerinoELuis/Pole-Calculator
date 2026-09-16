@@ -212,6 +212,14 @@ button:disabled { cursor: not-allowed; }
 .compact-toolbar { flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
 .compact-toolbar .input { max-width: 280px; }
 .index-panel .panel-header { margin-bottom: 8px; }
+/* Pole navigation lives in the left drawer. Keep the job field and actions in
+   the page header, but never render a second pole list/search on the page. */
+#topIndexPanel .panel-header > div:first-child > .eyebrow,
+#topIndexPanel .panel-header > div:first-child > h2,
+#topIndexPanel .toolbar.compact-toolbar,
+#topIndexPanel #polesListTop {
+  display: none;
+}
 .job-name-field {
   display: grid;
   grid-template-columns: auto minmax(180px, 360px);

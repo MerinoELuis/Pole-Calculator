@@ -161,19 +161,14 @@
   }
 
   function updatePoleIndexToggleVisibility() {
-    if (!els.poleIndexToggle || !els.topIndexPanel) return;
+    if (!els.poleIndexToggle) return;
     if ((S.getState().ui.activeView || "calculator") !== "calculator") {
       els.poleIndexToggle.classList.remove("visible");
       return;
     }
-    // On a phone the full-page index is intentionally hidden, so the drawer
-    // tab must remain available instead of waiting for a scroll threshold.
-    if (window.matchMedia?.("(max-width: 700px), (orientation: landscape) and (max-height: 700px)").matches) {
-      els.poleIndexToggle.classList.add("visible");
-      return;
-    }
-    const panelIsAboveViewport = els.topIndexPanel.getBoundingClientRect().bottom <= 0;
-    els.poleIndexToggle.classList.toggle("visible", panelIsAboveViewport);
+    // The page-level pole list is removed; keep the drawer tab available at
+    // every scroll position so navigation is always one tap away.
+    els.poleIndexToggle.classList.add("visible");
   }
 
   // Native prompt/confirm dialogs ignore the app theme. These small helpers
@@ -2083,7 +2078,9 @@
       // contains "Unknown") are useful for span geometry, but they should not
       // clutter either user-facing pole index. Keep them in state so the
       // calculations remain intact and only filter them at the index render.
-      if (!includeUnknown && /unknown/i.test(String(poleId))) return false;
+      // Keep real imported IDs such as P6-Unknown addressable. Only generated
+      // endpoint placeholders beginning with Unknown- stay out of the index.
+      if (!includeUnknown && /^unknown(?:-|\b)/i.test(String(poleId))) return false;
       if (!includeHidden && hidden.has(poleId)) return false;
       const summary = poleSummary(poleId);
       const pole = summary.pole;
