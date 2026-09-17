@@ -775,6 +775,9 @@
   // acted-on row, keep it so Update Data cannot silently delete that work.
   function mergePowerEquipmentUserWork(importedRows, oldRows, reconciliation) {
     const rows = Array.isArray(importedRows) ? importedRows.map(row => ({ ...row })) : [];
+    // A partial Update Data file often has no Equipment sheet at all. In that
+    // case the empty imported list means "not supplied", not "delete power".
+    if (!rows.length && (oldRows || []).length) return oldRows.map(row => ({ ...row }));
     const claimed = new Set();
     (oldRows || []).filter(row => row.actionActive || row.actionHeight || row.raiseActive || row.secureActive || row.raiseHeight).forEach(oldRow => {
       const match = rows
@@ -944,7 +947,18 @@
       if (match.row) {
         claimedImportedPowerKeys.add(match.key);
         merged.spanPower[match.key] = preserveValuesMissingFromUpdate(match.row, oldRow, reconciliation);
+        return;
       }
+      // Update Data can be a partial workbook. If its Power sheet omits a
+      // different pole, keep that imported power row instead of deleting it.
+      // This mirrors the non-destructive merge used for comms and review rows.
+      let preservedKey = key;
+      if (oldRow.poleId !== oldRowSource.poleId) {
+        preservedKey = [oldRow.spanId, oldRow.poleId, oldRow.wireId || oldRow.label || "preserved"].join("__");
+      }
+      while (merged.spanPower[preservedKey]) preservedKey = `${preservedKey}__preserved`;
+      merged.spanPower[preservedKey] = oldRow;
+      reconciliation.missingRowsPreserved += 1;
     });
 
     Object.entries(previous.poles || {}).forEach(([poleId, oldPole]) => {
@@ -2119,7 +2133,9 @@
   }
 
   function renderPoleLists() {
-    const poleIds = filteredPoles({ includeUnknown: false });
+    // Keep generated Unknown endpoints addressable in the index. They remain
+    // hidden from the workspace through hiddenPoleIds and carry a Hidden badge.
+    const poleIds = filteredPoles({ includeUnknown: true });
     els.poleSearchInput.value = S.getState().ui.search || "";
     els.warningFilterSelect.value = S.getState().ui.filter || "all";
     els.poleSearchInputTop.value = S.getState().ui.search || "";
@@ -3201,7 +3217,7 @@
     if ((state.ui.hiddenPoleIds || []).includes(poleId)) {
       recordUndoSnapshot();
       state.ui.hiddenPoleIds = state.ui.hiddenPoleIds.filter(id => id !== poleId);
-      if (/^unknown(?:-|\b)/i.test(poleId)) {
+      if (/(?:^unknown(?:-|\b)|-unknown(?:-|\b))/i.test(poleId)) {
         state.ui.revealedUnknownPoleIds = Array.from(new Set([...(state.ui.revealedUnknownPoleIds || []), poleId]));
       }
     }

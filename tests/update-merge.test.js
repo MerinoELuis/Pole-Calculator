@@ -44,7 +44,10 @@ const previous = {
     C1: { spanId: "S1", poleId: "P1", owner: "CATV", ownerBase: "CATV", wireId: "W1", existingHOA: "20'", midspan: "16'", size: "Old size" },
     C2: { spanId: "S2", poleId: "P1", owner: "CTL", ownerBase: "CTL", wireId: "W2", existingHOA: "19'", midspan: "15'", size: "Telco" }
   },
-  spanPower: { PW1: { spanId: "S1", poleId: "P1", owner: "APS", wireId: "PW1", size: "Primary", attachmentHeight: "35'", midspan: "29'" } },
+  spanPower: {
+    PW1: { spanId: "S1", poleId: "P1", owner: "APS", wireId: "PW1", size: "Primary", attachmentHeight: "35'", midspan: "29'" },
+    PW2: { spanId: "S2", poleId: "P1", owner: "APS", wireId: "PW2", size: "Secondary", attachmentHeight: "32'", midspan: "27'" }
+  },
   makeReadyReferences: [],
   poleClassChecks: [{ poleId: "P2", measuredTip: "31'", expectedLength: 35 }],
   settings: { projectProfile: "INTEC", fiberSizes: {} },
@@ -99,6 +102,11 @@ assert.equal(
   "an omitted comm with baseline HOA must remain available for calculations"
 );
 assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must retain the prior value");
+assert.equal(result.spanPower.PW2.midspan, "27'", "power rows omitted by a partial Update Data must remain");
+const importedWithoutEquipment = JSON.parse(JSON.stringify(imported));
+importedWithoutEquipment.poles.P1.metadata = { powerEquipment: [] };
+const noEquipmentResult = merge(previous, importedWithoutEquipment);
+assert.equal(noEquipmentResult.poles.P1.metadata.powerEquipment.length, 2, "an update without an Equipment sheet must retain existing power rows");
 assert.equal(result.excelReviewSource.collection.rows.find(row => row.Id === "P1")["Tip.display"], "36'", "updated Review rows must use the new workbook value");
 assert.ok(result.excelReviewSource.collection.rows.some(row => row.Id === "P2"), "partial Update Data must retain other poles in Excel Review");
 assert.ok(result.excelReviewSource.spans.rows.some(row => row["Span Id"] === "REVIEW-S2"), "partial Update Data must retain other poles' Review span rows");

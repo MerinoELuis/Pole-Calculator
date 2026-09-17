@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.27";
+  const CURRENT_VERSION = "1.8.28";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -194,6 +194,11 @@
 
   function isUnknownPoleId(value) {
     return /^unknown(?:-|\b)/i.test(trim(value));
+  }
+
+  function isAddressableUnknownPoleId(value) {
+    const id = trim(value);
+    return isUnknownPoleId(id) || /-unknown(?:-|\b)/i.test(id);
   }
 
   function defaultEnvironmentClearance(environment) {
@@ -1076,10 +1081,31 @@
     state = next;
     ensureUnknownPoles();
     const revealedUnknown = new Set(state.ui.revealedUnknownPoleIds || []);
-    state.ui.hiddenPoleIds = Array.from(new Set([
-      ...(state.ui.hiddenPoleIds || []),
-      ...Object.keys(state.poles).filter(id => isUnknownPoleId(id) && !revealedUnknown.has(id))
-    ]));
+    const hiddenPoleIds = new Set(state.ui.hiddenPoleIds || []);
+    // Collection is the authoritative list of poles that belong in the main
+    // workspace. Span endpoints that are not present there remain addressable
+    // in the index, but stay hidden until the operator explicitly reveals one.
+    const collectionRows = state.excelReviewSource?.collection?.rows || [];
+    const collectionPoleIds = new Set();
+    collectionRows.forEach(row => {
+      const key = Object.keys(row || {}).find(candidate => {
+        const normalized = String(candidate).toLowerCase().replace(/[^a-z0-9]/g, "");
+        return ["id", "poleid", "polename", "structurenumber", "pole"].includes(normalized);
+      });
+      const value = key ? trim(row[key]) : "";
+      if (value) collectionPoleIds.add(canonicalPoleIdentity(value));
+    });
+    if (collectionPoleIds.size) {
+      Object.keys(state.poles).forEach(id => {
+        if (collectionPoleIds.has(canonicalPoleIdentity(id))) hiddenPoleIds.delete(id);
+        else if (!revealedUnknown.has(id)) hiddenPoleIds.add(id);
+      });
+    } else {
+      Object.keys(state.poles).forEach(id => {
+        if (isAddressableUnknownPoleId(id) && !revealedUnknown.has(id)) hiddenPoleIds.add(id);
+      });
+    }
+    state.ui.hiddenPoleIds = Array.from(hiddenPoleIds);
     ensureSpanSides();
     reconcileSyntheticProposedSpans();
     if (state.autoCreateSpanComms) ensureSpanComms();
