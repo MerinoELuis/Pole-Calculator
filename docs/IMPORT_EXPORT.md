@@ -209,6 +209,11 @@ Example:
 - `terminalHoa`: terminal standalone Proposed height in inches.
 - `spans`: outgoing geometry/proposal entries owned by that pole.
 - `moves`: local communication movements.
+- `riser`: actionable riser work found in the pole Make Ready. `action` is
+  `place` or `raise`. A Proposed `place` carries `hoa` and `direction`; a
+  Power Riser `raise` carries `fromHoa`, `hoa`, `owner`, and optional `angle`.
+  Secure-only drip-loop work is not exported because it does not change riser
+  placement.
 
 ### Span fields
 

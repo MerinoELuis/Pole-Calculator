@@ -38,7 +38,8 @@ Important settings and defaults:
 | `primaryPowerCommsClearance` | `43"` | Primary-to-communication clearance on the pole when a Primary row is present. |
 | `commClearance` | `12"` | Different-owner comm spacing on the pole. |
 | `boltClearance` | `4"` | Same-owner and bolt-point spacing on the pole. |
-| `midspanPowerCommClearance` | `30"` | Power-to-comm spacing at midspan. |
+| `midspanPowerCommClearance` | `30"` | Low-power-to-comm spacing at midspan. |
+| `midspanPrimaryPowerCommClearance` | `33"` INTEC, `30"` other profiles | Primary-to-comm spacing at midspan. |
 | `midspanCommCommClearance` | `4"` | Comm-to-comm spacing at midspan. |
 | `proposedOwner` | `Wecom` | Proposed owner; INTEC exposes the normal owner selector and Metronet exposes it as WI with `MidAm`. |
 | `calculateBackspanMidspan` | `true` | Allows a Back Span row with its own measured midspan to participate in endpoint movement calculations. INTEC also raises an HOA Review warning for this unusual input. |

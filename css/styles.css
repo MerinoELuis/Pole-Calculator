@@ -253,6 +253,7 @@ button:disabled { cursor: not-allowed; }
   padding: 9px 14px;
   text-align: center;
 }
+.mobile-keyboard-toggle { display: none; }
 .job-name-field {
   display: grid;
   grid-template-columns: auto minmax(180px, 360px);
@@ -1635,6 +1636,8 @@ tr.span-color-row:not(.warning-row) td:first-child {
     min-width: 0;
   }
 
+  .mobile-keyboard-toggle { display: inline-flex; }
+
   .toolbar.compact-toolbar {
     display: grid;
     grid-template-columns: 1fr;
@@ -1966,6 +1969,8 @@ tr.span-color-row:not(.warning-row) td:first-child {
     background: rgba(15, 23, 42, .96);
     box-shadow: 0 18px 40px rgba(15, 23, 42, .32);
   }
+
+  .mobile-keyboard-toggle { display: inline-flex; }
 
   .mobile-height-keyboard button {
     min-height: 38px;

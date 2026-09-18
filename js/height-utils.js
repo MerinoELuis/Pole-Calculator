@@ -7,7 +7,11 @@
     return String(value ?? "")
       .trim()
       .replace(/[’‘]/g, "'")
-      .replace(/[“”]/g, '"')
+      // Accept Spanish keyboard acute accents and prime marks as inch marks.
+      // For example, 15'6´´ is the same height as 15'6".
+      .replace(/[“”″]/g, '"')
+      .replace(/(?:['´′]){2}/g, '"')
+      .replace(/[´′]/g, "'")
       .replace(/feet|foot/gi, "ft")
       .replace(/inches|inch/gi, "in")
       .replace(/\s+/g, " ");

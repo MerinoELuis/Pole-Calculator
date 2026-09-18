@@ -19,7 +19,7 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 
 ## Pole rules
 
-- Normal pole: may contain `terminalHoa`, `spans` and `moves`.
+- Normal pole: may contain `terminalHoa`, `spans`, `moves` and an actionable `riser`.
 - PCO pole: remove local `moves` and `terminalHoa`; retain geometry-only local spans without `ug`.
 - Completely UG pole: remove local `moves` and `terminalHoa`; retain geometry-only local spans with `ug: true`.
 - UG takes priority when UG and PCO are both active.
@@ -39,6 +39,18 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 - `service: true` identifies a service/drop movement.
 - `dg: true` requests matching down-guy movement.
 - Transfer-only internal state is normalized into the movement destination and is not exported as a separate `transfer` property.
+
+## Riser fields
+
+- `riser.action: "place"` represents `Pl riser ... at HOA ...` from Make Ready.
+- `riser.action: "raise"` represents a Power Riser Raise; `fromHoa` is the
+  imported attachment and `hoa` is the new attachment height. A raise also
+  carries the Power Riser `owner` and its imported `angle` when available.
+- Secure drip-loop instructions are intentionally not exported because they do
+  not change the riser placement model.
+- A Proposed placement carries only its target `hoa` and compass `direction`;
+  its owner is the top-level Proposed owner.
+- All riser heights are whole inches.
 
 ## Fixtures
 

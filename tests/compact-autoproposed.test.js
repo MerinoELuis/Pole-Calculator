@@ -236,6 +236,98 @@ const p4 = payload.poles.find(pole => pole.id === "P4");
 assert.equal(p4.terminalHoa, 226);
 assert.equal("moves" in p4, false);
 
+state.poles.P22 = { poleId: "P22" };
+state.mr = [{
+  poleId: "P22",
+  spanId: "",
+  owner: "MR",
+  text: "Attach Wecom at HOA 27'4\".\nPl riser W at HOA 26'4\".",
+  imported: false
+}];
+const riserPole = api.buildCompactPayload(state).poles.find(pole => pole.id === "P22");
+assert.deepEqual(
+  JSON.parse(JSON.stringify(riserPole.riser)),
+  { action: "place", hoa: 316, direction: "W" },
+  "a generated Pl riser MR line must export actionable placement data"
+);
+
+state.poles.P23 = {
+  poleId: "P23",
+  metadata: {
+    powerEquipment: [{
+      category: "RISER",
+      owner: "UTILITY > APS (Joint use)",
+      orientation: "290",
+      attachmentHeight: "24'6\"",
+      actionActive: true,
+      actionHeight: "26'6\""
+    }]
+  }
+};
+state.mr = [{
+  poleId: "P23",
+  spanId: "",
+  owner: "MR",
+  text: "Raise APS riser from HOA 24'6\" to HOA 26'6\".\nSecure riser drip loop to HOA 25'8\".",
+  imported: false
+}];
+const raisedRiserPole = api.buildCompactPayload(state).poles.find(pole => pole.id === "P23");
+assert.deepEqual(
+  JSON.parse(JSON.stringify(raisedRiserPole.riser)),
+  { action: "raise", fromHoa: 294, hoa: 318, owner: "UTILITY > APS (Joint use)", angle: 290 },
+  "raise riser MR lines must export the placement change"
+);
+
+state.poles.P24 = { poleId: "P24" };
+state.mr = [{
+  poleId: "P24",
+  spanId: "",
+  owner: "MR",
+  text: "Secure riser drip loop to HOA 25'8\".",
+  imported: false
+}];
+assert.equal(
+  api.buildCompactPayload(state).poles.some(pole => pole.id === "P24"),
+  false,
+  "secure-only riser work must not create AutoProposed placement data"
+);
+
+// A Make Ready row can keep a one-span pole's attachment in
+// standaloneProposedHOA.  The attachment still belongs on its outgoing
+// proposed fiber span, and multiple directional fibers must keep their own
+// count instead of reusing the first CT value in the cell.
+const directionalState = baseState("METRONET");
+directionalState.settings.attachmentMessengerSize = "0.25";
+directionalState.settings.fiberSizes = { "24CT Fiber": "0.22", "72CT Fiber": "0.47" };
+directionalState.poles = {
+  P2: { poleId: "P2" },
+  P3: { poleId: "P3", standaloneProposedHOA: "13'4\"" },
+  P9: { poleId: "P9" },
+  P18: { poleId: "P18", standaloneProposedHOA: "22'6\"" },
+  P19: { poleId: "P19" }
+};
+directionalState.spans = {
+  P3_TO_P2: { spanId: "P3_TO_P2", fromPole: "P3", toPole: "P2", type: "Back Span", direction: "E", bearingDegrees: 90, lengthDisplay: "135'3\"" },
+  P18_TO_P9: { spanId: "P18_TO_P9", fromPole: "P18", toPole: "P9", type: "Back Span", direction: "S", bearingDegrees: 180, lengthDisplay: "65'1\"" },
+  P18_TO_P19: { spanId: "P18_TO_P19", fromPole: "P18", toPole: "P19", type: "Fore Span", direction: "N", bearingDegrees: 0, lengthDisplay: "68'1\"" }
+};
+directionalState.spanSides = {
+  P18_TO_P19_P18: { spanId: "P18_TO_P19", poleId: "P18", proposedHOA: "22'6\"" }
+};
+directionalState.makeReadyReferences = [
+  { poleId: "P3", attachmentSizeRaw: "6.6M 24CT Fiber (E)", attachmentFiber: "24CT Fiber", attachmentDirectionTokens: ["E"], attachmentType: "New" },
+  { poleId: "P18", attachmentSizeRaw: "6.6M 24CT Fiber (N) + 6.6M 72CT Fiber (S)", attachmentFiber: "24CT Fiber + 6.6M 72CT Fiber", attachmentDirectionTokens: ["N", "S"], attachmentType: "New" }
+];
+const directionalPayload = api.buildCompactPayload(directionalState);
+const p3Payload = directionalPayload.poles.find(pole => pole.id === "P3");
+const p3Directional = p3Payload.spans.find(span => span.to === "P2");
+assert.equal(p3Directional.hoa, 160, "standalone Make Ready HOA must populate the outgoing fiber span");
+assert.equal(p3Directional.fiber, 24);
+assert.equal("terminalHoa" in p3Payload, false, "the promoted standalone HOA must not duplicate the span attachment");
+const p18Directional = directionalPayload.poles.find(pole => pole.id === "P18");
+assert.equal(p18Directional.spans.find(span => span.to === "P19").fiber, 24, "North fiber must remain 24CT");
+assert.equal(p18Directional.spans.find(span => span.to === "P9").fiber, 72, "South fiber must be exported as 72CT");
+
 const p10 = payload.poles.find(pole => pole.id === "P10");
 const p10ToP11 = p10.spans.find(span => span.to === "P11");
 const p10ToP12 = p10.spans.find(span => span.to === "P12");
@@ -249,6 +341,10 @@ assert.ok(p11.spans.every(span => span.ug === true), "a pole with the UG action 
 assert.ok(p11.spans.every(span => !("fiber" in span) && !("hoa" in span)));
 
 assert.equal(JSON.stringify(api.validationErrors(payload)), JSON.stringify([]));
+assert.equal(
+  JSON.stringify(api.validationErrors({ sizes: { messenger: null, fiber: {} }, owner: "Wecom", poles: [{ id: "P-RISER", riser: { action: "raise", hoa: 318, fromHoa: 294 } }] })),
+  JSON.stringify(["Missing Riser Owner on P-RISER"])
+);
 const missingMessenger = structuredClone(payload);
 missingMessenger.sizes.messenger = null;
 assert.equal(JSON.stringify(api.validationErrors(missingMessenger)), JSON.stringify(["Missing Messenger Size"]));

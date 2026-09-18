@@ -40,6 +40,7 @@
     const result = document.getElementById("calcResult");
     const keyboard = document.getElementById("mobileCalcKeyboard");
     const H = global.HeightUtils;
+    const keyboardControl = global.MobileKeyboardControl;
 
     if (!panel || !openBtn || !scrollTopBtn || !closeBtn || !expression || !result || !H) return;
 
@@ -83,10 +84,16 @@
     }
 
     function setKeyboardOpen(open) {
-      const shouldOpen = Boolean(open && mobileViewport());
+      const enabled = keyboardControl ? keyboardControl.isEnabled() : true;
+      const shouldOpen = Boolean(enabled && open && mobileViewport());
       keyboard?.classList.toggle("open", shouldOpen);
       keyboard?.setAttribute("aria-hidden", String(!shouldOpen));
     }
+
+    keyboardControl?.subscribe(enabled => {
+      if (!enabled) setKeyboardOpen(false);
+      else if (document.activeElement === expression) setKeyboardOpen(true);
+    });
 
     function applyKeyboardKey(key) {
       expression.focus({ preventScroll: true });

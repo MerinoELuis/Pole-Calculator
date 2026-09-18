@@ -45,6 +45,7 @@ const window = {
     getState: () => state,
     getSpanCommsForPole: () => [],
     getConnectedSpans: () => [],
+    getSpan: spanId => state.spans[spanId] || null,
     getSpanSide: () => null,
     getSpanSidesForPole: () => [],
     keyForSpanComm: (...parts) => parts.join("__")
@@ -188,6 +189,32 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(topPlan.map(item => item.targetInches))),
   [246, 234],
   "TOP COMM must build a downward stack below Proposed."
+);
+
+state.settings.position = "TOP_COMM";
+state.settings.projectProfile = "INTEC";
+state.settings.midspanCommCommClearance = "8\"";
+state.poles.POWER = { poleId: "POWER", maxCommHeight: "24'" };
+state.spans.POWER_SPAN = {
+  spanId: "POWER_SPAN",
+  fromPole: "POWER",
+  toPole: "POWER-REMOTE",
+  midspanMaxCommHeight: "15'10\""
+};
+state.spanComms.POWER_SPAN__POWER__CATV__ = {
+  spanId: "POWER_SPAN",
+  poleId: "POWER",
+  owner: "CATV",
+  existingHOA: "16'",
+  calculatedMidspan: "16'",
+  flaggingMessage: "Power MS: 16' > max 15'10\"."
+};
+window.AppStore.getSpanCommsForPole = poleId => Object.values(state.spanComms).filter(row => row.poleId === poleId);
+const powerBoundGroup = solver.groupsForPole("POWER")[0];
+assert.equal(
+  powerBoundGroup.maximumInches,
+  186,
+  "TOP COMM recovery must leave 4 inches below the midspan power ceiling for Proposed"
 );
 
 const lowPlan = solver.buildStackPlan(groups, 234, "LOW_COMM", 288, state);

@@ -48,6 +48,46 @@
         "dg": { "type": "boolean" }
       }
     },
+    "riser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "hoa"],
+      "properties": {
+        "action": { "enum": ["place", "raise"] },
+        "direction": { "type": "string", "pattern": "^(N|NE|E|SE|S|SW|W|NW)$" },
+        "hoa": { "$ref": "#/$defs/integerInches" },
+        "fromHoa": { "$ref": "#/$defs/integerInches" },
+        "owner": { "type": "string", "minLength": 1 },
+        "angle": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "action": { "const": "raise" } },
+            "required": ["action"]
+          },
+          "then": {
+            "required": ["fromHoa", "owner"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "action": { "const": "place" } },
+            "required": ["action"]
+          },
+          "then": {
+            "required": ["direction"],
+            "not": {
+              "anyOf": [
+                { "required": ["fromHoa"] },
+                { "required": ["owner"] },
+                { "required": ["angle"] }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "span": {
       "type": "object",
       "additionalProperties": false,
@@ -101,6 +141,9 @@
         "moves": {
           "type": "array",
           "items": { "$ref": "#/$defs/move" }
+        },
+        "riser": {
+          "$ref": "#/$defs/riser"
         }
       },
       "allOf": [
@@ -113,7 +156,8 @@
             "not": {
               "anyOf": [
                 { "required": ["terminalHoa"] },
-                { "required": ["moves"] }
+                { "required": ["moves"] },
+                { "required": ["riser"] }
               ]
             }
           }

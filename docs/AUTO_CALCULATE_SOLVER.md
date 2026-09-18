@@ -29,9 +29,15 @@ those meaningful candidates still leave a pole violation.
 
 When a comm Midspan is below Environment or above Max Height at MS, the
 solver converts the shortfall into the local HOA movement required to correct
-half of that Midspan difference. It may therefore raise a TOP COMM stack when
-space exists. Candidate validation remains authoritative and rejects any
-result that breaks pole, bolt, power, or comm spacing.
+the Midspan. It may therefore raise a TOP COMM stack when space exists.
+Candidate validation remains authoritative and rejects any result that breaks
+pole, bolt, power, or comm spacing.
+
+For TOP COMM recovery from a power-midspan violation, the repaired top comm is
+placed at least one configured Midspan Comm-comm clearance below the power
+ceiling, leaving room for the Proposed attachment. A terminal Back Span with
+no outgoing Fore Span remains eligible so the final pole can receive the span
+attachment from the preceding pole.
 
 Before solving a pole again, prior `AUTO` Proposed and HOA Change values on
 that pole are cleared from the candidate baseline. Imported heights and
@@ -90,7 +96,11 @@ During TOP COMM Midspan recovery, candidates with the same pole and Midspan
 violation profile prefer the highest Proposed before movement cost. This keeps
 Proposed at the available pole ceiling when extra height cannot improve the
 remaining Midspan issue, without accepting a new pole or upper-clearance
-violation.
+violation. For the INTEC profile, this recovery reserves the dictated 4-inch
+Midspan Comm-comm clearance below the power ceiling; other profiles use their
+configured Midspan Comm-comm clearance. A terminal Back Span remains eligible
+even when its imported Midspan is blank, because it is the attachment endpoint
+for the preceding pole's span.
 
 ## Existing validation remains authoritative
 

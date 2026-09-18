@@ -130,6 +130,18 @@
     return parse(state?.settings?.commClearance || "12\"") ?? 12;
   }
 
+  function midspanCommClearance(state = S()?.getState?.()) {
+    return parse(state?.settings?.midspanCommCommClearance || "4\"") ?? 4;
+  }
+
+  function topRecoveryMidspanClearance(state = S()?.getState?.()) {
+    // INTEC dictates a fixed 4-inch Midspan Comm-comm clearance for the
+    // TOP COMM recovery rule. Other profiles may use their configured value.
+    return String(state?.settings?.projectProfile || "INTEC").toUpperCase() === "INTEC"
+      ? 4
+      : midspanCommClearance(state);
+  }
+
   function boltClearance(state = S()?.getState?.()) {
     return parse(state?.settings?.boltClearance || "4\"") ?? 4;
   }
@@ -191,7 +203,13 @@
       }
       const powerMaximum = parse(span.midspanMaxCommHeight || "");
       if (/Power MS:/i.test(flaggingMessage) && powerMaximum !== null && midspan > powerMaximum) {
-        const required = Math.round(current - (midspan - powerMaximum) * 2);
+        // TOP COMM needs room for the Proposed attachment above the repaired
+        // top comm. Keep the top comm one Midspan Comm-comm clearance below
+        // the power ceiling (for example 16' -> 15'6" when the ceiling is
+        // 15'10"), instead of stopping at the power ceiling itself.
+        const required = modeFromState() === "TOP_COMM"
+          ? Math.round(powerMaximum - topRecoveryMidspanClearance())
+          : Math.round(current - (midspan - powerMaximum) * 2);
         maximumInches = maximumInches === null ? required : Math.min(maximumInches, required);
       }
     });
@@ -263,7 +281,8 @@
       .filter(span => !S()?.getSpanSide?.(span.spanId, poleId)?.isProposedExcluded)
       .filter(span => {
         const side = S()?.getSpanSide?.(span.spanId, poleId);
-        return allowNoMidspan || C()?.spanHasRealMidspan?.(span.spanId) || side?.isManualProposed;
+        const terminalBackSpan = C()?.isTerminalBackSpan?.(span, poleId) === true;
+        return terminalBackSpan || allowNoMidspan || C()?.spanHasRealMidspan?.(span.spanId) || side?.isManualProposed;
       })
       .filter(span => !S()?.getSpanSide?.(span.spanId, poleId)?.isAdditionalProposed)
       .filter(span => {

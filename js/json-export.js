@@ -359,6 +359,7 @@
         poleCommCommClearance: state.settings?.commClearance || "",
         poleBoltBoltClearance: state.settings?.boltClearance || "",
         midspanPowerCommClearance: state.settings?.midspanPowerCommClearance || "",
+        midspanPrimaryPowerCommClearance: state.settings?.midspanPrimaryPowerCommClearance || "",
         midspanCommCommClearance: state.settings?.midspanCommCommClearance || ""
       },
       poles

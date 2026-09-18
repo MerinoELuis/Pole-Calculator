@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.28";
+  const CURRENT_VERSION = "1.8.42";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -114,6 +114,7 @@
       commClearance: DEFAULT_COMM_CLEARANCE,
       boltClearance: DEFAULT_BOLT_CLEARANCE,
       midspanPowerCommClearance: "30\"",
+      midspanPrimaryPowerCommClearance: "33\"",
       midspanCommCommClearance: "4\"",
       projectProfile: "INTEC",
       metronetWI: "MIDAM",

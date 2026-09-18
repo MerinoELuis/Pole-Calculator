@@ -13,6 +13,7 @@ assert.deepEqual(schema.required, ["sizes", "owner", "poles"]);
 assert.equal(schema.$defs.pole.additionalProperties, false);
 assert.equal(schema.$defs.span.additionalProperties, false);
 assert.equal(schema.$defs.move.additionalProperties, false);
+assert.equal(schema.$defs.riser.additionalProperties, false);
 
 function exactKeys(value, allowed, context) {
   Object.keys(value || {}).forEach(key => assert.ok(allowed.includes(key), `${context}: unexpected property ${key}`));
@@ -34,7 +35,7 @@ function validatePayload(payload, filename) {
 
   payload.poles.forEach((pole, poleIndex) => {
     const context = `${filename}.poles[${poleIndex}]`;
-    exactKeys(pole, ["id", "pco", "terminalHoa", "spans", "moves"], context);
+    exactKeys(pole, ["id", "pco", "terminalHoa", "spans", "moves", "riser"], context);
     assert.equal(typeof pole.id, "string");
     assert.ok(pole.id.trim());
     if ("terminalHoa" in pole) assert.equal(Number.isInteger(pole.terminalHoa), true);
@@ -42,6 +43,18 @@ function validatePayload(payload, filename) {
     if (pole.pco === true) {
       assert.equal("moves" in pole, false, `${context}: PCO cannot contain moves`);
       assert.equal("terminalHoa" in pole, false, `${context}: PCO cannot contain terminalHoa`);
+      assert.equal("riser" in pole, false, `${context}: PCO cannot contain riser`);
+    }
+
+    if (pole.riser) {
+      exactKeys(pole.riser, ["action", "direction", "hoa", "fromHoa", "owner", "angle"], `${context}.riser`);
+      assert.ok(["place", "raise"].includes(pole.riser.action));
+      assert.equal(Number.isInteger(pole.riser.hoa), true);
+      ["fromHoa"].forEach(field => {
+        if (field in pole.riser) assert.equal(Number.isInteger(pole.riser[field]), true);
+      });
+      if ("owner" in pole.riser) assert.equal(typeof pole.riser.owner, "string");
+      if ("angle" in pole.riser) assert.equal(typeof pole.riser.angle, "number");
     }
 
     (pole.moves || []).forEach((move, moveIndex) => {

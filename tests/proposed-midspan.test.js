@@ -495,6 +495,12 @@ S.upsertSpan(S.createSpan("RECIPROCAL-BACK", "P2", "P1", "W", "", {
   rawType: "Back Span",
   lengthDisplay: "73'8\""
 }));
+S.upsertPole(S.createPole({ poleId: "P3", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("RECIPROCAL-NEXT", "P2", "P3", "E", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "80'"
+}));
 S.getState().makeReadyReferences = [{
   poleId: "P2",
   attachmentType: "New",
@@ -514,6 +520,51 @@ assert.equal(
 assert.ok(
   !C.autoCalcProposedSpansForPole("P2").some(span => span.spanId === "RECIPROCAL-BACK"),
   "Auto Calculate must not return a reciprocal Back Span"
+);
+
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "P1", lowPower: "35'" }));
+S.upsertPole(S.createPole({ poleId: "P2", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("TERMINAL-BACK", "P2", "P1", "W", "", {
+  type: "Back Span",
+  rawType: "Back Span",
+  lengthDisplay: "73'8\""
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "TERMINAL-BACK",
+  poleId: "P2",
+  owner: "COMMUNICATION > Fiber",
+  existingHOA: "20'",
+  midspan: "18'"
+}));
+assert.equal(
+  C.isTerminalBackSpan(S.getSpan("TERMINAL-BACK"), "P2"),
+  true,
+  "the last pole Back Span must be recognized as terminal when no Fore Span leaves it"
+);
+assert.equal(
+  C.isSpanEligibleForProposed(S.getSpan("TERMINAL-BACK"), "P2"),
+  true,
+  "the terminal Back Span must be eligible for the attachment arriving from the previous pole"
+);
+assert.ok(
+  C.autoCalcProposedSpansForPole("P2").some(span => span.spanId === "TERMINAL-BACK"),
+  "Auto Calculate must include the terminal Back Span"
+);
+
+S.resetState();
+S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "P2-NO-MS", lowPower: "35'" }));
+S.upsertPole(S.createPole({ poleId: "P3-NO-MS", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("TERMINAL-BACK-NO-MS", "P3-NO-MS", "P2-NO-MS", "W", "", {
+  type: "Back Span",
+  rawType: "Back Span",
+  lengthDisplay: "135'3\""
+}));
+assert.ok(
+  C.autoCalcProposedSpansForPole("P3-NO-MS").some(span => span.spanId === "TERMINAL-BACK-NO-MS"),
+  "a terminal Back Span must remain Proposed-eligible even without an imported Midspan"
 );
 
 console.log("Proposed midspan fallback tests passed.");

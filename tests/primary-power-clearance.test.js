@@ -41,6 +41,11 @@ S.upsertSpan(S.createSpan("P1-SPAN", "P1", "P2", "E", "", { type: "Fore Span" })
 S.upsertPole(S.createPole({ poleId: "P2", lowPower: "31'10\"" }));
 C.recalculateAll();
 assert.equal(
+  S.getSpan("P1-SPAN").midspanMaxCommHeight,
+  "22'3\"",
+  "INTEC must reserve 33 inches below a Primary midspan"
+);
+assert.equal(
   S.getPole("P1").maxCommHeight,
   "28'3\"",
   "all comms must remain 43 inches below a Primary when Primary is the limiting power height"

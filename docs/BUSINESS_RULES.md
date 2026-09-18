@@ -39,6 +39,10 @@ Low Power at MS = minimum imported/edited power midspan on the span
 Max Height at MS = Low Power at MS - Midspan Power-comm clearance
 ```
 
+For INTEC, a Primary power midspan uses the separate `33"` Primary-to-comm
+clearance. When a span has a Primary midspan, its resulting ceiling is also
+considered and the lower of the applicable power ceilings controls.
+
 If no power midspan exists, `Max Height at MS` remains blank and the status reports missing power data rather than inventing a limit.
 
 ## Pole Type Check Severity

@@ -95,6 +95,11 @@
     return H().parseHeight(settings.primaryPowerCommsClearance || "43\"") ?? 43;
   }
 
+  function getMidspanPrimaryPowerCommsClearance() {
+    const settings = S().getState().settings || {};
+    return H().parseHeight(settings.midspanPrimaryPowerCommClearance || "33\"") ?? 33;
+  }
+
   function isPrimaryPowerRow(row) {
     return /\bprimary\b/i.test(`${row?.label || ""} ${row?.size || ""} ${row?.type || ""}`);
   }
@@ -419,6 +424,19 @@
       return candidate.fromPole === span.toPole
         && candidate.toPole === span.fromPole
         && /fore\s*span|forespan/.test(candidateType);
+    });
+  }
+
+  function isTerminalBackSpan(span, poleId) {
+    const type = String(span?.type || span?.rawType || "").toLowerCase();
+    if (!span || span.fromPole !== poleId || !/back\s*span|backspan/.test(type)) return false;
+    // The final pole may only have the reciprocal Back Span back to the
+    // previous pole. That endpoint still needs the Proposed attachment,
+    // because the preceding pole's span terminates there.
+    return !S().getConnectedSpans(poleId).some(candidate => {
+      if (candidate === span || candidate.fromPole !== poleId) return false;
+      const candidateType = String(candidate?.type || candidate?.rawType || "").toLowerCase();
+      return /fore\s*span|forespan/.test(candidateType);
     });
   }
 
@@ -943,12 +961,23 @@
       });
     }
     const settings = S().getState().settings || {};
+    const powerRows = S().getSpanPowerForSpan(spanId);
     const clearance = H().parseHeight(settings.midspanPowerCommClearance || "30\"");
-    const powerHeights = S().getSpanPowerForSpan(spanId)
+    const primaryClearance = getMidspanPrimaryPowerCommsClearance();
+    const powerHeights = powerRows
+      .map(row => H().parseHeight(row.midspan))
+      .filter(value => value !== null);
+    const primaryHeights = powerRows
+      .filter(isPrimaryPowerRow)
       .map(row => H().parseHeight(row.midspan))
       .filter(value => value !== null);
     const midspanLowPower = powerHeights.length ? Math.min(...powerHeights) : null;
-    const midspanMaxCommHeight = midspanLowPower !== null && clearance !== null ? midspanLowPower - clearance : null;
+    const maxHeights = [];
+    if (midspanLowPower !== null && clearance !== null) maxHeights.push(midspanLowPower - clearance);
+    if (primaryHeights.length && primaryClearance !== null) {
+      maxHeights.push(Math.min(...primaryHeights) - primaryClearance);
+    }
+    const midspanMaxCommHeight = maxHeights.length ? Math.min(...maxHeights) : null;
     S().updateSpanField(spanId, "midspanLowPower", midspanLowPower !== null ? format(midspanLowPower) : "");
     S().updateSpanField(spanId, "midspanMaxCommHeight", midspanMaxCommHeight !== null ? format(midspanMaxCommHeight) : "");
     return S().getSpan(spanId);
@@ -1400,13 +1429,16 @@
 
   /**
    * Reports whether a directed span may own a Proposed row at this pole.
-   * Only an imported Fore Span directed from the current pole is automatic.
-   * Other and Back Span relationships remain reference/manual.
+   * An imported Fore Span directed from the current pole is automatic. The
+   * reciprocal Back Span is also eligible when it is the terminal pole's
+   * only outgoing connection, so the incoming span can be attached there.
    */
   function isSpanEligibleForProposed(span, poleId) {
-    if (isReciprocalBackSpan(span)) return false;
+    const terminalBackSpan = isTerminalBackSpan(span, poleId);
+    if (isReciprocalBackSpan(span) && !terminalBackSpan) return false;
     const type = String(span?.type || span?.rawType || "").toLowerCase();
     if (/fore\s*span|forespan/.test(type) && span?.fromPole === poleId) return true;
+    if (terminalBackSpan) return true;
     // An Overlash Make Ready row can live on the opposite endpoint of an
     // Other/Back relationship. Keep that physical connection available for
     // Proposed so the fiber is placed on the existing job-owner messenger.
@@ -1419,8 +1451,9 @@
     return S().getConnectedSpans(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S().getSpanSide(span.spanId, poleId)?.isManualProposed)
       .filter(span => !S().getSpanSide(span.spanId, poleId)?.isProposedExcluded)
-      .filter(span => !isReciprocalBackSpan(span))
-      .filter(span => allowNoMidspan
+      .filter(span => !isReciprocalBackSpan(span) || isTerminalBackSpan(span, poleId))
+      .filter(span => isTerminalBackSpan(span, poleId)
+        || allowNoMidspan
         || spanHasRealMidspan(span.spanId)
         || S().getSpanSide(span.spanId, poleId)?.isManualProposed
         || hasMakeReadyFiberReference(span))
@@ -2001,6 +2034,7 @@
     hasMakeReadyFiberReference,
     isReciprocalBackSpan,
     isSpanEligibleForProposed,
+    isTerminalBackSpan,
     autoCalcProposedSpansForPole,
     findRemoteComm,
     getReferenceMidspansForSpanSide,

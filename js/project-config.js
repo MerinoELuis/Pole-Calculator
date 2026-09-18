@@ -13,6 +13,8 @@
         mrCase: "LOWER",
         proposedOwner: "Wecom",
         primaryPowerCommsClearance: "43\"",
+        // INTEC requires 33 inches from a Primary midspan to communications.
+        midspanPrimaryPowerCommClearance: "33\"",
         // INTEC Back Span midspans are unusual, but when the workbook really
         // supplies one it must follow endpoint HOA movements and remain
         // visible for review instead of being treated as an empty reference.
@@ -42,6 +44,7 @@
         metronetWI: "MIDAM",
         proposedOwner: "MidAm",
         primaryPowerCommsClearance: "43\"",
+        midspanPrimaryPowerCommClearance: "30\"",
         // MidAm records the measured midspan on some Back Span rows. Its value
         // follows movements made at either physical endpoint of the connection.
         calculateBackspanMidspan: true,
@@ -106,6 +109,7 @@
         // The CSU WI does not provide a separate primary-to-comm value. Use
         // the stated low-power-to-top-comm value instead of inventing 43 in.
         primaryPowerCommsClearance: "52\"",
+        midspanPrimaryPowerCommClearance: "30\"",
         commClearance: "12\"",
         boltClearance: "4\"",
         midspanCommCommClearance: "12\"",

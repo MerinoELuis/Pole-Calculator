@@ -74,6 +74,9 @@ function recalculate() {
 const Calculations = {
   autoCalculateMovements() {}, recalculateAll: recalculate, recalculateSpansForPole: recalculate,
   spanHasRealMidspan: () => true, isPofComm: () => false, commOwnerLabel: row => row.owner,
+  isSpanEligibleForProposed: (span, poleId) => (span.fromPole === poleId && span.type === "Fore Span")
+    || Calculations.isTerminalBackSpan(span, poleId),
+  isTerminalBackSpan: () => false,
   updateExistingHOAChange() {}, updateSpanSideField() {}
 };
 const window = { AppStore, Calculations, HeightUtils: { parseHeight, formatHeight } };
@@ -142,6 +145,21 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date,
   assert.ok(tracedP1.candidates[0].analysis.status);
   assert.ok(tracedP1.candidates[0].decision);
   assert.ok(tracedP1.selectedPlan);
+
+  state = {
+    settings: { position: "TOP_COMM", commClearance: "12\"", boltClearance: "4\"", projectProfile: "INTEC" },
+    poles: { P2: { poleId: "P2", maxCommHeight: "28'", metadata: {} }, P3: { poleId: "P3", maxCommHeight: "28'", metadata: {} } },
+    spans: { TERMINAL_BACK: { spanId: "TERMINAL_BACK", fromPole: "P3", toPole: "P2", type: "Back Span" } },
+    spanSides: { TERMINAL_BACK__P3: { spanId: "TERMINAL_BACK", poleId: "P3", proposedHOA: "" } },
+    spanComms: {}
+  };
+  Calculations.isTerminalBackSpan = (span, poleId) => span.spanId === "TERMINAL_BACK" && poleId === "P3";
+  Calculations.spanHasRealMidspan = () => false;
+  assert.deepEqual(
+    window.AutoCalculateSolver.proposedSpansForPole("P3").map(span => span.spanId),
+    ["TERMINAL_BACK"],
+    "Auto Calculate must retain a terminal Back Span even without imported Midspan data."
+  );
 
   console.log("best-available Auto Calculate integration tests passed");
 })().catch(error => {

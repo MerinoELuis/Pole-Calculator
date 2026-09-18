@@ -45,9 +45,42 @@
       .replace(/'/g, "&#039;");
   }
 
+  function fiberCounts(value) {
+    return Array.from(text(value).matchAll(/\b(\d+)\s*CT\b/gi))
+      .map(match => String(Number(match[1])))
+      .filter((count, index, counts) => counts.indexOf(count) === index);
+  }
+
   function fiberCount(value) {
-    const match = text(value).match(/\b(\d+)\s*CT\b/i);
-    return match ? String(Number(match[1])) : "";
+    return fiberCounts(value)[0] || "";
+  }
+
+  /**
+   * Return the fiber count for the direction represented by a physical span.
+   * Make Ready can contain more than one directional fiber in one cell, for
+   * example `24CT Fiber (N) + 72CT Fiber (S)`.  Using fiberCount() directly
+   * on that value always selected the first fiber for both directions.
+   */
+  function fiberCountForReference(reference, span, endpointPoleId) {
+    if (!reference) return "";
+    const raw = text(reference.attachmentSizeRaw);
+    const endpoint = reference.poleId || endpointPoleId || "";
+    const direction = endpoint && span ? directionFromPole(span, endpoint) : "";
+    if (raw && direction) {
+      const directionalPart = raw
+        .split(/\s*\+\s*/)
+        .find(part => {
+          const directionMatch = part.match(/\(([^)]+)\)\s*$/);
+          if (!directionMatch) return false;
+          const tokens = directionMatch[1]
+            .split(/[\/,;\s]+/)
+            .map(token => text(token).toUpperCase())
+            .filter(Boolean);
+          return tokens.includes(direction) && Boolean(fiberCount(part));
+        });
+      if (directionalPart) return fiberCount(directionalPart);
+    }
+    return fiberCount(`${reference.attachmentFiber || ""} ${raw}`);
   }
 
   function canonicalFiberName(count) {
@@ -61,8 +94,8 @@
   function detectedReferenceFiberCounts(state) {
     const counts = new Set();
     (state?.makeReadyReferences || []).forEach(ref => {
-      const count = fiberCount(`${ref?.attachmentFiber || ""} ${ref?.attachmentSizeRaw || ""}`);
-      if (count) counts.add(count);
+      fiberCounts(`${ref?.attachmentFiber || ""} ${ref?.attachmentSizeRaw || ""}`)
+        .forEach(count => counts.add(count));
     });
     return counts;
   }
@@ -80,8 +113,9 @@
 
     (state?.makeReadyReferences || []).forEach(ref => {
       const source = `${ref?.attachmentFiber || ""} ${ref?.attachmentSizeRaw || ""}`;
-      const count = fiberCount(source);
-      if (count && !entries.has(count)) entries.set(count, canonicalFiberName(count));
+      fiberCounts(source).forEach(count => {
+        if (!entries.has(count)) entries.set(count, canonicalFiberName(count));
+      });
     });
 
     return Array.from(entries.entries())
@@ -341,7 +375,7 @@
 
   function fiberForSpan(state, poleId, span) {
     const ref = preferredReferenceForSpan(state, poleId, span);
-    return ref ? fiberCount(`${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`) : "";
+    return ref ? fiberCountForReference(ref, span, poleId) : "";
   }
 
   function spanKind(span) {
@@ -411,6 +445,7 @@
       pole && (
         (Array.isArray(pole.spans) && pole.spans.length) ||
         (Array.isArray(pole.moves) && pole.moves.length) ||
+        pole.riser ||
         Object.prototype.hasOwnProperty.call(pole, "terminalHoa")
       )
     );
@@ -471,11 +506,21 @@
     }
 
     const reference = preferredReferenceForSpan(state, poleId, span);
-    const fiber = reference ? fiberCount(`${reference.attachmentFiber || ""} ${reference.attachmentSizeRaw || ""}`) : "";
+    const fiber = reference ? fiberCountForReference(reference, span, poleId) : "";
     if (!fiber) return item;
 
     const exactSide = sideForSpan(state, poleId, span.spanId);
-    const proposal = inches(exactSide?.proposedHOA) !== null ? exactSide : primaryProposal;
+    const outgoingSpanCount = Object.values(state?.spans || {})
+      .filter(candidate => candidate?.fromPole === poleId && hasSpanGeometry(candidate))
+      .length;
+    const proposal = inches(exactSide?.proposedHOA) !== null
+      ? exactSide
+      : primaryProposal || (outgoingSpanCount === 1 ? {
+        // A Make Ready attachment on a one-span/terminal pole is imported as
+        // standaloneProposedHOA.  It still belongs on that outgoing fiber
+        // span and must not be exported as geometry-only.
+        proposedHOA: findPole(state, poleId)?.standaloneProposedHOA || ""
+      } : null);
     const hoa = inches(proposal?.proposedHOA);
     if (hoa === null) return item;
 
@@ -610,6 +655,82 @@
     return candidates;
   }
 
+  function riserHeight(value) {
+    const cleaned = text(value).replace(/[.;,]+$/, "").trim();
+    return inches(cleaned);
+  }
+
+  function riserAngle(value) {
+    const match = text(value).match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const angle = Number(match[0]);
+    return Number.isFinite(angle) ? angle : null;
+  }
+
+  function powerRiserForPole(state, poleId) {
+    const rows = findPole(state, poleId)?.metadata?.powerEquipment;
+    return Array.isArray(rows)
+      ? rows.find(row => String(row?.category || row?.type || "").toUpperCase().includes("RISER")) || null
+      : null;
+  }
+
+  // Preserve actionable riser information already present in the generated
+  // Make Ready instead of exporting only the human-readable sentence.
+  function compactRiserForPole(state, poleId) {
+    if (!state || blocksLocalActions(state, poleId)) return null;
+    const mrText = (state.mr || [])
+      .filter(item => item?.poleId === poleId)
+      .map(item => text(item.text))
+      .join("\n");
+    if (!mrText) return null;
+
+    const result = {};
+    for (const rawLine of mrText.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const place = line.match(/^(?:pl|place)\s+(?:new\s+)?riser(?:\s+([nesw]{1,2}))?\s+at\s+hoa\s+(.+?)\.?$/i);
+      if (place) {
+        const hoa = riserHeight(place[2]);
+        if (hoa !== null) {
+          delete result.fromHoa;
+          delete result.secureHoa;
+          delete result.owner;
+          delete result.angle;
+          result.action = "place";
+          result.hoa = hoa;
+          if (place[1]) result.direction = place[1].toUpperCase();
+        }
+        continue;
+      }
+
+      const intecRaise = line.match(/^raise\s+(?:aps\s+)?riser\s+from\s+hoa\s+(.+?)\s+to\s+hoa\s+(.+?)\.?$/i);
+      const metronetRaise = line.match(/^at\s+hoa\s+(.+?)\s+raise\s+power\s+riser\s+to\s+hoa\s+(.+?)(?:\s+due\s+to\s+clearances)?\.?$/i);
+      const raise = intecRaise || metronetRaise;
+      if (raise) {
+        const fromHoa = riserHeight(raise[1]);
+        const hoa = riserHeight(raise[2]);
+        if (fromHoa !== null && hoa !== null) {
+          delete result.direction;
+          result.action = "raise";
+          result.fromHoa = fromHoa;
+          result.hoa = hoa;
+          const powerRiser = powerRiserForPole(state, poleId);
+          const owner = text(powerRiser?.owner);
+          const angle = riserAngle(powerRiser?.orientation);
+          if (owner) result.owner = owner;
+          if (angle !== null) result.angle = angle;
+        }
+        continue;
+      }
+
+      // Secure drip-loop instructions do not change the placement model and
+      // therefore are intentionally not represented in AutoProposed.
+    }
+
+    return result.action ? result : null;
+  }
+
   function compactMoves(state, poleId) {
     return movementCandidates(state, poleId).map(candidate => {
       const item = { owner: candidate.owner, from: candidate.from, to: candidate.to };
@@ -632,12 +753,19 @@
         const terminalHoa = isPoleFullyUg(state, poleId)
           ? null
           : inches(state.poles[poleId]?.standaloneProposedHOA);
-        if (!spans.length && !moves.length && terminalHoa === null) return;
+        const riser = compactRiserForPole(state, poleId);
+        if (!spans.length && !moves.length && terminalHoa === null && !riser) return;
 
         const pole = { id: poleId };
-        if (terminalHoa !== null) pole.terminalHoa = terminalHoa;
+        // When a one-span Make Ready attachment was promoted from
+        // standaloneProposedHOA into its outgoing fiber span, do not export
+        // the same height twice as a terminal attachment.
+        const terminalAlreadyOnSpan = terminalHoa !== null
+          && spans.some(span => span.hoa === terminalHoa && Number.isFinite(Number(span.fiber)));
+        if (terminalHoa !== null && !terminalAlreadyOnSpan) pole.terminalHoa = terminalHoa;
         if (spans.length) pole.spans = spans;
         if (moves.length) pole.moves = moves;
+        if (riser) pole.riser = riser;
         poles.push(pole);
       });
 
@@ -667,12 +795,25 @@
     (payload?.poles || []).forEach(pole => (pole.spans || []).forEach(span => {
       if (!span.ug && Number.isFinite(Number(span.fiber))) usedFibers.add(String(Number(span.fiber)));
     }));
-    if (!usedFibers.size) return [];
-
     const errors = [];
-    if (numericSize(payload?.sizes?.messenger) === null) errors.push("Missing Messenger Size");
-    Array.from(usedFibers).sort((a, b) => Number(a) - Number(b)).forEach(count => {
-      if (numericSize(payload?.sizes?.fiber?.[count]) === null) errors.push(`Missing ${count}CT Fiber Size`);
+    if (usedFibers.size) {
+      if (numericSize(payload?.sizes?.messenger) === null) errors.push("Missing Messenger Size");
+      Array.from(usedFibers).sort((a, b) => Number(a) - Number(b)).forEach(count => {
+        if (numericSize(payload?.sizes?.fiber?.[count]) === null) errors.push(`Missing ${count}CT Fiber Size`);
+      });
+    }
+    (payload?.poles || []).forEach(pole => {
+      const riser = pole?.riser;
+      if (!riser) return;
+      if (riser.action === "place" && !text(riser.direction)) {
+        errors.push(`Missing Riser Direction on ${pole.id}`);
+      }
+      if (riser.action === "raise" && !text(riser.owner)) {
+        errors.push(`Missing Riser Owner on ${pole.id}`);
+      }
+      if (riser.action === "raise" && !Number.isInteger(riser.fromHoa)) {
+        errors.push(`Missing Existing Riser HOA on ${pole.id}`);
+      }
     });
     return errors;
   }
@@ -963,6 +1104,7 @@
     compactMoves,
     compactSpansForPole,
     movementCandidates,
+    compactRiserForPole,
     augmentPoleMakeReady,
     exportCompactProposedJson,
     isPoleFullyUg,

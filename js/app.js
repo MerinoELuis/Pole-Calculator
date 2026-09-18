@@ -24,6 +24,20 @@
   const JSON_PICKER_ID = "pole-calculator-json";
   let autoCalculateRunning = false;
   let mobileHeightInput = null;
+  let mobileKeyboardEnabled = false;
+  const mobileKeyboardSubscribers = new Set();
+
+  // The on-page keypad is opt-in.  Keep one small shared control so the
+  // height fields and the floating feet/inches calculator follow the same
+  // setting on phones and compact landscape screens.
+  global.MobileKeyboardControl = {
+    isEnabled: () => mobileKeyboardEnabled,
+    subscribe(listener) {
+      if (typeof listener !== "function") return () => {};
+      mobileKeyboardSubscribers.add(listener);
+      return () => mobileKeyboardSubscribers.delete(listener);
+    }
+  };
 
 
   function qs(id) { return document.getElementById(id); }
@@ -117,9 +131,33 @@
     return Boolean(window.matchMedia?.("(max-width: 700px), (orientation: landscape) and (max-height: 700px)").matches);
   }
 
+  function updateMobileKeyboardToggle() {
+    const button = els.mobileKeyboardToggleBtn;
+    if (!button) return;
+    button.textContent = mobileKeyboardEnabled ? "Keyboard On" : "Keyboard Off";
+    button.setAttribute("aria-pressed", String(mobileKeyboardEnabled));
+    button.title = mobileKeyboardEnabled
+      ? "Disable the on-page feet and inches keypad"
+      : "Enable the on-page feet and inches keypad";
+    button.classList.toggle("btn-primary", mobileKeyboardEnabled);
+  }
+
+  function setMobileKeyboardEnabled(enabled) {
+    mobileKeyboardEnabled = Boolean(enabled);
+    updateMobileKeyboardToggle();
+    if (!mobileKeyboardEnabled) setMobileHeightKeyboardOpen(false);
+    mobileKeyboardSubscribers.forEach(listener => listener(mobileKeyboardEnabled));
+    if (mobileKeyboardEnabled) {
+      const active = document.activeElement;
+      if (active?.classList?.contains("height-input") || active?.classList?.contains("decimal-height-input")) {
+        setMobileHeightKeyboardOpen(true, active);
+      }
+    }
+  }
+
   function setMobileHeightKeyboardOpen(open, input = mobileHeightInput) {
     const keyboard = els.mobileHeightKeyboard;
-    const shouldOpen = Boolean(open && input && !input.disabled && !input.readOnly && isMobileHeightKeyboardViewport());
+    const shouldOpen = Boolean(mobileKeyboardEnabled && open && input && !input.disabled && !input.readOnly && isMobileHeightKeyboardViewport());
     mobileHeightInput = shouldOpen ? input : null;
     keyboard?.classList.toggle("open", shouldOpen);
     keyboard?.setAttribute("aria-hidden", String(!shouldOpen));
@@ -1253,9 +1291,14 @@
     const allowNoMidspan = S.getState().settings?.proposeForeSpanWithoutMidspan === true;
     return connectedSpansSorted(poleId)
       .filter(span => isSpanEligibleForProposed(span, poleId) || S.getSpanSide(span.spanId, poleId)?.isManualProposed)
-      .filter(span => !global.Calculations.isReciprocalBackSpan?.(span))
+      // The terminal Back Span is the visible attachment endpoint for the
+      // preceding pole's span. Keep it in the table even though it is also a
+      // reciprocal Back Span and may not have imported Midspan data.
+      .filter(span => !global.Calculations.isReciprocalBackSpan?.(span)
+        || global.Calculations.isTerminalBackSpan?.(span, poleId))
       .filter(span => !S.getSpanSide(span.spanId, poleId)?.isProposedExcluded)
-      .filter(span => allowNoMidspan
+      .filter(span => global.Calculations.isTerminalBackSpan?.(span, poleId)
+        || allowNoMidspan
         || spanHasRealMidspan(span.spanId)
         || S.getSpanSide(span.spanId, poleId)?.isManualProposed
         || global.Calculations.hasMakeReadyFiberReference?.(span))
@@ -1657,6 +1700,7 @@
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
       ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
       ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
+      ["midspanPrimaryPowerCommClearance", "Midspan · Primary-comm", settings.midspanPrimaryPowerCommClearance || "33\""],
       ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
     ];
     if (selectedProfile === "METRONET" && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM") {
@@ -2547,12 +2591,12 @@
     root.querySelectorAll("input[data-scope], textarea[data-scope], select[data-scope]").forEach(input => {
       if (input.classList.contains("height-input") || input.classList.contains("decimal-height-input")) {
         const decimal = input.classList.contains("decimal-height-input");
-        const allowed = decimal ? /[0-9.\s-]/ : /[0-9.'"\s-]/;
+        const allowed = decimal ? /[0-9.\s-]/ : /[0-9.'"´′″\s-]/;
         // Feet/inch notation needs apostrophes and quotes, so use the normal
         // keyboard instead of Samsung's numeric-only layout.
         input.setAttribute("inputmode", isMobileHeightKeyboardViewport() ? "none" : "text");
         input.setAttribute("enterkeyhint", "next");
-        input.setAttribute("pattern", decimal ? "[0-9.\\s-]*" : "[0-9.'\"\\s-]*");
+        input.setAttribute("pattern", decimal ? "[0-9.\\s-]*" : "[0-9.'\"´′″\\s-]*");
         input.addEventListener("focus", () => setMobileHeightKeyboardOpen(true, input));
         input.addEventListener("blur", () => {
           if (mobileHeightInput !== input) return;
@@ -2792,6 +2836,7 @@
       "environmentClearance",
       "midspanCommCommClearance",
       "midspanPowerCommClearance",
+      "midspanPrimaryPowerCommClearance",
       "polePowerCommsClearance",
       "primaryPowerCommsClearance",
       "clearanceToPower",
@@ -3202,7 +3247,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }
@@ -3362,6 +3407,9 @@
       const isOpen = els.poleIndexDrawer?.classList.contains("open");
       setPoleIndexOpen(!isOpen);
     });
+    els.mobileKeyboardToggleBtn?.addEventListener("click", () => {
+      setMobileKeyboardEnabled(!mobileKeyboardEnabled);
+    });
     els.poleIndexClose.addEventListener("click", () => setPoleIndexOpen(false));
     els.poleIndexBackdrop.addEventListener("click", () => setPoleIndexOpen(false));
     els.jobNameInput?.addEventListener("change", event => {
@@ -3431,6 +3479,7 @@
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
       exportDebugJsonBtn: qs("exportDebugJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
+      mobileKeyboardToggleBtn: qs("toggleMobileKeyboardBtn"),
       autoCalculateOverlay: qs("autoCalculateOverlay"),
       autoCalculateProgressBar: qs("autoCalculateProgressBar"),
       autoCalculateProgressText: qs("autoCalculateProgressText"),
@@ -3466,6 +3515,7 @@
     });
 
     renderDeploymentVersion();
+    updateMobileKeyboardToggle();
     bindEvents();
     bindMobileHeightKeyboard();
     global.FloatingCalculator?.setupFloatingCalculator();
