@@ -30,12 +30,31 @@
   const SECONDARY_INSULATORS = ["pin 7.5in", "deadend aps", "spool 3in", "suspension aps"];
   const NEUTRAL_INSULATORS = [...SECONDARY_INSULATORS, "pin 8.38"];
   const MIDAM_POWER_SIZES = {
-    PRIMARY: "primary > aac 477.0 kcm 19 strand cosmos > static",
-    SECONDARY: "secondary > triplex 2 awg > static",
-    NEUTRAL: "neutral > aac 477.0 kcm 19 strand cosmos > static"
+    PRIMARY: ["primary > aac 477.0 kcm 19 strand cosmos > static"],
+    SECONDARY: ["secondary > triplex 2 awg > static"],
+    NEUTRAL: [
+      "neutral > aac 477.0 kcm 19 strand cosmos > static",
+      "neutral > aaac 2 awg 7 strand ames",
+      "neutral > aaac 2 awg 7 strand ames > static"
+    ]
   };
-  const MIDAM_COMM_INSULATORS = ["single bolt", "three bolt"];
-  const MIDAM_POWER_INSULATORS = ["spool 2.5\"", "deadend 12.75\"", "suspension 11.50\"", "pin 7.5\""];
+  // Metronet/MidAm uses the complete approved insulator catalog.  The
+  // restriction is by wire function: communications may only use the three
+  // communication hardware types, while Primary/Secondary/Neutral may use
+  // the approved power families and sizes below.  In particular, Primary is
+  // not limited to one Pin size; every approved Pin is valid for Primary.
+  const MIDAM_COMM_INSULATORS = ["single bolt", "three bolt", "j-hook"];
+  const MIDAM_POWER_INSULATORS = [
+    "pin 7.5\"", "pin 8.5\"", "pin 9.5\"", "pin 10.5\"", "pin 11.5\"",
+    "post 11.5\"", "post 13\"", "post 13.5\"", "post 16.75\"",
+    "post 19.75\"", "post 22.88\"", "post 25.38\"", "post 28\"",
+    "spool 2.5\"", "spool 3\"", "spool 4\"", "spool 5.5\"",
+    "deadend 12.75\"", "deadend 17.13\"", "deadend 19.63\"",
+    "suspension 11.50\"", "suspension 13.00\"", "suspension 13.50\"",
+    "suspension 16.75\"", "suspension 19.75\"", "suspension 22.88\"",
+    "suspension 25.38\"", "suspension 28.00\"",
+    "davit 42\"", "davit 48\"", "davit 54\"", "davit 60\""
+  ];
 
   let current = emptyResults();
 
@@ -588,6 +607,20 @@
     return /\bself[\s-]?supporting\s+fiber\b/i.test(text(value));
   }
 
+  function isProposedCommunicationOwner(value) {
+    const normalized = normalizedText(value);
+    if (!normalized.startsWith("communication >")) return false;
+    const owner = normalized.replace(/^communication\s*>\s*/, "").trim();
+    const settings = S().getState().settings || {};
+    const configured = normalizedText(settings.proposedCommunicationOwner || settings.proposedCommOwner);
+    if (configured && owner === configured.replace(/^communication\s*>\s*/, "").trim()) return true;
+    // MidAm keeps the WI (MidAm) as the utility proposed owner, while the
+    // proposed communication is Proposed MNT. Its communication ANC/guy is
+    // not an existing comm-owner attachment and is therefore not subject to
+    // the imported 3/8-inch communication-guy audit.
+    return owner === "proposed mnt";
+  }
+
   function addIntecWireChecks(result, poleId) {
     if (!isIntecProject()) return;
     rowsForPole("spanWires", poleId).forEach((row, index) => {
@@ -694,11 +727,12 @@
           expected: "UTILITY > MidAm", actual: ownerRaw || "Empty"
         });
       }
-      if (size !== MIDAM_POWER_SIZES[powerType]) {
+      const allowedSizes = MIDAM_POWER_SIZES[powerType] || [];
+      if (!allowedSizes.includes(size)) {
         add(result, {
           phase: "HOA", section: "Span.Wire", code: `INVALID_MIDAM_${powerType}_SIZE`, status: "ERROR",
           title: `${powerType} Size`, message: `Invalid MidAm ${powerType.toLowerCase()} size.`,
-          expected: MIDAM_POWER_SIZES[powerType], actual: sizeRaw || "Empty"
+          expected: allowedSizes.join(" or "), actual: sizeRaw || "Empty"
         });
       }
       if (!MIDAM_POWER_INSULATORS.includes(insulator)) {
@@ -714,6 +748,7 @@
       const ownerRaw = text(pick(row, ["Owner", "owner"]));
       const owner = normalizedText(ownerRaw);
       const size = text(pick(row, ["Size"]));
+      if (isProposedCommunicationOwner(ownerRaw)) return;
       const utility = owner === "utility > midam";
       const communication = owner.startsWith("communication >");
       const valid = utility

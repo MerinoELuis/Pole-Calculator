@@ -1037,6 +1037,16 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   font-weight: 800;
 }
 
+.action-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.action-detail-grid .pole-action-field {
+  margin-top: 10px;
+}
+
 .pole-class-summary {
   display: flex;
   justify-content: flex-end;

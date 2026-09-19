@@ -1128,7 +1128,7 @@
   // after aliases, preserved baselines and recalculated values are applied.
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
-      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "ugRiserDirection"]],
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection"]],
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
@@ -1564,6 +1564,8 @@
     // under the pointer while the recalculated card is rendered.
     const tableScrollPositions = Array.from(oldCard.querySelectorAll(".table-wrap"))
       .map(wrapper => ({ left: wrapper.scrollLeft, top: wrapper.scrollTop }));
+    const powerSection = oldCard.querySelector(".power-section");
+    const powerSectionOpen = powerSection ? powerSection.open : false;
     const template = document.createElement("template");
     template.innerHTML = renderPoleWorkspace(poleId).trim();
     const nextCard = template.content.firstElementChild;
@@ -1577,6 +1579,8 @@
       wrapper.scrollLeft = position.left;
       wrapper.scrollTop = position.top;
     });
+    const nextPowerSection = nextCard.querySelector(".power-section");
+    if (nextPowerSection) nextPowerSection.open = powerSectionOpen;
     wireEditableEvents(nextCard);
     bindScrollLinks(nextCard);
     bindLocalActions(nextCard);
@@ -2203,9 +2207,6 @@
     const projectProfile = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase();
     const isIntec = projectProfile === "INTEC";
     const isMetronet = projectProfile === "METRONET";
-    const isCsuMetronet = isMetronet
-      && (String(S.getState().settings?.metronetWI || "").toUpperCase() === "CSU"
-        || String(S.getState().settings?.proposedOwner || "").toUpperCase() === "MNT");
     const showUGReason = pole?.ugActive && (isIntec || isMetronet);
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
@@ -2217,7 +2218,7 @@
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
     const riserAvailable = (isIntec || isMetronet) && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
-    const poleInsetEnabled = !isCsuMetronet && Boolean(pole?.poleInsetActive);
+    const poleInsetEnabled = !isMetronet && Boolean(pole?.poleInsetActive);
     const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
@@ -2231,11 +2232,25 @@
     const directionOptions = ["", "N", "NE", "E", "SE", "S", "SW", "W", "NW"]
       .map(direction => `<option value="${direction}" ${direction === riserDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
       .join("");
+    const ancAvailable = isMetronet && !pole?.ugActive && !pole?.pcoActive;
+    const ohgAvailable = isMetronet && !pole?.ugActive && !pole?.pcoActive;
+    const ancEnabled = ancAvailable && Boolean(global.MRLogic.isANCEnabled?.(poleId));
+    const ohgEnabled = ohgAvailable && Boolean(pole?.ohgActive);
+    const anchorDirection = String(pole?.ancDirection || "").toUpperCase();
+    const ohgDirection = String(pole?.ohgDirection || "").toUpperCase();
+    const anchorDirectionOptions = ["", "N", "E", "S", "W"]
+      .map(direction => `<option value="${direction}" ${direction === anchorDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
+      .join("");
+    const ohgDirectionOptions = ["", "N", "E", "S", "W"]
+      .map(direction => `<option value="${direction}" ${direction === ohgDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
+      .join("");
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
-      ${!isCsuMetronet ? `<button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>` : ""}
+      ${!isMetronet ? `<button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>` : ""}
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
+      ${isMetronet ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? "Add or remove the MidAm ANC Make Ready" : "ANC is disabled while this pole is UG or PCO"}">ANC</button>
+      <button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? "Add or remove the MidAm OHG Make Ready" : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
     </div>
     ${poleInsetEnabled ? `<label class="pole-action-field">
       <span>Pole Inset Reason</span>
@@ -2255,7 +2270,17 @@
     ${showRiserDirection ? `<label class="pole-action-field riser-direction-field">
       <span>Riser Direction</span>
       <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugRiserDirection">${directionOptions}</select>
-    </label>` : ""}`;
+    </label>` : ""}
+    ${ancEnabled ? `<div class="pole-action-fields action-detail-grid">
+      <label class="pole-action-field"><span>ANC Size</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancSize" value="${escapeHtml(pole?.ancSize || "8\"")}"></label>
+      <label class="pole-action-field"><span>ANC Distance</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDistance" value="${escapeHtml(pole?.ancDistance || "15'")}"></label>
+      <label class="pole-action-field"><span>ANC Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDirection">${anchorDirectionOptions}</select></label>
+      <label class="pole-action-field"><span>DG HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="dgHoa" value="${escapeHtml(pole?.dgHoa || "")}"></label>
+    </div>` : ""}
+    ${ohgEnabled ? `<div class="pole-action-fields action-detail-grid">
+      <label class="pole-action-field"><span>OHG Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ohgDirection">${ohgDirectionOptions}</select></label>
+      <label class="pole-action-field"><span>OHG HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ohgHoa" value="${escapeHtml(pole?.ohgHoa || "")}"></label>
+    </div>` : ""}`;
   }
 
   function renderPoleEditableHeader(poleId) {
@@ -2424,10 +2449,10 @@
   }
 
   function renderPowerTable(poleId) {
-    const rows = S.getSpanPowerForPole(poleId).filter(row => H.parseHeight(row.midspan) !== null);
+    const rows = S.getSpanPowerForPole(poleId);
     if (!rows.length) return `<p class="muted">No power wires were imported for this pole.</p>`;
     return `<div class="table-wrap"><table class="power-table">
-      <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>Midspan</th></tr></thead>
+      <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>Midspan</th><th>Actions</th></tr></thead>
       <tbody>${rows.map(row => {
         const span = S.getSpan(row.spanId);
         return `<tr>
@@ -2435,6 +2460,7 @@
           <td><span class="badge warning">${escapeHtml(row.label)}</span></td>
           <td>${escapeHtml(row.attachmentHeight)}</td>
           <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(row.midspan || "")}"></td>
+          <td><button class="icon-action danger-action" type="button" data-delete-span-power data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" title="Delete imported power" aria-label="Delete imported power">&#10005;</button></td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -2655,10 +2681,17 @@
       btn.dataset.wireId || ""
     )));
     root.querySelectorAll("[data-delete-comm]").forEach(btn => btn.addEventListener("click", () => deleteCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
+    root.querySelectorAll("[data-delete-span-power]").forEach(btn => btn.addEventListener("click", () => deleteSpanPower(
+      btn.dataset.powerKey,
+      btn.dataset.pole,
+      btn.dataset.span
+    )));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-anc]").forEach(btn => btn.addEventListener("click", () => toggleANC(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-ohg]").forEach(btn => btn.addEventListener("click", () => toggleOHG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-comm-movements]").forEach(btn => btn.addEventListener("click", () => toggleCommMovements(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
@@ -2701,6 +2734,34 @@
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+  }
+
+  function toggleANC(poleId) {
+    const pole = S.getPole(poleId);
+    const projectProfile = String(S.getState().settings?.projectProfile || "").toUpperCase();
+    if (!pole || projectProfile !== "METRONET" || pole.ugActive || pole.pcoActive) return;
+    recordUndoSnapshot();
+    S.upsertPole({
+      ...pole,
+      ancActive: global.MRLogic.isANCEnabled?.(poleId) ? false : true,
+      ancSize: pole.ancSize || "8\"",
+      ancDistance: pole.ancDistance || "15'"
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+  }
+
+  function toggleOHG(poleId) {
+    const pole = S.getPole(poleId);
+    const projectProfile = String(S.getState().settings?.projectProfile || "").toUpperCase();
+    if (!pole || projectProfile !== "METRONET" || pole.ugActive || pole.pcoActive) return;
+    recordUndoSnapshot();
+    S.upsertPole({
+      ...pole,
+      ohgActive: !pole.ohgActive
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
   }
 
   function toggleCommMovements(poleId) {
@@ -2860,6 +2921,12 @@
       "pcoMRText",
       "poleInsetReason",
       "ugRiserDirection",
+      "ancSize",
+      "ancDistance",
+      "ancDirection",
+      "dgHoa",
+      "ohgHoa",
+      "ohgDirection",
       "actionActive",
       "actionHeight",
       "secureActive",
@@ -3003,6 +3070,21 @@
     group.rows.forEach(row => S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || ""));
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
+  }
+
+  async function deleteSpanPower(powerKey, poleId, spanId) {
+    if (!powerKey) return;
+    const row = S.getSpanPowerForPole(poleId).find(item => item.key === powerKey);
+    if (!row) return;
+    const label = row.label || "power wire";
+    if (!(await confirmInApp("Delete Imported Power", `Delete this ${label} power row?`))) return;
+    recordUndoSnapshot();
+    S.removeSpanPower(powerKey);
+    const span = S.getSpan(spanId);
+    const affected = [poleId, span ? S.getOtherPoleId(span, poleId) : ""].filter(Boolean);
+    affected.forEach(id => global.Calculations.recalculateSpansForPole(id));
+    renderAffectedPoles(affected);
+    markDirty();
   }
 
   function hidePole(poleId) {

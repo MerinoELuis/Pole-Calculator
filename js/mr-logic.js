@@ -123,6 +123,45 @@
     return `Pl new ${size}${sidewalk} ANC ${distance} and pl new DG at HOA ${hoa}.`;
   }
 
+  function poleSpanDirection(poleId) {
+    const sides = S().getSpanSidesForPole(poleId);
+    const side = sides.find(item => item.proposedHOA) || sides[0];
+    const span = S().getSpan(side?.spanId || "");
+    if (!side || !span) return "";
+    return span.fromPole === poleId ? String(span.direction || "").toUpperCase() : oppositeDirection(span.direction || "");
+  }
+
+  function normalizeAnchorSize(value) {
+    const raw = String(value || "8").trim().replace(/[“”″]/g, '"');
+    return /"$/.test(raw) ? raw : `${raw}"`;
+  }
+
+  function normalizeAnchorDistance(value) {
+    const parsed = H().parseHeight(value || "15'");
+    return parsed === null ? String(value || "15'").trim() : H().formatHeight(parsed);
+  }
+
+  function metronetConfiguredAnchorMR(pole) {
+    if (!isANCEnabled(pole?.poleId)) return "";
+    const direction = String(pole.ancDirection || poleSpanDirection(pole.poleId) || "").toUpperCase();
+    const distance = normalizeAnchorDistance(pole.ancDistance || "15'");
+    const dgHoa = formattedMRHeight(pole.dgHoa || pole.standaloneProposedHOA || (
+      S().getSpanSidesForPole(pole.poleId).find(item => item.proposedHOA)?.proposedHOA || ""
+    ));
+    if (!direction || !dgHoa) return "";
+    return `PL NEW ${normalizeAnchorSize(pole.ancSize)} ANC ${distance} ${direction} AND PL NEW DG AT HOA ${dgHoa}.`;
+  }
+
+  function metronetConfiguredOHGMR(pole) {
+    if (!pole?.ohgActive) return "";
+    const direction = String(pole.ohgDirection || poleSpanDirection(pole.poleId) || "").toUpperCase();
+    const hoa = formattedMRHeight(pole.ohgHoa || pole.standaloneProposedHOA || (
+      S().getSpanSidesForPole(pole.poleId).find(item => item.proposedHOA)?.proposedHOA || ""
+    ));
+    if (!direction || !hoa) return "";
+    return `PL NEW OHG ${direction} AT HOA ${hoa} AND PL DG ON ${direction} POLE.`;
+  }
+
   function directionForSpanComm(spanComm) {
     const span = S().getSpan(spanComm?.spanId || "");
     if (!span) return "";
@@ -251,11 +290,12 @@
       items.push(`Ensure min 30" to low power at midspan.`);
     }
     if (isMetronetMR()) {
-      if (detectAnchor(spanSide) || detectDownGuy(spanSide.notes) || detectOHG(spanSide)) {
+      const pole = S().getPole(spanSide.poleId);
+      if ((detectAnchor(spanSide) || detectDownGuy(spanSide.notes) || detectOHG(spanSide)) && pole?.ancActive !== false) {
         const anchor = metronetAnchorMR(spanSide, span?.direction || "");
         if (anchor) items.push(anchor);
       }
-      if (detectRiser(spanSide)) items.push(`Pl new riser${dir}.`.replace("  ", " "));
+      if (detectRiser(spanSide) && pole?.riserActive !== false) items.push(`Pl new riser${dir}.`.replace("  ", " "));
       return items.join("\n");
     }
     // Slack is selected in the PLA model, not inferred by the calculator from
@@ -425,6 +465,23 @@
     return cleanUGReason(match?.[1] || pole?.ugReason);
   }
 
+  function metronetUGReasonFromPole(pole) {
+    const lines = ugReplacementMR(pole);
+    for (const line of lines) {
+      const match = String(line).match(/(?:fore|back|other)span\s+going\s+ug\s+due\s+to\s+(.+?)(?:\.|$)/i)
+        || String(line).match(/suggest\s+going\s+ug\s+due\s+to\s+(.+?)(?:\.|$)/i);
+      if (!match) continue;
+      const reason = cleanUGReason(match[1]);
+      if (!reason || /clearance\s+violation\s*\/\s*(?:insert\s+other\s+reason|500ft\s*\/\s*1500ft\s+aerial\s+requirement)/i.test(reason)) return "";
+      return reason;
+    }
+    return cleanUGReason(pole?.ugReason);
+  }
+
+  function metronetUGPlaceholderReason() {
+    return "[CLEARANCE VIOLATION / INSERT OTHER REASON]";
+  }
+
   function ugReplacementMR(pole) {
     return editableUGTemplate(pole).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   }
@@ -532,6 +589,14 @@
     return Array.from(byOtherPole.values());
   }
 
+  function isANCEnabled(poleId) {
+    const pole = S().getPole(poleId);
+    if (!pole || pole.ugActive || pole.pcoActive || !isMetronetMR()) return false;
+    if (pole.ancActive === true) return true;
+    if (pole.ancActive === false) return false;
+    return connectedUGSpanItems(poleId).length > 0;
+  }
+
   function resolvedRiserDirection(poleId, connection = null) {
     const pole = S().getPole(poleId);
     const saved = String(pole?.ugRiserDirection || "").toUpperCase();
@@ -584,9 +649,14 @@
     return item?.relation === "Backspan" || item?.relation === "Forespan";
   }
 
-  function generateRiserInstruction(poleId) {
-    if (!isRiserAvailable(poleId) || !isRiserEnabled(poleId)) return "";
+  function generateRiserInstruction(poleId, options = {}) {
+    const allowReplacement = options.allowReplacement === true;
+    const pole = S().getPole(poleId);
+    if (!pole || pole.pcoActive || (!allowReplacement && !isRiserAvailable(poleId))) return "";
+    if (pole.riserActive === false && !allowReplacement) return "";
+    if (!allowReplacement && !isRiserEnabled(poleId)) return "";
     const connection = riserConnectionForPole(poleId);
+    if (allowReplacement && !connection) return "";
     const proposedSides = S().getSpanSidesForPole(poleId)
       .filter(side => side.proposedHOA)
       .sort((a, b) => Number(Boolean(a.isAdditionalProposed)) - Number(Boolean(b.isAdditionalProposed)));
@@ -603,6 +673,48 @@
     return `Pl riser${direction} at HOA ${H().formatHeight(proposed - 12)}.`;
   }
 
+  function metronetUGReplacementMR(pole) {
+    const lines = ugReplacementMR(pole);
+    const hasUGRelation = lines.some(line => /\b(?:fore|back|other)span\b.*\bgoing\s+ug\b/i.test(line));
+    if (hasUGRelation && !lines.some(line => /\bnew\s+anc\b.*\b(?:dg|deadending)\b/i.test(line))) {
+      const relationMatch = lines
+        .map(line => String(line).match(/\b(?:fore|back|other)span\b\s+going\s+ug(?:\s+([NSEW]{1,2}))?/i))
+        .find(Boolean);
+      const side = S().getSpanSidesForPole(pole?.poleId)
+        .find(item => item.proposedHOA) || null;
+      const anchor = metronetConfiguredAnchorMR(pole) || metronetUGAnchorInstruction(pole?.poleId, {
+        spanId: side?.spanId || "",
+        direction: relationMatch?.[1] || resolvedRiserDirection(pole?.poleId)
+      });
+      lines.push(anchor || "PL NEW ANC/DG FOR DEADENDING LINES.");
+    }
+    if (hasUGRelation && !lines.some(line => /\briser\b/i.test(line))) {
+      const directionMatch = lines
+        .map(line => String(line).match(/\b(?:fore|back|other)span\b\s+going\s+ug(?:\s+([NSEW]{1,2}))?\b/i))
+        .find(Boolean);
+      const direction = String(resolvedRiserDirection(pole?.poleId) || directionMatch?.[1] || "").toUpperCase();
+      const riser = metronetUGRiserInstruction(direction);
+      if (riser) lines.push(riser);
+    }
+    return lines;
+  }
+
+  function metronetUGRiserInstruction(direction) {
+    const normalized = String(direction || "").trim().toUpperCase();
+    if (!/^[NSEW]{1,2}$/.test(normalized)) return "";
+    return `PL NEW RISER FOR UG TRANSFER ${normalized}.`;
+  }
+
+  function metronetUGAnchorInstruction(poleId, connection) {
+    const side = S().getSpanSide?.(connection?.spanId || "", poleId)
+      || S().getSpanSidesForPole(poleId).find(item => item.spanId === connection?.spanId)
+      || null;
+    const pole = S().getPole(poleId);
+    const proposedHOA = side?.proposedHOA || pole?.standaloneProposedHOA || "";
+    if (!proposedHOA) return "";
+    return metronetAnchorMR({ ...(side || {}), proposedHOA }, connection?.direction || "");
+  }
+
   function connectedUGInstructions(poleId) {
     const items = connectedUGSpanItems(poleId);
 
@@ -610,14 +722,26 @@
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
-        return [`${relation} going UG due to [clearance violation/insert other reason]. Pl new ANC/DG for deadending lines.`];
+        const adjacentReason = metronetUGReasonFromPole(S().getPole(item.otherPoleId)) || metronetUGPlaceholderReason();
+        const anchor = isANCEnabled(poleId)
+          ? (metronetConfiguredAnchorMR(S().getPole(poleId)) || metronetUGAnchorInstruction(poleId, item) || "Pl new ANC/DG for deadending lines.")
+          : "";
+        const riser = S().getPole(poleId)?.riserActive === false
+          ? ""
+          : metronetUGRiserInstruction(resolvedRiserDirection(poleId, item));
+        return [
+          `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`,
+          ...(anchor ? [anchor] : []),
+          ...(riser ? [riser] : [])
+        ];
       }
       const adjacentReason = ugReasonFromPole(S().getPole(item.otherPoleId));
       if (!adjacentReason) return [];
       return [`${item.relation} to go UG${direction} due to on adj pole ${adjacentReason}.`];
     });
 
-    const riser = generateRiserInstruction(poleId);
+    const hasMetronetUGTransferRiser = lines.some(line => /^pl\s+new\s+riser\s+for\s+ug\s+transfer\b/i.test(line));
+    const riser = hasMetronetUGTransferRiser ? "" : generateRiserInstruction(poleId);
     if (riser) lines.push(riser);
     return lines;
   }
@@ -686,10 +810,7 @@
   function generatePoleInsetMR(pole) {
     if (!pole?.poleInsetActive || pole.ugActive || pole.pcoActive) return "";
     const settings = S().getState().settings || {};
-    const isCsuMetronet = String(settings.projectProfile || "").toUpperCase() === "METRONET"
-      && (String(settings.metronetWI || "").toUpperCase() === "CSU"
-        || String(settings.proposedOwner || "").toUpperCase() === "MNT");
-    if (isCsuMetronet) return "";
+    if (String(settings.projectProfile || "").toUpperCase() === "METRONET") return "";
     const reason = String(pole.poleInsetReason || "").toUpperCase() === "FAILING_CLEARANCES"
       ? "failing clearances"
       : "overloaded";
@@ -713,22 +834,33 @@
     const proposed = [];
     const ensure = [];
     const risers = [];
+    const anc = [];
     const pole = S().getPole(poleId);
     if (pole?.ugActive || pole?.pcoActive) {
-      const lines = pole.ugActive ? ugReplacementMR(pole) : pcoReplacementMR(pole);
+      const lines = pole.ugActive
+        ? (isMetronetMR() ? metronetUGReplacementMR(pole) : ugReplacementMR(pole))
+        : pcoReplacementMR(pole);
       const text = lines.map(applyCase).join("\n");
       state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
     connectedUGInstructions(poleId).forEach(line => {
       // Riser work is always the final instruction crews read in the pole MR.
-      // Keep the UG relation at the top, but defer its separate riser line.
+      // Keep the UG relation at the top, place ANC after power work, and defer
+      // the separate riser line until the end.
       if (/^pl\s+(?:new\s+)?riser\b/i.test(line)) risers.push(line);
+      else if (/^pl\s+new\b.*\banc\b/i.test(line)) anc.push(line);
       else ug.push(line);
     });
     const inset = generatePoleInsetMR(pole);
     if (inset) poleInset.push(inset);
     power.push(...generatePowerEquipmentMRForPole(poleId));
+    if (isMetronetMR()) {
+      const configuredAnchor = metronetConfiguredAnchorMR(pole);
+      const configuredOHG = metronetConfiguredOHGMR(pole);
+      if (configuredAnchor) anc.push(configuredAnchor);
+      if (configuredOHG) anc.push(configuredOHG);
+    }
     commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
@@ -757,7 +889,7 @@
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
 
-    const lines = [...poleInset, ...ug, ...power, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
+    const lines = [...poleInset, ...ug, ...power, ...anc, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
     const seen = new Set();
     const unique = lines.map(line => line.trim()).filter(Boolean).filter(line => {
       const key = normalizeMRLine(line);
@@ -810,6 +942,7 @@
     getDefaultRiserDirection: defaultRiserDirection,
     isRiserAvailable,
     isRiserEnabled,
+    isANCEnabled,
     generateRiserInstruction,
     generateMRForSpanSide,
     generateAllMR,

@@ -229,6 +229,77 @@ assert.equal(
   "Pole Inset must generate the failing-clearances Make Ready wording"
 );
 state.poles.P1.poleInsetActive = false;
+state.settings = { projectProfile: "METRONET", proposedOwner: "MidAm", mrCase: "UPPER" };
+state.poles.P1.poleInsetActive = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.doesNotMatch(
+  state.mr.find(item => item.poleId === "P1").text,
+  /^Pole (?:overloaded|failing clearances)/im,
+  "Metronet/MidAm must not generate Pole Inset Make Ready"
+);
+state.poles.P1.poleInsetActive = false;
+state.poles.P1.ugActive = true;
+state.poles.P1.ugMRText = "FORESPAN GOING UG DUE TO [CLEARANCE VIOLATION].";
+state.poles.P1.riserActive = null;
+state.poles.P1.ugRiserDirection = "W";
+sandbox.window.MRLogic.generateMRForPole("P1");
+const metronetUGText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(metronetUGText, /FORESPAN GOING UG/i, "MidAm must preserve the Fore Span UG instruction");
+assert.match(metronetUGText, /PL NEW 8" ANC 15' W AND PL NEW DG AT HOA 19'\./i, "MidAm UG must include the detailed ANC/DG instruction");
+assert.match(metronetUGText, /PL NEW RISER FOR UG TRANSFER W\./i, "MidAm Fore Span UG must include the correctly directed riser");
+state.poles.P1.ugActive = false;
+state.poles.P1.ugMRText = "";
+state.poles.P1.ugRiserDirection = "";
+state.poles.P2.ugActive = true;
+state.poles.P2.ugMRText = "";
+state.poles.P1.riserActive = null;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const incompleteMetronetAdjacentText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(incompleteMetronetAdjacentText, /BACKSPAN GOING UG SE DUE TO ON ADJ POLE \[CLEARANCE VIOLATION \/ INSERT OTHER REASON\]/i, "MidAm must show an incomplete adjacent UG MR before the reason is edited");
+assert.match(incompleteMetronetAdjacentText, /PL NEW RISER FOR UG TRANSFER SE\./i, "Incomplete adjacent UG MR must still show the riser action");
+state.poles.P2.ugMRText = "BACKSPAN GOING UG DUE TO CLEARANCE VIOLATION.";
+state.poles.P1.ugRiserDirection = "NE";
+state.poles.P1.metadata = { powerEquipment: [{ category: "STREETLIGHT", actionActive: true }] };
+state.spanSides.BACK__P1 = { spanId: "BACK", poleId: "P1", proposedHOA: "23'", notes: "8\" ANC 15' E" };
+sandbox.window.MRLogic.generateMRForPole("P1");
+const metronetAdjacentUGText = state.mr.find(item => item.poleId === "P1").text;
+assert.equal(sandbox.window.MRLogic.isANCEnabled("P1"), true, "MidAm ANC must auto-enable for a connected UG transfer");
+assert.match(metronetAdjacentUGText, /BACKSPAN GOING UG SE DUE TO ON ADJ POLE CLEARANCE VIOLATION/i, "MidAm adjacent UG must use the local Back Span relation and direction");
+assert.match(metronetAdjacentUGText, /PL NEW 8" ANC 15' E AND PL NEW DG AT HOA 23'\./i, "MidAm adjacent UG must use the detailed ANC/DG instruction");
+assert.match(metronetAdjacentUGText, /PL NEW RISER FOR UG TRANSFER NE\./i, "MidAm adjacent UG must honor the selected riser direction");
+assert.ok(metronetAdjacentUGText.indexOf("MNT GROUND STREETLIGHT") < metronetAdjacentUGText.indexOf("PL NEW 8"), "MidAm streetlight must precede ANC");
+assert.ok(metronetAdjacentUGText.indexOf("PL NEW 8") < metronetAdjacentUGText.indexOf("PL NEW RISER"), "MidAm ANC must precede the riser");
+state.poles.P1.ancActive = false;
+state.poles.P1.riserActive = false;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const disabledMidamText = state.mr.find(item => item.poleId === "P1").text;
+assert.doesNotMatch(disabledMidamText, /PL NEW .*ANC|PL NEW RISER FOR UG TRANSFER/i, "Turning off ANC and Riser must remove both MidAm MR lines");
+state.poles.P1.ancActive = null;
+state.poles.P1.riserActive = null;
+state.poles.P1.ancActive = true;
+state.poles.P1.ancSize = "8\"";
+state.poles.P1.ancDistance = "15'";
+state.poles.P1.ancDirection = "E";
+state.poles.P1.dgHoa = "23'";
+state.poles.P1.ohgActive = true;
+state.poles.P1.ohgDirection = "W";
+state.poles.P1.ohgHoa = "24'";
+sandbox.window.MRLogic.generateMRForPole("P1");
+const configuredMidamText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(configuredMidamText, /PL NEW 8" ANC 15' E AND PL NEW DG AT HOA 23'\./i, "ANC action must use its editable fields");
+assert.match(configuredMidamText, /PL NEW OHG W AT HOA 24' AND PL DG ON W POLE\./i, "OHG action must use its editable fields");
+state.poles.P2.ugActive = true;
+state.poles.P2.ugMRText = [
+  "Unable to attach due to red tag.",
+  "Red tag",
+  "Inability to place ANC"
+].join("\n");
+state.poles.P1.ugRiserDirection = "";
+delete state.poles.P1.metadata;
+delete state.spanSides.BACK__P1;
+delete state.poles.P1.ancActive;
+delete state.poles.P1.ohgActive;
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom", mrCase: "LOWER" };
 
 state.spanSides.OTHER__P1 = { spanId: "OTHER", poleId: "P1", proposedHOA: "22'6\"" };
 state.spanComms.OVERLASH_MESSENGER = {
@@ -294,6 +365,6 @@ state.poles.P2.ugActive = true;
 state.poles.P1.riserActive = true;
 state.poles.P1.ugActive = false;
 sandbox.window.MRLogic.generateMRForPole("P1");
-assert.match(state.mr.find(item => item.poleId === "P1").text, /PL RISER .* AT HOA 18'/, "Metronet must generate the enabled Riser MR");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /PL NEW RISER FOR UG TRANSFER SE\./, "Metronet must show the incomplete UG transfer Riser MR when no UG reason is available");
 
 console.log("Make Ready logic tests passed.");

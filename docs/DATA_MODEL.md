@@ -79,6 +79,8 @@ Imported, editable, and derived values live together but have different ownershi
 | `poleInsetReason` | editable | `OVERLOADED` or `FAILING_CLEARANCES`; selects the Pole Inset wording. |
 | `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
 | `riserActive` | editable tri-state | `null` keeps automatic Fore/Back adjacent-UG behavior; `true` adds and `false` suppresses riser MR on a normal pole. UG/PCO disables the action. |
+| `ancActive`, `ancSize`, `ancDistance`, `ancDirection`, `dgHoa` | editable | MidAm ANC action and its size, anchor distance, direction, and DG attachment HOA. |
+| `ohgActive`, `ohgHoa`, `ohgDirection` | editable | MidAm OHG action and its attachment HOA/direction. |
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes, project constraints, Power Equipment actions and the latest Auto Calculate result. |
 

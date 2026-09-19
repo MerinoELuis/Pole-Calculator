@@ -71,4 +71,16 @@ assert.equal(
   "without a Primary row the existing 40-inch Low Power rule must remain"
 );
 
+const removablePower = S.addSpanPower(S.createSpanPower({
+  spanId: "P3-POWER",
+  poleId: "P3",
+  label: "Secondary",
+  attachmentHeight: "24'",
+  midspan: "20'",
+  wireId: "P3-SECONDARY"
+}));
+const removablePowerKey = S.getSpanPowerForPole("P3").find(row => row.wireId === removablePower.wireId).key;
+assert.ok(S.removeSpanPower(removablePowerKey), "imported power row must be removable");
+assert.equal(S.getSpanPowerForPole("P3").some(row => row.wireId === "P3-SECONDARY"), false, "removed power row must leave state");
+
 console.log("Primary power clearance tests passed.");

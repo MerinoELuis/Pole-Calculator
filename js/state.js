@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.42";
+  const CURRENT_VERSION = "1.8.45";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -250,6 +250,14 @@
         ugMRText: trim(data.ugMRText || ""),
         ugRiserDirection: trim(data.ugRiserDirection || "").toUpperCase(),
         riserActive: data.riserActive === true ? true : data.riserActive === false ? false : null,
+        ancActive: data.ancActive === true ? true : data.ancActive === false ? false : null,
+        ancSize: trim(data.ancSize || "8\""),
+        ancDistance: trim(data.ancDistance || "15'"),
+        ancDirection: trim(data.ancDirection || "").toUpperCase(),
+        dgHoa: trim(data.dgHoa || ""),
+        ohgActive: Boolean(data.ohgActive),
+        ohgHoa: trim(data.ohgHoa || ""),
+        ohgDirection: trim(data.ohgDirection || "").toUpperCase(),
         pcoActive: Boolean(data.pcoActive),
         commMovementsActive: data.commMovementsActive !== false,
         pcoMRText: trim(data.pcoMRText || ""),
@@ -283,6 +291,14 @@
       ugMRText: trim(extra.ugMRText || ""),
       ugRiserDirection: trim(extra.ugRiserDirection || "").toUpperCase(),
       riserActive: extra.riserActive === true ? true : extra.riserActive === false ? false : null,
+      ancActive: extra.ancActive === true ? true : extra.ancActive === false ? false : null,
+      ancSize: trim(extra.ancSize || "8\""),
+      ancDistance: trim(extra.ancDistance || "15'"),
+      ancDirection: trim(extra.ancDirection || "").toUpperCase(),
+      dgHoa: trim(extra.dgHoa || ""),
+      ohgActive: Boolean(extra.ohgActive),
+      ohgHoa: trim(extra.ohgHoa || ""),
+      ohgDirection: trim(extra.ohgDirection || "").toUpperCase(),
       pcoActive: Boolean(extra.pcoActive),
       commMovementsActive: extra.commMovementsActive !== false,
       pcoMRText: trim(extra.pcoMRText || ""),
@@ -540,9 +556,9 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "notes", "sequence"].includes(field)) return pole;
     pole[field] = trim(value);
-    if (field === "ugRiserDirection") pole[field] = pole[field].toUpperCase();
+    if (["ugRiserDirection", "ancDirection", "ohgDirection"].includes(field)) pole[field] = pole[field].toUpperCase();
     if (field === "poleInsetReason") pole[field] = normalizePoleInsetReason(value);
     return pole;
   }
@@ -689,6 +705,14 @@
     return row;
   }
 
+  function removeSpanPower(powerKey) {
+    const key = trim(powerKey);
+    const row = state.spanPower[key];
+    if (!row) return null;
+    delete state.spanPower[key];
+    return row;
+  }
+
   /**
    * Deletes one pole and every graph entity that depends on it. The canonical
    * identity is retained as a tombstone so Update Data cannot recreate a pole
@@ -808,7 +832,7 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection)
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
       || state.poles[poleId]?.riserActive === true
       || state.poles[poleId]?.riserActive === false
       || sideChange || commChange || equipmentChange;
@@ -1168,6 +1192,7 @@
     removeSpanComm,
     removePole,
     addSpanPower,
+    removeSpanPower,
     getConnectedSpans,
     getOtherPoleId,
     getSpanSidesForPole,

@@ -403,12 +403,13 @@ state.excelReviewSource = {
     headers: ["Id", "Type", "Owner", "Bottom Height.display", "Drip Loop Height.display"],
     rows: [{ Id: "PMIDAM", Type: "Streetlight > SMALL", Owner: "UTILITY > Other", "Bottom Height.display": "", "Drip Loop Height.display": "" }]
   },
-  anchorGuys: {
-    headers: ["Id", "Owner", "Size"],
-    rows: [
-      { Id: "PMIDAM", Owner: "UTILITY > MidAm", Size: "Down > EHS 3/8" },
-      { Id: "PMIDAM", Owner: "COMMUNICATION > Fiber", Size: "Down > EHS 1/2" }
-    ]
+    anchorGuys: {
+      headers: ["Id", "Owner", "Size"],
+      rows: [
+        { Id: "PMIDAM", Owner: "UTILITY > MidAm", Size: "Down > EHS 3/8" },
+      { Id: "PMIDAM", Owner: "COMMUNICATION > Fiber", Size: "Down > EHS 1/2" },
+      { Id: "PMIDAM", Owner: "COMMUNICATION > Proposed MNT", Size: "Down > EHS 1/4 0.250\" 6650.0 lb Strength" }
+      ]
   },
   makeReady: { headers: [], rows: [] },
   commTransfers: { headers: [], rows: [] }
@@ -426,8 +427,30 @@ const midAmCodes = new Set(review.reviewPole("PMIDAM").checks.map(item => item.c
   "INVALID_MIDAM_STREETLIGHT_OWNER",
   "MISSING_MIDAM_STREETLIGHT_HEIGHT"
 ].forEach(code => assert.ok(midAmCodes.has(code), `expected MidAm review check ${code}`));
+assert.equal(review.reviewPole("PMIDAM").checks.some(item => item.code === "INVALID_MIDAM_COMM_GUY_SIZE" && /Proposed MNT/i.test(item.actual)), false, "proposed communication guy size must not be audited as an existing communication owner");
 assert.equal(midAmCodes.has("MISSING_LOW_POWER"), false, "MidAm review must accept Lowest Power.display");
 assert.equal(midAmCodes.has("MISSING_YEAR_INSTALLED"), false, "MidAm review must not require Year Installed");
+
+// The complete MidAm insulator catalog is valid for power rows, including
+// every approved Pin size for Primary. Communication rows remain restricted
+// to communication hardware only.
+state.excelReviewSource.spanWires = {
+  headers: ["Id", "Owner", "Size", "Insulator"],
+  rows: [
+    { Id: "PMIDAM", Owner: "COMMUNICATION > Fiber", Size: "Fiber", Insulator: "J-Hook" },
+    { Id: "PMIDAM", Owner: "UTILITY > MidAm", Size: "Primary > AAC 477.0 kcm 19 strand Cosmos > Static", Insulator: "Pin 11.5\"" },
+    { Id: "PMIDAM", Owner: "UTILITY > MidAm", Size: "Secondary > Triplex 2 AWG > Static", Insulator: "Post 28\"" },
+    { Id: "PMIDAM", Owner: "UTILITY > MidAm", Size: "Neutral > AAAC 2 AWG 7 STRAND Ames > Static", Insulator: "Davit 60\"" }
+  ]
+};
+state.excelReviewSource.equipment = { headers: [], rows: [] };
+state.excelReviewSource.anchorGuys = { headers: [], rows: [] };
+review.runReview();
+const validMidAmCodes = new Set(review.reviewPole("PMIDAM").checks.map(item => item.code));
+assert.equal(validMidAmCodes.has("INVALID_MIDAM_COMM_INSULATOR"), false, "MidAm J-Hook must be valid for communication");
+assert.equal(validMidAmCodes.has("INVALID_MIDAM_PRIMARY_INSULATOR"), false, "MidAm Primary must allow every approved Pin");
+assert.equal(validMidAmCodes.has("INVALID_MIDAM_SECONDARY_INSULATOR"), false, "MidAm Secondary must allow approved Post insulators");
+assert.equal(validMidAmCodes.has("INVALID_MIDAM_NEUTRAL_INSULATOR"), false, "MidAm Neutral must allow approved Davit insulators");
 
 state.excelReviewSource.collection = {
   headers: ["Id", "Sequence", "Owner", "Lowest Power.display"],
