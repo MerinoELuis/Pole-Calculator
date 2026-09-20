@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.45";
+  const CURRENT_VERSION = "1.8.46";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -356,6 +356,10 @@
       environmentClearance: trim(extra.environmentClearance || defaultEnvironmentClearance(extra.environment || "NONE")),
       midspanLowPower: trim(extra.midspanLowPower || ""),
       midspanMaxCommHeight: trim(extra.midspanMaxCommHeight || ""),
+      // A span-level UG decision is separate from the pole-level UG action.
+      // null means the operator has not selected Case 2 for this span.
+      ugActive: extra.ugActive === true ? true : extra.ugActive === false ? false : null,
+      ugReason: trim(extra.ugReason || ""),
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
       rawType: trim(extra.rawType || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
@@ -595,8 +599,12 @@
   function updateSpanField(spanId, field, value) {
     const span = state.spans[spanId];
     if (!span) return null;
-    if (!["environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "notes"].includes(field)) return span;
-    span[field] = trim(value);
+    if (!["environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "notes", "ugActive", "ugReason"].includes(field)) return span;
+    if (field === "ugActive") {
+      span.ugActive = value === true ? true : value === false ? false : null;
+    } else {
+      span[field] = trim(value);
+    }
     if (field === "environment" && !span.environmentClearance) {
       span.environmentClearance = defaultEnvironmentClearance(value);
     }

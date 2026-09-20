@@ -121,6 +121,8 @@ Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 | `environmentClearance` | defaulted/editable | Minimum comm height for the environment. |
 | `midspanLowPower` | derived | Lowest valid power midspan on this span. |
 | `midspanMaxCommHeight` | derived | `midspanLowPower - Midspan Power-comm clearance`. |
+| `ugActive` | editable tri-state | Span-level Case 2 UG decision. `true` exports the span as geometry-only underground; `null` means no span-level decision. This is separate from pole-level `ugActive`. |
+| `ugReason` | editable | Case 2 reason used in the relation-specific UG Make Ready line; defaults to `CLEARANCE VIOLATION`. |
 | `sourceSpanId` | internal relationship | Physical span supplying geometry and power data to an additional Proposed row. |
 | `isManualProposed` | internal/editable workflow | Marks a user-created Proposed connection. |
 

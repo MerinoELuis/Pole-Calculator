@@ -464,6 +464,10 @@
   function isUgSpan(state, span, poleId = span?.fromPole) {
     if (!span) return false;
     if (isPoleFullyUg(state, poleId || span.fromPole)) return true;
+    // Case 2: only this physical span is underground while the pole and its
+    // other spans remain aerial.  The explicit span decision takes priority
+    // over adjacent-pole inference.
+    if (span.ugActive === true) return true;
 
     const targetPole = findPole(state, span.toPole);
     // Do not infer UG from a pole identifier ending in "UG".  That token is

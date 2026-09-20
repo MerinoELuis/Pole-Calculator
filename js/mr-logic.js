@@ -566,11 +566,12 @@
   function connectedUGSpanItems(poleId) {
     const spans = S().getConnectedSpans(poleId);
     const byOtherPole = new Map();
+    const explicitSpanUG = new Map();
 
     spans.forEach(span => {
       const otherPoleId = S().getOtherPoleId(span, poleId);
       const otherPole = S().getPole(otherPoleId);
-      if (!otherPole?.ugActive || !otherPoleId) return;
+      if (!otherPoleId || (span.ugActive !== true && !otherPole?.ugActive)) return;
       const current = byOtherPole.get(otherPoleId);
       // Excel already defines whether the span is Fore, Back, or Other from
       // the imported side. Reverse it only when we are reading the far end.
@@ -578,7 +579,21 @@
       const directionFromThisPole = span.fromPole === poleId
         ? span.direction
         : oppositeDirection(span.direction);
-      const candidate = { relation, direction: directionFromThisPole || "", spanId: span.spanId, otherPoleId };
+      const candidate = {
+        relation,
+        direction: directionFromThisPole || "",
+        spanId: span.spanId,
+        otherPoleId,
+        isSpanUG: span.ugActive === true,
+        adjacentPoleUG: Boolean(otherPole?.ugActive),
+        reason: String(span.ugReason || "").trim()
+      };
+      // Case 2 is a span-level decision. Keep every explicitly selected UG
+      // span, even when two physical spans share the same adjacent pole.
+      if (candidate.isSpanUG) {
+        explicitSpanUG.set(`${otherPoleId}::${span.spanId}`, candidate);
+        return;
+      }
       // A physical connection can appear twice in Span. Prefer the Back Span
       // row because it is the relation owned by this pole for the UG handoff.
       if (!current || (current.relation !== "Backspan" && relation === "Backspan")) {
@@ -586,7 +601,7 @@
       }
     });
 
-    return Array.from(byOtherPole.values());
+    return [...explicitSpanUG.values(), ...Array.from(byOtherPole.values())];
   }
 
   function isANCEnabled(poleId) {
@@ -594,7 +609,7 @@
     if (!pole || pole.ugActive || pole.pcoActive || !isMetronetMR()) return false;
     if (pole.ancActive === true) return true;
     if (pole.ancActive === false) return false;
-    return connectedUGSpanItems(poleId).length > 0;
+    return connectedUGSpanItems(poleId).some(item => item.adjacentPoleUG);
   }
 
   function resolvedRiserDirection(poleId, connection = null) {
@@ -722,22 +737,31 @@
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
-        const adjacentReason = metronetUGReasonFromPole(S().getPole(item.otherPoleId)) || metronetUGPlaceholderReason();
-        const anchor = isANCEnabled(poleId)
+        const adjacentReason = item.isSpanUG
+          ? (cleanUGReason(item.reason) || metronetUGPlaceholderReason())
+          : (metronetUGReasonFromPole(S().getPole(item.otherPoleId)) || metronetUGPlaceholderReason());
+        const anchor = item.isSpanUG ? "" : (isANCEnabled(poleId)
           ? (metronetConfiguredAnchorMR(S().getPole(poleId)) || metronetUGAnchorInstruction(poleId, item) || "Pl new ANC/DG for deadending lines.")
-          : "";
+          : "");
+        const transferDirection = resolvedRiserDirection(poleId, item) || item.direction;
         const riser = S().getPole(poleId)?.riserActive === false
           ? ""
-          : metronetUGRiserInstruction(resolvedRiserDirection(poleId, item));
+          : metronetUGRiserInstruction(transferDirection);
         return [
-          `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`,
+          item.isSpanUG
+            ? `${relation} going UG due to ${adjacentReason}.`
+            : `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`,
           ...(anchor ? [anchor] : []),
           ...(riser ? [riser] : [])
         ];
       }
-      const adjacentReason = ugReasonFromPole(S().getPole(item.otherPoleId));
+      const adjacentReason = item.isSpanUG
+        ? (cleanUGReason(item.reason) || "[insert other reason]")
+        : ugReasonFromPole(S().getPole(item.otherPoleId));
       if (!adjacentReason) return [];
-      return [`${item.relation} to go UG${direction} due to on adj pole ${adjacentReason}.`];
+      return [item.isSpanUG
+        ? `${item.relation} to go UG due to ${adjacentReason}.`
+        : `${item.relation} to go UG${direction} due to on adj pole ${adjacentReason}.`];
     });
 
     const hasMetronetUGTransferRiser = lines.some(line => /^pl\s+new\s+riser\s+for\s+ug\s+transfer\b/i.test(line));

@@ -541,6 +541,17 @@ td textarea.input {
 }
 td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .cell-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.span-ug-action {
+  min-width: 210px;
+}
+.span-ug-action .mini-btn {
+  margin-right: 6px;
+}
+.span-ug-reason {
+  width: 178px;
+  min-width: 178px !important;
+  text-align: left !important;
+}
 .mini-btn { border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 6px 8px; font-weight: 800; font-size: .78rem; }
 .mini-btn:hover { border-color: var(--primary); color: var(--primary); }
 .subsection-title-row {

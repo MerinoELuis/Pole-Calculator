@@ -367,4 +367,20 @@ state.poles.P1.ugActive = false;
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /PL NEW RISER FOR UG TRANSFER SE\./, "Metronet must show the incomplete UG transfer Riser MR when no UG reason is available");
 
+// Case 2: only one physical span goes UG. The pole remains aerial, the
+// affected relation gets its own reason and transfer riser, and ANC is not
+// inferred from the span-level decision.
+state.poles.P2.ugActive = false;
+state.poles.P1.riserActive = null;
+state.poles.P1.ugRiserDirection = "";
+state.spans.PROP.ugActive = true;
+state.spans.PROP.ugReason = "CLEARANCE VIOLATION";
+sandbox.window.MRLogic.generateMRForPole("P1");
+const caseTwoText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(caseTwoText, /FORESPAN GOING UG DUE TO CLEARANCE VIOLATION\./, "Case 2 must use a span-owned Fore Span UG instruction");
+assert.match(caseTwoText, /PL NEW RISER FOR UG TRANSFER N\./, "Case 2 must use the affected span direction for the transfer riser");
+assert.doesNotMatch(caseTwoText, /PL NEW .*ANC/i, "Case 2 must not auto-add ANC");
+state.spans.PROP.ugActive = false;
+state.spans.PROP.ugReason = "";
+
 console.log("Make Ready logic tests passed.");

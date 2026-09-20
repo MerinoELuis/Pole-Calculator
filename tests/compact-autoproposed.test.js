@@ -185,6 +185,19 @@ const other = p1.spans.find(span => span.to === "P4");
 assert.equal(other.hoa, 276);
 assert.equal(other.fiber, 144);
 
+// Case 2: an explicit span-level UG decision must export only that relation
+// as geometry, while the same pole's other spans remain aerial.
+state.spans.S3.ugActive = true;
+const caseTwoPayload = api.buildCompactPayload(state);
+const caseTwoPole = caseTwoPayload.poles.find(pole => pole.id === "P1");
+const caseTwoSpan = caseTwoPole.spans.find(span => span.to === "P4");
+assert.equal(caseTwoSpan.ug, true, "explicit span UG must export as geometry-only UG");
+assert.equal("hoa" in caseTwoSpan, false, "span-level UG must not export an aerial HOA");
+assert.equal("fiber" in caseTwoSpan, false, "span-level UG must not export aerial fiber");
+const stillAerial = caseTwoPole.spans.find(span => span.to === "P2");
+assert.equal("hoa" in stillAerial, true, "other spans on the same pole must remain aerial");
+state.spans.S3.ugActive = false;
+
 state.makeReadyReferences.push({
   poleId: "P4",
   attachmentSizeRaw: "72CT Fiber (N)",

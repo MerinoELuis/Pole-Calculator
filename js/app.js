@@ -1299,6 +1299,7 @@
       .filter(span => !S.getSpanSide(span.spanId, poleId)?.isProposedExcluded)
       .filter(span => global.Calculations.isTerminalBackSpan?.(span, poleId)
         || allowNoMidspan
+        || span.ugActive === true
         || spanHasRealMidspan(span.spanId)
         || S.getSpanSide(span.spanId, poleId)?.isManualProposed
         || global.Calculations.hasMakeReadyFiberReference?.(span))
@@ -2331,18 +2332,20 @@
     });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>Actions</th>
+        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>UG Transfer</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
         const physicalSpan = span.sourceSpanId ? S.getSpan(span.sourceSpanId) || span : span;
+        const spanUG = physicalSpan.ugActive === true;
+        const spanUGReason = physicalSpan.ugReason || "CLEARANCE VIOLATION";
         const aboveMax = side.proposedHOA && H.compareHeights(side.proposedHOA, side.maxCommHeight || pole?.maxCommHeight) === 1;
         const midspanIssue = side.clearanceMSStatus === "PENDING" || side.clearanceMSStatus === "PROBLEM";
         const boltIssue = global.Calculations.evaluateProposedPoleClearance(side);
         const proposedFlaggingIssue = side.proposedFlaggingStatus === "PROBLEM";
         const rowClasses = [
           spanRowClasses(poleId, physicalSpan.spanId),
-          side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop ? "changed-row" : "",
+          side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop || spanUG ? "changed-row" : "",
           aboveMax || midspanIssue || !boltIssue.ok || proposedFlaggingIssue ? "warning-row" : ""
         ].filter(Boolean).join(" ");
         const autoNotes = [spanSideClearanceNote(side), boltIssue.message];
@@ -2363,6 +2366,10 @@
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>
           <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes)}</td>
+          <td class="span-ug-action">
+            <button class="mini-btn ${spanUG ? "active-action" : ""}" type="button" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(physicalSpan.spanId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "This pole is using the complete UG case" : "Send only this span underground (Case 2)"}">UG</button>
+            ${spanUG ? `<input class="input span-ug-reason" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="ugReason" value="${escapeHtml(spanUGReason)}" aria-label="UG reason for span" title="Case 2 UG reason">` : ""}
+          </td>
           <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
         </tr>`;
       }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
@@ -2370,7 +2377,7 @@
           <td><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="standaloneProposedHOA" value="${escapeHtml(pole?.standaloneProposedHOA || "")}" aria-label="Proposed attachment on terminal pole"></td>
           ${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}${showOcalcMS ? "<td></td>" : ""}<td></td><td></td><td></td><td></td>
           <td>${renderSpanSideFlagging({ proposedFlaggingStatus: standaloneFlagging.status, proposedFlaggingMessage: standaloneFlagging.message })}</td>
-          <td></td><td></td><td></td><td></td>
+          <td></td><td></td><td></td><td></td><td></td>
         </tr>` : ""}</tbody>
     </table></div>`;
   }
@@ -2690,6 +2697,7 @@
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-span-ug]").forEach(btn => btn.addEventListener("click", () => toggleSpanUG(btn.dataset.pole, btn.dataset.span)));
     root.querySelectorAll("[data-toggle-anc]").forEach(btn => btn.addEventListener("click", () => toggleANC(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-ohg]").forEach(btn => btn.addEventListener("click", () => toggleOHG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-comm-movements]").forEach(btn => btn.addEventListener("click", () => toggleCommMovements(btn.dataset.pole)));
@@ -2734,6 +2742,19 @@
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+  }
+
+  function toggleSpanUG(poleId, spanId) {
+    const pole = S.getPole(poleId);
+    const span = S.getSpan(spanId);
+    if (!pole || !span || pole.ugActive || pole.pcoActive) return;
+    recordUndoSnapshot();
+    const enabling = span.ugActive !== true;
+    S.updateSpanField(spanId, "ugActive", enabling);
+    if (enabling && !span.ugReason) S.updateSpanField(spanId, "ugReason", "CLEARANCE VIOLATION");
+    global.Calculations.recalculateSpan(spanId);
+    renderAffectedPoles([span.fromPole, span.toPole].filter(Boolean));
+    markDirty();
   }
 
   function toggleANC(poleId) {
