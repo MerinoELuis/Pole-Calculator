@@ -141,6 +141,56 @@
         // review does not apply the MidAm-only checks.
         mrTemplate: "METRONET"
       }
+    },
+    OLSSON_OPPD: {
+      id: "OLSSON_OPPD",
+      label: "Olsson OPPD",
+      settings: {
+        position: "TOP_COMM",
+        mrCase: "UPPER",
+        proposedOwner: "Cox",
+        primaryPowerCommsClearance: "72\"",
+        polePowerCommsClearance: "40\"",
+        clearanceToPower: "40\"",
+        commClearance: "12\"",
+        boltClearance: "6\"",
+        midspanPowerCommClearance: "30\"",
+        midspanPrimaryPowerCommClearance: "60\"",
+        midspanCommCommClearance: "12\"",
+        calculateBackspanMidspan: true,
+        borrowMidspanFromPhysicalSpan: false,
+        proposeForeSpanWithoutMidspan: false,
+        allowLowPowerMidspanAdjustment: true,
+        // Olsson workbooks can contain Communication Drop / Service Drop
+        // rows. Keep the control and their normal relocation MR visible;
+        // Olsson does not inherit INTEC's optional Re-sag action.
+        showServiceDrop: true,
+        showResagServiceDrop: false,
+        hideProposedOwner: false,
+        streetlightBracketCommClearance: "40\"",
+        streetlightDripLoopCommClearance: "12\"",
+        powerGuyCommClearance: "12\"",
+        streetlightGroundingRequired: false,
+        environmentClearances: {
+          NONE: "15'6\"",
+          STREET: "15'6\"",
+          HIGHWAY: "18'",
+          PEDESTRIAN: "9'6\"",
+          PARALLEL_TO_STREET: "15'6\"",
+          OBSTRUCTED_PARALLEL_TO_STREET: "15'6\"",
+          UNLIKELY_PARALLEL_TO_STREET: "15'6\"",
+          RESIDENTIAL_DRIVEWAY: "15'6\"",
+          COMMERCIAL_DRIVEWAY: "15'6\"",
+          PARKING_LOT: "15'6\"",
+          ALLEY: "15'6\"",
+          RAILROAD: "23'6\"",
+          RURAL: "15'6\"",
+          FARM: "15'6\"",
+          WATER_WITHOUT_SAILBOATS: "14'",
+          WATER_WITH_SAILBOATS: "Variable"
+        },
+        mrTemplate: "OLSSON_OPPD"
+      }
     }
   };
 
@@ -165,6 +215,9 @@
   function detectProfile({ fileName = "", owners = [] } = {}) {
     const text = [fileName, ...owners].join(" ").toLowerCase();
     if (/\bcsu\b|colorado\s*springs|\bcocs\d*/.test(text)) return "CSU";
+    // OPPD ownership identifies the Olsson work instruction. This prevents
+    // raw OPPD workbooks from being audited with INTEC-only rules.
+    if (/olsson|\boppd\b/.test(text)) return "OLSSON_OPPD";
     if (/metronet|proposed\s*mnt|\bmnt\b|utility\s*>\s*midam|\bmidam\b/.test(text)) return "METRONET";
     return "INTEC";
   }

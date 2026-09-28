@@ -63,6 +63,14 @@ assert.match(p1Text, /Transfer CTL to new pole at HOA 19'10", 20'2" and 20'6"\./
 assert.ok(p1Text.indexOf("Transfer CATV") < p1Text.indexOf("Transfer CTL"), "transfer groups must follow the pole from highest to lowest comm");
 assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser must be final and use the imported IO direction");
 
+state.spans.SLACK = { spanId: "SLACK", fromPole: "P1", toPole: "P3", type: "Fore Span", rawType: "Fore Span", direction: "E" };
+state.spanSides.SLACK__P1 = { spanId: "SLACK", poleId: "P1", isSlack: true };
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /Proposed slack span E\./, "INTEC Slack must generate the lowercase MR instruction");
+state.spanSides.SLACK__P1.isSlack = false;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Proposed slack span E\./, "turning Slack off must remove its MR instruction");
+
 state.spanComms.MOVE = {
   spanId: "PROP",
   poleId: "P1",
@@ -97,6 +105,67 @@ assert.equal(
   1,
   "the same movement must be emitted only once when source rows use different quote characters"
 );
+state.spanComms.OTHER_HOA_MOVE = {
+  spanId: "PROP",
+  poleId: "P1",
+  owner: "Other HOA Cable",
+  ownerBase: "Other HOA Cable",
+  existingHOA: "20'",
+  existingHOAChange: "",
+  otherHOA: "18'6\"",
+  transferToNewPole: false,
+  serviceDrop: false,
+  downGuy: false
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(
+  state.mr.find(item => item.poleId === "P1").text,
+  /At HOA 20' lower Other HOA Cable to HOA 18'6"\./,
+  "Other HOA must be the movement target used by MR generation"
+);
+state.spanSides.PROP__P1.clearanceMSReason = "LOW_POWER";
+state.spanSides.PROP__P1.clearanceMSIssue = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const orderedEnsureText = state.mr.find(item => item.poleId === "P1").text;
+assert.ok(
+  orderedEnsureText.indexOf("Transfer CATV") < orderedEnsureText.indexOf('Ensure min 30"'),
+  "Ensure must follow communication movements"
+);
+assert.ok(
+  orderedEnsureText.indexOf('Ensure min 30"') < orderedEnsureText.indexOf("Attach Wecom"),
+  "Ensure must precede the new attachment instruction"
+);
+state.spans.ENSURE2 = { spanId: "ENSURE2", fromPole: "P1", toPole: "P3", type: "Fore Span", rawType: "Fore Span", direction: "S" };
+state.spanSides.ENSURE2__P1 = {
+  spanId: "ENSURE2",
+  poleId: "P1",
+  proposedHOA: "20'",
+  clearanceMSReason: "LOW_POWER",
+  clearanceMSIssue: true
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(
+  state.mr.find(item => item.poleId === "P1").text,
+  /Ensure min 30" to low power at midspan N and S\./,
+  "INTEC must combine Ensure directions when multiple spans need the adjustment"
+);
+state.spanSides.ENSURE2__P1.clearanceMSReason = "";
+state.spanSides.ENSURE2__P1.clearanceMSIssue = false;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(
+  state.mr.find(item => item.poleId === "P1").text,
+  /Ensure min 30" to low power at midspan N\./,
+  "INTEC must identify the only affected direction when another proposed span is clear"
+);
+assert.doesNotMatch(
+  state.mr.find(item => item.poleId === "P1").text,
+  /Ensure min 30" to low power at midspan N and S\./,
+  "INTEC must not list a direction that does not need Ensure"
+);
+delete state.spanSides.ENSURE2__P1;
+delete state.spans.ENSURE2;
+state.spanSides.PROP__P1.clearanceMSReason = "";
+state.spanSides.PROP__P1.clearanceMSIssue = false;
 state.spanComms.MOVE.mr = "Review attachment and maintain existing route.";
 sandbox.window.MRLogic.generateMRForPole("P1");
 const customMovementText = state.mr.find(item => item.poleId === "P1").text;
@@ -382,5 +451,82 @@ assert.match(caseTwoText, /PL NEW RISER FOR UG TRANSFER N\./, "Case 2 must use t
 assert.doesNotMatch(caseTwoText, /PL NEW .*ANC/i, "Case 2 must not auto-add ANC");
 state.spans.PROP.ugActive = false;
 state.spans.PROP.ugReason = "";
+
+state.settings = { projectProfile: "OLSSON_OPPD", proposedOwner: "Cox", mrCase: "UPPER" };
+state.spanSides.SLACK__P1.isSlack = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /PROPOSED SLACK SPAN E\./, "Olsson OPPD Slack must generate the uppercase MR instruction");
+state.spanSides.SLACK__P1.isSlack = false;
+state.settings.showServiceDrop = true;
+state.settings.showResagServiceDrop = false;
+state.spanComms.OLSSON_DROP = {
+  spanId: "PROP",
+  poleId: "P1",
+  owner: "Cox",
+  ownerBase: "Cox",
+  existingHOA: "18'",
+  existingHOAChange: "17'",
+  serviceDrop: true,
+  resagServiceDrop: true,
+  transferToNewPole: false
+};
+state.poles.P1 = {
+  ...state.poles.P1,
+  metadata: {
+    powerEquipment: [{
+      category: "RISER",
+      owner: "UTILITY > OPPD",
+      attachmentHeight: "23'6\"",
+      actionActive: true,
+      actionHeight: "26'6\"",
+      secureActive: true
+    }]
+  },
+  lessThan12CommClearanceActive: true,
+  ugActive: false,
+  pcoActive: false,
+  poleInsetActive: true,
+  redTagActive: true,
+  redTagMinHeight: "45'",
+  redTagClass: "4",
+  redTagReason: "CLEARANCE VIOLATIONS",
+  ohgActive: true,
+  ohgDirection: "W",
+  ohgHoa: "24'"
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+const olssonText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(olssonText, /AT HOA 23'6" RAISE OPPD RISER TO HOA 26'6" DUE TO CLEARANCES\./i, "Olsson Power Riser Raise must use the OPPD-specific MR wording");
+assert.match(olssonText, /SECURE RISER DRIP LOOP TO HOA 25'10"\./i, "Olsson must generate the Power Riser Secure drip-loop MR");
+assert.match(olssonText, /LESS THAN 12" COMM CLEARANCE REQUESTED\./i, "Olsson must generate the optional less-than-12-inch clearance note");
+assert.match(olssonText, /Relocate Cox drop at HOA 18' to HOA 17'\./i, "Olsson must generate normal Service Drop relocation MR");
+assert.doesNotMatch(olssonText, /Re-sag Cox/i, "Olsson must not inherit INTEC Re-sag Service Drop MR");
+assert.match(olssonText, /^RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT - MIN 45'-4 DUE TO CLEARANCE VIOLATIONS\./, "Olsson Red Tag must be a separate first MR line");
+assert.match(olssonText, /PL NEW OHG W AT HOA 24' AND PL DG ON W POLE\./, "Olsson should reuse the configured OHG action");
+assert.doesNotMatch(olssonText, /POLE INSET/i, "Olsson must not generate Pole Inset MR");
+state.poles.P1.riserActive = true;
+state.poles.P1.ugRiserDirection = "W";
+state.spanSides.PROP__P1.proposedHOA = "23'";
+sandbox.window.MRLogic.generateMRForPole("P1");
+const olssonRiserText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(olssonRiserText, /PL RISER W AT HOA 22'\./, "Olsson OPPD Riser action must generate the approved placement MR");
+state.poles.P1.riserActive = null;
+state.poles.P1.ugRiserDirection = "";
+state.spanSides.PROP__P1.proposedHOA = "19'";
+state.poles.P1.redTagMinHeight = "";
+state.poles.P1.redTagClass = "";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /^RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT\n/, "Olsson Red Tag must support the short form without a minimum");
+state.poles.P1.redTagActive = false;
+state.poles.P1.ohgActive = false;
+state.poles.P1.ugActive = true;
+state.poles.P1.ugMRText = "";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(state.mr.find(item => item.poleId === "P1"), undefined, "Olsson UG must not invent an INTEC or Metronet MR template");
+state.poles.P1.ugActive = false;
+state.poles.P1.pcoActive = true;
+state.poles.P1.pcoMRText = "";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /^OPPD REPL POLE TO 45FT CLASS 2/, "Olsson PCO must use the OPPD replacement template");
 
 console.log("Make Ready logic tests passed.");

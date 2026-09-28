@@ -161,6 +161,8 @@ An additional Proposed uses its own SpanSide and may point to a physical span th
 | `ownerBase`, `rawOwner` | imported | Matching and original display owner values. |
 | `existingHOA` | imported/editable | Baseline attachment height. |
 | `existingHOAChange` | editable/auto | New attachment height. Blank means no movement. |
+| `otherHOA` | editable | Optional per-span attachment height override. When populated, this is the height used for comm movement calculations, clearance, and MR generation instead of `existingHOAChange`. |
+| `otherHOAActive` | legacy/editable | Legacy toggle retained for old saved files that used the former per-span HOA Change mode. |
 | `commMovementsActive` | editable | Pole-level calculation toggle. HOA Change values remain stored and visible while disabled. |
 | `autoCalcStatus` | derived source metadata | `AUTO` when the current HOA Change came from Auto Calculate; blank after a user edit. |
 | `autoCalcMessage` | derived source metadata | Reserved solver message field. |

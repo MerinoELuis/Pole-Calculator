@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.46";
+  const CURRENT_VERSION = "1.8.80";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -62,6 +62,7 @@
    * @property {string} wireId Imported wire identity used for endpoint matching.
    * @property {string} existingHOA Imported baseline attachment height.
    * @property {string} existingHOAChange Editable or automatic new attachment height.
+   * @property {string} otherHOA Optional per-span override height used for comm movement calculations.
    * @property {string} midspan Imported baseline midspan for this exact row.
    * @property {string} calculatedMidspan Derived midspan after endpoint movements.
    * @property {boolean} isEndpointPlaceholder True only for a synthetic owner row copied to an otherwise empty endpoint.
@@ -258,6 +259,11 @@
         ohgActive: Boolean(data.ohgActive),
         ohgHoa: trim(data.ohgHoa || ""),
         ohgDirection: trim(data.ohgDirection || "").toUpperCase(),
+        lessThan12CommClearanceActive: Boolean(data.lessThan12CommClearanceActive),
+        redTagActive: Boolean(data.redTagActive),
+        redTagMinHeight: trim(data.redTagMinHeight || ""),
+        redTagClass: trim(data.redTagClass || ""),
+        redTagReason: trim(data.redTagReason || ""),
         pcoActive: Boolean(data.pcoActive),
         commMovementsActive: data.commMovementsActive !== false,
         pcoMRText: trim(data.pcoMRText || ""),
@@ -299,6 +305,11 @@
       ohgActive: Boolean(extra.ohgActive),
       ohgHoa: trim(extra.ohgHoa || ""),
       ohgDirection: trim(extra.ohgDirection || "").toUpperCase(),
+      lessThan12CommClearanceActive: Boolean(extra.lessThan12CommClearanceActive),
+      redTagActive: Boolean(extra.redTagActive),
+      redTagMinHeight: trim(extra.redTagMinHeight || ""),
+      redTagClass: trim(extra.redTagClass || ""),
+      redTagReason: trim(extra.redTagReason || ""),
       pcoActive: Boolean(extra.pcoActive),
       commMovementsActive: extra.commMovementsActive !== false,
       pcoMRText: trim(extra.pcoMRText || ""),
@@ -319,6 +330,7 @@
       ownerBase: trim(extra.ownerBase || owner),
       existingHOA: trim(existingHOA),
       existingHOAChange: trim(extra.existingHOAChange || ""),
+      otherHOA: trim(extra.otherHOA || ""),
       pofActive: Boolean(extra.pofActive),
       notes: trim(notes),
       rawOwner: trim(extra.rawOwner || ""),
@@ -355,6 +367,7 @@
       environment: trim(extra.environment || "NONE"),
       environmentClearance: trim(extra.environmentClearance || defaultEnvironmentClearance(extra.environment || "NONE")),
       midspanLowPower: trim(extra.midspanLowPower || ""),
+      sourceMidspanLowPower: trim(extra.sourceMidspanLowPower || ""),
       midspanMaxCommHeight: trim(extra.midspanMaxCommHeight || ""),
       // A span-level UG decision is separate from the pole-level UG action.
       // null means the operator has not selected Case 2 for this span.
@@ -382,6 +395,7 @@
       isManualProposed: Boolean(data.isManualProposed),
       isAdditionalProposed: Boolean(data.isAdditionalProposed),
       isProposedExcluded: Boolean(data.isProposedExcluded),
+      isSlack: Boolean(data.isSlack),
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),
@@ -420,6 +434,8 @@
       ownerBase: trim(data.ownerBase || data.owner || ""),
       existingHOA: trim(data.existingHOA || ""),
       existingHOAChange: trim(data.existingHOAChange || ""),
+      otherHOA: trim(data.otherHOA || ""),
+      otherHOAActive: Boolean(data.otherHOAActive),
       serviceDrop: Boolean(data.serviceDrop),
       downGuy: Boolean(data.downGuy),
       transferToNewPole: Boolean(data.transferToNewPole),
@@ -560,7 +576,11 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
+    if (field === "lessThan12CommClearanceActive") {
+      pole[field] = value === true || String(value).toLowerCase() === "true";
+      return pole;
+    }
     pole[field] = trim(value);
     if (["ugRiserDirection", "ancDirection", "ohgDirection"].includes(field)) pole[field] = pole[field].toUpperCase();
     if (field === "poleInsetReason") pole[field] = normalizePoleInsetReason(value);
@@ -625,6 +645,7 @@
         ownerBase: trim(extra.ownerBase || pole.comms[idx].ownerBase || ownerKey),
         existingHOA: trim(existingHOA) || pole.comms[idx].existingHOA,
         existingHOAChange: trim(extra.existingHOAChange || pole.comms[idx].existingHOAChange || ""),
+        otherHOA: trim(extra.otherHOA || pole.comms[idx].otherHOA || ""),
         pofActive: Boolean(extra.pofActive || pole.comms[idx].pofActive),
         notes: trim(notes) || pole.comms[idx].notes,
         rawOwner: trim(extra.rawOwner || pole.comms[idx].rawOwner || ""),
@@ -783,7 +804,7 @@
    * keep Raise and Secure as independent user actions.
    */
   function updatePowerEquipmentField(poleId, equipmentIndex, field, value) {
-    if (!["actionActive", "actionHeight", "raiseActive", "raiseHeight", "secureActive"].includes(field)) return null;
+    if (!["owner", "attachmentHeight", "actionActive", "actionHeight", "raiseActive", "raiseHeight", "secureActive"].includes(field)) return null;
     const pole = state.poles[poleId];
     const rows = pole?.metadata?.powerEquipment;
     const index = Number(equipmentIndex);
@@ -796,6 +817,16 @@
       : row);
     pole.metadata = { ...(pole.metadata || {}), powerEquipment: nextRows };
     return nextRows[index];
+  }
+
+  function removePowerEquipment(poleId, equipmentIndex) {
+    const pole = state.poles[poleId];
+    const rows = pole?.metadata?.powerEquipment;
+    const index = Number(equipmentIndex);
+    if (!pole || !Array.isArray(rows) || !Number.isInteger(index) || !rows[index]) return null;
+    const removed = rows[index];
+    pole.metadata = { ...(pole.metadata || {}), powerEquipment: rows.filter((_, rowIndex) => rowIndex !== index) };
+    return removed;
   }
 
   function getConnectedSpans(poleId) {
@@ -837,7 +868,7 @@
 
   function poleHasChanges(poleId) {
     const sideChange = getSpanSidesForPole(poleId).some(side => side.proposedHOA || side.proposedMidspan || side.ocalcMS || side.msProposed || side.finalMidspan || side.endDrop || side.notes);
-    const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.notes || sc.mr);
+    const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.otherHOA || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
     return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
@@ -903,6 +934,7 @@
       environment: source.environment || span.environment || "NONE",
       environmentClearance: source.environmentClearance || span.environmentClearance || "",
       midspanLowPower: source.midspanLowPower || span.midspanLowPower || "",
+      sourceMidspanLowPower: source.sourceMidspanLowPower || span.sourceMidspanLowPower || "",
       midspanMaxCommHeight: source.midspanMaxCommHeight || span.midspanMaxCommHeight || "",
       rawSpanIds: Array.from(new Set([...(source.rawSpanIds || []), ...(span.rawSpanIds || [])].filter(Boolean)))
     };
@@ -958,6 +990,7 @@
               ownerBase: comm.ownerBase || comm.owner,
               existingHOA: comm.existingHOA,
               existingHOAChange: comm.existingHOAChange || "",
+              otherHOA: comm.otherHOA || "",
               pofActive: Boolean(comm.pofActive),
               rawOwner: comm.rawOwner || "",
               unknownOwner: Boolean(comm.unknownOwner),
@@ -997,6 +1030,7 @@
               ownerBase: row.ownerBase || row.owner,
               existingHOA: "",
               existingHOAChange: "",
+              otherHOA: "",
               serviceDrop: Boolean(row.serviceDrop),
               downGuy: Boolean(row.downGuy),
               transferToNewPole: false,
@@ -1191,6 +1225,7 @@
     updateSpanField,
     updateSpanPowerField,
     updatePowerEquipmentField,
+    removePowerEquipment,
     upsertComm,
     upsertSpan,
     upsertSpanSide,

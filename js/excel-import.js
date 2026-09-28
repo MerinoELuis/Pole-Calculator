@@ -187,6 +187,51 @@
     125: 12
   };
 
+  // OPPD permitted pole types used by the Olsson Pole Type Check.
+  const OPPD_POLE_TYPES = [
+    "30-6", "30-4",
+    "35-6", "35-4", "35-2",
+    "40-6", "40-4", "40-2",
+    "45-4", "45-2",
+    "50-4", "50-2",
+    "55-4", "55-2",
+    "60-4", "60-2"
+  ];
+  const OPPD_POLE_HEIGHTS = Array.from(new Set(OPPD_POLE_TYPES
+    .map(type => Number(type.split("-")[0])))).sort((a, b) => a - b);
+
+  function oppdRecommendedClass(calculatedClass, height) {
+    const allowed = OPPD_POLE_TYPES
+      .filter(type => Number(type.split("-")[0]) === Number(height))
+      .map(type => Number(type.split("-")[1]))
+      .sort((a, b) => a - b);
+    if (!allowed.length) return "";
+    const numeric = Number(String(calculatedClass || "").trim());
+    if (!Number.isFinite(numeric)) return "";
+    // OPPD's conservative rule: 1 -> 2, 3 -> 4, and 5 -> 6.
+    return String(allowed.find(value => value >= numeric) ?? allowed[allowed.length - 1]);
+  }
+
+  function oppdRecommendedHeight(calculatedHeight) {
+    const numeric = Number(calculatedHeight);
+    if (!Number.isFinite(numeric)) return "";
+    return OPPD_POLE_HEIGHTS.filter(height => height <= numeric).pop() || "";
+  }
+
+  function isOppdPoleTypeAllowed(height, classValue) {
+    const numericHeight = Number(height);
+    const numericClass = Number(String(classValue || "").trim());
+    if (!Number.isFinite(numericHeight) || !Number.isFinite(numericClass)) return false;
+    return OPPD_POLE_TYPES.includes(`${numericHeight}-${numericClass}`);
+  }
+
+  function isOlssonPoleClassProfile(data = {}) {
+    const explicit = String(data.projectProfile || "").toUpperCase();
+    if (explicit) return explicit === "OLSSON_OPPD";
+    const state = S()?.getState?.();
+    return String(state?.settings?.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
+  }
+
   function parseNumber(value) {
     if (isBlank(value)) return null;
     const match = String(value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
@@ -243,18 +288,39 @@
     const calculatedHeight = roundPoleLengthFromTip(data.tip);
     const tableMatch = classFromAnsiTable(calculatedHeight, circumference);
     const calculatedClass = tableMatch?.classValue || "";
+    const useOppdRule = isOlssonPoleClassProfile(data);
+    const recommendedHeight = useOppdRule ? oppdRecommendedHeight(calculatedHeight) : calculatedHeight;
+    const recommendedClass = useOppdRule ? oppdRecommendedClass(calculatedClass, recommendedHeight) : calculatedClass;
     const species = parsedType.species || "Pole";
-    const expectedType = calculatedClass && calculatedHeight ? `${species} > ${calculatedClass} > ${calculatedHeight}` : "";
+    const hasCircumference = circumference !== null;
+    // When an Olsson collection row has no circumference, the class cannot be
+    // validated from the OPPD table.  In that case only the calculated height
+    // is authoritative; the imported class is intentionally ignored.
+    const typeMatchesOppdHeight = useOppdRule
+      && Number(parsedType.height) === Number(recommendedHeight);
+    const expectedType = useOppdRule && !hasCircumference
+      ? (typeMatchesOppdHeight
+        ? importedType
+        : (recommendedHeight ? `${species} > 2/4/6 > ${recommendedHeight}` : importedType))
+      : (recommendedClass && recommendedHeight
+        ? `${species} > ${recommendedClass} > ${recommendedHeight}`
+        : "");
     const importedClass = String(parsedType.classValue || "").toUpperCase();
-    const expectedClass = String(calculatedClass || "").toUpperCase();
+    const expectedClass = String((useOppdRule ? recommendedClass : calculatedClass) || "").toUpperCase();
     const issues = [];
 
     if (!data.tip) issues.push("Missing Tip");
-    if (circumference === null) issues.push("Missing Circumference");
+    if (circumference === null && !useOppdRule) issues.push("Missing Circumference");
     if (!importedType) issues.push("Missing Type");
     if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No reference height row");
-    if (data.tip && circumference !== null && !tableMatch) issues.push("No table match");
-    if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
+    if (useOppdRule && !hasCircumference) {
+      // No circumference means there is no class check for Olsson.  Keep the
+      // normal missing-type and height checks below, but do not reject a row
+      // solely because its imported class is not one of the OPPD classes.
+    } else {
+      if (data.tip && circumference !== null && !tableMatch) issues.push("No table match");
+      if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
+    }
     if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
 
     return {
@@ -263,6 +329,8 @@
       circumference: circumference === null ? "" : String(circumference),
       calculatedHeight: calculatedHeight || "",
       calculatedClass,
+      recommendedHeight: recommendedHeight || "",
+      recommendedClass,
       expectedType,
       status: issues.length ? issues.join(", ") : "OK",
       tableMinimumCircumference: tableMatch?.minimum || "",
@@ -286,6 +354,7 @@
         importedDiameter: parseNumber(diameterRaw) === null ? "" : String(parseNumber(diameterRaw)),
         manualDiameter: "",
         importedType,
+        projectProfile: String(S()?.getState?.()?.settings?.projectProfile || "").toUpperCase(),
         source: "Collection"
       });
     }).filter(Boolean);
@@ -320,6 +389,10 @@
       .map(ownerMatchToken)
       .filter(Boolean)
       .some(token => token === anchor || token.includes(anchor) || anchor.includes(token));
+  }
+
+  function isUtilityAnchorGuyOwner(owner) {
+    return /^utility\s*>/i.test(String(owner || "").trim());
   }
 
   function parseAttachmentSize(value) {
@@ -518,6 +591,7 @@
           environment: pick(row, ["environment", "Environment"]) || "NONE",
           environmentClearance: pick(row, ["environmentClearance", "Environment Clearance", "Env Clearance"]),
           midspanLowPower: pick(row, ["midspanLowPower", "Midspan Low Power"]),
+          sourceMidspanLowPower: pick(row, ["sourceMidspanLowPower", "Source Midspan Low Power"]),
           midspanMaxCommHeight: pick(row, ["midspanMaxCommHeight", "Max Midspan Comm", "Midspan Max Comm"]),
           bearingDegrees: pick(row, ["bearingDegrees", "Bearing Degrees"]),
           rawType: pick(row, ["rawType", "Raw Type"]),
@@ -570,6 +644,8 @@
         ownerBase: pick(row, ["ownerBase", "Owner Base"]),
         existingHOA: pick(row, ["existingHOA", "Existing HOA"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
+        otherHOA: pick(row, ["otherHOA", "Other HOA Height"]),
+        otherHOAActive: truthyCell(pick(row, ["otherHOAActive", "Other HOA", "Other HOA Active"])),
         serviceDrop: truthyCell(pick(row, ["serviceDrop", "Service Drop"])),
         downGuy: truthyCell(pick(row, ["downGuy", "DG", "Down Guy", "Has DG"])),
         transferToNewPole: truthyCell(pick(row, ["transferToNewPole", "Transfer to New Pole", "Pole Transfer"])),
@@ -715,6 +791,11 @@
       const type = String(pick(row, ["Type"])).trim();
       const length = pick(row, ["Span Length"]);
       const lengthDisplay = heightFromRow(row, ["Span Length.display", "Span Length Display"], ["Span Length"]);
+      const lowPowerMidspan = heightFromRow(
+        row,
+        ["Low Power Midspan.display", "Low Power Midspan Display"],
+        ["Low Power Midspan"]
+      );
       const dir = directionFromBearingDisplay(pick(row, ["Span Length.bearing.display", "bearing.display"], { contains: true }));
       const environment = normalizeEnvironment(pick(row, ["Environment"]));
 
@@ -728,6 +809,7 @@
         type,
         length,
         lengthDisplay,
+        midspanLowPower: lowPowerMidspan,
         environment,
         environmentClearance: clearanceForEnvironment(environment),
         direction: dir.direction || String(pick(row, ["Direction", "Dir", "Bearing"])).trim(),
@@ -762,6 +844,8 @@
           spanIndex: record.spanIndex,
           length: record.length,
           lengthDisplay: record.lengthDisplay,
+          midspanLowPower: record.midspanLowPower,
+          sourceMidspanLowPower: record.midspanLowPower,
           environment: record.environment,
           environmentClearance: record.environmentClearance,
           bearingDegrees: record.bearingDegrees,
@@ -857,10 +941,19 @@
       const attachmentInches = H().parseHeight(attachmentHeight);
       if (!poleId || !owner || attachmentInches === null) return;
 
-      S().getSpanCommsForPole(poleId).forEach(sc => {
-        const commHeight = H().parseHeight(sc.existingHOA || "");
-        if (commHeight === null || commHeight !== attachmentInches) return;
-        if (!ownersMatchForAnchorGuy(owner, sc)) return;
+      const commsAtHeight = S().getSpanCommsForPole(poleId)
+        .filter(sc => H().parseHeight(sc.existingHOA || "") === attachmentInches);
+      const ownerMatches = commsAtHeight.filter(sc => ownersMatchForAnchorGuy(owner, sc));
+      // Normal rows still require the exact owner match. Some IKE exports,
+      // including the Uniti workbook, record a utility-owned DG that is
+      // physically attached at the only non-service communication HOA on the
+      // pole. Preserve that DG instead of dropping it when the source does not
+      // repeat the communication owner on Anchor.Guys.
+      const fallbackMatches = !ownerMatches.length && isUtilityAnchorGuyOwner(owner)
+        ? commsAtHeight.filter(sc => !sc.serviceDrop)
+        : [];
+      const matches = ownerMatches.length ? ownerMatches : (fallbackMatches.length === 1 ? fallbackMatches : []);
+      matches.forEach(sc => {
         S().upsertSpanComm({ ...sc, downGuy: true });
       });
     });
@@ -1082,6 +1175,7 @@
     recalculatePoleClassCheck,
     ANSI_POLE_CLASSES,
     ANSI_CLASS_TABLE,
-    ANSI_APPROX_GROUNDLINE_DISTANCE
+    ANSI_APPROX_GROUNDLINE_DISTANCE,
+    OPPD_POLE_TYPES
   };
 })(window);

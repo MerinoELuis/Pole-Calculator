@@ -146,13 +146,15 @@ Used to pre-check the `DG` box on existing comm movements. The importer matches:
 - `Owner` with the comm owner.
 - `Attachment Height.display` with the comm `Existing HOA`.
 
-When all three match, Make Ready movement lines can include `with DG`.
+When all three match, Make Ready movement lines can include `with DG`. For workbooks that label the guy as utility-owned instead of repeating the communication owner, the importer also accepts the DG when exactly one non-service communication is present at that same HOA; multiple same-height candidates remain manual to avoid assigning the guy to the wrong wire.
 
 For `Metronet > MidAm`, utility guys must be `1/2\"` and communication guys must be `3/8\"`. Guy sizes are audited, but guy attachment heights do not impose a comm clearance rule.
 
 `Service Drop` is shown for INTEC projects and hidden for Metronet projects. Wecom remains an INTEC proposed owner, not a separate project profile. `DG` remains available for every profile because it depends on the imported anchor/guy relationship, not on the service-drop workflow.
 
 `Transfer to New Pole` is one manual option per physical comm at a pole, even when that comm is related to several spans. It changes the normal movement into one transfer instruction at the entered HOA Change. The previous pole's Existing HOA is not retained as a Bolt-bolt obstacle after transfer, while the effective transfer height still follows Comm-comm and the remaining clearances. INTEC also provides `Re-sag Service Drop` per span: for a checked service drop below `15'6"`, the calculator validates that span at `15'6"` and adds the corresponding re-sag instruction without changing the imported midspan baseline.
+
+Communication rows use one shared `HOA Change` by default. Enable `Other HOA` in the table to expose a separate HOA Change for every span in that owner/height group; disabling it collapses the group back to one shared value.
 
 INTEC UG replaces the pole MR with the standard six-line decision block. Pole Actions provides a large `UG Make Ready` editor already populated with that template. Connected Fore/Back/Other Span instructions extract only the reason from its `Unable to attach due to ...` line and format it as `due to on adj pole <reason>`. Fore Span and Back Span connections toward an adjacent UG pole enable their riser automatically. On a normal pole, the `Riser` action beside UG/PCO can also add or remove riser MR manually without requiring an adjacent UG pole. The control is disabled when that same pole is UG or PCO, and no riser is added to its replacement block. A generated riser is placed one foot below the primary Proposed and remains the final Make Ready instruction. Its direction uses the saved user selection first, then imported Make Ready/IO, and finally the primary Proposed/UG span direction for both Fore Span and Back Span. `Riser Direction` remains editable.
 

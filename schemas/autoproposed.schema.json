@@ -105,6 +105,10 @@
           "type": "boolean",
           "description": "Place the proposed fiber over the existing messenger owned by the exported job owner; do not create a new messenger."
         },
+        "slack": {
+          "type": "boolean",
+          "description": "The proposed span is marked as Slack by the operator. This flag does not perform tension or O-Calc calculations."
+        },
         "ug": { "type": "boolean" }
       },
       "allOf": [

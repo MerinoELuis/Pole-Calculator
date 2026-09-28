@@ -41,6 +41,13 @@ S.upsertSpanComm(S.createSpanComm({
   existingHOA: "20'",
   midspan: "17'"
 }));
+S.upsertPole({ ...S.getPole("P1"), commMovementsActive: false });
+assert.equal(
+  C.getEffectiveCommHOA({ poleId: "P1", existingHOA: "20'", existingHOAChange: "18'", otherHOA: "19'6\"" }),
+  "19'6\"",
+  "Other HOA must override HOA Change even when Comm Moves is disabled"
+);
+S.upsertPole({ ...S.getPole("P1"), commMovementsActive: true });
 S.upsertSpan(S.createSpan("UNRELATED", "P1", "P3", "N", "", { type: "Other", rawType: "Other", lengthDisplay: "100'" }));
 S.upsertSpanComm(S.createSpanComm({
   spanId: "UNRELATED",
@@ -362,6 +369,30 @@ assert.match(
   "regular same-owner comms must receive Midspan clearance flagging"
 );
 
+seedSpan("INTEC", "MOVED-CLEARANCE", "100'", "");
+const clearanceUnmoved = S.createSpanComm({
+  spanId: "MOVED-CLEARANCE",
+  poleId: "P1",
+  owner: "COMMUNICATION > Telco",
+  wireId: "UNMOVED",
+  existingHOA: "21'6\""
+});
+const clearanceMoved = S.createSpanComm({
+  spanId: "MOVED-CLEARANCE",
+  poleId: "P1",
+  owner: "COMMUNICATION > Telco",
+  wireId: "MOVED",
+  existingHOA: "21'2\"",
+  existingHOAChange: "20'8\""
+});
+S.upsertSpanComm(clearanceUnmoved);
+S.upsertSpanComm(clearanceMoved);
+assert.doesNotMatch(
+  C.evaluateCommFlagging(clearanceUnmoved, "").flaggingMessage,
+  /Existing HOA 21'2"/i,
+  "a moved communication must not reserve its old bolt point after making room for another comm"
+);
+
 seedSpan("INTEC", "DG-STILL-BOLT", "100'", "");
 const regularWithDg = S.createSpanComm({
   spanId: "DG-STILL-BOLT",
@@ -565,6 +596,61 @@ S.upsertSpan(S.createSpan("TERMINAL-BACK-NO-MS", "P3-NO-MS", "P2-NO-MS", "W", ""
 assert.ok(
   C.autoCalcProposedSpansForPole("P3-NO-MS").some(span => span.spanId === "TERMINAL-BACK-NO-MS"),
   "a terminal Back Span must remain Proposed-eligible even without an imported Midspan"
+);
+
+S.resetState();
+S.applyProjectProfile("METRONET");
+S.updateSetting("position", "OVERLASH");
+S.upsertPole(S.createPole({ poleId: "OL-P1", lowPower: "35'", topComm: "25'", maxCommHeight: "30'" }));
+S.upsertPole(S.createPole({ poleId: "OL-P2", lowPower: "35'" }));
+S.upsertSpan(S.createSpan("OVERLASH-SPAN", "OL-P1", "OL-P2", "E", "", {
+  type: "Fore Span",
+  rawType: "Fore Span",
+  lengthDisplay: "150'"
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "OVERLASH-SPAN",
+  poleId: "OL-P1",
+  owner: "COMMUNICATION > Existing Cable",
+  existingHOA: "20'",
+  midspan: "18'"
+}));
+const overlashSide = S.createSpanSide({
+  spanId: "OVERLASH-SPAN",
+  poleId: "OL-P1",
+  proposedHOA: "20'"
+});
+S.upsertSpanSide(overlashSide);
+const overlashSpan = S.getSpan("OVERLASH-SPAN");
+assert.equal(
+  C.calculateProposedMidspanBase(overlashSide, overlashSpan),
+  18 * 12,
+  "Overlash must reuse the matching existing cable midspan without adding comm spacing"
+);
+assert.equal(
+  C.evaluateSpanSideFlagging(overlashSide).status,
+  "OK",
+  "Overlash at the existing cable HOA must not be flagged for Top Comm or same-HOA spacing"
+);
+S.updateSetting("position", "TOP_COMM");
+S.upsertSpan({ ...overlashSpan, midspanMaxCommHeight: "18'2\"" });
+S.getState().makeReadyReferences.push({
+  poleId: "OL-P1",
+  attachmentType: "Overlash",
+  attachmentDirectionTokens: ["E"]
+});
+const overlashComm = S.getSpanComm("OVERLASH-SPAN", "OL-P1", "COMMUNICATION > Existing Cable");
+const overlashCommFlagging = C.evaluateCommFlagging(overlashComm, "18'");
+assert.doesNotMatch(
+  overlashCommFlagging.flaggingMessage,
+  /No room for proposed above top comm\./,
+  "an Overlash reference must not require space above Top Comm"
+);
+const mismatchedOverlash = { ...overlashSide, proposedHOA: "21'" };
+assert.equal(
+  C.evaluateSpanSideFlagging(mismatchedOverlash).status,
+  "PROBLEM",
+  "Overlash at a different HOA must require a matching existing communication"
 );
 
 console.log("Proposed midspan fallback tests passed.");

@@ -52,6 +52,7 @@ Bearing is normalized to one of eight cardinal directions. A missing linked pole
 | Pole | `Id`, `Pole ID`, `Pole`, `CollectionId`, `Structure Number` |
 | Owner | `Owner`, `owner` |
 | Existing HOA | `Attachment Height.display`, `Attachment Height Display`, `Existing HOA`, `HOA`, or matching height fallbacks |
+| Other HOA movement target | `otherHOA` or `Other HOA Height` in saved Excel state exports |
 | Midspan | `Mid Span Height.display`, `Midspan.display`, `Midspan` |
 | Wire ID | `Wire Id`, `Wire ID`, `wireId` |
 | Wire index | `Wire Index` |
@@ -69,7 +70,7 @@ The `Anchor` worksheet is captured as an independent raw review source. Excel Re
 
 ## Anchor.Guys
 
-The importer checks `Id`, `Owner`, and `Attachment Height.display`. A comm receives `downGuy: true` only when pole, normalized owner, and attachment height match.
+The importer checks `Id`, `Owner`, and `Attachment Height.display`. A comm receives `downGuy: true` when pole, normalized owner, and attachment height match. If a workbook records a utility-owned DG but omits the communication owner, the importer keeps the DG only when there is exactly one non-service communication at that same HOA; ambiguous same-height stacks remain unchecked for manual selection.
 
 ## Make Ready
 

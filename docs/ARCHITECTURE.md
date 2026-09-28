@@ -191,6 +191,7 @@ The same module filters generated regular movement lines from UG/PCO replacement
 
 - INTEC: Top Comm by default, proposed owner visible, Service Drop/Re-sag visible, low-power Proposed MS adjustment enabled.
 - Metronet: Low Comm by default, WI selector with MidAm, Service Drop/Re-sag hidden, low-power Proposed MS adjustment disabled.
+- Olsson OPPD: Top Comm by default, proposed owner visible, Service Drop relocation visible, INTEC-only Re-sag hidden.
 
 Auto Calculate supports either position setting for either profile. Profile-specific validations and active equipment actions remain authoritative during candidate evaluation.
 

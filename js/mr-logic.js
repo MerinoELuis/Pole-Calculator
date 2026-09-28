@@ -8,7 +8,7 @@
 
   function detectRaiseLower(spanComm) {
     const existing = H().parseHeight(spanComm.existingHOA);
-    const changed = H().parseHeight(spanComm.existingHOAChange);
+    const changed = H().parseHeight(spanComm.otherHOA || spanComm.existingHOAChange);
     if (existing === null || changed === null || existing === changed) return null;
     return changed > existing ? "Raise" : "Lower";
   }
@@ -35,6 +35,18 @@
 
   function detectOHG(spanSide) {
     return /\bohg\b|overhead\s*guy/i.test(`${spanSide.notes || ""}`);
+  }
+
+  function generateProposedSlackMR(spanSide, span) {
+    if (!spanSide?.isSlack || !span) return "";
+    const direction = String(span.direction || "").trim().toUpperCase();
+    if (!direction) return "";
+    // MidAm/CSU does not have a confirmed Slack MR template in the current
+    // project rules, so do not invent INTEC wording for that profile.
+    if (isMetronetMR()) return "";
+    return isOlssonMR()
+      ? `PROPOSED SLACK SPAN ${direction}.`
+      : `Proposed slack span ${direction}.`;
   }
 
   function ownerForMR(spanComm) {
@@ -98,6 +110,32 @@
   function isMetronetMR() {
     const settings = S().getState().settings || {};
     return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "METRONET";
+  }
+
+  function isOlssonMR() {
+    const settings = S().getState().settings || {};
+    return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
+  }
+
+  function isIntecMR() {
+    return !isMetronetMR() && !isOlssonMR();
+  }
+
+  function generateRedTagMR(pole) {
+    if (!isOlssonMR() || !pole?.redTagActive) return "";
+    const minimumHeight = formattedMRHeight(pole.redTagMinHeight || "");
+    const minimumClass = String(pole.redTagClass || "").trim();
+    const minimum = minimumHeight && minimumClass
+      ? `${minimumHeight}-${minimumClass}`
+      : (minimumHeight || minimumClass);
+    const reason = String(pole.redTagReason || "").trim().replace(/[.]+$/, "");
+    if (!minimum) return "RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT";
+    return `RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT - MIN ${minimum} DUE TO ${reason || "CLEARANCES"}.`;
+  }
+
+  function generateOlssonCommClearanceNote(pole) {
+    if (!isOlssonMR() || !pole?.lessThan12CommClearanceActive) return "";
+    return `LESS THAN 12\" COMM CLEARANCE REQUESTED.`;
   }
 
   function shouldAddLowPowerMidspanMR() {
@@ -171,7 +209,8 @@
   }
 
   function generateResagServiceDropMR(spanComm) {
-    if (!spanComm?.serviceDrop || !spanComm?.resagServiceDrop || isMetronetMR()) return "";
+    const settings = S().getState().settings || {};
+    if (!spanComm?.serviceDrop || !spanComm?.resagServiceDrop || settings.showResagServiceDrop === false || isMetronetMR()) return "";
     const span = S().getSpan(spanComm.spanId || "");
     if (/back\s*span|backspan/i.test(`${span?.type || ""} ${span?.rawType || ""}`)) return "";
     const originalMidspan = H().parseHeight(spanComm.calculatedMidspan || spanComm.midspan || spanComm.ocalcMS || "");
@@ -203,7 +242,7 @@
     const settings = S().getState().settings || {};
     const owner = ownerForMR(spanComm);
     const existing = formattedMRHeight(spanComm.existingHOA);
-    const changed = formattedMRHeight(spanComm.existingHOAChange);
+    const changed = formattedMRHeight(spanComm.otherHOA || spanComm.existingHOAChange);
     if (isMetronetMR()) {
       const verb = action === "Lower" ? "lower" : "raise";
       return `At HOA ${existing} ${verb} ${owner} to HOA ${changed}${dg}.`;
@@ -222,7 +261,7 @@
     S().getSpanCommsForPole(poleId).forEach(row => {
       if (row.serviceDrop && settings.showServiceDrop === false) return;
       const context = commGroupTransferContext(row);
-      const height = H().parseHeight(row.existingHOAChange || row.existingHOA || "");
+      const height = H().parseHeight(row.otherHOA || row.existingHOAChange || row.existingHOA || "");
       if (!context.enabled || height === null) return;
       const owner = ownerForMR(row);
       const key = owner.toLowerCase();
@@ -262,11 +301,11 @@
       spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`)
     )) ? " with DG" : "";
     if (transferContext.enabled) {
-      const transferHeight = spanComm.existingHOAChange || spanComm.existingHOA;
+      const transferHeight = spanComm.otherHOA || spanComm.existingHOAChange || spanComm.existingHOA;
       if (!transferHeight) return resag;
       const transfer = `Transfer ${owner} to new pole at HOA ${mrHeight(transferHeight)}${dg}.`;
       const customContainsTransfer = custom
-        && custom.includes(mrHeight(spanComm.existingHOAChange || spanComm.existingHOA));
+        && custom.includes(mrHeight(spanComm.otherHOA || spanComm.existingHOAChange || spanComm.existingHOA));
       return [custom || transfer, custom && !customContainsTransfer ? transfer : "", resag].filter(Boolean).join("\n");
     }
     const action = detectRaiseLower(spanComm);
@@ -277,15 +316,17 @@
     // both heights, avoid duplicating the generated instruction.
     const customContainsMovement = custom
       && custom.includes(mrHeight(spanComm.existingHOA))
-      && custom.includes(mrHeight(spanComm.existingHOAChange));
+      && custom.includes(mrHeight(spanComm.otherHOA || spanComm.existingHOAChange));
     return [custom, customContainsMovement ? "" : movement, resag].filter(Boolean).join("\n");
   }
 
   function generateMRForSpanSide(spanSide) {
-    if (!spanSide || !spanSide.proposedHOA) return "";
+    if (!spanSide) return "";
     const span = S().getSpan(spanSide.spanId);
+    const slack = generateProposedSlackMR(spanSide, span);
+    if (!spanSide.proposedHOA) return slack;
     const dir = span && span.direction ? ` ${span.direction}` : "";
-    const items = [];
+    const items = slack ? [slack] : [];
     if (spanSide.clearanceMSReason === "LOW_POWER" && spanSide.clearanceMSIssue && shouldAddLowPowerMidspanMR()) {
       items.push(`Ensure min 30" to low power at midspan.`);
     }
@@ -298,7 +339,7 @@
       if (detectRiser(spanSide) && pole?.riserActive !== false) items.push(`Pl new riser${dir}.`.replace("  ", " "));
       return items.join("\n");
     }
-    // Slack is selected in the PLA model, not inferred by the calculator from
+    // Slack is selected by the Proposed-table checkbox, not inferred from
     // free-form notes. Excel Review accepts that model-owned instruction.
     if (detectAnchor(spanSide)) items.push(`PL NEW ANC${dir}.`.replace("  ", " "));
     if (detectRiser(spanSide)) items.push(`PL NEW RISER${dir}.`.replace("  ", " "));
@@ -449,6 +490,11 @@
     ];
   }
 
+  function defaultOlssonUGLines(pole) {
+    const saved = String(pole?.ugMRText || "").trim();
+    return saved ? [saved] : [];
+  }
+
   function defaultMetronetUGLines() {
     return ["SUGGEST GOING UG DUE TO [CLEARANCE VIOLATION / 500FT/1500FT AERIAL REQUIREMENT]."];
   }
@@ -456,6 +502,7 @@
   function editableUGTemplate(pole) {
     const saved = String(pole?.ugMRText || "").trim();
     if (saved) return saved;
+    if (isOlssonMR()) return "";
     return (isMetronetMR() ? defaultMetronetUGLines() : defaultIntecUGLines(pole)).join("\n");
   }
 
@@ -487,6 +534,11 @@
   }
 
   function defaultPCOLines() {
+    if (isOlssonMR()) {
+      return [
+        "OPPD REPL POLE TO 45FT CLASS 2 DUE TO (FAILING POLE CAPACITY/CLEARANCE VIOLATIONS/BROKEN POLE/ETC)"
+      ];
+    }
     if (isMetronetMR()) {
       return [
         "Replace pole to 45ft Class 3 due to (failing clearances on pole / failing clearances at midspan / failing load capacity) & (keeping 1/2 span aerial / keeping 2 poles aerial)."
@@ -818,7 +870,9 @@
           const targetText = H().formatHeight(target);
           lines.push(isMetronetMR()
             ? `AT HOA ${H().formatHeight(source)} RAISE POWER RISER TO HOA ${targetText} DUE TO CLEARANCES.`
-            : `Raise APS riser from HOA ${H().formatHeight(source)} to HOA ${targetText}.`);
+            : isOlssonMR()
+              ? `AT HOA ${H().formatHeight(source)} RAISE OPPD RISER TO HOA ${targetText} DUE TO CLEARANCES.`
+              : `Raise APS riser from HOA ${H().formatHeight(source)} to HOA ${targetText}.`);
         }
         if (row.secureActive && source !== null) {
           const effectiveRiser = row.actionActive && target !== null && target > source ? target : source;
@@ -834,7 +888,7 @@
   function generatePoleInsetMR(pole) {
     if (!pole?.poleInsetActive || pole.ugActive || pole.pcoActive) return "";
     const settings = S().getState().settings || {};
-    if (String(settings.projectProfile || "").toUpperCase() === "METRONET") return "";
+    if (["METRONET", "OLSSON_OPPD"].includes(String(settings.projectProfile || "").toUpperCase())) return "";
     const reason = String(pole.poleInsetReason || "").toUpperCase() === "FAILING_CLEARANCES"
       ? "failing clearances"
       : "overloaded";
@@ -852,20 +906,26 @@
 
     const ug = [];
     const power = [];
+    const poleActionNotes = [];
     const poleInset = [];
     const commMoves = [];
     const dropMoves = [];
     const proposed = [];
     const ensure = [];
+    const ensureDirections = [];
+    let ensureSpanCount = 0;
+    const proposedSpanCount = S().getSpanSidesForPole(poleId)
+      .filter(side => Boolean(side?.proposedHOA)).length;
     const risers = [];
     const anc = [];
     const pole = S().getPole(poleId);
+    const redTag = generateRedTagMR(pole);
     if (pole?.ugActive || pole?.pcoActive) {
       const lines = pole.ugActive
-        ? (isMetronetMR() ? metronetUGReplacementMR(pole) : ugReplacementMR(pole))
+        ? (isMetronetMR() ? metronetUGReplacementMR(pole) : (isOlssonMR() ? defaultOlssonUGLines(pole) : ugReplacementMR(pole)))
         : pcoReplacementMR(pole);
-      const text = lines.map(applyCase).join("\n");
-      state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
+      const text = [redTag, ...lines].filter(Boolean).map(applyCase).join("\n");
+      if (text) state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
     connectedUGInstructions(poleId).forEach(line => {
@@ -879,20 +939,36 @@
     const inset = generatePoleInsetMR(pole);
     if (inset) poleInset.push(inset);
     power.push(...generatePowerEquipmentMRForPole(poleId));
-    if (isMetronetMR()) {
+    const olssonCommClearanceNote = generateOlssonCommClearanceNote(pole);
+    if (olssonCommClearanceNote) poleActionNotes.push(olssonCommClearanceNote);
+    if (isMetronetMR() || isOlssonMR()) {
       const configuredAnchor = metronetConfiguredAnchorMR(pole);
       const configuredOHG = metronetConfiguredOHGMR(pole);
-      if (configuredAnchor) anc.push(configuredAnchor);
+      if (isMetronetMR() && configuredAnchor) anc.push(configuredAnchor);
       if (configuredOHG) anc.push(configuredOHG);
     }
     commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
       if (text) text.split(/\n+/).filter(Boolean).forEach(line => {
-        if (/ensure min 30/i.test(line)) ensure.push(line);
+        if (/ensure min 30/i.test(line)) {
+          ensure.push(line);
+          ensureSpanCount += 1;
+          if (isIntecMR()) {
+            const span = S().getSpan(side.spanId);
+            const direction = String(span?.direction || "").trim().toUpperCase();
+            if (direction && !ensureDirections.includes(direction)) ensureDirections.push(direction);
+          }
+        }
         else proposed.push(line);
       });
     });
+    if (isIntecMR() && proposedSpanCount > 1 && ensureSpanCount > 0 && ensureDirections.length) {
+      for (let index = ensure.length - 1; index >= 0; index -= 1) {
+        if (/ensure min 30/i.test(ensure[index])) ensure.splice(index, 1);
+      }
+      ensure.push(`Ensure min 30" to low power at midspan ${joinMRList(ensureDirections)}.`);
+    }
     S().getSpanCommsForPole(poleId)
       .slice()
       .sort((a, b) => (H().parseHeight(getEffectiveCommHOAForMR(b)) ?? -Infinity) - (H().parseHeight(getEffectiveCommHOAForMR(a)) ?? -Infinity))
@@ -913,7 +989,9 @@
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
 
-    const lines = [...poleInset, ...ug, ...power, ...anc, ...commMoves, ...dropMoves, ...proposed, ...ensure, ...risers].map(applyCase);
+    // Ensure reminders belong after all existing communication movements but
+    // before the new attachment/proposed work they protect.
+    const lines = [redTag, ...poleInset, ...ug, ...power, ...poleActionNotes, ...anc, ...commMoves, ...dropMoves, ...ensure, ...proposed, ...risers].filter(Boolean).map(applyCase);
     const seen = new Set();
     const unique = lines.map(line => line.trim()).filter(Boolean).filter(line => {
       const key = normalizeMRLine(line);
@@ -947,7 +1025,7 @@
   }
 
   function getEffectiveCommHOAForMR(spanComm) {
-    return spanComm?.existingHOAChange || spanComm?.existingHOA || "";
+    return spanComm?.otherHOA || spanComm?.existingHOAChange || spanComm?.existingHOA || "";
   }
 
   /** @namespace MRLogic */
@@ -959,6 +1037,7 @@
     generatePowerEquipmentMRForPole,
     generateOverlashMRForPole,
     generatePoleInsetMR,
+    generateRedTagMR,
     getEditableUGTemplate: editableUGTemplate,
     getEditablePCOTemplate: editablePCOTemplate,
     getImportedRiserDirection: importedRiserDirection,

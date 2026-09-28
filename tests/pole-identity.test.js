@@ -14,7 +14,7 @@ assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 STEEL UG"), "P01-LX339
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 PCO STEEL"), "P01-LX339927");
 
 const workbook = {
-  SheetNames: ["Collection", "Span", "Span.Wire", "Equipment", "Anchor", "Make Ready"],
+  SheetNames: ["Collection", "Span", "Span.Wire", "Equipment", "Anchor", "Anchor.Guys", "Make Ready"],
   Sheets: {
     Collection: [
       ["collectionId", "Id", "Sequence", "Lowest Power.display", "Low Power Attachment.display"],
@@ -28,7 +28,8 @@ const workbook = {
     ],
     "Span.Wire": [
       ["Id", "Span Id", "Owner", "Size", "Attachment Height.display", "Mid Span Height.display", "Wire Id"],
-      ["P01-LX339927 UG", "S1", "COMMUNICATION > CATV", "CATV Bundle", "20'", "16'", "W1"]
+      ["P01-LX339927 UG", "S1", "COMMUNICATION > CATV", "CATV Bundle", "20'", "16'", "W1"],
+      ["P02-X339926", "S2", "COMMUNICATION > Telco", "Telco Bundle", "19'", "16'", "W2"]
     ],
     Equipment: [
       ["Id", "Equipment Id", "Type", "Owner", "Orientation", "Attachment Height.display", "Bottom Height.display", "Drip Loop Height.display"],
@@ -40,6 +41,10 @@ const workbook = {
     Anchor: [
       ["collectionId", "Id", "Anchor Index", "Anchor Id", "Type", "Lead Length.display", "Lead Length.provider", "Lead Length.bearing.display", "Lead Length.pitch.display", "Owner", "Guys"],
       ["C1", "P01-LX339927 STEEL", 1, "A1", "Single - 14\" - Soil Class 4", "20'", "manual", "90°", "-10°", "UTILITY > APS", 1]
+    ],
+    "Anchor.Guys": [
+      ["collectionId", "Id", "Anchor Index", "Anchor Id", "Guys Index", "Guys Id", "Size", "Owner", "Attachment Height.display"],
+      ["C2", "P02-X339926 STEEL", 1, "A2", 1, "G2", "Down > EHS 1/4 DG", "UTILITY > OPPD", "19'"]
     ],
     "Make Ready": [
       ["Id", "Attachment Size", "Attachment Height.display"],
@@ -63,6 +68,7 @@ assert.equal(state.spans.S1.toPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.fromPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.toPole, "P01-LX339927 STEEL");
 assert.ok(AppStore.getSpanCommsForPole("P01-LX339927 STEEL").some(row => row.spanId === "S1" && row.existingHOA === "20'"));
+assert.ok(AppStore.getSpanCommsForPole("P02-X339926 STEEL").some(row => /Telco/i.test(row.owner) && row.downGuy), "a utility-owned DG at the only non-service comm HOA must be retained");
 assert.equal(state.makeReadyReferences[0].poleId, "P01-LX339927 STEEL");
 assert.deepEqual(
   state.makeReadyReferences[0].attachmentDirectionTokens,

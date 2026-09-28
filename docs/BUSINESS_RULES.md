@@ -28,7 +28,7 @@ Max Height on Pole       = minimum available ceiling
 
 MidAm comms and Proposed must also remain at least `3"` from imported MidAm utility guy attachment heights.
 
-The highest and lowest effective comm heights use `HOA Change` when present; otherwise they use `Existing HOA`. Each pole has one Comm Moves toggle: when off, stored HOA Change values remain visible but calculations use the imported Existing HOA values. Entering a change turns the toggle on; clearing the last change turns it off. In INTEC, Self-Supporting Fiber is eligible for the manually activated `POF` control (normally after Re-sag). A marked POF stays visible but does not define Top Comm or Low Comm for Proposed placement.
+The highest and lowest effective comm heights use per-span `Other HOA` when present; otherwise they use `HOA Change`, then `Existing HOA`. An `Other HOA` value is the direct target height for that communication and drives midspan movement, clearance, and MR text. Each pole has one Comm Moves toggle: when off, stored HOA Change values remain visible but calculations use the imported Existing HOA values; an explicit `Other HOA` remains an override. Entering a change turns the toggle on; clearing the last change turns it off. In INTEC, Self-Supporting Fiber is eligible for the manually activated `POF` control (normally after Re-sag). A marked POF stays visible but does not define Top Comm or Low Comm for Proposed placement.
 
 ## Derived Midspan Power Limit
 
@@ -360,6 +360,6 @@ On a normal pole, `Pole Inset` is an independent Make Ready action beside UG, PC
 
 Excel Review treats the UG replacement reasons as alternatives, not cumulative instructions. One explicit underground instruction or one `Unable to attach due to <specific reason>` statement is valid. A missing or unresolved UG reason produces one consolidated Make Ready error.
 
-Slack spans are selected by the PLA model. The Calculator does not infer or generate `Proposed slack span` from notes; Excel Review accepts that instruction as supplemental model work.
+For INTEC, when more than one span is proposed and Low Power requires the `Ensure min 30" to low power at midspan.` reminder on one or more of them, the generated line includes only the affected span directions, such as `Ensure min 30" to low power at midspan N.` or `N and S` / `N, S, E and W`. With only one proposed span, the shorter reminder is kept. Slack spans are selected with the Proposed-table Slack checkbox. When active, the pole Make Ready includes `Proposed slack span <direction>.` for INTEC and `PROPOSED SLACK SPAN <direction>.` for Olsson OPPD; the direction comes from the selected physical span. MidAm/CSU has no confirmed Slack MR template yet, so it does not receive invented wording. Clearing the checkbox removes the generated line. Slack is never inferred from free-form notes; Excel Review also accepts the instruction as supplemental model work.
 
 INTEC and Metronet wording is selected by `mrTemplate`/`projectProfile`; case is applied after text generation.

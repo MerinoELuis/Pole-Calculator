@@ -32,7 +32,7 @@
       ]);
     });
 
-    const spans = [["spanId", "fromPole", "toPole", "direction", "bearingDegrees", "type", "spanIndex", "length", "lengthDisplay", "environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "rawType", "rawSpanIds", "sourceCollectionId", "linkedCollectionId", "isGeneratedOtherPole", "notes"]];
+    const spans = [["spanId", "fromPole", "toPole", "direction", "bearingDegrees", "type", "spanIndex", "length", "lengthDisplay", "environment", "environmentClearance", "midspanLowPower", "sourceMidspanLowPower", "midspanMaxCommHeight", "rawType", "rawSpanIds", "sourceCollectionId", "linkedCollectionId", "isGeneratedOtherPole", "notes"]];
     Object.values(state.spans).forEach(span => spans.push([
       span.spanId,
       span.fromPole,
@@ -46,6 +46,7 @@
       span.environment || "NONE",
       span.environmentClearance || "",
       span.midspanLowPower || "",
+      span.sourceMidspanLowPower || "",
       span.midspanMaxCommHeight || "",
       span.rawType || "",
       Array.isArray(span.rawSpanIds) ? span.rawSpanIds.join(" | ") : "",
@@ -90,7 +91,7 @@
       comm.notes || ""
     ])));
 
-    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "pofActive", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
+    const spanComms = [["spanId", "poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "pofActive", "difference", "remotePoleId", "remoteHOA", "ocalcMS", "midspan", "calculatedMidspan", "mr", "notes", "rawOwner", "unknownOwner", "size", "construction", "insulator", "wireId", "wireIndex"]];
     Object.values(state.spanComms).forEach(sc => spanComms.push([
       sc.spanId,
       sc.poleId,
@@ -98,6 +99,8 @@
       sc.ownerBase || sc.owner,
       sc.existingHOA,
       sc.existingHOAChange,
+      sc.otherHOA || "",
+      sc.otherHOAActive ? "Yes" : "",
       sc.serviceDrop ? "Yes" : "",
       sc.downGuy ? "Yes" : "",
       sc.transferToNewPole ? "Yes" : "",

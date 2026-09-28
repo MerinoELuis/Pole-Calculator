@@ -202,6 +202,10 @@
     return text(S().getState().settings?.projectProfile).toUpperCase() === "INTEC";
   }
 
+  function isOlssonProject() {
+    return text(S().getState().settings?.projectProfile).toUpperCase() === "OLSSON_OPPD";
+  }
+
   function collectionPoleId(row) {
     return text(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"]));
   }
@@ -217,6 +221,13 @@
     const raw = text(value).toUpperCase().replace(/\s+/g, "");
     const match = raw.match(/^(\d{1,3})([A-Z])?$/);
     return match ? `${match[1].padStart(3, "0")}${match[2] || ""}` : "";
+  }
+
+  // Olsson Collection exports use both P1 and 1 for the same sequence. The
+  // numeric route number is the authoritative value for this project.
+  function normalizeOlssonSequence(value) {
+    const match = text(value).toUpperCase().replace(/\s+/g, "").match(/^P?(\d+)/);
+    return match ? String(Number(match[1])) : "";
   }
 
   function midAmIdSequence(value) {
@@ -324,14 +335,25 @@
 
     const midAm = isMidAmProject();
     const csu = isCsuProject();
-    const normalizedSequence = (midAm || csu) ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
+    const olsson = isOlssonProject();
+    const normalizedSequence = olsson
+      ? normalizeOlssonSequence(entry.sequence)
+      : (midAm || csu) ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
     const idSequence = midAm ? midAmIdSequence(entry.poleId) : "";
     if (!entry.sequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_SEQUENCE", status: "ERROR",
         title: "Sequence", message: "Sequence is empty.",
-        expected: csu ? "Three-digit value in the Sequence column (for example 001)" : "Sequence matching the start of Id",
+        expected: csu ? "Three-digit value in the Sequence column (for example 001)"
+          : olsson ? "Sequence number matching the numeric part of Id (P1 and 1 are equivalent)"
+            : "Sequence matching the start of Id",
         actual: "Empty"
+      });
+    } else if (olsson && !normalizedSequence) {
+      add(result, {
+        phase: "HOA", section: "Collection", code: "INVALID_OLSSON_SEQUENCE", status: "ERROR",
+        title: "Sequence", message: `Sequence ${entry.sequence} must contain a pole number, such as P1 or 1.`,
+        expected: "P<number> or <number>", actual: entry.sequence
       });
     } else if ((midAm || csu) && !normalizedSequence) {
       add(result, {
@@ -341,7 +363,22 @@
       });
     }
 
-    if (midAm && entry.poleId && !/^\d{3}[A-Z]?$/.test(idSequence)) {
+    if (olsson && entry.poleId && normalizedSequence) {
+      const olssonSequence = normalizeOlssonSequence(entry.poleId);
+      if (!olssonSequence) {
+        add(result, {
+          phase: "HOA", section: "Collection", code: "INVALID_OLSSON_ID_SEQUENCE", status: "ERROR",
+          title: "Id / Sequence", message: `Id ${entry.poleId} does not begin with a pole number.`,
+          expected: "P<number> or <number>", actual: entry.poleId
+        });
+      } else if (olssonSequence !== normalizedSequence) {
+        add(result, {
+          phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
+          title: "Sequence", message: `Sequence must equal ${olssonSequence}, derived from Id ${entry.poleId}.`,
+          expected: olssonSequence, actual: normalizedSequence
+        });
+      }
+    } else if (midAm && entry.poleId && !/^\d{3}[A-Z]?$/.test(idSequence)) {
       add(result, {
         phase: "HOA", section: "Collection", code: "INVALID_MIDAM_ID_SEQUENCE", status: "ERROR",
         title: "Id / Sequence", message: `The first block of Id ${entry.poleId} must contain three digits and may end with one letter.`,
@@ -693,6 +730,49 @@
     });
   }
 
+  function olssonInsulatorKey(value) {
+    return normalizedInsulator(value).replace(/["']/g, "").replace(/\s+/g, " ");
+  }
+
+  function addOlssonWireChecks(result, poleId) {
+    if (!isOlssonProject()) return;
+    const powerInsulators = MIDAM_POWER_INSULATORS.map(olssonInsulatorKey);
+    rowsForPole("spanWires", poleId).forEach((row, index) => {
+      const ownerRaw = text(pick(row, ["Owner", "owner"]));
+      const owner = normalizedText(ownerRaw);
+      const sizeRaw = text(pick(row, ["Size", "Size.display", "Wire Size"]));
+      const insulatorRaw = text(pick(row, ["Insulator"]));
+      const insulator = normalizedInsulator(insulatorRaw);
+      const descriptor = `${ownerRaw || "No owner"} / ${sizeRaw || `row ${index + 2}`}`;
+      const power = I().isPowerWire ? I().isPowerWire(row) : /^utility\s*>/i.test(ownerRaw);
+      const communication = I().isCommunicationWire ? I().isCommunicationWire(row) : !power;
+
+      if (communication && !MIDAM_COMM_INSULATORS.includes(insulator)) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: "INVALID_OLSSON_COMM_INSULATOR", status: "ERROR",
+          title: "Communication Insulator", message: `Invalid Olsson communication insulator for ${descriptor}.`,
+          expected: MIDAM_COMM_INSULATORS.join(", "), actual: insulatorRaw || "Empty"
+        });
+      }
+
+      if (!power) return;
+      if (owner !== "utility > oppd") {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: "INVALID_OLSSON_POWER_OWNER", status: "ERROR",
+          title: "Power Owner", message: "Olsson power owner must be UTILITY > OPPD.",
+          expected: "UTILITY > OPPD", actual: ownerRaw || "Empty"
+        });
+      }
+      if (!powerInsulators.includes(olssonInsulatorKey(insulatorRaw))) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: "INVALID_OLSSON_POWER_INSULATOR", status: "ERROR",
+          title: "Power Insulator", message: `Invalid Olsson power insulator for ${descriptor}.`,
+          expected: MIDAM_POWER_INSULATORS.join(", "), actual: insulatorRaw || "Empty"
+        });
+      }
+    });
+  }
+
   function addMidAmChecks(result, poleId) {
     const settings = S().getState().settings || {};
     if (text(settings.projectProfile).toUpperCase() !== "METRONET"
@@ -790,7 +870,7 @@
   function calculatorWorkForPole(poleId) {
     const state = S().getState();
     const pole = state.poles[poleId];
-    const commWork = S().getSpanCommsForPole(poleId).some(row => text(row.existingHOAChange));
+    const commWork = S().getSpanCommsForPole(poleId).some(row => text(row.existingHOAChange || row.otherHOA));
     const proposedWork = S().getSpanSidesForPole(poleId).some(side => [
       side.proposedHOA, side.proposedHOAChange, side.ocalcMS, side.proposedMidspan,
       side.msProposed, side.finalMidspan, side.endDrop
@@ -1179,9 +1259,9 @@
 
   function expectedTransfers(poleId) {
     const seen = new Set();
-    return S().getSpanCommsForPole(poleId).filter(row => row.transferToNewPole && text(row.existingHOAChange || row.existingHOA)).reduce((items, row) => {
+    return S().getSpanCommsForPole(poleId).filter(row => row.transferToNewPole && text(row.otherHOA || row.existingHOAChange || row.existingHOA)).reduce((items, row) => {
       const owner = normalizedOwner(row.rawOwner || row.ownerBase || row.owner);
-      const heightDisplay = row.existingHOAChange || row.existingHOA;
+      const heightDisplay = row.otherHOA || row.existingHOAChange || row.existingHOA;
       const height = H().parseHeight(heightDisplay);
       const key = `${owner}|${height}`;
       if (!owner || height === null || seen.has(key)) return items;
@@ -1414,6 +1494,7 @@
       addReciprocalChecks(result, poleSpans, spans);
       addEnvironmentChecks(result, poleSpans, spans, environmentPairsSeen);
       if (entry.poleId) addIntecWireChecks(result, entry.poleId);
+      if (entry.poleId) addOlssonWireChecks(result, entry.poleId);
       if (entry.poleId) addIntecEquipmentChecks(result, entry.poleId);
       if (entry.poleId) addMidAmChecks(result, entry.poleId);
       if (finalReviewApplicable) addFinalChecks(result, entry);

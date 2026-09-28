@@ -201,7 +201,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 6. Power wires do not become comm rows.
 7. Owner comes from Span.Wire Owner.
 8. Communication Drop marks Service Drop.
-9. Anchor.Guys matches pole, owner, and exact attachment height for DG.
+9. Anchor.Guys matches pole, owner, and exact attachment height for DG; a utility-owned DG may fall back to the only non-service communication at that HOA, while ambiguous same-height stacks remain manual.
 10. INTEC Self-Supporting Fiber remains visible as POF.
 11. Metronet markers select Metronet profile.
 12. Metronet exposes WI and applies MidAm.

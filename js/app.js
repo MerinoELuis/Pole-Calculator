@@ -476,12 +476,14 @@
   }
 
   function spanSideHasUserWork(side) {
-    return Boolean(side?.proposedHOA || side?.proposedHOAChange || side?.proposedMidspan || side?.ocalcMS || side?.notes || side?.isManualProposed);
+    return Boolean(side?.proposedHOA || side?.proposedHOAChange || side?.proposedMidspan || side?.ocalcMS || side?.notes || side?.isManualProposed || side?.isSlack);
   }
 
   function spanCommHasUserWork(row) {
     return Boolean(
       row?.existingHOAChange ||
+      row?.otherHOA ||
+      row?.otherHOAActive ||
       row?.notes ||
       row?.mr ||
       row?.serviceDrop ||
@@ -547,6 +549,8 @@
     return {
       ...importedRow,
       existingHOAChange: oldRow.existingHOAChange || importedRow.existingHOAChange || "",
+      otherHOA: oldRow.otherHOA || importedRow.otherHOA || "",
+      otherHOAActive: Boolean(oldRow.otherHOAActive || importedRow.otherHOAActive),
       serviceDrop: Boolean(oldRow.serviceDrop || importedRow.serviceDrop),
       downGuy: Boolean(oldRow.downGuy || importedRow.downGuy),
       transferToNewPole: Boolean(oldRow.transferToNewPole),
@@ -927,6 +931,7 @@
           proposedMidspan: oldSide.proposedMidspan || preservedSide.proposedMidspan || "",
           ocalcMS: oldSide.ocalcMS || preservedSide.ocalcMS || "",
           notes: oldSide.notes || preservedSide.notes || "",
+          isSlack: Boolean(oldSide.isSlack || preservedSide.isSlack),
           isManualProposed: Boolean(oldSide.isManualProposed || preservedSide.isManualProposed),
           isAdditionalProposed: Boolean(oldSide.isAdditionalProposed || preservedSide.isAdditionalProposed)
         };
@@ -1023,6 +1028,11 @@
         pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
         poleInsetActive: Boolean(mappedOldPole.poleInsetActive || preservedPole.poleInsetActive),
         poleInsetReason: mappedOldPole.poleInsetReason || preservedPole.poleInsetReason || "FAILING_CLEARANCES",
+        redTagActive: Boolean(mappedOldPole.redTagActive || preservedPole.redTagActive),
+        redTagMinHeight: mappedOldPole.redTagMinHeight || preservedPole.redTagMinHeight || "",
+        redTagClass: mappedOldPole.redTagClass || preservedPole.redTagClass || "",
+        redTagReason: mappedOldPole.redTagReason || preservedPole.redTagReason || "",
+        lessThan12CommClearanceActive: Boolean(mappedOldPole.lessThan12CommClearanceActive || preservedPole.lessThan12CommClearanceActive),
         riserActive: mappedOldPole.riserActive === true || mappedOldPole.riserActive === false
           ? mappedOldPole.riserActive
           : preservedPole.riserActive,
@@ -1128,10 +1138,10 @@
   // after aliases, preserved baselines and recalculated values are applied.
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
-      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection"]],
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection", "redTagActive", "redTagMinHeight", "redTagClass", "redTagReason"]],
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
-      ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
-      ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
+      ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "isSlack", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
+      ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
       ["Power", "spanPower", ["attachmentHeight", "midspan", "owner", "size"]]
     ];
     const changes = specs.flatMap(([entity, mapName, fields]) =>
@@ -1324,6 +1334,8 @@
           owner: commOwnerLabel(sc),
           existingHOA: normalizedHeightLabel(sc.existingHOA || ""),
           existingHOAChange: sc.existingHOAChange || "",
+          otherHOA: sc.otherHOA || "",
+          otherHOAActive: Boolean(sc.otherHOAActive),
           pofActive: Boolean(sc.pofActive),
           pofEligible: isSelfSupportingComm(sc),
           isPof: false,
@@ -1332,6 +1344,8 @@
       }
       const group = groups.get(key);
       if (!group.existingHOAChange && sc.existingHOAChange) group.existingHOAChange = sc.existingHOAChange;
+      if (!group.otherHOA && sc.otherHOA) group.otherHOA = sc.otherHOA;
+      group.otherHOAActive = group.otherHOAActive || Boolean(sc.otherHOAActive);
       group.pofActive = group.pofActive || Boolean(sc.pofActive);
       group.pofEligible = group.pofEligible || isSelfSupportingComm(sc);
       if (global.Calculations.isPofComm && global.Calculations.isPofComm(sc)) group.isPof = true;
@@ -1372,11 +1386,14 @@
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
       const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || sc.calculatedMidspan || sc.msProposed || sc.finalMidspan || "") !== null;
-      const key = `${sc.spanId}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
+      // Keep different wires on the same physical span as separate editable
+      // rows. They may share an imported midspan today but still need
+      // independent HOA changes and midspan calculations after a move.
+      const key = `${sc.spanId}|${sc.wireId || ""}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
       if (seen.has(key)) return;
       seen.add(key);
       const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, sc.ownerBase || sc.owner, sc.wireId || "");
-      const midspanLocked = Boolean(sc.existingHOAChange || remote?.existingHOAChange);
+      const midspanLocked = Boolean(sc.otherHOA || sc.existingHOAChange || remote?.otherHOA || remote?.existingHOAChange);
       // Backspans are reference-only here, but Fore/Other rows without an
       // imported midspan must stay editable so the user can create the MS.
       const canEditMidspan = !isBackspan && (!midspanLocked || !ownMidspan);
@@ -1388,6 +1405,7 @@
         && (sc.resagServiceDrop || (rawMidspan !== null && resagTarget !== null && rawMidspan < resagTarget))
       );
       entries.push({
+        otherHOAActive: Boolean(sc.otherHOAActive),
         spanHtml: `<div class="comm-span-row" data-span-id="${escapeHtml(sc.spanId)}">
           ${span ? spanColorDot(poleId, span.spanId) : ""}
           <span>${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : escapeHtml(sc.spanId || "")}</span>
@@ -1410,6 +1428,12 @@
             data-wire-id="${escapeHtml(sc.wireId || "")}"
             data-field="serviceDrop"
             ${sc.serviceDrop ? "checked" : ""}>
+        </div>`,
+        otherHoaHtml: `<div class="comm-midspan-value">
+          <input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="otherHOA" value="${escapeHtml(sc.otherHOA || "")}" placeholder="" title="Override HOA used for this comm movement" aria-label="Other HOA for ${escapeHtml(commOwnerLabel(sc))}">
+        </div>`,
+        hoaChangeHtml: `<div class="comm-midspan-value">
+          <input class="input height-input remote-height-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="existingHOAChange" value="${escapeHtml(sc.existingHOAChange || "")}">
         </div>`,
         downGuyHtml: `<div class="comm-midspan-value">
           <input type="checkbox"
@@ -1495,7 +1519,7 @@
 
   function renderCommMidspanValues(group, poleId) {
     const entries = commMidspanEntries(group, poleId);
-    return `<div class="comm-midspan-list" data-midspan-list>${entries.map(entry => entry.midspanHtml).join("")}</div>`;
+    return `<div class="comm-midspan-list comm-midspan-values" data-midspan-list>${entries.map(entry => entry.midspanHtml).join("")}</div>`;
   }
 
   function renderCommMaxHeightAtMSValues(group, poleId) {
@@ -1615,15 +1639,6 @@
     return `<div class="auto-notes">${clean.map(line => `<div>${escapeHtml(line)}</div>`).join("")}</div>`;
   }
 
-  function renderEditableNotes(scope, attrs, value, autoNotes, placeholder = "") {
-    const attrText = Object.entries(attrs || {})
-      .map(([name, attrValue]) => `data-${name}="${escapeHtml(attrValue)}"`)
-      .join(" ");
-    return `<div class="notes-cell">
-      <textarea class="input text-input" data-scope="${escapeHtml(scope)}" ${attrText} data-field="notes" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || "")}</textarea>
-    </div>`;
-  }
-
   function commMidspanNote(row, span) {
     if (!span || !span.midspanLowPower) return "Missing Power MS to calculate Max MS Comm.";
     const midspan = typeof row === "string" ? row : displayMidspan(row);
@@ -1661,22 +1676,44 @@
     return `<span class="badge changed">OK</span>`;
   }
 
-  function renderSpanSideMidspanStatus(side) {
-    const status = side.clearanceMSStatus || "";
-    if (!side.msProposed && !side.finalMidspan) return `<span class="badge warning">Missing Data</span>`;
-    if (status === "PENDING") return `<span class="badge danger pulse-badge">Clearance Issue</span>`;
-    if (status === "PROBLEM") return `<span class="badge danger">Clearance Issue</span>`;
-    if (status === "ADJUSTED") return `<span class="badge warning">Adjusted</span>`;
-    if (status === "ADJUSTMENT_NEEDED") return `<span class="badge warning">Adjustment Needed</span>`;
+  function renderCombinedSpanFlagging(side) {
+    const msStatus = String(side?.clearanceMSStatus || "").toUpperCase();
+    const msIssue = msStatus === "PENDING" || msStatus === "PROBLEM";
+    const proposedIssue = String(side?.proposedFlaggingStatus || "").toUpperCase() === "PROBLEM";
+    const messages = [
+      msIssue ? side.clearanceMSMessage : "",
+      proposedIssue ? side.proposedFlaggingMessage : ""
+    ].map(value => String(value || "").trim()).filter(Boolean);
+
+    if (msIssue || proposedIssue) {
+      return `<div class="flagging-cell">
+        <span class="badge danger">Clearance Issue</span>
+        ${messages.length ? `<div class="flagging-message">${escapeHtml(Array.from(new Set(messages)).join(" "))}</div>` : ""}
+      </div>`;
+    }
+
+    const hasMS = Boolean(side?.msProposed || side?.finalMidspan);
+    const hasProposed = Boolean(side?.proposedHOA);
+    if (!hasMS || !hasProposed) return "";
+    if (msStatus === "ADJUSTED" || msStatus === "ADJUSTMENT_NEEDED") {
+      return `<span class="badge warning">Adjusted</span>`;
+    }
     return `<span class="badge changed">OK</span>`;
   }
 
-  function renderSpanSideFlagging(side) {
-    if (!side.proposedFlaggingMessage || side.proposedFlaggingStatus === "OK") return `<span class="badge changed">OK</span>`;
-    return `<div class="flagging-cell">
-      <span class="badge danger">Clearance Issue</span>
-      <div class="flagging-message">${escapeHtml(side.proposedFlaggingMessage)}</div>
-    </div>`;
+  function renderCommHoaChangeValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    if (!entries.some(entry => entry.otherHOAActive)) {
+      return `<div class="comm-group-height-input"><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></div>`;
+    }
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.otherHOAActive
+      ? entry.hoaChangeHtml
+      : `<div class="comm-midspan-value"><span class="muted">${escapeHtml(group.existingHOAChange || "")}</span></div>`).join("")}</div>`;
+  }
+
+  function renderCommOtherHoaValues(group, poleId) {
+    const entries = commMidspanEntries(group, poleId);
+    return `<div class="comm-midspan-list">${entries.map(entry => entry.otherHoaHtml).join("")}</div>`;
   }
 
   function renderClearanceStatus(height, pole, missingLabel = "Missing Data") {
@@ -1714,7 +1751,9 @@
         ["streetlightDripLoopCommClearance", "Pole · Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""]
       );
     }
-    const position = settings.position === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
+    const rawPosition = String(settings.position || "TOP_COMM").toUpperCase();
+    const position = rawPosition === "LOW_COMM" ? "LOW_COMM"
+      : rawPosition === "OVERLASH" ? "OVERLASH" : "TOP_COMM";
     const proposedOwner = settings.proposedOwner || "Wecom";
     const metronetWI = String(settings.metronetWI || (String(proposedOwner).toUpperCase() === "MNT" ? "CSU" : "MIDAM")).toUpperCase();
     const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
@@ -1729,7 +1768,10 @@
       const bCount = Number((b.match(/\d+/) || [0])[0]);
       return aCount - bCount || a.localeCompare(b);
     });
-    const ownerOptions = ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"].map(owner =>
+    const proposedOwners = selectedProfile === "OLSSON_OPPD"
+      ? ["Cox", "Verizon", "Uniti"]
+      : ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"];
+    const ownerOptions = proposedOwners.map(owner =>
       `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
     ).join("");
     const renderRow = ([field, label, value]) => `
@@ -1757,6 +1799,7 @@
             <select class="input position-select" data-scope="settings" data-field="position">
               <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
               <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
+              <option value="OVERLASH" ${position === "OVERLASH" ? "selected" : ""}>Overlash</option>
             </select>
           </label>
           <label class="clearance-row position-row">
@@ -1800,8 +1843,10 @@
   function updateAutoCalculateButtonState() {
     if (!els.autoCalculateBtn) return;
     const hasPoleData = Object.keys(S.getState().poles || {}).length > 0;
-    const isLowComm = (S.getState().settings?.position || "TOP_COMM") === "LOW_COMM";
-    const disableAuto = !hasPoleData || isLowComm || autoCalculateRunning;
+    const position = String(S.getState().settings?.position || "TOP_COMM").toUpperCase();
+    const isLowComm = position === "LOW_COMM";
+    const isOverlash = position === "OVERLASH";
+    const disableAuto = !hasPoleData || isLowComm || isOverlash || autoCalculateRunning;
     els.autoCalculateBtn.disabled = disableAuto;
     els.autoCalculateBtn.classList.toggle("btn-disabled", disableAuto);
     els.autoCalculateBtn.classList.toggle("btn-primary", !disableAuto);
@@ -1811,6 +1856,8 @@
       ? "Auto Proposed · Import Data First"
       : isLowComm
         ? "Auto Proposed · Top Comm Required"
+        : isOverlash
+          ? "Auto Proposed · Manual Overlash"
         : "Auto Proposed";
 
     if (els.exportProposedJsonBtn) {
@@ -1846,7 +1893,7 @@
       </div>
       <div class="table-wrap"><table class="pole-class-table">
         <thead><tr>
-          <th>Pole ID</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Calc Circ.</th><th>Imported Type</th><th>Calc Height</th><th>Calc Class</th><th>Expected Type</th><th>Status</th>
+          <th>Pole ID</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th><th>Status</th>
         </tr></thead>
         <tbody>${rows.map((row, index) => {
           const severity = poleClassSeverity(row);
@@ -2031,11 +2078,14 @@
 
   function renderAnsiReferenceTable() {
     const classes = global.ExcelImport?.ANSI_POLE_CLASSES || [];
+    const isOlsson = String(S.getState().settings?.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
+    const oppdTypes = isOlsson ? (global.ExcelImport?.OPPD_POLE_TYPES || []) : [];
     const table = global.ExcelImport?.ANSI_CLASS_TABLE || {};
     const groundline = global.ExcelImport?.ANSI_APPROX_GROUNDLINE_DISTANCE || {};
     const heights = Object.keys(table).map(Number).sort((a, b) => a - b);
     return `<details class="reference-table-panel" open>
       <summary>Pole Height and Class Reference Table</summary>
+      ${oppdTypes.length ? `<p class="reference-note"><strong>OPPD permitted pole types:</strong> ${oppdTypes.map(escapeHtml).join(", ")}. Expected Type rounds to the available conservative class (for example 35-3 becomes 35-4).</p>` : ""}
       <div class="table-wrap"><table class="ansi-reference-table">
         <thead>
           <tr><th>Length of Pole (ft)</th><th>Approx. Groundline Distance from Butt (ft)</th>${classes.map(item => `<th>${escapeHtml(item)}</th>`).join("")}</tr>
@@ -2208,7 +2258,11 @@
     const projectProfile = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase();
     const isIntec = projectProfile === "INTEC";
     const isMetronet = projectProfile === "METRONET";
-    const showUGReason = pole?.ugActive && (isIntec || isMetronet);
+    const isOlsson = projectProfile === "OLSSON_OPPD";
+    const powerEquipment = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
+    const riserEquipment = powerEquipment.filter(row => String(row.category || row.type || "").toUpperCase().includes("RISER"));
+    const riserSecureActive = riserEquipment.length > 0 && riserEquipment.every(row => row.secureActive === true);
+    const showUGReason = pole?.ugActive && (isIntec || isMetronet || isOlsson);
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
       : "";
@@ -2217,13 +2271,13 @@
       ? global.MRLogic.getEditablePCOTemplate(pole)
       : "";
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
-    const riserAvailable = (isIntec || isMetronet) && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
+    const riserAvailable = (isIntec || isMetronet || isOlsson) && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
-    const poleInsetEnabled = !isMetronet && Boolean(pole?.poleInsetActive);
+    const poleInsetEnabled = !isMetronet && !isOlsson && Boolean(pole?.poleInsetActive);
     const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
-    const showRiserDirection = (isIntec || isMetronet) && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
+    const showRiserDirection = (isIntec || isMetronet || isOlsson) && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
         || pole?.ugRiserDirection
@@ -2234,7 +2288,7 @@
       .map(direction => `<option value="${direction}" ${direction === riserDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
       .join("");
     const ancAvailable = isMetronet && !pole?.ugActive && !pole?.pcoActive;
-    const ohgAvailable = isMetronet && !pole?.ugActive && !pole?.pcoActive;
+    const ohgAvailable = (isMetronet || isOlsson) && !pole?.ugActive && !pole?.pcoActive;
     const ancEnabled = ancAvailable && Boolean(global.MRLogic.isANCEnabled?.(poleId));
     const ohgEnabled = ohgAvailable && Boolean(pole?.ohgActive);
     const anchorDirection = String(pole?.ancDirection || "").toUpperCase();
@@ -2248,10 +2302,13 @@
     return `<div class="pole-action-buttons">
       <button class="mini-btn ${pole?.ugActive ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
       <button class="mini-btn ${pole?.pcoActive ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
-      ${!isMetronet ? `<button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>` : ""}
+      ${!isMetronet && !isOlsson ? `<button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>` : ""}
+      ${isOlsson ? `<button class="mini-btn ${pole?.redTagActive ? "active-action" : ""}" type="button" data-toggle-red-tag data-pole="${escapeHtml(poleId)}" title="Add or remove the Olsson OPPD Red Tag Make Ready">Red Tag</button>` : ""}
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
-      ${isMetronet ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? "Add or remove the MidAm ANC Make Ready" : "ANC is disabled while this pole is UG or PCO"}">ANC</button>
-      <button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? "Add or remove the MidAm OHG Make Ready" : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
+      ${isOlsson ? `<button class="mini-btn ${pole?.lessThan12CommClearanceActive ? "active-action" : ""}" type="button" data-toggle-less-than-12-comm data-pole="${escapeHtml(poleId)}" title="Add or remove LESS THAN 12&quot; COMM CLEARANCE REQUESTED.">&lt;12&quot; Comm</button>` : ""}
+      ${isOlsson && riserEquipment.length ? `<button class="mini-btn ${riserSecureActive ? "active-action" : ""}" type="button" data-toggle-riser-secure data-pole="${escapeHtml(poleId)}" title="Secure the Power Riser drip loop">Secure Drip Loop</button>` : ""}
+      ${isMetronet ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? "Add or remove the MidAm ANC Make Ready" : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
+      ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
     </div>
     ${poleInsetEnabled ? `<label class="pole-action-field">
       <span>Pole Inset Reason</span>
@@ -2260,6 +2317,11 @@
         <option value="FAILING_CLEARANCES" ${poleInsetReason === "FAILING_CLEARANCES" ? "selected" : ""}>Failing clearances</option>
       </select>
     </label>` : ""}
+    ${isOlsson && pole?.redTagActive ? `<div class="pole-action-fields action-detail-grid red-tag-fields">
+      <label class="pole-action-field"><span>Red Tag Minimum Height</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagMinHeight" value="${escapeHtml(pole?.redTagMinHeight || "")}"></label>
+      <label class="pole-action-field"><span>Red Tag Minimum Class</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagClass" value="${escapeHtml(pole?.redTagClass || "")}"></label>
+      <label class="pole-action-field"><span>Red Tag Reason</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagReason" value="${escapeHtml(pole?.redTagReason || "")}" placeholder="CLEARANCES / LOAD FAILURE"></label>
+    </div>` : ""}
     ${showUGReason ? `<label class="pole-action-field">
       <span>UG Make Ready</span>
       <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
@@ -2285,7 +2347,7 @@
   }
 
   function renderPoleEditableHeader(poleId) {
-    const { pole, spans, hasChanges } = poleSummary(poleId);
+    const { pole } = poleSummary(poleId);
     const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
     return `<div class="pole-workspace-header">
@@ -2299,8 +2361,6 @@
         </div>
         <div class="pole-meta">
           ${pole.isGenerated ? `<span class="badge warning">Editable generated other pole</span>` : ""}
-          <span class="badge">Spans ${spans.length}</span>
-          <span class="badge owner">Comms ${S.getSpanCommsForPole(poleId).length}</span>
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
           ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="badge danger">Flagging ${flagging.calculationIssueCount}</span>` : ""}
           ${flagging.heightCritical ? `<span class="badge danger" title="Critical pole height issue">&#9888; Height Critical</span>` : ""}
@@ -2332,7 +2392,7 @@
     });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>MS Flagging</th><th>Proposed Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Notes</th><th>UG Transfer</th><th>Actions</th>
+        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Slack</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>UG Transfer</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -2345,10 +2405,9 @@
         const proposedFlaggingIssue = side.proposedFlaggingStatus === "PROBLEM";
         const rowClasses = [
           spanRowClasses(poleId, physicalSpan.spanId),
-          side.proposedHOA || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop || spanUG ? "changed-row" : "",
+          side.proposedHOA || side.isSlack || side.ocalcMS || side.msProposed || side.finalMidspan || side.proposedMidspan || side.endDrop || spanUG ? "changed-row" : "",
           aboveMax || midspanIssue || !boltIssue.ok || proposedFlaggingIssue ? "warning-row" : ""
         ].filter(Boolean).join(" ");
-        const autoNotes = [spanSideClearanceNote(side), boltIssue.message];
         return `<tr class="${rowClasses}">
           <td class="span-cell">
             <strong class="span-main-line">${spanChip(poleId, physicalSpan.spanId)}${poleLink(span.fromPole)} → ${poleLink(span.toPole)}</strong>
@@ -2361,11 +2420,10 @@
           <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
           <td>${escapeHtml(physicalSpan.midspanMaxCommHeight || "")}</td>
           <td><span class="calculated-value midspan-highlight-display ${spanColorClass(poleId, physicalSpan.spanId)}">${escapeHtml(side.finalMidspan || "")}</span></td>
-          <td>${renderSpanSideMidspanStatus(side)}</td>
-          <td>${renderSpanSideFlagging(side)}</td>
+          <td><input type="checkbox" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="isSlack" ${side.isSlack ? "checked" : ""} aria-label="Proposed span is slack" title="Mark this Proposed span as Slack"></td>
+          <td>${renderCombinedSpanFlagging(side)}</td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>
-          <td>${renderEditableNotes("spanSide", { pole: poleId, span: span.spanId }, side.notes, autoNotes)}</td>
           <td class="span-ug-action">
             <button class="mini-btn ${spanUG ? "active-action" : ""}" type="button" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(physicalSpan.spanId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "This pole is using the complete UG case" : "Send only this span underground (Case 2)"}">UG</button>
             ${spanUG ? `<input class="input span-ug-reason" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="ugReason" value="${escapeHtml(spanUGReason)}" aria-label="UG reason for span" title="Case 2 UG reason">` : ""}
@@ -2376,8 +2434,10 @@
           <td class="span-cell"></td>
           <td><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="standaloneProposedHOA" value="${escapeHtml(pole?.standaloneProposedHOA || "")}" aria-label="Proposed attachment on terminal pole"></td>
           ${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}${showOcalcMS ? "<td></td>" : ""}<td></td><td></td><td></td><td></td>
-          <td>${renderSpanSideFlagging({ proposedFlaggingStatus: standaloneFlagging.status, proposedFlaggingMessage: standaloneFlagging.message })}</td>
-          <td></td><td></td><td></td><td></td><td></td>
+          <td>${standaloneFlagging.status === "PROBLEM"
+            ? `<div class="flagging-cell"><span class="badge danger">Clearance Issue</span><div class="flagging-message">${escapeHtml(standaloneFlagging.message || "")}</div></div>`
+            : (pole?.standaloneProposedHOA ? `<span class="badge changed">OK</span>` : "")}</td>
+          <td></td><td></td><td></td><td></td>
         </tr>` : ""}</tbody>
     </table></div>`;
   }
@@ -2416,14 +2476,14 @@
     const showPof = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
     return `<div class="table-wrap"><table class="comm-movement-table">
       <thead><tr>
-        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th>${showTransferToNewPole ? "<th>Transfer to New Pole</th>" : ""}${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
+        <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th>${showTransferToNewPole ? "<th>Transfer to New Pole</th>" : ""}<th>Other HOA</th>${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
       </tr></thead>
       <tbody>${groups.map(group => {
         const pole = S.getPole(poleId);
-        const effective = group.existingHOAChange || group.existingHOA;
+        const effective = group.rows.map(row => row.otherHOA || row.existingHOAChange || row.existingHOA).filter(Boolean).sort((a, b) => (H.parseHeight(b) || -Infinity) - (H.parseHeight(a) || -Infinity))[0] || group.existingHOA;
         const aboveMax = effective && H.compareHeights(effective, pole?.maxCommHeight) === 1;
         const changed = Boolean(group.existingHOAChange || group.rows.some(row => (
-          row.mr || row.transferToNewPole || row.resagServiceDrop
+          row.otherHOA || row.mr || row.transferToNewPole || row.resagServiceDrop
         )));
         const flaggingIssue = group.rows.some(row => row.flaggingStatus === "PROBLEM");
         const flaggingMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
@@ -2432,9 +2492,9 @@
           aboveMax || flaggingIssue || flaggingMissing ? "warning-row" : ""
         ].filter(Boolean).join(" ");
         return `<tr class="${rowClasses}">
-          <td><span class="badge owner">${escapeHtml(group.owner)}</span>${group.isPof ? ` <span class="badge pof">POF</span>` : ""}</td>
-          <td>${escapeHtml(group.existingHOA || "")}</td>
-          <td><input class="input height-input" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="existingHOAChange" value="${escapeHtml(group.existingHOAChange || "")}"></td>
+          <td class="inline-edit-cell" data-inline-comm-edit="owner" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Double-click to edit owner/comm"><span class="badge owner">${escapeHtml(group.owner)}</span>${group.isPof ? ` <span class="badge pof">POF</span>` : ""}</td>
+          <td class="inline-edit-cell" data-inline-comm-edit="existingHOA" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Double-click to edit existing HOA">${escapeHtml(group.existingHOA || "")}</td>
+          <td>${renderCommHoaChangeValues(group, poleId)}</td>
           <td>${renderCommRemoteValues(group)}</td>
           <td>${renderCommSpanRefs(group, poleId)}</td>
           <td>${renderCommMaxHeightAtMSValues(group, poleId)}</td>
@@ -2443,10 +2503,10 @@
           ${showServiceDrop ? `<td>${renderCommServiceDropValues(group, poleId)}</td>` : ""}
           <td>${renderCommDownGuyValues(group, poleId)}</td>
           ${showTransferToNewPole ? `<td>${renderCommTransferValues(group, poleId)}</td>` : ""}
+          <td>${renderCommOtherHoaValues(group, poleId)}</td>
           ${showResagServiceDrop ? `<td>${renderCommResagValues(group, poleId)}</td>` : ""}
           ${showPof ? `<td>${group.pofEligible ? `<label class="equipment-action-control" title="Activar POF manualmente después de Re-sag"><input type="checkbox" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="pofActive" ${group.pofActive ? "checked" : ""}><span>POF</span></label>` : `<span class="muted">&mdash;</span>`}</td>` : ""}
           <td><div class="row-actions">
-            <button class="icon-action" type="button" data-edit-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm" aria-label="Edit comm">&#9998;</button>
             <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm spans" aria-label="Edit comm spans">&#8644;</button>
             <button class="icon-action danger-action" type="button" data-delete-comm data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Delete full comm" aria-label="Delete full comm">&#10005;</button>
           </div></td>
@@ -2465,7 +2525,7 @@
         return `<tr>
           <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
           <td><span class="badge warning">${escapeHtml(row.label)}</span></td>
-          <td>${escapeHtml(row.attachmentHeight)}</td>
+          <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="attachmentHeight" value="${escapeHtml(row.attachmentHeight || "")}" aria-label="Power attachment height"></td>
           <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(row.midspan || "")}"></td>
           <td><button class="icon-action danger-action" type="button" data-delete-span-power data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" title="Delete imported power" aria-label="Delete imported power">&#10005;</button></td>
         </tr>`;
@@ -2488,7 +2548,7 @@
       RISER: "Raise"
     };
     return `<div class="table-wrap"><table class="power-table equipment-table">
-      <thead><tr><th>Equipment</th><th>Owner</th><th>Attachment Height</th><th>Bottom Height</th><th>Drip Loop Height</th><th>Orientation</th><th>Action</th><th>New HOA</th><th>Max Comm Height</th></tr></thead>
+      <thead><tr><th>Equipment</th><th>Owner</th><th>Attachment Height</th><th>Bottom Height</th><th>Drip Loop Height</th><th>Orientation</th><th>Action</th><th>New HOA</th><th>Max Comm Height</th><th>Actions</th></tr></thead>
       <tbody>${rows.map((row, index) => {
         const category = String(row.category || "").toUpperCase();
         const needsHeight = category === "TRANSFORMER" || category === "RISER";
@@ -2530,14 +2590,15 @@
         const heightEnabled = isIntecStreetlight ? row.raiseActive : row.actionActive;
         return `<tr>
         <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
-        <td>${escapeHtml(row.owner || "")}</td>
-        <td>${escapeHtml(row.attachmentHeight || "")}</td>
+        <td class="inline-edit-cell" data-inline-equipment-edit="owner" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Double-click to edit equipment owner">${escapeHtml(row.owner || "")}</td>
+        <td class="inline-edit-cell" data-inline-equipment-edit="attachmentHeight" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Double-click to edit attachment height">${escapeHtml(row.attachmentHeight || "")}</td>
         <td>${escapeHtml(row.bottomHeight || "")}</td>
         <td>${escapeHtml(row.dripLoopHeight || "")}</td>
         <td>${escapeHtml(row.orientation || "")}</td>
         <td>${actionControls}</td>
         <td>${needsHeight || isIntecStreetlight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="${heightField}" value="${escapeHtml(row[heightField] || "")}" ${heightEnabled ? "" : "disabled"} ${isIntecStreetlight ? `title="Maximum raise: 1 foot above ${escapeHtml(row.attachmentHeight || "the imported HOA")}"` : ""}>` : `<span class="muted">&mdash;</span>`}</td>
         <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
+        <td><button class="icon-action danger-action" type="button" data-delete-equipment data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Delete equipment" aria-label="Delete equipment">&#10005;</button></td>
       </tr>`;
       }).join("")}</tbody>
     </table></div>`;
@@ -2545,7 +2606,7 @@
 
   function renderPoleWorkspace(poleId) {
     const pole = S.getPole(poleId);
-    const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+    const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange || row.otherHOA));
     const commMovementsActive = hasCommMovements && pole?.commMovementsActive !== false;
     return `<article class="pole-workspace-card ${pole?.ugActive ? "ug-active" : ""} ${pole?.pcoActive ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
       ${renderPoleEditableHeader(poleId)}
@@ -2670,10 +2731,11 @@
 
   function bindLocalActions(root) {
     if (!root) return;
+    root.querySelectorAll("[data-inline-comm-edit]").forEach(cell => cell.addEventListener("dblclick", () => beginInlineCommEdit(cell)));
+    root.querySelectorAll("[data-inline-equipment-edit]").forEach(cell => cell.addEventListener("dblclick", () => beginInlineEquipmentEdit(cell)));
     root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
     root.querySelectorAll("[data-hide-pole]").forEach(btn => btn.addEventListener("click", () => hidePole(btn.dataset.pole)));
     root.querySelectorAll("[data-delete-pole]").forEach(btn => btn.addEventListener("click", () => deletePole(btn.dataset.pole)));
-    root.querySelectorAll("[data-edit-comm]").forEach(btn => btn.addEventListener("click", () => editCommGroup(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
     root.querySelectorAll("[data-delete-comm-span]").forEach(btn => btn.addEventListener("click", () => deleteCommSpan(
       btn.dataset.span,
@@ -2693,6 +2755,10 @@
       btn.dataset.pole,
       btn.dataset.span
     )));
+    root.querySelectorAll("[data-delete-equipment]").forEach(btn => btn.addEventListener("click", () => deletePowerEquipment(
+      btn.dataset.pole,
+      btn.dataset.equipmentIndex
+    )));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
@@ -2700,6 +2766,9 @@
     root.querySelectorAll("[data-toggle-span-ug]").forEach(btn => btn.addEventListener("click", () => toggleSpanUG(btn.dataset.pole, btn.dataset.span)));
     root.querySelectorAll("[data-toggle-anc]").forEach(btn => btn.addEventListener("click", () => toggleANC(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-ohg]").forEach(btn => btn.addEventListener("click", () => toggleOHG(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-red-tag]").forEach(btn => btn.addEventListener("click", () => toggleRedTag(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-less-than-12-comm]").forEach(btn => btn.addEventListener("click", () => toggleLessThan12CommClearance(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-riser-secure]").forEach(btn => btn.addEventListener("click", () => toggleRiserSecure(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-comm-movements]").forEach(btn => btn.addEventListener("click", () => toggleCommMovements(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
@@ -2744,6 +2813,121 @@
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
   }
 
+  function updateCommGroupOwner(poleId, groupKey, value) {
+    const nextOwner = String(value || "").trim();
+    const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
+    if (!group || !nextOwner) return false;
+    group.rows.forEach(row => {
+      S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
+      S.upsertComm(poleId, nextOwner, row.existingHOA || group.existingHOA || "", "", {
+        ownerBase: nextOwner,
+        rawOwner: nextOwner,
+        wireId: row.wireId || "",
+        existingHOAChange: row.existingHOAChange || "",
+        otherHOA: row.otherHOA || "",
+        pofActive: row.pofActive
+      });
+      S.upsertSpanComm({ ...row, owner: nextOwner, ownerBase: nextOwner, rawOwner: nextOwner });
+    });
+    return true;
+  }
+
+  function beginInlineCommEdit(cell) {
+    if (!cell || cell.querySelector("input")) return;
+    const poleId = cell.dataset.pole || "";
+    const groupKey = cell.dataset.groupKey || "";
+    const field = cell.dataset.inlineCommEdit || "";
+    const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
+    if (!group || !["owner", "existingHOA"].includes(field)) return;
+    const original = field === "owner" ? group.owner : (group.existingHOA || "");
+    const input = document.createElement("input");
+    input.className = `input inline-comm-input ${field === "existingHOA" ? "height-input" : ""}`;
+    input.value = original;
+    input.setAttribute("aria-label", field === "owner" ? "Owner / Comm" : "Existing HOA");
+    cell.replaceChildren(input);
+    input.focus();
+    input.select();
+    let saved = false;
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const value = input.value.trim();
+      if (!value) {
+        renderAffectedPoles([poleId]);
+        return;
+      }
+      if (field === "existingHOA" && H.parseHeight(value) === null) {
+        toast("Existing HOA must be a valid height such as 18' 6\".", "warning");
+        renderAffectedPoles([poleId]);
+        return;
+      }
+      recordUndoSnapshot();
+      const affected = new Set([poleId]);
+      if (field === "owner") {
+        if (!updateCommGroupOwner(poleId, groupKey, value)) return renderAffectedPoles([poleId]);
+        group.rows.forEach(row => poleIdsForSpan(row.spanId).forEach(id => affected.add(id)));
+      } else {
+        updateCommGroupField(poleId, groupKey, "existingHOA", value).forEach(id => affected.add(id));
+      }
+      renderAffectedPoles(Array.from(affected));
+      markDirty();
+    };
+    input.addEventListener("blur", save, { once: true });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      }
+      if (event.key === "Escape") {
+        saved = true;
+        renderAffectedPoles([poleId]);
+      }
+    });
+  }
+
+  function beginInlineEquipmentEdit(cell) {
+    if (!cell || cell.querySelector("input")) return;
+    const poleId = cell.dataset.pole || "";
+    const equipmentIndex = Number(cell.dataset.equipmentIndex);
+    const field = cell.dataset.inlineEquipmentEdit || "";
+    const row = S.getPole(poleId)?.metadata?.powerEquipment?.[equipmentIndex];
+    if (!row || !["owner", "attachmentHeight"].includes(field)) return;
+    const input = document.createElement("input");
+    input.className = `input inline-equipment-input ${field === "attachmentHeight" ? "height-input" : ""}`;
+    input.value = row[field] || "";
+    input.setAttribute("aria-label", field === "owner" ? "Equipment owner" : "Attachment height");
+    cell.replaceChildren(input);
+    input.focus();
+    input.select();
+    let saved = false;
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const value = input.value.trim();
+      if (!value || (field === "attachmentHeight" && H.parseHeight(value) === null)) {
+        if (field === "attachmentHeight") toast("Attachment Height must be a valid height such as 18' 6\\\".", "warning");
+        renderAffectedPoles([poleId]);
+        return;
+      }
+      recordUndoSnapshot();
+      S.updatePowerEquipmentField(poleId, equipmentIndex, field, value);
+      global.Calculations.recalculateSpansForPole(poleId);
+      renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+      markDirty();
+    };
+    input.addEventListener("blur", save, { once: true });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      }
+      if (event.key === "Escape") {
+        saved = true;
+        renderAffectedPoles([poleId]);
+      }
+    });
+  }
+
   function toggleSpanUG(poleId, spanId) {
     const pole = S.getPole(poleId);
     const span = S.getSpan(spanId);
@@ -2775,7 +2959,7 @@
   function toggleOHG(poleId) {
     const pole = S.getPole(poleId);
     const projectProfile = String(S.getState().settings?.projectProfile || "").toUpperCase();
-    if (!pole || projectProfile !== "METRONET" || pole.ugActive || pole.pcoActive) return;
+    if (!pole || !["METRONET", "OLSSON_OPPD"].includes(projectProfile) || pole.ugActive || pole.pcoActive) return;
     recordUndoSnapshot();
     S.upsertPole({
       ...pole,
@@ -2785,9 +2969,50 @@
     renderAffectedPoles([poleId]);
   }
 
+  function toggleRedTag(poleId) {
+    const pole = S.getPole(poleId);
+    const projectProfile = String(S.getState().settings?.projectProfile || "").toUpperCase();
+    if (!pole || projectProfile !== "OLSSON_OPPD") return;
+    recordUndoSnapshot();
+    S.upsertPole({
+      ...pole,
+      redTagActive: !pole.redTagActive,
+      redTagReason: pole.redTagReason || "CLEARANCES"
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+    markDirty();
+  }
+
+  function toggleLessThan12CommClearance(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole) return;
+    recordUndoSnapshot();
+    S.updatePoleField(poleId, "lessThan12CommClearanceActive", !pole.lessThan12CommClearanceActive);
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+    markDirty();
+  }
+
+  function toggleRiserSecure(poleId) {
+    const pole = S.getPole(poleId);
+    const rows = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
+    const riserIndexes = rows
+      .map((row, index) => ({ row, index }))
+      .filter(item => String(item.row.category || item.row.type || "").toUpperCase().includes("RISER"))
+      .map(item => item.index);
+    if (!riserIndexes.length) return;
+    const active = riserIndexes.every(index => rows[index].secureActive === true);
+    recordUndoSnapshot();
+    riserIndexes.forEach(index => S.updatePowerEquipmentField(poleId, index, "secureActive", !active));
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+    markDirty();
+  }
+
   function toggleCommMovements(poleId) {
     const pole = S.getPole(poleId);
-    const hasChanges = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+    const hasChanges = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange || row.otherHOA));
     if (!pole || !hasChanges) return;
     recordUndoSnapshot();
     S.upsertPole({ ...pole, commMovementsActive: pole.commMovementsActive === false });
@@ -2835,7 +3060,7 @@
     const existingSide = existing ? S.getSpanSide(existing.spanId, poleId) : null;
     const hasExistingProposal = Boolean(existingSide && (
       existingSide.isManualProposed || existingSide.proposedHOA || existingSide.proposedHOAChange ||
-      existingSide.ocalcMS || existingSide.proposedMidspan || existingSide.notes
+      existingSide.ocalcMS || existingSide.proposedMidspan || existingSide.notes || existingSide.isSlack
     ));
     const shouldCreateAdditional = Boolean(existing && hasExistingProposal);
     const span = shouldCreateAdditional || !existing ? S.upsertSpan({
@@ -2896,6 +3121,7 @@
         proposedFlaggingMessage: "",
         endDrop: "",
         notes: "",
+        isSlack: false,
         isManualProposed: false,
         isAdditionalProposed: false,
         isProposedExcluded: true
@@ -2914,6 +3140,7 @@
       "ocalcMS",
       "existingHOA",
       "existingHOAChange",
+      "otherHOA",
       "midspan",
       "environmentClearance",
       "midspanCommCommClearance",
@@ -2957,17 +3184,30 @@
   }
 
   function updateCommGroupField(poleId, groupKey, field, value) {
-    if (!["existingHOAChange", "transferToNewPole", "pofActive"].includes(field)) return [poleId].filter(Boolean);
-    const nextValue = field === "transferToNewPole" ? Boolean(value) : value;
+    if (!["existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "transferToNewPole", "pofActive"].includes(field)) return [poleId].filter(Boolean);
+    const nextValue = ["transferToNewPole", "otherHOAActive", "pofActive"].includes(field) ? Boolean(value) : value;
     const affected = new Set([poleId].filter(Boolean));
-    S.getSpanCommsForPole(poleId)
-      .filter(sc => commGroupKey(sc) === groupKey)
-      .forEach(sc => {
+    const rows = S.getSpanCommsForPole(poleId).filter(sc => commGroupKey(sc) === groupKey);
+    if (field === "otherHOAActive") {
+      // Turning Other HOA off restores the original grouped behavior. Keep the
+      // first entered per-span value as the shared HOA Change so disabling the
+      // option never leaves the group with divergent heights.
+      const sharedHOA = rows.map(row => String(row.existingHOAChange || "").trim()).find(Boolean) || "";
+      rows.forEach(sc => {
+        global.Calculations.updateSpanCommField(sc.spanId, sc.poleId, sc.owner, sc.wireId || "", field, nextValue);
+        if (!nextValue) {
+          global.Calculations.updateSpanCommField(sc.spanId, sc.poleId, sc.owner, sc.wireId || "", "existingHOAChange", sharedHOA);
+        }
+        poleIdsForSpan(sc.spanId).forEach(id => affected.add(id));
+      });
+      return Array.from(affected);
+    }
+    rows.forEach(sc => {
         // SpanComm remains the persistence unit, but a comm-level field must
         // be identical on every relationship represented by this table row.
         global.Calculations.updateSpanCommField(sc.spanId, sc.poleId, sc.owner, sc.wireId || "", field, nextValue);
         poleIdsForSpan(sc.spanId).forEach(id => affected.add(id));
-      });
+    });
     return Array.from(affected);
   }
 
@@ -2995,30 +3235,6 @@
     S.upsertSpanComm({ spanId: span.spanId, poleId, owner, ownerBase: owner, rawOwner: owner, existingHOA, wireId });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, S.getOtherPoleId(span, poleId)]);
-  }
-
-  async function editCommGroup(poleId, groupKey) {
-    const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
-    if (!group) return;
-    const values = await openAppDialog({
-      title: "Edit Comm",
-      fields: [
-        { name: "owner", label: "Owner / Comm", value: group.owner },
-        { name: "existingHOA", label: "Existing HOA", value: group.existingHOA || "" }
-      ],
-      confirmLabel: "Save"
-    });
-    const nextOwner = values?.owner?.trim();
-    if (!nextOwner) return;
-    const nextHOA = values.existingHOA || "";
-    recordUndoSnapshot();
-    group.rows.forEach(row => {
-      S.removeSpanComm(row.spanId, row.poleId, row.owner, row.wireId || "");
-      S.upsertComm(poleId, nextOwner, nextHOA, "", { ownerBase: nextOwner, rawOwner: nextOwner, wireId: row.wireId || "" });
-      S.upsertSpanComm({ ...row, owner: nextOwner, ownerBase: nextOwner, rawOwner: nextOwner, existingHOA: nextHOA });
-    });
-    global.Calculations.recalculateSpansForPole(poleId);
-    renderAffectedPoles([poleId]);
   }
 
   async function editCommSpans(poleId, groupKey) {
@@ -3105,6 +3321,18 @@
     const affected = [poleId, span ? S.getOtherPoleId(span, poleId) : ""].filter(Boolean);
     affected.forEach(id => global.Calculations.recalculateSpansForPole(id));
     renderAffectedPoles(affected);
+    markDirty();
+  }
+
+  async function deletePowerEquipment(poleId, equipmentIndex) {
+    const row = S.getPole(poleId)?.metadata?.powerEquipment?.[Number(equipmentIndex)];
+    if (!row) return;
+    const label = row.type || row.category || "equipment";
+    if (!(await confirmInApp("Delete Equipment", `Delete this ${label} row?`))) return;
+    recordUndoSnapshot();
+    S.removePowerEquipment(poleId, Number(equipmentIndex));
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).flatMap(span => [span.fromPole, span.toPole]).filter(Boolean)]);
     markDirty();
   }
 
@@ -3318,6 +3546,11 @@
 
     if (scope === "settings") {
       S.updateSetting(field, value);
+      if (field === "projectProfile" && global.ExcelImport?.recalculatePoleClassCheck) {
+        const profile = String(S.getState().settings?.projectProfile || value || "").toUpperCase();
+        S.getState().poleClassChecks = (S.getState().poleClassChecks || [])
+          .map(row => global.ExcelImport.recalculatePoleClassCheck({ ...row, projectProfile: profile }));
+      }
       global.Calculations.recalculateAll();
     }
 
@@ -3350,7 +3583,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }

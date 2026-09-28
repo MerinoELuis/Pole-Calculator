@@ -39,6 +39,10 @@ S.upsertPole(S.createPole({
     }]
   }
 }));
+S.updatePowerEquipmentField("TRANSFORMER", 0, "owner", "UTILITY > OPPD");
+S.updatePowerEquipmentField("TRANSFORMER", 0, "attachmentHeight", "31'");
+assert.equal(S.getPole("TRANSFORMER").metadata.powerEquipment[0].owner, "UTILITY > OPPD", "equipment owner must be editable");
+assert.equal(S.getPole("TRANSFORMER").metadata.powerEquipment[0].attachmentHeight, "31'", "equipment attachment height must be editable");
 C.recalculateAll();
 assert.equal(S.getPole("TRANSFORMER").lowPower, "25'6\"", "redressing the limiting drip loop must update Low Power");
 assert.match(mrText("TRANSFORMER"), /POWER REDRESS TRANSFORMER DRIP LOOP TO HOA 25'6"\./);

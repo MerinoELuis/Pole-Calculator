@@ -178,7 +178,7 @@
 
   function manualComm(row) {
     const active = C()?.isCommMovementsActive ? C().isCommMovementsActive(row?.poleId) : true;
-    return Boolean(active && row?.existingHOAChange && row?.autoCalcStatus !== AUTO);
+    return Boolean(active && (row?.otherHOA || row?.existingHOAChange) && row?.autoCalcStatus !== AUTO);
   }
 
   // A local HOA movement changes its span midspan by half that movement.
@@ -541,7 +541,7 @@
   function syncCommMovementToggle(poleId) {
     const pole = S()?.getPole?.(poleId);
     if (!pole) return;
-    const hasChanges = (S()?.getSpanCommsForPole?.(poleId) || []).some(row => text(row.existingHOAChange));
+    const hasChanges = (S()?.getSpanCommsForPole?.(poleId) || []).some(row => text(row.existingHOAChange || row.otherHOA));
     S()?.upsertPole?.({ ...pole, commMovementsActive: hasChanges });
   }
 

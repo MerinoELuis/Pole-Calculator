@@ -13,6 +13,7 @@ const profiles = sandbox.window.ProjectProfiles;
 const metronet = profiles.applyProfileSettings({}, "METRONET");
 const intec = profiles.applyProfileSettings({}, "INTEC");
 const csu = profiles.applyProfileSettings({}, "CSU");
+const oppd = profiles.applyProfileSettings({}, "OLSSON_OPPD");
 
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
@@ -37,5 +38,13 @@ assert.equal(csu.showResagServiceDrop, false, "CSU must not generate service-dro
 assert.equal(csu.polePowerCommsClearance, "52\"", "CSU must reserve 52 inches below low power");
 assert.equal(csu.environmentClearances.RAILROAD, "23'6\"", "CSU railroad clearance must use 23 feet 6 inches");
 assert.equal(profiles.detectProfile({ fileName: "EXCEL_COCS174 92026.xlsx", owners: ["UTILITY > CSU"] }), "CSU", "CSU workbook should select the CSU profile automatically");
+assert.equal(oppd.projectProfile, "OLSSON_OPPD");
+assert.equal(oppd.proposedOwner, "Cox", "Olsson OPPD should start with Cox as the proposed owner");
+assert.equal(oppd.primaryPowerCommsClearance, "72\"", "Olsson OPPD should use 72 inches from primary to top comm");
+assert.equal(oppd.midspanPrimaryPowerCommClearance, "60\"", "Olsson OPPD should use 60 inches from primary midspan to top comm midspan");
+assert.equal(oppd.environmentClearances.HIGHWAY, "18'", "Olsson OPPD highway clearance should use 18 feet");
+assert.equal(oppd.showServiceDrop, true, "Olsson OPPD must expose imported Service Drop rows and their relocation MR");
+assert.equal(oppd.showResagServiceDrop, false, "Olsson OPPD should not inherit INTEC's optional Re-sag Service Drop action");
+assert.equal(profiles.detectProfile({ fileName: "job.xlsx", owners: ["UTILITY > OPPD"] }), "OLSSON_OPPD", "OPPD ownership must select the Olsson OPPD profile automatically");
 
 console.log("Project profile tests passed.");

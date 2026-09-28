@@ -110,6 +110,7 @@
       local: {
         existingHOA: row.existingHOA || "",
         hoaChange: row.existingHOAChange || "",
+        otherHOA: row.otherHOA || "",
         effectiveHOA: localEffectiveText || "",
         halfMovement: H().formatHeight(localAdjustment),
         halfMovementInches: localAdjustment
@@ -121,6 +122,7 @@
         wireId: remote.wireId || "",
         existingHOA: remote.existingHOA || "",
         hoaChange: remote.existingHOAChange || "",
+        otherHOA: remote.otherHOA || "",
         effectiveHOA: remoteEffectiveText || "",
         halfMovement: H().formatHeight(remoteAdjustment),
         halfMovementInches: remoteAdjustment

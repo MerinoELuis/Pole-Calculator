@@ -20,8 +20,10 @@
   }
 
   function getEffectiveCommHOA(sc) {
-    // A changed HOA replaces the imported HOA for downstream calculations.
+    // Other HOA is an explicit per-span override. It replaces both the
+    // imported HOA and the legacy grouped HOA Change for calculations.
     if (!sc) return "";
+    if (String(sc.otherHOA || "").trim()) return sc.otherHOA;
     const active = S().getPole(sc.poleId)?.commMovementsActive !== false;
     return active ? (sc.existingHOAChange || sc.existingHOA || "") : (sc.existingHOA || "");
   }
@@ -52,6 +54,7 @@
 
   function getSettingPosition() {
     const value = String(S().getState().settings?.position || "TOP_COMM").toUpperCase();
+    if (value === "OVERLASH") return "OVERLASH";
     return value === "LOW_COMM" ? "LOW_COMM" : "TOP_COMM";
   }
 
@@ -312,7 +315,7 @@
       if (!(row.spanId === spanId || samePhysicalSpan(rowSpan, targetSpan))) return false;
       if (S().getPole(row.poleId)?.commMovementsActive === false) return false;
       const existing = parseMidspanValue(row.existingHOA || "");
-      const changed = parseMidspanValue(row.existingHOAChange || "");
+      const changed = parseMidspanValue(row.otherHOA || row.existingHOAChange || "");
       return existing !== null && changed !== null && existing !== changed;
     });
   }
@@ -589,7 +592,11 @@
     const csuMovementRule = isCsuProfile()
       && S().getPole(poleId)?.commMovementsActive !== false
       && hasActiveCommMovementOnSpan(span.spanId);
-    if (references.length && !csuMovementRule) {
+    // An overlash is intentionally installed at the same height as an
+    // existing communication. It does not need the normal new-comm spacing
+    // above Top Comm or below Low Comm; the pole-level validation still
+    // requires that the Proposed HOA match an existing cable.
+    if (references.length && !csuMovementRule && position !== "OVERLASH") {
       const reference = position === "TOP_COMM" ? Math.max(...references) : Math.min(...references);
       const required = position === "TOP_COMM" ? reference + commClearance : reference - commClearance;
       if ((position === "TOP_COMM" && target < required) || (position === "LOW_COMM" && target > required)) {
@@ -816,7 +823,8 @@
       });
     }
 
-    if (midspan !== null && maxMS !== null && getSettingPosition() === "TOP_COMM" && span?.fromPole === sc.poleId) {
+    const overlashSpan = getSettingPosition() === "OVERLASH" || hasOverlashMakeReadyReference(span);
+    if (midspan !== null && maxMS !== null && getSettingPosition() === "TOP_COMM" && !overlashSpan && span?.fromPole === sc.poleId) {
       const spanMidspans = S().getSpanCommsForSpan(sc.spanId)
         .filter(countsAsTopCommReference)
         .map(getMidspanInchesForComm)
@@ -833,7 +841,7 @@
       const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
-      if (isCommMovementsActive(sc.poleId) && sc.existingHOAChange && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
+      if (isCommMovementsActive(sc.poleId) && (sc.otherHOA || sc.existingHOAChange) && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
         const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
         if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
           issues.push(`Pole bolt-bolt: ${format(ownBoltDiff)} against Existing HOA ${format(ownExistingHeight)}; minimum ${format(boltClearance)}.`);
@@ -863,7 +871,11 @@
         // the new bolt is only 2" from that existing point, even if the other
         // comm was moved down to 21'. That must still flag.
         const otherExistingHeight = H().parseHeight(other.existingHOA || "");
-        if (!serviceDropBoltExempt && !other.transferToNewPole && otherExistingHeight !== null) {
+        // Once the other communication has an HOA Change, its old bolt is no
+        // longer an active attachment point. The moved cable's new HOA is
+        // already checked above; retaining the old point would incorrectly
+        // flag the cable that was given clearance by that move.
+        if (!serviceDropBoltExempt && !other.otherHOA && !other.existingHOAChange && !other.transferToNewPole && otherExistingHeight !== null) {
           const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
           if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
             issues.push(`Pole bolt-bolt: ${format(existingPointDiff)} against Existing HOA ${format(otherExistingHeight)} from ${otherOwner || "no owner"}; minimum ${format(boltClearance)}.`);
@@ -874,7 +886,7 @@
 
     const maxPole = H().parseHeight(pole?.maxCommHeight || "");
     if (poleHeight !== null && maxPole !== null && poleHeight > maxPole) {
-      const source = isCommMovementsActive(sc.poleId) && sc.existingHOAChange ? "HOA Change" : "Existing HOA";
+      const source = sc.otherHOA ? "Other HOA" : (isCommMovementsActive(sc.poleId) && sc.existingHOAChange ? "HOA Change" : "Existing HOA");
       issues.push(`Pole: ${source} ${format(poleHeight)} exceeds max ${format(maxPole)}.`);
     }
 
@@ -894,14 +906,16 @@
     if (proposed === null) return { ok: true, message: "" };
     const boltRequired = getPoleBoltBoltClearance();
     const commRequired = getPoleCommCommClearance();
+    const overlash = getSettingPosition() === "OVERLASH";
     const issues = [];
+    let overlashMatch = false;
 
     S().getSpanCommsForPole(spanSide.poleId)
       .map(sc => ({
         owner: commOwnerLabel(sc) || "sin owner",
         existing: H().parseHeight(sc.existingHOA || ""),
         effective: H().parseHeight(getEffectiveCommHOA(sc)),
-        moved: isCommMovementsActive(sc.poleId) && Boolean(sc.existingHOAChange),
+        moved: isCommMovementsActive(sc.poleId) && Boolean(sc.otherHOA || sc.existingHOAChange),
         transferred: Boolean(sc.transferToNewPole),
         serviceDrop: Boolean(sc.serviceDrop)
       }))
@@ -909,20 +923,26 @@
       .forEach(item => {
         if (item.effective !== null) {
           const diff = Math.abs(proposed - item.effective);
-          if (diff === 0 && !item.moved) {
+          if (diff === 0 && overlash) overlashMatch = true;
+          if (diff === 0 && !overlash && !item.moved) {
             issues.push(`Proposed ${format(proposed)} occupies the same HOA as ${item.owner}.`);
           }
-          if (diff > 0 && diff < commRequired) {
+          if (!overlash && diff > 0 && diff < commRequired) {
             issues.push(`Proposed ${format(proposed)} does not respect Pole · Comm-comm ${format(commRequired)} against ${item.owner} ${format(item.effective)}.`);
           }
         }
         if (item.existing !== null && !item.transferred && !item.serviceDrop) {
           const boltDiff = Math.abs(proposed - item.existing);
-          if (boltDiff > 0 && boltDiff < boltRequired) {
+          if (boltDiff === 0 && overlash) overlashMatch = true;
+          if (!overlash && boltDiff > 0 && boltDiff < boltRequired) {
             issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against Existing HOA ${format(item.existing)}.`);
           }
         }
       });
+
+    if (overlash && !overlashMatch) {
+      issues.push(`Overlash Proposed ${format(proposed)} must match an existing communication HOA.`);
+    }
 
     S().getSpanSidesForPole(spanSide.poleId)
       .filter(otherSide => otherSide.spanId !== spanSide.spanId || otherSide.poleId !== spanSide.poleId)
@@ -957,21 +977,32 @@
         environment: source.environment || span.environment || "NONE",
         environmentClearance: source.environmentClearance || span.environmentClearance || "",
         midspanLowPower: source.midspanLowPower || "",
+        sourceMidspanLowPower: source.sourceMidspanLowPower || "",
         midspanMaxCommHeight: source.midspanMaxCommHeight || ""
       });
     }
     const settings = S().getState().settings || {};
     const powerRows = S().getSpanPowerForSpan(spanId);
+    const isOlsson = String(settings.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
     const clearance = H().parseHeight(settings.midspanPowerCommClearance || "30\"");
     const primaryClearance = getMidspanPrimaryPowerCommsClearance();
     const powerHeights = powerRows
       .map(row => H().parseHeight(row.midspan))
       .filter(value => value !== null);
+    const importedLowPowerMidspan = isOlsson
+      ? H().parseHeight(span.sourceMidspanLowPower || span.midspanLowPower || "")
+      : null;
+    const lowPowerCandidates = importedLowPowerMidspan === null
+      ? powerHeights
+      : [...powerHeights, importedLowPowerMidspan];
     const primaryHeights = powerRows
       .filter(isPrimaryPowerRow)
       .map(row => H().parseHeight(row.midspan))
       .filter(value => value !== null);
-    const midspanLowPower = powerHeights.length ? Math.min(...powerHeights) : null;
+    // Olsson's Span sheet provides an authoritative Low Power Midspan. Keep
+    // the lower value when a power-wire midspan is also available so the
+    // lowest power point remains the controlling reference.
+    const midspanLowPower = lowPowerCandidates.length ? Math.min(...lowPowerCandidates) : null;
     const maxHeights = [];
     if (midspanLowPower !== null && clearance !== null) maxHeights.push(midspanLowPower - clearance);
     if (primaryHeights.length && primaryClearance !== null) {
@@ -1283,7 +1314,8 @@
   function calculateProposedMidspanBase(side, span) {
     // A manually entered/imported O-CALC value remains authoritative.
     const explicit = parseMidspanValue(side?.ocalcMS || side?.proposedMidspan || "");
-    if (explicit !== null || !side || !span || !supportsAutomaticProposedMidspan()) return explicit;
+    const overlash = getSettingPosition() === "OVERLASH";
+    if (explicit !== null || !side || !span || (!supportsAutomaticProposedMidspan() && !overlash)) return explicit;
 
     // CSU keeps the measured Midspan calculation active whenever the physical
     // span has one. Endpoint HOA changes update each comm's calculatedMidspan;
@@ -1296,6 +1328,29 @@
         const references = calculatedReferences.length ? calculatedReferences : importedReferences;
         return Math.min(...references) - 12;
       }
+    }
+
+    if (overlash) {
+      // Reuse the measured/calculated Midspan of the cable being overlashed.
+      // Do not add the normal 12-inch Proposed separation. Search reciprocal
+      // rows too because the imported cable may live on the other endpoint.
+      const rows = Object.values(S().getState().spanComms || {})
+        .filter(sc => {
+          const commSpan = S().getSpan(sc.spanId);
+          return sc.spanId === span.spanId || samePhysicalSpan(commSpan, span);
+        })
+        .map(sc => ({
+          hoa: H().parseHeight(getEffectiveCommHOA(sc)),
+          midspan: getMidspanInchesForComm(sc) ?? parseMidspanValue(ownMidspanValue(sc))
+        }))
+        .filter(item => item.hoa !== null && item.midspan !== null);
+      const proposedHOA = H().parseHeight(side.proposedHOA || "");
+      const exact = proposedHOA === null ? null : rows.find(item => item.hoa === proposedHOA);
+      if (exact) return exact.midspan;
+      if (rows.length) return rows[0].midspan;
+      // An INTEC overlash still needs a measured cable to reuse; do not fall
+      // back to the normal O-CALC/sag estimate when there is no overlay target.
+      if (!supportsAutomaticProposedMidspan()) return null;
     }
 
     // Automatic Proposed MS only uses comm midspans on this physical span.
@@ -1324,7 +1379,7 @@
     const span = S().getSpan(spanComm.spanId);
     if (!span) return spanComm.midspan || "";
     if (isReferenceSpanComm(spanComm)) {
-      const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);
+      const difference = H().diffLabel(spanComm.existingHOA, spanComm.otherHOA || spanComm.existingHOAChange || spanComm.existingHOA);
       const flagging = evaluateCommFlagging(spanComm, "");
       S().upsertSpanComm({
         ...spanComm,
@@ -1346,7 +1401,7 @@
     const remote = details.remote;
     const remoteHOA = details.remoteHOA;
 
-    const difference = H().diffLabel(spanComm.existingHOA, spanComm.existingHOAChange || spanComm.existingHOA);
+    const difference = H().diffLabel(spanComm.existingHOA, spanComm.otherHOA || spanComm.existingHOAChange || spanComm.existingHOA);
     const clearance = evaluateCommMidspanClearance(spanComm, calculated);
     const flagging = evaluateCommFlagging(spanComm, calculated);
     S().upsertSpanComm({
@@ -1742,7 +1797,7 @@
           return;
         }
 
-        const hasManualChanges = groups.some(group => group.rows.some(row => row.existingHOAChange && row.autoCalcStatus !== "AUTO"));
+        const hasManualChanges = groups.some(group => group.rows.some(row => (row.otherHOA || row.existingHOAChange) && row.autoCalcStatus !== "AUTO"));
         const hasCommProblems = autoCalcPoleHasCommProblems(groups);
         const topExisting = groups.length ? Math.max(...groups.map(group => group.existingInches)) : null;
         const aboveProposed = topExisting === null ? maxPole : topExisting + getPoleCommCommClearance();
@@ -1806,10 +1861,10 @@
   }
 
   function updateSpanSideField(spanId, poleId, field, value) {
-    const allowed = ["proposedHOA", "proposedHOAChange", "proposedMidspan", "ocalcMS", "endDrop", "clearanceReference", "notes"];
+    const allowed = ["proposedHOA", "proposedHOAChange", "proposedMidspan", "ocalcMS", "endDrop", "clearanceReference", "notes", "isSlack"];
     if (!allowed.includes(field)) return null;
     const side = S().getSpanSide(spanId, poleId) || S().upsertSpanSide({ spanId, poleId });
-    const data = { ...side, [field]: value || "" };
+    const data = { ...side, [field]: field === "isSlack" ? Boolean(value) : (value || "") };
 
     if (field === "endDrop") data.lockedEndDrop = Boolean(value);
     if (["ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange"].includes(field)) {
@@ -1844,18 +1899,26 @@
   }
 
   function updateSpanCommField(spanId, poleId, owner, wireId, field, value) {
-    const allowed = ["existingHOA", "existingHOAChange", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "pofActive", "ocalcMS", "midspan", "notes", "mr"];
+    const allowed = ["existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "pofActive", "ocalcMS", "midspan", "notes", "mr"];
     if (!allowed.includes(field)) return null;
     const sc = S().getSpanComm(spanId, poleId, owner, wireId) || S().upsertSpanComm({ spanId, poleId, owner, wireId });
-    const next = { ...sc, [field]: value || "" };
+    const next = { ...sc, [field]: field === "otherHOAActive" ? Boolean(value) : (value || "") };
     if (field === "serviceDrop" && !value) next.resagServiceDrop = false;
-    if (field === "existingHOAChange") {
+    if (field === "existingHOAChange" || field === "otherHOA") {
       next.autoCalcStatus = "";
       next.autoCalcMessage = "";
     }
     S().upsertSpanComm(next);
-    if (field === "existingHOAChange") {
-      const hasChanges = S().getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange));
+    if (field === "existingHOA") {
+      const pole = S().getPole(poleId);
+      if (pole?.comms) {
+        pole.comms = pole.comms.map(comm => comm.owner === owner && (!wireId || !comm.wireId || comm.wireId === wireId)
+          ? { ...comm, existingHOA: value || "" }
+          : comm);
+      }
+    }
+    if (field === "existingHOAChange" || field === "otherHOA") {
+      const hasChanges = S().getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange || row.otherHOA));
       S().upsertPole({ ...S().getPole(poleId), commMovementsActive: hasChanges });
     }
     recalculateSpan(spanId);

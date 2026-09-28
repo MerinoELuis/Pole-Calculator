@@ -68,13 +68,13 @@
       if (sc.clearanceMSIssue) {
         addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_MIDSPAN_CLEARANCE", sc.clearanceMSMessage || "The comm does not have enough midspan clearance.", "danger");
       }
-      const effectiveHOA = sc.existingHOAChange || sc.existingHOA;
+      const effectiveHOA = sc.otherHOA || sc.existingHOAChange || sc.existingHOA;
       if (effectiveHOA && exceedsMax(effectiveHOA, S().getPole(sc.poleId)?.maxCommHeight)) {
-        const label = sc.existingHOAChange ? "HOA Change" : "Existing HOA";
+        const label = sc.otherHOA ? "Other HOA" : (sc.existingHOAChange ? "HOA Change" : "Existing HOA");
         addWarning(warnings, sc.poleId, spanId, sc.owner, "COMM_ABOVE_MAX", `${label} ${effectiveHOA} exceeds max height on pole.`, "danger");
       }
-      if (sc.existingHOAChange && !global.MRLogic.generateMRForComm(sc)) {
-        addWarning(warnings, sc.poleId, spanId, sc.owner, "CHANGE_WITHOUT_MR", "HOA Change exists but no MR was generated.");
+      if ((sc.otherHOA || sc.existingHOAChange) && !global.MRLogic.generateMRForComm(sc)) {
+        addWarning(warnings, sc.poleId, spanId, sc.owner, "CHANGE_WITHOUT_MR", "Comm movement height exists but no MR was generated.");
       }
     });
 
@@ -111,12 +111,12 @@
 
     S().getSpanCommsForPole(poleId).forEach(sc => {
       if (sc.unknownOwner) addWarning(warnings, poleId, sc.spanId, sc.owner, "UNKNOWN_OWNER", `Unnormalized owner in Span.Wire: ${sc.rawOwner || sc.owner}.`);
-      ["existingHOA", "existingHOAChange", "ocalcMS", "midspan", "calculatedMidspan", "msProposed", "finalMidspan"].forEach(field => {
+      ["existingHOA", "existingHOAChange", "otherHOA", "ocalcMS", "midspan", "calculatedMidspan", "msProposed", "finalMidspan"].forEach(field => {
         if (sc[field] && !H().isValidHeight(sc[field])) addWarning(warnings, poleId, sc.spanId, sc.owner, `INVALID_${field.toUpperCase()}`, `Invalid ${field} for ${sc.owner}.`, "danger");
       });
-      const effectiveHOA = sc.existingHOAChange || sc.existingHOA;
+      const effectiveHOA = sc.otherHOA || sc.existingHOAChange || sc.existingHOA;
       if (effectiveHOA && exceedsMax(effectiveHOA, pole.maxCommHeight)) {
-        const label = sc.existingHOAChange ? "HOA Change" : "Existing HOA";
+        const label = sc.otherHOA ? "Other HOA" : (sc.existingHOAChange ? "HOA Change" : "Existing HOA");
         addWarning(warnings, poleId, sc.spanId, sc.owner, "COMM_ABOVE_MAX", `${label} ${effectiveHOA} exceeds max height on pole.`, "danger");
       }
     });

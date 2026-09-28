@@ -519,4 +519,51 @@ review.runReview();
 anchorChecks = review.reviewPole("058 14998783").checks;
 assert.equal(anchorChecks.some(item => item.code === "ANCHOR_MISSING_REQUIRED_DATA"), false, "a complete Anchor row must pass the integrity audit");
 
+// Olsson OPPD uses its own Excel Review rules. P1 and 1 are equivalent
+// sequence values, Year Installed is not required, power ownership is OPPD,
+// and the approved power insulator catalog is the OPPD catalog.
+state.settings = { projectProfile: "OLSSON_OPPD", proposedOwner: "Cox" };
+state.poles = {
+  "P1 (IPID 1035 / 172NE 40)": { poleId: "P1 (IPID 1035 / 172NE 40)" },
+  "P2 (IPID 1035 / 1720 40)": { poleId: "P2 (IPID 1035 / 1720 40)" }
+};
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {};
+state.mr = [];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    rows: [
+      { Id: "P1 (IPID 1035 / 172NE 40)", Sequence: 1, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
+      { Id: "P2 (IPID 1035 / 1720 40)", Sequence: "P2", "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }
+    ]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: {
+    headers: ["Id", "Owner", "Size", "Insulator"],
+    rows: [
+      { Id: "P1 (IPID 1035 / 172NE 40)", Owner: "UTILITY > OPPD", Size: "Primary > AAC 477.0 kcm", Insulator: 'Deadend 12.75"' },
+      { Id: "P1 (IPID 1035 / 172NE 40)", Owner: "COMMUNICATION > Fiber", Size: "Fiber", Insulator: "J-Hook" }
+    ]
+  },
+  equipment: { headers: [], rows: [] },
+  anchors: { headers: [], rows: [] },
+  anchorGuys: { headers: [], rows: [] },
+  makeReady: { headers: [], rows: [] },
+  commTransfers: { headers: [], rows: [] }
+};
+review.runReview();
+const olssonP1Checks = review.reviewPole("P1 (IPID 1035 / 172NE 40)").checks;
+const olssonCodes = new Set(olssonP1Checks.map(item => item.code));
+assert.equal(olssonCodes.has("SEQUENCE_ID_MISMATCH"), false, "Olsson must treat P1 and 1 as the same sequence");
+assert.equal(olssonCodes.has("MISSING_YEAR_INSTALLED"), false, "Olsson must not require Year Installed");
+assert.equal(olssonCodes.has("INVALID_POWER_OWNER"), false, "Olsson must not apply the INTEC power-owner rule");
+assert.equal(olssonCodes.has("INVALID_PRIMARY_INSULATOR"), false, "Olsson must use the approved OPPD power-insulator catalog");
+assert.equal(olssonCodes.has("INVALID_OLSSON_POWER_OWNER"), false, "UTILITY > OPPD must be a valid Olsson power owner");
+assert.equal(olssonCodes.has("INVALID_OLSSON_POWER_INSULATOR"), false, "Deadend 12.75 inch must be a valid Olsson power insulator");
+assert.equal(olssonCodes.has("INVALID_OLSSON_COMM_INSULATOR"), false, "J-Hook must be a valid Olsson communication insulator");
+const olssonP2Codes = new Set(review.reviewPole("P2 (IPID 1035 / 1720 40)").checks.map(item => item.code));
+assert.equal(olssonP2Codes.has("SEQUENCE_ID_MISMATCH"), false, "Olsson must treat a P-prefixed sequence as its numeric sequence");
+
 console.log("Excel Review tests passed.");

@@ -5,7 +5,7 @@
   const DEFAULT_FIBER_144 = "0.51";
   const DEFAULT_COX_MESSENGER_96 = "0.25";
   const DEFAULT_COX_FIBER_96 = "0.53";
-  const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET", "CSU"]);
+  const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET", "CSU", "OLSSON_OPPD"]);
   const OPPOSITE_DIRECTION = {
     N: "S",
     NE: "SW",
@@ -544,6 +544,8 @@
       item.overlash = true;
     }
 
+    if (proposal === exactSide && exactSide?.isSlack) item.slack = true;
+
     if (proposal === exactSide) {
       const endDrop = inches(exactSide?.endDrop);
       const nextHoa = inches(exactSide?.proposedHOAChange);
@@ -593,6 +595,7 @@
     ["bearing", "length", "hoa", "fiber", "endDrop", "nextHoa"].forEach(field => {
       if (!(field in result) && field in secondary) result[field] = secondary[field];
     });
+    if (preferred.slack || secondary.slack) result.slack = true;
     if (result.kind === "O" && secondary.kind && secondary.kind !== "O") result.kind = secondary.kind;
     return result;
   }
@@ -629,7 +632,7 @@
     Object.values(state?.spanComms || {}).forEach(row => {
       if (row.poleId !== poleId) return;
       const from = inches(row.existingHOA);
-      const to = inches(row.existingHOAChange || (row.transferToNewPole ? row.existingHOA : ""));
+      const to = inches(row.otherHOA || row.existingHOAChange || (row.transferToNewPole ? row.existingHOA : ""));
       if (from === null || to === null) return;
       if (from === to && !row.transferToNewPole) return;
 
