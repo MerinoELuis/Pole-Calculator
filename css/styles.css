@@ -17,6 +17,192 @@
   --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* Theme controls and high-contrast workspace surfaces.  Span and midspan
+   color classes intentionally remain outside this block so their cable
+   identity colors are preserved in either theme. */
+html[data-theme="dark"] .view-tab.view-tab.active,
+html[data-theme="dark"] .btn.btn-primary {
+  background: #2563eb;
+  border-color: #60a5fa;
+  color: #fff;
+}
+html[data-theme="dark"] .view-tab.view-tab.active:hover,
+html[data-theme="dark"] .btn.btn-primary:hover {
+  background: #1d4ed8;
+  border-color: #93c5fd;
+}
+html[data-theme="dark"] .btn.btn-success {
+  background: #059669;
+  border-color: #34d399;
+  color: #fff;
+}
+html[data-theme="dark"] .btn.btn-success:hover {
+  background: #047857;
+  border-color: #6ee7b7;
+}
+html[data-theme="dark"] .btn.btn-danger-solid {
+  background: #dc2626;
+  border-color: #f87171;
+  color: #fff;
+}
+html[data-theme="dark"] .btn.btn-danger-solid:hover {
+  background: #b91c1c;
+  border-color: #fca5a5;
+}
+html[data-theme="dark"] .view-tab.view-tab.theme-toggle {
+  background: #fbbf24;
+  border-color: #fde68a;
+  color: #172033;
+  box-shadow: 0 6px 18px rgba(251, 191, 36, .24);
+}
+html[data-theme="dark"] .view-tab.view-tab.theme-toggle:hover {
+  background: #fcd34d;
+  border-color: #fff7ed;
+}
+html[data-theme="light"] .theme-toggle {
+  background: #1e293b;
+  border-color: #334155;
+  color: #fde68a;
+}
+
+html[data-theme="dark"] .pole-workspace-card {
+  background: #080808;
+  border-color: #405775;
+  color: var(--text);
+}
+html[data-theme="dark"] .pole-workspace-card.ug-active {
+  background: #2b2105;
+  border-color: rgba(251, 191, 36, .58);
+}
+html[data-theme="dark"] .pole-workspace-card.pco-active {
+  background: #06271c;
+  border-color: rgba(52, 211, 153, .58);
+}
+html[data-theme="dark"] .pole-workspace-card.ug-active .subsection,
+html[data-theme="dark"] .pole-workspace-card.pco-active .subsection,
+html[data-theme="dark"] .pole-workspace-card .subsection {
+  background: #101010;
+  border-color: #405775;
+  color: var(--text);
+}
+html[data-theme="dark"] .pole-workspace-card.ug-active .subsection {
+  background: #1a1405;
+}
+html[data-theme="dark"] .pole-workspace-card.pco-active .subsection {
+  background: #08241c;
+}
+html[data-theme="dark"] .pole-workspace-card.ug-active .mr-output {
+  border-color: rgba(251, 191, 36, .58);
+  background: #4a3711;
+  color: #fef3c7;
+}
+html[data-theme="dark"] .pole-workspace-card.pco-active .mr-output,
+html[data-theme="dark"] .mr-output {
+  border-color: rgba(52, 211, 153, .5);
+  background: #08241c;
+  color: #d1fae5;
+}
+html[data-theme="dark"] .pole-kpis label,
+html[data-theme="dark"] .calc-grid label,
+html[data-theme="dark"] .subsection-collapse-summary,
+html[data-theme="dark"] .pole-action-field {
+  color: #f1f7ff;
+}
+html[data-theme="dark"] .mini-btn.active-action {
+  background: #1d4ed8;
+  border-color: #93c5fd;
+  color: #fff;
+}
+html[data-theme="dark"] .muted-input,
+html[data-theme="dark"] .equipment-action-height:disabled {
+  background: #111111;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --panel: #080808;
+  --panel-2: #121212;
+  --text: #ffffff;
+  --muted: #d7e7ff;
+  --line: #3b4656;
+  --primary: #60a5fa;
+  --primary-dark: #3b82f6;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --info: #22d3ee;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme="dark"] body {
+  background: #000000;
+}
+html[data-theme="dark"] .pole-index-drawer,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .subsection,
+html[data-theme="dark"] .pole-card,
+html[data-theme="dark"] .pole-list-item,
+html[data-theme="dark"] .app-dialog,
+html[data-theme="dark"] .auto-calculate-progress-card,
+html[data-theme="dark"] .floating-calculator,
+html[data-theme="dark"] .power-clearance-card,
+html[data-theme="dark"] .excel-review-pole,
+html[data-theme="dark"] .review-summary-item,
+html[data-theme="dark"] .excel-review-check {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] .icon-btn,
+html[data-theme="dark"] .mini-btn,
+html[data-theme="dark"] .icon-action,
+html[data-theme="dark"] .view-tab:not(.active),
+html[data-theme="dark"] .pole-index-link {
+  background: #0a1b38;
+  color: #ffffff;
+  border-color: #285a9f;
+}
+html[data-theme="dark"] .floating-open-btn,
+html[data-theme="dark"] .floating-top-btn {
+  background: #0a1b38;
+  border: 1px solid #285a9f;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .5);
+}
+html[data-theme="dark"] .floating-open-btn:hover,
+html[data-theme="dark"] .floating-top-btn:hover {
+  background: #122f5f;
+  border-color: #3f78c4;
+}
+html[data-theme="dark"] .input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] table,
+html[data-theme="dark"] .table-wrap,
+html[data-theme="dark"] .calc-result {
+  background: var(--panel-2);
+  color: var(--text);
+  border-color: var(--line);
+}
+html[data-theme="dark"] th { background: #101010; color: #ffffff; }
+html[data-theme="dark"] tr.changed-row td { background: #102d2b; }
+html[data-theme="dark"] tr.warning-row td { background: #332b16; }
+html[data-theme="dark"] .warning-item,
+html[data-theme="dark"] .review-summary-item.not-ready,
+html[data-theme="dark"] .excel-review-check.not_ready { background: #332b16; color: var(--text); }
+html[data-theme="dark"] .mr-item,
+html[data-theme="dark"] .review-summary-item.pass { background: #102d2b; color: var(--text); }
+html[data-theme="dark"] .review-summary-item.error,
+html[data-theme="dark"] .excel-review-check.error { background: #351d27; color: var(--text); }
+html[data-theme="dark"] .review-summary-item.ignored,
+html[data-theme="dark"] .excel-review-check.ignored { background: #1f2b3d; color: var(--muted); }
+html[data-theme="dark"] .pole-index-link:hover,
+html[data-theme="dark"] .pole-index-link.active { background: #172f55; }
+html[data-theme="dark"] .floating-calculator .calc-grid label { color: #ffffff; }
+html[data-theme="dark"] .auto-calculate-progress-card progress::-webkit-progress-bar { background: #24344d; }
+html[data-theme="dark"] .mobile-height-keyboard { background: #101a2b; border-color: var(--line); }
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; max-width: 100%; overflow-x: hidden; }
 body {
@@ -71,6 +257,15 @@ body.pole-index-open .pole-index-toggle {
   display: none !important;
 }
 .pole-index-toggle:hover { background: var(--primary-dark); }
+html[data-theme="dark"] .pole-index-toggle {
+  background: #2563eb;
+  border-color: #60a5fa;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .35);
+}
+html[data-theme="dark"] .pole-index-toggle:hover {
+  background: #1d4ed8;
+  border-color: #93c5fd;
+}
 .pole-index-drawer {
   position: fixed;
   inset: 0 auto 0 0;
@@ -165,6 +360,16 @@ button:disabled { cursor: not-allowed; }
   border-color: var(--primary);
   background: var(--primary);
   color: #fff;
+}
+.theme-toggle {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  padding: 0;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 .view-tab-warning {
   display: inline-flex;
@@ -576,6 +781,43 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   color: #991b1b;
   border-color: #ef4444;
   background: #fef2f2;
+}
+.mini-btn[data-clear-comm-movements] {
+  background: #c4515b;
+  border-color: #d98a91;
+  color: #ffffff;
+}
+.mini-btn[data-clear-comm-movements]:hover {
+  background: #a9434d;
+  border-color: #e3a6ab;
+  color: #ffffff;
+}
+.mini-btn[data-delete-pole] {
+  background: #c4515b;
+  border-color: #d98a91;
+  color: #ffffff;
+}
+.mini-btn[data-delete-pole]:hover {
+  background: #a9434d;
+  border-color: #e3a6ab;
+}
+.mini-btn[data-hide-pole] {
+  background: #b7832f;
+  border-color: #d8b36a;
+  color: #ffffff;
+}
+.mini-btn[data-hide-pole]:hover {
+  background: #976b26;
+  border-color: #e6c98e;
+}
+.review-ignore-btn[data-review-ignore-value="true"] {
+  background: #c4515b;
+  border-color: #d98a91;
+  color: #ffffff;
+}
+.review-ignore-btn[data-review-ignore-value="true"]:hover {
+  background: #a9434d;
+  border-color: #e3a6ab;
 }
 .row-actions {
   display: inline-flex;
@@ -1632,7 +1874,7 @@ tr.span-color-row:not(.warning-row) td:first-child {
 
   .view-tabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 44px;
     gap: 6px;
     overflow: visible;
   }
@@ -1646,6 +1888,11 @@ tr.span-color-row:not(.warning-row) td:first-child {
     line-height: 1.15;
     text-align: center;
     white-space: normal;
+  }
+
+  .view-tab.theme-toggle {
+    width: 44px;
+    margin-left: 0;
   }
 
   .view-tab-warning {
@@ -1964,6 +2211,150 @@ tr.span-color-row:not(.warning-row) td:first-child {
   .mobile-calc-keyboard .mobile-keyboard-enter {
     grid-column: span 2;
   }
+}
+
+html[data-theme="dark"] .pole-class-table td {
+  color: #ffffff;
+}
+html[data-theme="dark"] .pole-class-table .pole-class-critical-row,
+html[data-theme="dark"] .pole-class-table .pole-class-critical-row td {
+  background: #7f1d1d;
+  color: #ffffff;
+}
+html[data-theme="dark"] .pole-class-table .pole-class-warning-row,
+html[data-theme="dark"] .pole-class-table .pole-class-warning-row td {
+  background: #713f12;
+  color: #ffffff;
+}
+html[data-theme="dark"] .pole-class-table .input {
+  background: #050505;
+  border-color: #71829a;
+  color: #ffffff;
+}
+html[data-theme="dark"] .excel-review-pole,
+html[data-theme="dark"] .excel-review-check,
+html[data-theme="dark"] .review-summary-item {
+  color: #ffffff;
+}
+html[data-theme="dark"] .excel-review-check.error,
+html[data-theme="dark"] .review-summary-item.error {
+  background: #7f1d1d;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+html[data-theme="dark"] .excel-review-check.warning,
+html[data-theme="dark"] .excel-review-check.not_ready,
+html[data-theme="dark"] .review-summary-item.warning,
+html[data-theme="dark"] .review-summary-item.not-ready {
+  background: #713f12;
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+html[data-theme="dark"] .excel-review-check.ignored,
+html[data-theme="dark"] .review-summary-item.ignored {
+  background: #172554;
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+html[data-theme="dark"] .excel-review-check p,
+html[data-theme="dark"] .excel-review-check dt,
+html[data-theme="dark"] .excel-review-check dd,
+html[data-theme="dark"] .excel-review-check small {
+  color: #ffffff;
+}
+
+/* Keep descriptive labels readable on the black theme. */
+html[data-theme="dark"] .job-name-field,
+html[data-theme="dark"] .clearance-row,
+html[data-theme="dark"] .settings-section h3,
+html[data-theme="dark"] .dialog-field,
+html[data-theme="dark"] .dialog-checkbox-list legend,
+html[data-theme="dark"] .manual-proposed-starter label,
+html[data-theme="dark"] .pole-kpis label,
+html[data-theme="dark"] .calc-grid label,
+html[data-theme="dark"] .pole-action-field,
+html[data-theme="dark"] .reference-table-panel summary,
+html[data-theme="dark"] .reference-note,
+html[data-theme="dark"] .flagging-message {
+  color: #f4f8ff;
+}
+html[data-theme="dark"] .pole-index-link.hidden-pole,
+html[data-theme="dark"] .mini-dot.hidden-status,
+html[data-theme="dark"] .badge.pof,
+html[data-theme="dark"] .badge.ignored {
+  background: #161616;
+  color: #ffffff;
+}
+html[data-theme="dark"] .input:disabled,
+html[data-theme="dark"] select:disabled,
+html[data-theme="dark"] textarea:disabled {
+  background: #101010;
+  color: #ffffff;
+  opacity: .9;
+}
+html[data-theme="dark"] .comm-movement-table,
+html[data-theme="dark"] .comm-movement-table td,
+html[data-theme="dark"] .comm-movement-table .comm-span-row,
+html[data-theme="dark"] .comm-movement-table .comm-midspan-value {
+  color: #ffffff;
+}
+html[data-theme="dark"] .comm-movement-table tr.warning-row td {
+  background: #302300;
+  color: #ffffff;
+}
+html[data-theme="dark"] .comm-movement-table tr.changed-row td {
+  background: #062a1d;
+  color: #ffffff;
+}
+html[data-theme="dark"] .comm-movement-table .flagging-message {
+  color: #ffffff;
+  font-size: .8rem;
+}
+html[data-theme="dark"] .comm-movement-table .input {
+  background: #050505;
+  border-color: #71829a;
+  color: #ffffff;
+}
+html[data-theme="dark"] .comm-movement-table .comm-midspan-value.colored-midspan .midspan-highlight-input {
+  background: #050505;
+  border-color: var(--span-row-color, #60a5fa);
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+html[data-theme="dark"] .midspan-highlight-input,
+html[data-theme="dark"] .midspan-highlight-display {
+  background: #050505;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+html[data-theme="dark"] .mini-btn[data-clear-comm-movements] {
+  background: #dc2626;
+  border-color: #f87171;
+  color: #ffffff;
+}
+html[data-theme="dark"] .mini-btn[data-clear-comm-movements]:hover {
+  background: #b91c1c;
+  border-color: #fca5a5;
+}
+html[data-theme="dark"] .view-tab.view-tab.theme-toggle {
+  background: #fbbf24;
+  border-color: #fde68a;
+  color: #172033;
+}
+html[data-theme="dark"] .mini-btn[data-delete-pole] {
+  background: #dc2626;
+  border-color: #f87171;
+  color: #ffffff;
+}
+html[data-theme="dark"] .mini-btn[data-hide-pole] {
+  background: #d97706;
+  border-color: #fbbf24;
+  color: #ffffff;
+}
+html[data-theme="dark"] .review-ignore-btn[data-review-ignore-value="true"] {
+  background: #dc2626;
+  border-color: #f87171;
+  color: #ffffff;
 }
 
 /* Desktop/web layout: the open index is a real left rail, not a modal. The

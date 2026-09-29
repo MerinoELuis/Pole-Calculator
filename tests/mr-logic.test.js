@@ -504,6 +504,12 @@ assert.doesNotMatch(olssonText, /Re-sag Cox/i, "Olsson must not inherit INTEC Re
 assert.match(olssonText, /^RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT - MIN 45'-4 DUE TO CLEARANCE VIOLATIONS\./, "Olsson Red Tag must be a separate first MR line");
 assert.match(olssonText, /PL NEW OHG W AT HOA 24' AND PL DG ON W POLE\./, "Olsson should reuse the configured OHG action");
 assert.doesNotMatch(olssonText, /POLE INSET/i, "Olsson must not generate Pole Inset MR");
+state.poles.P1.secondaryDripLoopActive = true;
+state.poles.P1.secondaryDripLoopHoa = "25'8\"";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /SECURE SECONDARY DRIP LOOP TO HOA 25'8"\./i, "Olsson secondary drip-loop action must use its own HOA");
+state.poles.P1.secondaryDripLoopActive = false;
+state.poles.P1.secondaryDripLoopHoa = "";
 state.poles.P1.riserActive = true;
 state.poles.P1.ugRiserDirection = "W";
 state.spanSides.PROP__P1.proposedHOA = "23'";

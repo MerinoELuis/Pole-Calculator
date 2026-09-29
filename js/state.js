@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.80";
+  const CURRENT_VERSION = "1.8.109";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -251,6 +251,8 @@
         ugMRText: trim(data.ugMRText || ""),
         ugRiserDirection: trim(data.ugRiserDirection || "").toUpperCase(),
         riserActive: data.riserActive === true ? true : data.riserActive === false ? false : null,
+        secondaryDripLoopActive: Boolean(data.secondaryDripLoopActive),
+        secondaryDripLoopHoa: trim(data.secondaryDripLoopHoa || ""),
         ancActive: data.ancActive === true ? true : data.ancActive === false ? false : null,
         ancSize: trim(data.ancSize || "8\""),
         ancDistance: trim(data.ancDistance || "15'"),
@@ -297,6 +299,8 @@
       ugMRText: trim(extra.ugMRText || ""),
       ugRiserDirection: trim(extra.ugRiserDirection || "").toUpperCase(),
       riserActive: extra.riserActive === true ? true : extra.riserActive === false ? false : null,
+      secondaryDripLoopActive: Boolean(extra.secondaryDripLoopActive),
+      secondaryDripLoopHoa: trim(extra.secondaryDripLoopHoa || ""),
       ancActive: extra.ancActive === true ? true : extra.ancActive === false ? false : null,
       ancSize: trim(extra.ancSize || "8\""),
       ancDistance: trim(extra.ancDistance || "15'"),
@@ -576,8 +580,8 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
-    if (field === "lessThan12CommClearanceActive") {
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
+    if (["lessThan12CommClearanceActive", "secondaryDripLoopActive"].includes(field)) {
       pole[field] = value === true || String(value).toLowerCase() === "true";
       return pole;
     }
@@ -590,7 +594,8 @@
   function updateSetting(field, value) {
     if (!state.settings || !Object.prototype.hasOwnProperty.call(emptyState().settings, field)) return null;
     if (field === "metronetWI" && global.ProjectProfiles) {
-      const profileId = String(value || "").trim().toUpperCase() === "CSU" ? "CSU" : "METRONET";
+      const wi = String(value || "").trim().toUpperCase();
+      const profileId = wi === "CSU" ? "CSU" : wi === "COMED" ? "COMED" : "METRONET";
       state.settings = global.ProjectProfiles.applyProfileSettings(state.settings, profileId);
       Object.values(state.spans || {}).forEach(span => {
         span.environmentClearance = defaultEnvironmentClearance(span.environment || "NONE");
@@ -871,7 +876,7 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.otherHOA || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.secondaryDripLoopActive || state.poles[poleId]?.secondaryDripLoopHoa || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
       || state.poles[poleId]?.riserActive === true
       || state.poles[poleId]?.riserActive === false
       || sideChange || commChange || equipmentChange;
@@ -1052,8 +1057,13 @@
     next.jobName = trim(next.jobName) || jobNameFromFileName(next.importedFileName);
     const rawSettings = raw && raw.settings ? raw.settings : {};
     const requestedProfile = String(rawSettings.projectProfile || "").trim().toUpperCase();
+    const requestedWI = String(rawSettings.metronetWI || "").trim().toUpperCase();
+    const profileKey = requestedProfile === "METRONET" && requestedWI === "COMED"
+      ? "COMED" : (rawSettings.projectProfile || "INTEC");
     const profileDefaults = global.ProjectProfiles
-      ? (global.ProjectProfiles.getProfile(rawSettings.projectProfile || "INTEC")?.settings || {})
+      ? (global.ProjectProfiles.getProfileSettings
+        ? global.ProjectProfiles.getProfileSettings(profileKey)
+        : (global.ProjectProfiles.getProfile(profileKey)?.settings || {}))
       : {};
     // Apply project defaults before saved values. Existing user edits win,
     // while older JSON files automatically receive newly introduced profile
@@ -1062,6 +1072,12 @@
     if (requestedProfile === "CSU") {
       next.settings.projectProfile = "METRONET";
       next.settings.metronetWI = "CSU";
+    } else if (requestedProfile === "COMED" || (requestedProfile === "METRONET" && requestedWI === "COMED")) {
+      next.settings.projectProfile = "METRONET";
+      next.settings.metronetWI = "COMED";
+      if (!next.settings.proposedOwner || ["METRONET", "MIDAM"].includes(String(next.settings.proposedOwner).toUpperCase())) {
+        next.settings.proposedOwner = "Power";
+      }
     }
     // Back Span calculation is a profile rule, not an operator preference.
     // Older INTEC saves persisted the former `false` default, which made an
@@ -1073,6 +1089,7 @@
     }
     // Migrate Metronet saves created before the WI selector existed.
     if (String(next.settings.projectProfile || "").toUpperCase() === "METRONET"
+      && String(next.settings.metronetWI || "").toUpperCase() !== "COMED"
       && (!next.settings.proposedOwner || String(next.settings.proposedOwner).toUpperCase() === "METRONET")) {
       next.settings.proposedOwner = "MidAm";
     }

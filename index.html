@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
-  <meta name="theme-color" content="#eef4ff" />
+  <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Pole Span MR Calculator</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.80" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.109" />
 </head>
 <body>
   <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
@@ -39,7 +39,7 @@
     <header class="topbar">
       <div>
         <h1>Pole Span MR Calculator</h1>
-        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.80</p>
+        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.109</p>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
@@ -67,6 +67,7 @@
             <span>Excel Review</span>
             <span id="excelReviewTabWarning" class="view-tab-warning hidden" title="Active Excel Review findings" aria-label="Active Excel Review findings">&#9888; <span id="excelReviewTabWarningCount">0</span></span>
           </button>
+          <button id="themeToggleBtn" class="view-tab theme-toggle" type="button" aria-pressed="true" aria-label="Switch to light mode" title="Switch to light mode">☀</button>
         </nav>
 
         <section id="topIndexPanel" class="panel index-panel" data-view-panel="calculator">
@@ -195,7 +196,7 @@
   </section>
 
   <script src="libs/xlsx.full.min.js"></script>
-  <script src="js/deployment-version.js?v=1.8.80"></script>
+  <script src="js/deployment-version.js?v=1.8.109"></script>
   <script src="js/height-utils.js"></script>
   <script src="js/project-config.js"></script>
   <script src="js/state.js"></script>
@@ -209,8 +210,8 @@
   <script src="js/compact-autoproposed.js"></script>
   <script src="js/auto-calculate-solver.js"></script>
   <script src="js/auto-calculate-source-compat.js"></script>
-  <script src="js/floating-calculator.js?v=1.8.80"></script>
-  <script src="js/app.js?v=1.8.80"></script>
+  <script src="js/floating-calculator.js?v=1.8.109"></script>
+  <script src="js/app.js?v=1.8.109"></script>
   <script src="js/ui/dom-contract.js"></script>
   <script src="js/ui/comm-table.js"></script>
   <script src="js/ui/span-colors.js"></script>

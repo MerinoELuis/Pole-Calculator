@@ -142,6 +142,18 @@
         mrTemplate: "METRONET"
       }
     },
+    COMED: {
+      // COMED is a MetroNet work instruction. Keep it as a hidden profile so
+      // workbook detection and the WI selector can apply its owner/conductor
+      // rules without creating a second top-level project in the UI.
+      id: "METRONET",
+      label: "ComEd",
+      visible: false,
+      settings: {
+        metronetWI: "COMED",
+        proposedOwner: "Power"
+      }
+    },
     OLSSON_OPPD: {
       id: "OLSSON_OPPD",
       label: "Olsson OPPD",
@@ -203,12 +215,23 @@
     return PROFILES[normalizeProfileId(value)];
   }
 
+  function getProfileSettings(value) {
+    const profileId = normalizeProfileId(value);
+    const profile = PROFILES[profileId];
+    if (!profile) return {};
+    // COMED shares the MetroNet calculation defaults; only its WI-specific
+    // owner and conductor validation differ.
+    const base = profileId === "COMED" ? (PROFILES.METRONET.settings || {}) : {};
+    return { ...base, ...(profile.settings || {}) };
+  }
+
   function applyProfileSettings(settings = {}, profileId = "INTEC") {
-    const profile = getProfile(profileId);
+    const normalizedId = normalizeProfileId(profileId);
+    const profile = getProfile(normalizedId);
     return {
       ...settings,
       projectProfile: profile.id,
-      ...(profile.settings || {})
+      ...getProfileSettings(normalizedId)
     };
   }
 
@@ -218,6 +241,7 @@
     // OPPD ownership identifies the Olsson work instruction. This prevents
     // raw OPPD workbooks from being audited with INTEC-only rules.
     if (/olsson|\boppd\b/.test(text)) return "OLSSON_OPPD";
+    if (/\bcomed\b|acsr\s*1\/0\s*awg\s*6\/1\s*raven|metronet[\s\S]{0,80}utility\s*>\s*power|utility\s*>\s*power[\s\S]{0,80}metronet/.test(text)) return "COMED";
     if (/metronet|proposed\s*mnt|\bmnt\b|utility\s*>\s*midam|\bmidam\b/.test(text)) return "METRONET";
     return "INTEC";
   }
@@ -230,6 +254,7 @@
     PROFILES,
     normalizeProfileId,
     getProfile,
+    getProfileSettings,
     applyProfileSettings,
     detectProfile
   };

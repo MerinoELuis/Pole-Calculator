@@ -22,6 +22,7 @@
   const FILE_HANDLE_STORE = "handles";
   const SAVE_HANDLE_KEY = "currentSaveFile";
   const JSON_PICKER_ID = "pole-calculator-json";
+  const THEME_STORAGE_KEY = "poleCalculatorTheme";
   let autoCalculateRunning = false;
   let mobileHeightInput = null;
   let mobileKeyboardEnabled = false;
@@ -41,6 +42,26 @@
 
 
   function qs(id) { return document.getElementById(id); }
+
+  function applyTheme(theme, persist = true) {
+    const dark = String(theme || "").toLowerCase() === "dark";
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    if (els.themeToggleBtn) {
+      els.themeToggleBtn.textContent = dark ? "☀" : "☾";
+      els.themeToggleBtn.setAttribute("aria-pressed", String(dark));
+      els.themeToggleBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      els.themeToggleBtn.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    }
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0f172a" : "#eef4ff");
+    if (persist) {
+      try { window.localStorage?.setItem(THEME_STORAGE_KEY, dark ? "dark" : "light"); } catch (error) { /* storage can be unavailable */ }
+    }
+  }
+
+  function toggleTheme() {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+  }
 
   function renderDeploymentVersion() {
     if (!els.deploymentVersion) return;
@@ -1036,6 +1057,8 @@
         riserActive: mappedOldPole.riserActive === true || mappedOldPole.riserActive === false
           ? mappedOldPole.riserActive
           : preservedPole.riserActive,
+        secondaryDripLoopActive: Boolean(mappedOldPole.secondaryDripLoopActive || preservedPole.secondaryDripLoopActive),
+        secondaryDripLoopHoa: mappedOldPole.secondaryDripLoopHoa || preservedPole.secondaryDripLoopHoa || "",
         standaloneProposedHOA: mappedOldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",
         notes: mappedOldPole.notes || preservedPole.notes || "",
         metadata: {
@@ -1138,7 +1161,7 @@
   // after aliases, preserved baselines and recalculated values are applied.
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
-      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection", "redTagActive", "redTagMinHeight", "redTagClass", "redTagReason"]],
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection", "redTagActive", "redTagMinHeight", "redTagClass", "redTagReason"]],
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "isSlack", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
@@ -1755,7 +1778,7 @@
     const position = rawPosition === "LOW_COMM" ? "LOW_COMM"
       : rawPosition === "OVERLASH" ? "OVERLASH" : "TOP_COMM";
     const proposedOwner = settings.proposedOwner || "Wecom";
-    const metronetWI = String(settings.metronetWI || (String(proposedOwner).toUpperCase() === "MNT" ? "CSU" : "MIDAM")).toUpperCase();
+    const metronetWI = String(settings.metronetWI || (String(proposedOwner).toUpperCase() === "MNT" ? "CSU" : String(proposedOwner).toUpperCase() === "POWER" ? "COMED" : "MIDAM")).toUpperCase();
     const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
     const detectedFibers = new Set(Object.keys(fiberSizes));
     (S.getState().makeReadyReferences || []).forEach(ref => {
@@ -1814,6 +1837,7 @@
             <select class="input position-select" data-scope="settings" data-field="metronetWI">
               <option value="MIDAM" ${metronetWI === "MIDAM" ? "selected" : ""}>MidAm</option>
               <option value="CSU" ${metronetWI === "CSU" ? "selected" : ""}>CSU</option>
+              <option value="COMED" ${metronetWI === "COMED" ? "selected" : ""}>ComEd</option>
             </select>
           </label>` : settings.hideProposedOwner ? "" : `<label class="clearance-row position-row">
             <span>Proposed Owner</span>
@@ -2261,7 +2285,7 @@
     const isOlsson = projectProfile === "OLSSON_OPPD";
     const powerEquipment = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
     const riserEquipment = powerEquipment.filter(row => String(row.category || row.type || "").toUpperCase().includes("RISER"));
-    const riserSecureActive = riserEquipment.length > 0 && riserEquipment.every(row => row.secureActive === true);
+    const secondaryDripLoopActive = Boolean(pole?.secondaryDripLoopActive);
     const showUGReason = pole?.ugActive && (isIntec || isMetronet || isOlsson);
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
@@ -2306,7 +2330,7 @@
       ${isOlsson ? `<button class="mini-btn ${pole?.redTagActive ? "active-action" : ""}" type="button" data-toggle-red-tag data-pole="${escapeHtml(poleId)}" title="Add or remove the Olsson OPPD Red Tag Make Ready">Red Tag</button>` : ""}
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
       ${isOlsson ? `<button class="mini-btn ${pole?.lessThan12CommClearanceActive ? "active-action" : ""}" type="button" data-toggle-less-than-12-comm data-pole="${escapeHtml(poleId)}" title="Add or remove LESS THAN 12&quot; COMM CLEARANCE REQUESTED.">&lt;12&quot; Comm</button>` : ""}
-      ${isOlsson && riserEquipment.length ? `<button class="mini-btn ${riserSecureActive ? "active-action" : ""}" type="button" data-toggle-riser-secure data-pole="${escapeHtml(poleId)}" title="Secure the Power Riser drip loop">Secure Drip Loop</button>` : ""}
+      ${isOlsson ? `<button class="mini-btn ${secondaryDripLoopActive ? "active-action" : ""}" type="button" data-toggle-secondary-drip-loop data-pole="${escapeHtml(poleId)}" title="Add or remove the secondary drip-loop Make Ready">Secure Secondary Drip Loop</button>` : ""}
       ${isMetronet ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? "Add or remove the MidAm ANC Make Ready" : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
       ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
     </div>
@@ -2333,6 +2357,10 @@
     ${showRiserDirection ? `<label class="pole-action-field riser-direction-field">
       <span>Riser Direction</span>
       <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugRiserDirection">${directionOptions}</select>
+    </label>` : ""}
+    ${isOlsson && secondaryDripLoopActive ? `<label class="pole-action-field">
+      <span>Secondary Drip Loop HOA</span>
+      <input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="secondaryDripLoopHoa" value="${escapeHtml(pole?.secondaryDripLoopHoa || "")}" placeholder="25'8\"">
     </label>` : ""}
     ${ancEnabled ? `<div class="pole-action-fields action-detail-grid">
       <label class="pole-action-field"><span>ANC Size</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancSize" value="${escapeHtml(pole?.ancSize || "8\"")}"></label>
@@ -2378,12 +2406,13 @@
     const spans = proposedSpansForPole(poleId);
     const pole = S.getPole(poleId);
     const settings = S.getState().settings || {};
-    const isCsuMetronet = String(settings.projectProfile || "").toUpperCase() === "METRONET"
+    const isSimplifiedMetronetProposed = String(settings.projectProfile || "").toUpperCase() === "METRONET"
       && (String(settings.metronetWI || "").toUpperCase() === "CSU"
+        || String(settings.metronetWI || "").toUpperCase() === "COMED"
         || String(settings.proposedOwner || "").toUpperCase() === "MNT");
-    const showEndDrop = !isCsuMetronet;
-    const showNextPoleProposed = !isCsuMetronet;
-    const showOcalcMS = !isCsuMetronet;
+    const showEndDrop = !isSimplifiedMetronetProposed;
+    const showNextPoleProposed = !isSimplifiedMetronetProposed;
+    const showOcalcMS = !isSimplifiedMetronetProposed;
     const showStandalone = !spans.length || Boolean(pole?.standaloneProposedHOA);
     const standaloneFlagging = global.Calculations.evaluateSpanSideFlagging({
       spanId: "",
@@ -2624,6 +2653,7 @@
             <div class="pole-action-buttons">
               <button class="mini-btn ${commMovementsActive ? "active-action" : ""}" type="button" data-toggle-comm-movements data-pole="${escapeHtml(poleId)}" ${hasCommMovements ? "" : "disabled"} title="${hasCommMovements ? (commMovementsActive ? "Ignore comm HOA changes in calculations" : "Use comm HOA changes in calculations") : "Enter a comm HOA Change first"}">Comm Moves ${commMovementsActive ? "ON" : "OFF"}</button>
               <button class="mini-btn" type="button" data-add-comm data-pole="${escapeHtml(poleId)}">Add Comm</button>
+              <button class="mini-btn danger-action" type="button" data-clear-comm-movements data-pole="${escapeHtml(poleId)}" ${hasCommMovements ? "" : "disabled"} title="Clear all comm movement heights">Clear Moves</button>
             </div>
           </div>
           <p class="muted">Move each existing comm to a new height. When the other pole on the same span changes, the calculated Midspan updates.</p>
@@ -2763,6 +2793,7 @@
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-secondary-drip-loop]").forEach(btn => btn.addEventListener("click", () => toggleSecondaryDripLoop(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-span-ug]").forEach(btn => btn.addEventListener("click", () => toggleSpanUG(btn.dataset.pole, btn.dataset.span)));
     root.querySelectorAll("[data-toggle-anc]").forEach(btn => btn.addEventListener("click", () => toggleANC(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-ohg]").forEach(btn => btn.addEventListener("click", () => toggleOHG(btn.dataset.pole)));
@@ -2770,6 +2801,7 @@
     root.querySelectorAll("[data-toggle-less-than-12-comm]").forEach(btn => btn.addEventListener("click", () => toggleLessThan12CommClearance(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser-secure]").forEach(btn => btn.addEventListener("click", () => toggleRiserSecure(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-comm-movements]").forEach(btn => btn.addEventListener("click", () => toggleCommMovements(btn.dataset.pole)));
+    root.querySelectorAll("[data-clear-comm-movements]").forEach(btn => btn.addEventListener("click", () => clearCommMovements(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
     root.querySelectorAll("[data-delete-proposed-span]").forEach(btn => btn.addEventListener("click", () => deleteProposedSpan(btn.dataset.pole, btn.dataset.span)));
@@ -2811,6 +2843,17 @@
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+  }
+
+  function toggleSecondaryDripLoop(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole || String(S.getState().settings?.projectProfile || "").toUpperCase() !== "OLSSON_OPPD") return;
+    recordUndoSnapshot();
+    const active = !pole.secondaryDripLoopActive;
+    S.upsertPole({ ...pole, secondaryDripLoopActive: active, secondaryDripLoopHoa: pole.secondaryDripLoopHoa || "" });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+    markDirty();
   }
 
   function updateCommGroupOwner(poleId, groupKey, value) {
@@ -3020,6 +3063,38 @@
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
   }
 
+  async function clearCommMovements(poleId) {
+    const pole = S.getPole(poleId);
+    const rows = S.getSpanCommsForPole(poleId);
+    const hasChanges = rows.some(row => Boolean(row.existingHOAChange || row.otherHOA));
+    if (!pole || !hasChanges) return;
+    const confirmed = await confirmInApp(
+      "Clear Comm Movements",
+      "Clear all HOA Change and Other HOA movement heights for this pole?",
+      "Clear Moves"
+    );
+    if (!confirmed) return;
+
+    recordUndoSnapshot();
+    rows.forEach(row => S.upsertSpanComm({
+      ...row,
+      existingHOAChange: "",
+      otherHOA: "",
+      autoCalcStatus: "",
+      autoCalcMessage: ""
+    }));
+    S.upsertPole({ ...pole, commMovementsActive: false });
+
+    const affectedPoles = new Set([
+      poleId,
+      ...S.getConnectedSpans(poleId).flatMap(span => [span.fromPole, span.toPole]).filter(Boolean)
+    ]);
+    affectedPoles.forEach(id => global.Calculations.recalculateSpansForPole(id));
+    renderAffectedPoles(Array.from(affectedPoles));
+    markDirty();
+    toast("Comm movements cleared.", "success");
+  }
+
   function togglePoleInset(poleId) {
     const pole = S.getPole(poleId);
     if (!pole || pole.ugActive || pole.pcoActive) return;
@@ -3178,6 +3253,8 @@
       "actionActive",
       "actionHeight",
       "secureActive",
+      "secondaryDripLoopActive",
+      "secondaryDripLoopHoa",
       "raiseActive",
       "raiseHeight"
     ].includes(field);
@@ -3743,6 +3820,7 @@
       const isOpen = els.poleIndexDrawer?.classList.contains("open");
       setPoleIndexOpen(!isOpen);
     });
+    els.themeToggleBtn?.addEventListener("click", toggleTheme);
     els.mobileKeyboardToggleBtn?.addEventListener("click", () => {
       setMobileKeyboardEnabled(!mobileKeyboardEnabled);
     });
@@ -3822,6 +3900,7 @@
       autoCalculateProgressPercent: qs("autoCalculateProgressPercent"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
+      themeToggleBtn: qs("themeToggleBtn"),
       projectMeta: qs("projectMeta"),
       jobNameInput: qs("jobNameInput"),
       poleSearchInput: qs("poleSearchInput"),
@@ -3850,6 +3929,9 @@
       mobileHeightKeyboard: qs("mobileHeightKeyboard")
     });
 
+    let savedTheme = "dark";
+    try { savedTheme = window.localStorage?.getItem(THEME_STORAGE_KEY) || "dark"; } catch (error) { /* storage can be unavailable */ }
+    applyTheme(savedTheme, false);
     renderDeploymentVersion();
     updateMobileKeyboardToggle();
     bindEvents();

@@ -885,6 +885,12 @@
     });
   }
 
+  function generateSecondaryDripLoopMR(pole) {
+    if (!pole?.secondaryDripLoopActive) return "";
+    const height = H().parseHeight(pole.secondaryDripLoopHoa || "");
+    return height === null ? "" : `Secure secondary drip loop to HOA ${H().formatHeight(height)}.`;
+  }
+
   function generatePoleInsetMR(pole) {
     if (!pole?.poleInsetActive || pole.ugActive || pole.pcoActive) return "";
     const settings = S().getState().settings || {};
@@ -914,8 +920,6 @@
     const ensure = [];
     const ensureDirections = [];
     let ensureSpanCount = 0;
-    const proposedSpanCount = S().getSpanSidesForPole(poleId)
-      .filter(side => Boolean(side?.proposedHOA)).length;
     const risers = [];
     const anc = [];
     const pole = S().getPole(poleId);
@@ -947,6 +951,8 @@
       if (isMetronetMR() && configuredAnchor) anc.push(configuredAnchor);
       if (configuredOHG) anc.push(configuredOHG);
     }
+    const secondaryDripLoop = generateSecondaryDripLoopMR(pole);
+    if (secondaryDripLoop) power.push(secondaryDripLoop);
     commMoves.push(...generateTransferMRForPole(poleId));
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
@@ -963,7 +969,11 @@
         else proposed.push(line);
       });
     });
-    if (isIntecMR() && proposedSpanCount > 1 && ensureSpanCount > 0 && ensureDirections.length) {
+    // Every INTEC Ensure instruction identifies the affected span direction.
+    // When several proposed spans exist, only directions whose own span has a
+    // low-power issue are collected, so a single affected span remains a
+    // single direction while multiple affected spans are joined naturally.
+    if (isIntecMR() && ensureSpanCount > 0 && ensureDirections.length) {
       for (let index = ensure.length - 1; index >= 0; index -= 1) {
         if (/ensure min 30/i.test(ensure[index])) ensure.splice(index, 1);
       }

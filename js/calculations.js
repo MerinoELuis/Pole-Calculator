@@ -183,6 +183,12 @@
         && String(settings.metronetWI || "").toUpperCase() === "CSU");
   }
 
+  function isComedProfile() {
+    const settings = S().getState().settings || {};
+    return String(settings.projectProfile || "").toUpperCase() === "METRONET"
+      && String(settings.metronetWI || "").toUpperCase() === "COMED";
+  }
+
   function isCalculatedBackspanComm(sc) {
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
@@ -1113,6 +1119,16 @@
     return null;
   }
 
+  // A raised riser becomes the new Low Power reference eight inches below its
+  // attachment HOA. The eight-inch offset represents the riser/drip-loop
+  // clearance and keeps the pole-wide Low Power value below the new riser.
+  function equipmentLowPowerTargetInches(item) {
+    const target = item?.target;
+    if (target === null || target === undefined) return null;
+    const category = String(item.row?.category || item.row?.type || "").toUpperCase();
+    return category.includes("RISER") ? target - 8 : target;
+  }
+
   /**
    * Applies active Transformer/Riser work to the imported Low Power baseline.
    * A raised item replaces the baseline only when every equipment item at that
@@ -1135,12 +1151,13 @@
     if (baseline !== null) {
       const limitingRows = movable.filter(item => item.source === baseline);
       if (limitingRows.length && limitingRows.every(item => item.target !== null)) {
-        effective = Math.min(...limitingRows.map(item => item.target));
+        effective = Math.min(...limitingRows.map(equipmentLowPowerTargetInches));
       }
     }
 
     movable.forEach(item => {
-      if (item.target !== null && (effective === null || item.target < effective)) effective = item.target;
+      const lowPowerTarget = equipmentLowPowerTargetInches(item);
+      if (lowPowerTarget !== null && (effective === null || lowPowerTarget < effective)) effective = lowPowerTarget;
     });
     return effective;
   }
@@ -1308,7 +1325,7 @@
     // INTEC/Wecom requires an engineer-provided O-CALC MS. MetroNet-family
     // workflows (including CSU) may derive Proposed MS from measured comm
     // midspans or, when none exist, from the span-length sag estimate.
-    return isMidAmProfile() || isCsuProfile();
+    return isMidAmProfile() || isCsuProfile() || isComedProfile();
   }
 
   function calculateProposedMidspanBase(side, span) {

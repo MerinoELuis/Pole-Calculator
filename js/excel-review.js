@@ -38,6 +38,10 @@
       "neutral > aaac 2 awg 7 strand ames > static"
     ]
   };
+  const COMED_POWER_SIZES = {
+    PRIMARY: ["primary > acsr 1/0 awg 6/1 raven > static"],
+    NEUTRAL: ["neutral > acsr 1/0 awg 6/1 raven > static"]
+  };
   // Metronet/MidAm uses the complete approved insulator catalog.  The
   // restriction is by wire function: communications may only use the three
   // communication hardware types, while Primary/Secondary/Neutral may use
@@ -198,6 +202,12 @@
     return profile === "CSU" || (profile === "METRONET" && (wi === "CSU" || owner === "MNT"));
   }
 
+  function isComedProject() {
+    const settings = S().getState().settings || {};
+    return text(settings.projectProfile).toUpperCase() === "METRONET"
+      && text(settings.metronetWI).toUpperCase() === "COMED";
+  }
+
   function isIntecProject() {
     return text(S().getState().settings?.projectProfile).toUpperCase() === "INTEC";
   }
@@ -334,12 +344,13 @@
     }
 
     const midAm = isMidAmProject();
+    const comed = isComedProject();
     const csu = isCsuProject();
     const olsson = isOlssonProject();
     const normalizedSequence = olsson
       ? normalizeOlssonSequence(entry.sequence)
-      : (midAm || csu) ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
-    const idSequence = midAm ? midAmIdSequence(entry.poleId) : "";
+      : (midAm || csu || comed) ? normalizeMidAmSequence(entry.sequence) : entry.sequence;
+    const idSequence = (midAm || comed) ? midAmIdSequence(entry.poleId) : "";
     if (!entry.sequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_SEQUENCE", status: "ERROR",
@@ -355,9 +366,9 @@
         title: "Sequence", message: `Sequence ${entry.sequence} must contain a pole number, such as P1 or 1.`,
         expected: "P<number> or <number>", actual: entry.sequence
       });
-    } else if ((midAm || csu) && !normalizedSequence) {
+    } else if ((midAm || csu || comed) && !normalizedSequence) {
       add(result, {
-        phase: "HOA", section: "Collection", code: csu ? "INVALID_CSU_SEQUENCE" : "INVALID_MIDAM_SEQUENCE", status: "ERROR",
+        phase: "HOA", section: "Collection", code: csu ? "INVALID_CSU_SEQUENCE" : comed ? "INVALID_COMED_SEQUENCE" : "INVALID_MIDAM_SEQUENCE", status: "ERROR",
         title: "Sequence", message: `Sequence ${entry.sequence} must contain three digits and may end with one letter.`,
         expected: "000 or 000A", actual: entry.sequence
       });
@@ -378,13 +389,13 @@
           expected: olssonSequence, actual: normalizedSequence
         });
       }
-    } else if (midAm && entry.poleId && !/^\d{3}[A-Z]?$/.test(idSequence)) {
+    } else if ((midAm || comed) && entry.poleId && !/^\d{3}[A-Z]?$/.test(idSequence)) {
       add(result, {
-        phase: "HOA", section: "Collection", code: "INVALID_MIDAM_ID_SEQUENCE", status: "ERROR",
+        phase: "HOA", section: "Collection", code: comed ? "INVALID_COMED_ID_SEQUENCE" : "INVALID_MIDAM_ID_SEQUENCE", status: "ERROR",
         title: "Id / Sequence", message: `The first block of Id ${entry.poleId} must contain three digits and may end with one letter.`,
         expected: "000 or 000A", actual: idSequence || "Empty"
       });
-    } else if (midAm && entry.poleId && normalizedSequence && idSequence !== normalizedSequence) {
+    } else if ((midAm || comed) && entry.poleId && normalizedSequence && idSequence !== normalizedSequence) {
       add(result, {
         phase: "HOA", section: "Collection", code: "SEQUENCE_ID_MISMATCH", status: "ERROR",
         title: "Sequence", message: `Sequence must equal ${idSequence}, derived from Id ${entry.poleId}.`,
@@ -865,6 +876,56 @@
           });
         }
       });
+  }
+
+  function addComedChecks(result, poleId) {
+    if (!isComedProject()) return;
+
+    rowsForPole("spanWires", poleId).forEach((row, index) => {
+      const ownerRaw = text(pick(row, ["Owner", "owner"]));
+      const owner = normalizedText(ownerRaw);
+      const sizeRaw = text(pick(row, ["Size", "Size.display", "Wire Size"]));
+      const size = normalizedText(sizeRaw);
+      const power = I().isPowerWire ? I().isPowerWire(row) : /^utility\s*>/i.test(ownerRaw);
+      const insulatorRaw = text(pick(row, ["Insulator"]));
+      const insulator = normalizedInsulator(insulatorRaw);
+      const descriptor = `${ownerRaw || "No owner"} / ${sizeRaw || `row ${index + 2}`}`;
+      if (!power) {
+        if (!MIDAM_COMM_INSULATORS.includes(insulator)) {
+          add(result, {
+            phase: "HOA", section: "Span.Wire", code: "INVALID_COMED_COMM_INSULATOR", status: "ERROR",
+            title: "Communication Insulator", message: `Invalid ComEd communication insulator for ${descriptor}.`,
+            expected: MIDAM_COMM_INSULATORS.join(", "), actual: insulatorRaw || "Empty"
+          });
+        }
+        return;
+      }
+
+      const powerType = /primary/i.test(sizeRaw) ? "PRIMARY" : /neutral/i.test(sizeRaw) ? "NEUTRAL" : "";
+      if (!powerType) return;
+      if (owner !== "utility > power") {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: "INVALID_COMED_POWER_OWNER", status: "ERROR",
+          title: `${powerType} Owner`, message: `${powerType} owner must be UTILITY > Power.`,
+          expected: "UTILITY > Power", actual: ownerRaw || "Empty"
+        });
+      }
+      const allowedSizes = COMED_POWER_SIZES[powerType] || [];
+      if (!allowedSizes.includes(size)) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: `INVALID_COMED_${powerType}_SIZE`, status: "ERROR",
+          title: `${powerType} Cable`, message: `Invalid ComEd ${powerType.toLowerCase()} cable for ${descriptor}.`,
+          expected: allowedSizes.join(" or "), actual: sizeRaw || "Empty"
+        });
+      }
+      if (!MIDAM_POWER_INSULATORS.includes(insulator)) {
+        add(result, {
+          phase: "HOA", section: "Span.Wire", code: `INVALID_COMED_${powerType}_INSULATOR`, status: "ERROR",
+          title: `${powerType} Insulator`, message: `Invalid ComEd ${powerType.toLowerCase()} insulator for ${descriptor}.`,
+          expected: MIDAM_POWER_INSULATORS.join(", "), actual: insulatorRaw || "Empty"
+        });
+      }
+    });
   }
 
   function calculatorWorkForPole(poleId) {
@@ -1497,6 +1558,7 @@
       if (entry.poleId) addOlssonWireChecks(result, entry.poleId);
       if (entry.poleId) addIntecEquipmentChecks(result, entry.poleId);
       if (entry.poleId) addMidAmChecks(result, entry.poleId);
+      if (entry.poleId) addComedChecks(result, entry.poleId);
       if (finalReviewApplicable) addFinalChecks(result, entry);
       return finalizeResult(result);
     });

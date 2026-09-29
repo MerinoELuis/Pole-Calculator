@@ -66,7 +66,7 @@ S.upsertPole(S.createPole({
   }
 }));
 C.recalculateAll();
-assert.equal(S.getPole("RISER").lowPower, "26'6\"", "raising a limiting Power Riser must update Low Power");
+assert.equal(S.getPole("RISER").lowPower, "25'10\"", "raising a limiting Power Riser must update Low Power eight inches below the new HOA");
 assert.match(mrText("RISER"), /AT HOA 23'6" RAISE POWER RISER TO HOA 26'6" DUE TO CLEARANCES\./);
 
 S.updatePowerEquipmentField("RISER", 0, "actionHeight", "23'");

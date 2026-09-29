@@ -13,6 +13,7 @@ const profiles = sandbox.window.ProjectProfiles;
 const metronet = profiles.applyProfileSettings({}, "METRONET");
 const intec = profiles.applyProfileSettings({}, "INTEC");
 const csu = profiles.applyProfileSettings({}, "CSU");
+const comed = profiles.applyProfileSettings({}, "COMED");
 const oppd = profiles.applyProfileSettings({}, "OLSSON_OPPD");
 
 assert.equal(metronet.projectProfile, "METRONET");
@@ -38,6 +39,12 @@ assert.equal(csu.showResagServiceDrop, false, "CSU must not generate service-dro
 assert.equal(csu.polePowerCommsClearance, "52\"", "CSU must reserve 52 inches below low power");
 assert.equal(csu.environmentClearances.RAILROAD, "23'6\"", "CSU railroad clearance must use 23 feet 6 inches");
 assert.equal(profiles.detectProfile({ fileName: "EXCEL_COCS174 92026.xlsx", owners: ["UTILITY > CSU"] }), "CSU", "CSU workbook should select the CSU profile automatically");
+assert.equal(comed.projectProfile, "METRONET", "COMED must use the MetroNet calculation profile");
+assert.equal(comed.metronetWI, "COMED", "COMED must select the COMED work instruction");
+assert.equal(comed.proposedOwner, "Power", "COMED must use Power as the proposed owner");
+assert.equal(comed.polePowerCommsClearance, "40\"", "COMED must inherit MetroNet clearance defaults");
+assert.equal(profiles.detectProfile({ fileName: "Metronet WI COMED.xlsx", owners: ["UTILITY > Power"] }), "COMED", "COMED workbook should select the COMED work instruction automatically");
+assert.equal(profiles.detectProfile({ fileName: "job.xlsx", owners: ["UTILITY > Power", "Primary > ACSR 1/0 AWG 6/1 RAVEN > Static"] }), "COMED", "COMED conductor data should select the COMED work instruction automatically");
 assert.equal(oppd.projectProfile, "OLSSON_OPPD");
 assert.equal(oppd.proposedOwner, "Cox", "Olsson OPPD should start with Cox as the proposed owner");
 assert.equal(oppd.primaryPowerCommsClearance, "72\"", "Olsson OPPD should use 72 inches from primary to top comm");
