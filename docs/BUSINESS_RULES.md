@@ -220,10 +220,14 @@ The Proposed MS base is `O-CALC MS`, with imported `proposedMidspan` as fallback
 
 For INTEC/Wecom, both fields remaining blank means MS Proposed and Adjusted Final MS remain blank until the user enters `O-CALC MS`.
 
-For Metronet/MidAm, when both fields are blank the base remains blank. The calculator does not invent a Midspan from the pole HOA or span length:
+For Metronet/MidAm, when both fields are blank the base is calculated automatically:
 
 1. If the physical span contains one or more comm midspans, use the highest comm midspan plus `12"`. MidAm checks both directed rows of the same pole pair because the measured value may live on the reciprocal Back/Other span.
-2. Existing MS adjustment and flagging rules run only after a measured or explicit O-CALC Midspan is available.
+2. Otherwise, subtract estimated sag from Proposed HOA.
+3. Round span length to the nearest `50 ft` before estimating sag at `1 ft` per `100 ft`: `100 ft -> 12"`, `150 ft -> 18"`, `200 ft -> 24"`, and `250 ft -> 30"`.
+4. Existing MS adjustment and flagging rules run after this base is obtained.
+
+The imported communication Midspan field remains blank when the workbook does not provide a measured Midspan; the fallback above is only a calculator Proposed-MS result.
 
 In Top Comm mode:
 

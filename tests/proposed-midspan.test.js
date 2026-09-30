@@ -185,9 +185,9 @@ seedSpan("METRONET", "NO-MS", "148'5\"", "22'");
 side = S.getSpanSide("NO-MS", "P1");
 span = S.getSpan("NO-MS");
 assert.equal(C.getEstimatedSagInches(span), 18, "148 feet 5 inches must round to the 150-foot sag bucket");
-assert.equal(C.calculateProposedMidspanBase(side, span), null, "MidAm Proposed MS must stay blank when no physical comm midspan exists");
+assert.equal(C.calculateProposedMidspanBase(side, span), 20 * 12 + 6, "MidAm Proposed MS without a comm midspan must subtract 18 inches of estimated sag");
 C.calculateSpanSideMidspan("NO-MS", "P1");
-assert.equal(S.getSpanSide("NO-MS", "P1").msProposed, "", "a missing Midspan must remain blank after calculation");
+assert.equal(S.getSpanSide("NO-MS", "P1").msProposed, "20'6\"", "the estimated MidAm base must be persisted for display and validation");
 assert.equal(
   S.createSpanComm({ midspan: "001 432334021", ocalcMS: "001 432334021" }).midspan,
   "",
@@ -243,13 +243,13 @@ S.upsertSpan({ ...span, environmentClearance: "15'6\"" });
 C.calculateSpanSideMidspan("CSU-NO-MS-LOW", "P1");
 assert.equal(
   S.getSpanSide("CSU-NO-MS-LOW", "P1").finalMidspan,
-  "",
-  "CSU without an imported Midspan must keep the Proposed Midspan blank"
+  "9'6\"",
+  "CSU without an imported Midspan must be allowed to use the one-foot-per-100-feet estimate down to 9'6\""
 );
 assert.equal(
   S.getSpanSide("CSU-NO-MS-LOW", "P1").clearanceMSStatus,
-  "MISSING",
-  "CSU without an imported Fore Span Midspan must report missing data instead of estimating a value"
+  "OK",
+  "CSU without an imported Fore Span Midspan must use the 9'6\" environmental floor"
 );
 
 [
