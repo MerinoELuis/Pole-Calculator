@@ -13,6 +13,8 @@ const css = fs.readFileSync(path.join(root, "css", "styles.css"), "utf8");
 assert.match(html, /id="toggleMobileKeyboardBtn"[^>]*aria-pressed="false"/);
 assert.match(app, /let mobileKeyboardEnabled = false/);
 assert.match(app, /setMobileKeyboardEnabled\(!mobileKeyboardEnabled\)/);
+assert.match(app, /function commitMobileHeightInput\(input\)/);
+assert.match(app, /key === "Enter"\)[\s\S]*commitMobileHeightInput\(input\)/);
 assert.match(floating, /keyboardControl \? keyboardControl\.isEnabled\(\)/);
 assert.match(css, /\.mobile-keyboard-toggle \{ display: none; \}/);
 assert.match(css, /\.mobile-keyboard-toggle \{ display: inline-flex; \}/);

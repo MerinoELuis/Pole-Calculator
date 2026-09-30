@@ -199,6 +199,16 @@
     document.body.classList.toggle("mobile-height-keyboard-open", shouldOpen);
   }
 
+  function commitMobileHeightInput(input) {
+    if (!input) return;
+    // The on-page keypad calls blur() programmatically. Some mobile browsers
+    // do not emit the native change event in that path, so commit through the
+    // same validation and persistence handlers used by the physical Enter key
+    // before the next render can restore the old Auto Proposed value.
+    handleEditableBlur({ currentTarget: input });
+    handleEditableChange({ currentTarget: input });
+  }
+
   function applyMobileHeightKey(key) {
     const input = mobileHeightInput;
     if (!input) return;
@@ -209,8 +219,9 @@
       if (start !== end) input.setRangeText("", start, end, "end");
       else if (start > 0) input.setRangeText("", start - 1, start, "end");
     } else if (key === "Enter") {
-      input.blur();
       setMobileHeightKeyboardOpen(false);
+      commitMobileHeightInput(input);
+      input.blur();
       return;
     } else {
       input.setRangeText(key, start, end, "end");
