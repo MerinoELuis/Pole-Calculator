@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.111";
+  const CURRENT_VERSION = "1.8.112";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -183,6 +183,24 @@
 
   function trim(value) {
     return String(value ?? "").trim();
+  }
+
+  // Midspan fields are heights, not free-form labels. Older imports could
+  // accidentally store a pole Id here when the source workbook had no
+  // Midspan column. Drop those invalid values during every state normalization
+  // so a loaded debug/export file cannot display fabricated Midspan data.
+  function normalizedHeightOrEmpty(value) {
+    const raw = trim(value || "");
+    if (!raw) return "";
+    return global.HeightUtils?.parseHeight(raw) === null ? "" : raw;
+  }
+
+  function firstNormalizedHeight(...values) {
+    for (const value of values) {
+      const normalized = normalizedHeightOrEmpty(value);
+      if (normalized) return normalized;
+    }
+    return "";
   }
 
   // STEEL describes construction and UG/PCO describe engineering state; none
@@ -403,10 +421,10 @@
       proposedHOA: trim(data.proposedHOA || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),
-      proposedMidspan: trim(data.proposedMidspan || ""),
-      ocalcMS: trim(data.ocalcMS || data["O-CALC MS"] || ""),
-      msProposed: trim(data.msProposed || data.proposedMidspan || ""),
-      finalMidspan: trim(data.finalMidspan || ""),
+      proposedMidspan: normalizedHeightOrEmpty(data.proposedMidspan),
+      ocalcMS: normalizedHeightOrEmpty(data.ocalcMS || data["O-CALC MS"]),
+      msProposed: firstNormalizedHeight(data.msProposed, data.proposedMidspan),
+      finalMidspan: normalizedHeightOrEmpty(data.finalMidspan),
       clearanceMSStatus: trim(data.clearanceMSStatus || ""),
       clearanceMSMessage: trim(data.clearanceMSMessage || ""),
       clearanceMSReason: trim(data.clearanceMSReason || ""),
@@ -448,11 +466,11 @@
       difference: trim(data.difference || ""),
       remotePoleId: trim(data.remotePoleId || ""),
       remoteHOA: trim(data.remoteHOA || ""),
-      ocalcMS: trim(data.ocalcMS || ""),
-      midspan: trim(data.midspan || ""),
-      calculatedMidspan: trim(data.calculatedMidspan || ""),
-      msProposed: trim(data.msProposed || data.calculatedMidspan || data.midspan || ""),
-      finalMidspan: trim(data.finalMidspan || ""),
+      ocalcMS: normalizedHeightOrEmpty(data.ocalcMS),
+      midspan: normalizedHeightOrEmpty(data.midspan),
+      calculatedMidspan: normalizedHeightOrEmpty(data.calculatedMidspan),
+      msProposed: firstNormalizedHeight(data.msProposed, data.calculatedMidspan, data.midspan),
+      finalMidspan: normalizedHeightOrEmpty(data.finalMidspan),
       clearanceMSStatus: trim(data.clearanceMSStatus || ""),
       clearanceMSMessage: trim(data.clearanceMSMessage || ""),
       clearanceMSIssue: Boolean(data.clearanceMSIssue),
@@ -482,7 +500,7 @@
       poleId: trim(data.poleId || ""),
       label: trim(data.label || ""),
       attachmentHeight: trim(data.attachmentHeight || ""),
-      midspan: trim(data.midspan || ""),
+      midspan: normalizedHeightOrEmpty(data.midspan),
       size: trim(data.size || ""),
       owner: trim(data.owner || ""),
       wireId: trim(data.wireId || "")

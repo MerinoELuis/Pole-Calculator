@@ -64,6 +64,14 @@
       for (const item of wanted) {
         const partial = keys.find(k => {
           const normalizedKey = normalizeHeaderName(k);
+          const minimumLength = Number(options.minPartialLength || 0);
+          // Do not let a very short field such as `Id` satisfy a longer
+          // semantic field such as `Midspan`. This is especially important
+          // for height imports, where a pole identifier must never become a
+          // displayed Midspan value just because it contains the letters
+          // "id".
+          if (minimumLength > 0
+            && (normalizedKey.length < minimumLength || item.normalized.length < minimumLength)) return false;
           return normalizedKey.includes(item.normalized) || item.normalized.includes(normalizedKey);
         });
         if (partial) return partial;
@@ -122,7 +130,7 @@
   function heightFromRow(row, displayNames, decimalNames) {
     const display = pickDisplayValue(row, displayNames);
     if (!isBlank(display)) return cleanHeight(display);
-    const decimal = pick(row, decimalNames, { contains: true });
+    const decimal = pick(row, decimalNames, { contains: true, minPartialLength: 3 });
     return heightFromMeters(decimal);
   }
 

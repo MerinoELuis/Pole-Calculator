@@ -1324,7 +1324,7 @@
   function supportsAutomaticProposedMidspan() {
     // INTEC/Wecom requires an engineer-provided O-CALC MS. MetroNet-family
     // workflows (including CSU) may derive Proposed MS from measured comm
-    // midspans or, when none exist, from the span-length sag estimate.
+    // midspans when one exists.
     return isMidAmProfile() || isCsuProfile() || isComedProfile();
   }
 
@@ -1336,8 +1336,7 @@
 
     // CSU keeps the measured Midspan calculation active whenever the physical
     // span has one. Endpoint HOA changes update each comm's calculatedMidspan;
-    // Proposed stays one foot below the resulting lowest comm midspan. The
-    // span-length sag estimate is only a fallback when no Midspan exists.
+    // Proposed stays one foot below the resulting lowest comm midspan.
     if (isCsuProfile()) {
       const importedReferences = importedCsuMidspansForSpan(span.spanId);
       if (importedReferences.length) {
@@ -1376,13 +1375,10 @@
     const references = getReferenceMidspansForSpanSide(span.spanId, side.poleId);
     if (references.length) return Math.max(...references) + 12;
 
-    // With no comm midspan, estimate Proposed MS from its pole attachment and
-    // the span sag. Length is rounded to the nearest 50 feet before applying
-    // one foot of sag per 100 feet (100 -> 12", 150 -> 18", etc.).
-    const proposed = H().parseHeight(side.proposedHOA || "");
-    const lengthFeet = getSpanLengthFeet(span);
-    if (proposed === null || !Number.isFinite(lengthFeet)) return null;
-    return proposed - getEstimatedSagInches(span);
+    // A missing physical Midspan is missing data, not a signal to invent a
+    // value from span length or pole HOA. Keep the field blank until an
+    // imported/measured Midspan or an explicit O-CALC value is available.
+    return null;
   }
 
   /**
