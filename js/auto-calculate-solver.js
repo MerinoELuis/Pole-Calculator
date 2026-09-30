@@ -120,6 +120,13 @@
     }
   }
 
+  function throwIfCancelled(options = {}) {
+    if (typeof options.isCancelled !== "function" || !options.isCancelled()) return;
+    const error = new Error("Auto Calculate cancelled.");
+    error.code = "AUTO_CALCULATE_CANCELLED";
+    throw error;
+  }
+
   function modeFromState(state = S()?.getState?.()) {
     return String(state?.settings?.position || "TOP_COMM").toUpperCase() === "LOW_COMM"
       ? "LOW_COMM"
@@ -862,6 +869,7 @@
     }
     let evaluatedCount = 0;
     for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+      throwIfCancelled(options);
       const proposedInches = candidates[candidateIndex];
       S().setState(clone(baseline));
       applyProposed(spans, poleId, proposedInches, mode);
@@ -923,6 +931,7 @@
           candidateCount: safe || progressiveBestAvailable ? evaluated : candidates.length
         });
         await yieldToBrowser();
+        throwIfCancelled(options);
       }
       if (safe || progressiveBestAvailable) break;
     }
@@ -1019,9 +1028,12 @@
       poleCount: poleIds.length,
       poleId: ""
     });
+    throwIfCancelled(options);
     await yieldToBrowser();
+    throwIfCancelled(options);
     C().recalculateAll();
     while (queue.length && completedSteps < totalPoleSteps) {
+      throwIfCancelled(options);
       const item = queue.shift();
       const poleId = item.poleId;
       queued.delete(poleId);
@@ -1041,6 +1053,7 @@
       });
       await solvePole(poleId, mode, {
         tracePass: item.pass,
+        isCancelled: options.isCancelled,
         onCandidateProgress(candidate) {
           const fraction = candidate.candidateCount
             ? candidate.candidateIndex / candidate.candidateCount
@@ -1058,6 +1071,7 @@
           });
         }
       });
+      throwIfCancelled(options);
       completedSteps += 1;
       processed.add(poleId);
       attempts.set(poleId, (attempts.get(poleId) || 0) + 1);
@@ -1100,6 +1114,7 @@
       poleCount: poleIds.length,
       poleId: ""
     });
+    throwIfCancelled(options);
     const summary = { applied: safe + bestAvailable + critical, manual: bestAvailable + critical + manualOnly, skipped, safe, bestAvailable, critical, passes, converged, stoppedByRepeat, maxPassesReached, disabled: false };
     lastDebugTrace.completedAt = new Date().toISOString();
     lastDebugTrace.summary = clone(summary);

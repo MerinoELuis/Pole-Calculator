@@ -24,6 +24,7 @@
   const JSON_PICKER_ID = "pole-calculator-json";
   const THEME_STORAGE_KEY = "poleCalculatorTheme";
   let autoCalculateRunning = false;
+  let autoCalculateCancelRequested = false;
   let mobileHeightInput = null;
   let mobileKeyboardEnabled = false;
   const mobileKeyboardSubscribers = new Set();
@@ -109,7 +110,18 @@
     els.autoCalculateOverlay.classList.toggle("hidden", !visible);
     document.body.classList.toggle("auto-calculate-running", visible);
     els.autoCalculateBtn?.setAttribute("aria-busy", String(visible));
-    if (!visible) return;
+    els.cancelAutoCalculateBtn?.classList.toggle("hidden", !visible);
+    if (!visible) {
+      if (els.cancelAutoCalculateBtn) {
+        els.cancelAutoCalculateBtn.disabled = false;
+        els.cancelAutoCalculateBtn.textContent = "Cancel";
+      }
+      return;
+    }
+    if (els.cancelAutoCalculateBtn) {
+      els.cancelAutoCalculateBtn.disabled = autoCalculateCancelRequested;
+      els.cancelAutoCalculateBtn.textContent = autoCalculateCancelRequested ? "Canceling..." : "Cancel";
+    }
 
     const progress = Math.max(0, Math.min(100, Math.round(Number(detail.progress) || 0)));
     if (els.autoCalculateProgressBar) {
@@ -119,7 +131,9 @@
     if (els.autoCalculateProgressPercent) els.autoCalculateProgressPercent.textContent = `${progress}%`;
 
     let message = "Preparing pole data...";
-    if (detail.phase === "pole" || detail.phase === "candidate") {
+    if (detail.phase === "canceling") {
+      message = "Canceling and restoring the previous state...";
+    } else if (detail.phase === "pole" || detail.phase === "candidate") {
       const passText = `Pass ${detail.pass || 1} of ${detail.maxPasses || 1}`;
       const poleText = `Pole ${detail.poleIndex || 0} of ${detail.poleCount || 0}`;
       const candidateText = detail.phase === "candidate" && detail.candidateCount
@@ -3755,7 +3769,12 @@
     });
     els.autoCalculateBtn.addEventListener("click", async () => {
       if (els.autoCalculateBtn.disabled || autoCalculateRunning) return;
+      const autoCalculateSnapshot = cloneCurrentState();
+      const undoLengthBefore = undoHistory.length;
+      const redoBefore = redoHistory.slice();
+      const dirtyBefore = hasUnsavedChanges;
       recordUndoSnapshot();
+      autoCalculateCancelRequested = false;
       autoCalculateRunning = true;
       updateAutoCalculateButtonState();
       setAutoCalculateProgress(true, { phase: "starting", progress: 0 });
@@ -3763,7 +3782,8 @@
         // Let the overlay paint before the first calculation begins.
         await new Promise(resolve => global.setTimeout(resolve, 0));
         const result = await global.Calculations.autoCalculateMovements({
-          onProgress: detail => setAutoCalculateProgress(true, detail)
+          onProgress: detail => setAutoCalculateProgress(true, detail),
+          isCancelled: () => autoCalculateCancelRequested
         });
         if (result.disabled) {
           toast("Auto Calculate is only available in Top Comm mode.", "warning");
@@ -3778,10 +3798,27 @@
             : "";
         toast(`Auto Calculate: ${result.applied} applied, ${result.manual} need review, ${result.skipped} unchanged${passText}.${stopText}`, result.applied ? "success" : "warning");
       } catch (error) {
+        if (error?.code === "AUTO_CALCULATE_CANCELLED") {
+          restoringUndo = true;
+          try {
+            S.setState(autoCalculateSnapshot);
+            global.Calculations.recalculateAll();
+            if (S.getState().excelReviewSource?.collection?.rows?.length) global.ExcelReview.runReview();
+            render();
+          } finally {
+            restoringUndo = false;
+          }
+          undoHistory.length = undoLengthBefore;
+          redoHistory.splice(0, redoHistory.length, ...redoBefore);
+          hasUnsavedChanges = dirtyBefore;
+          toast("Auto Proposed canceled. No changes were applied.", "info");
+          return;
+        }
         global.console?.error?.(error);
         toast(`Auto Calculate failed: ${error.message}`, "error");
       } finally {
         autoCalculateRunning = false;
+        autoCalculateCancelRequested = false;
         setAutoCalculateProgress(false);
         updateAutoCalculateButtonState();
       }
@@ -3819,6 +3856,11 @@
     els.poleIndexToggle.addEventListener("click", () => {
       const isOpen = els.poleIndexDrawer?.classList.contains("open");
       setPoleIndexOpen(!isOpen);
+    });
+    els.cancelAutoCalculateBtn?.addEventListener("click", () => {
+      if (!autoCalculateRunning || autoCalculateCancelRequested) return;
+      autoCalculateCancelRequested = true;
+      setAutoCalculateProgress(true, { phase: "canceling", progress: 0 });
     });
     els.themeToggleBtn?.addEventListener("click", toggleTheme);
     els.mobileKeyboardToggleBtn?.addEventListener("click", () => {
@@ -3898,6 +3940,7 @@
       autoCalculateProgressBar: qs("autoCalculateProgressBar"),
       autoCalculateProgressText: qs("autoCalculateProgressText"),
       autoCalculateProgressPercent: qs("autoCalculateProgressPercent"),
+      cancelAutoCalculateBtn: qs("cancelAutoCalculateBtn"),
       saveLocalBtn: qs("saveLocalBtn"),
       loadLocalBtn: qs("loadLocalBtn"),
       themeToggleBtn: qs("themeToggleBtn"),

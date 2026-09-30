@@ -923,6 +923,7 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 .auto-calculate-progress-card progress::-webkit-progress-bar { background: #e2e8f0; }
 .auto-calculate-progress-card progress::-webkit-progress-value { border-radius: 7px; background: var(--primary); }
 .auto-calculate-progress-card progress::-moz-progress-bar { border-radius: 7px; background: var(--primary); }
+.auto-calculate-progress-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
 
 .floating-open-btn,
 .floating-top-btn { position: fixed; right: 18px; z-index: 41; width: 62px; height: 62px; border: none; border-radius: 999px; background: var(--primary); color: #fff; font-weight: 900; box-shadow: 0 18px 42px rgba(37,99,235,.35); }
