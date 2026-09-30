@@ -866,11 +866,13 @@
     return true;
   }
 
-  function movementMrLine(candidate) {
+  function movementMrLine(candidate, state = null) {
     if (candidate.transfer) return "";
     const from = H()?.formatHeight?.(candidate.from) || String(candidate.from);
     const to = H()?.formatHeight?.(candidate.to) || String(candidate.to);
-    if (candidate.service) return `Relocate ${candidate.owner} drop at HOA ${from} to HOA ${to}.`;
+    if (candidate.service && profileName(state) !== "OLSSON_OPPD") {
+      return `Relocate ${candidate.owner} drop at HOA ${from} to HOA ${to}.`;
+    }
     const dg = candidate.dg ? " with DG" : "";
     const verb = candidate.to > candidate.from ? "raise" : "lower";
     return `At HOA ${from} ${verb} ${candidate.owner} to HOA ${to}${dg}.`;
@@ -893,7 +895,7 @@
   function generatedMovementLineKeys(state, poleId) {
     return new Set(
       movementCandidates(state, poleId)
-        .map(movementMrLine)
+        .map(candidate => movementMrLine(candidate, state))
         .map(normalizeMrLine)
         .filter(Boolean)
     );
@@ -928,7 +930,7 @@
     const state = S()?.getState?.();
     if (!state) return [];
     const generated = movementCandidates(state, poleId)
-      .map(movementMrLine)
+      .map(candidate => movementMrLine(candidate, state))
       .filter(Boolean)
       .map(line => applyMrCase(line, state));
     if (!generated.length) return state.mr?.filter(item => item.poleId === poleId) || [];

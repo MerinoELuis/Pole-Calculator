@@ -247,8 +247,10 @@
       const verb = action === "Lower" ? "lower" : "raise";
       return `At HOA ${existing} ${verb} ${owner} to HOA ${changed}${dg}.`;
     }
-    // Service drops use different MR wording than regular comm movement.
-    if (spanComm.serviceDrop && settings.showServiceDrop !== false) {
+    // Service drops use different MR wording than regular comm movement in
+    // the profiles that have a dedicated drop template. Olsson OPPD uses the
+    // same raise/lower wording as every other normal communication owner.
+    if (spanComm.serviceDrop && settings.showServiceDrop !== false && !isOlssonMR()) {
       return `Relocate ${owner} drop at HOA ${existing} to HOA ${changed}.`;
     }
     const verb = action === "Lower" ? "lower" : "raise";
