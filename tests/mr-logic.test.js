@@ -452,7 +452,7 @@ assert.doesNotMatch(caseTwoText, /PL NEW .*ANC/i, "Case 2 must not auto-add ANC"
 state.spans.PROP.ugActive = false;
 state.spans.PROP.ugReason = "";
 
-state.settings = { projectProfile: "OLSSON_OPPD", proposedOwner: "Cox", mrCase: "UPPER" };
+state.settings = { projectProfile: "OLSSON_OPPD", mrTemplate: "INTEC", proposedOwner: "Cox", mrCase: "UPPER" };
 state.spanSides.SLACK__P1.isSlack = true;
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /PROPOSED SLACK SPAN E\./, "Olsson OPPD Slack must generate the uppercase MR instruction");

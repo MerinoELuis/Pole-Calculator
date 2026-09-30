@@ -114,7 +114,11 @@
 
   function isOlssonMR() {
     const settings = S().getState().settings || {};
-    return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
+    // The selected project profile is authoritative. Older saved states can
+    // retain a stale mrTemplate from a previous project, which must not make
+    // an Olsson Service Drop fall back to the Relocate template.
+    if (String(settings.projectProfile || "").toUpperCase() === "OLSSON_OPPD") return true;
+    return String(settings.mrTemplate || "").toUpperCase() === "OLSSON_OPPD";
   }
 
   function isIntecMR() {

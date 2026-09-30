@@ -174,7 +174,7 @@
         proposeForeSpanWithoutMidspan: false,
         allowLowPowerMidspanAdjustment: true,
         // Olsson workbooks can contain Communication Drop / Service Drop
-        // rows. Keep the control and their normal relocation MR visible;
+        // rows. Keep the control and their normal raise/lower MR visible;
         // Olsson does not inherit INTEC's optional Re-sag action.
         showServiceDrop: true,
         showResagServiceDrop: false,
