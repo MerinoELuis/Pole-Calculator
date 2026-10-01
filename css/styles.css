@@ -1366,6 +1366,26 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   margin-top: 10px;
 }
 
+.pole-inset-details .pole-action-readout strong {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: .86rem;
+  font-weight: 800;
+  text-transform: none;
+}
+
+html[data-theme="dark"] .pole-inset-details .pole-action-readout strong {
+  background: #101010;
+  border-color: #3b4656;
+  color: #ffffff;
+}
+
 .pole-class-summary {
   display: flex;
   justify-content: flex-end;

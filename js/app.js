@@ -2326,6 +2326,9 @@
     const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
+    const poleInsetDetails = poleInsetEnabled
+      ? (global.Calculations.getPoleInsetDetails?.(poleId) || {})
+      : {};
     const showRiserDirection = (isIntec || isMetronet || isOlsson) && (riserEnabled || /\bPl riser\b/i.test(makeReadyText));
     const riserDirection = String(
       global.MRLogic.getResolvedRiserDirection?.(poleId)
@@ -2365,7 +2368,13 @@
         <option value="OVERLOADED" ${poleInsetReason === "OVERLOADED" ? "selected" : ""}>Overloaded</option>
         <option value="FAILING_CLEARANCES" ${poleInsetReason === "FAILING_CLEARANCES" ? "selected" : ""}>Failing clearances</option>
       </select>
-    </label>` : ""}
+    </label>
+    <div class="pole-action-fields action-detail-grid pole-inset-details">
+      <div class="pole-action-field pole-action-readout"><span>Max Height at Midspan</span><strong>${escapeHtml(poleInsetDetails.maxHeightAtMidspan || "—")}</strong></div>
+      <label class="pole-action-field"><span>Pole Inset HOA (Manual)</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetHeight" value="${escapeHtml(poleInsetDetails.selectedHeight || "")}" placeholder="Enter height"></label>
+      <div class="pole-action-field pole-action-readout"><span>End Drop to Pole</span><strong>${escapeHtml(poleInsetDetails.endDropToPole || "—")}</strong></div>
+      <div class="pole-action-field pole-action-readout"><span>End Drop to Next Pole</span><strong>${escapeHtml(poleInsetDetails.endDropToNextPole || "—")}</strong></div>
+    </div>` : ""}
     ${isOlsson && pole?.redTagActive ? `<div class="pole-action-fields action-detail-grid red-tag-fields">
       <label class="pole-action-field"><span>Red Tag Minimum Height</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagMinHeight" value="${escapeHtml(pole?.redTagMinHeight || "")}"></label>
       <label class="pole-action-field"><span>Red Tag Minimum Class</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagClass" value="${escapeHtml(pole?.redTagClass || "")}"></label>
@@ -3268,6 +3277,7 @@
       "ugMRText",
       "pcoMRText",
       "poleInsetReason",
+      "poleInsetHeight",
       "ugRiserDirection",
       "ancSize",
       "ancDistance",
@@ -3685,7 +3695,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "poleInsetHeight", "ocalcMS", "proposedMidspan", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "environmentClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }

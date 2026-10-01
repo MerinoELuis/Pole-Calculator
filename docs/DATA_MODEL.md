@@ -77,6 +77,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `pcoMRText` | editable | Full multiline PCO replacement template used exactly as edited by the operator. |
 | `poleInsetActive` | editable | Adds the Pole Inset Make Ready action on a normal pole. UG/PCO takes priority over this action. |
 | `poleInsetReason` | editable | `OVERLOADED` or `FAILING_CLEARANCES`; selects the Pole Inset wording. |
+| `poleInsetHeight` | editable | Manually selected Pole Inset HOA. The Pole Actions panel derives the local and next-pole End Drops from this value. |
 | `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
 | `riserActive` | editable tri-state | `null` keeps automatic Fore/Back adjacent-UG behavior; `true` adds and `false` suppresses riser MR on a normal pole. UG/PCO disables the action. |
 | `ancActive`, `ancSize`, `ancDistance`, `ancDirection`, `dgHoa` | editable | MidAm ANC action and its size, anchor distance, direction, and DG attachment HOA. |

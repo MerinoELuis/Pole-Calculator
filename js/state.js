@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.116";
+  const CURRENT_VERSION = "1.8.117";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -289,6 +289,7 @@
         pcoMRText: trim(data.pcoMRText || ""),
         poleInsetActive: Boolean(data.poleInsetActive),
         poleInsetReason: normalizePoleInsetReason(data.poleInsetReason),
+        poleInsetHeight: trim(data.poleInsetHeight || ""),
         pcoScope: trim(data.pcoScope || ""),
         pcoType: trim(data.pcoType || ""),
         pcoDetail: trim(data.pcoDetail || ""),
@@ -337,6 +338,7 @@
       pcoMRText: trim(extra.pcoMRText || ""),
       poleInsetActive: Boolean(extra.poleInsetActive),
       poleInsetReason: normalizePoleInsetReason(extra.poleInsetReason),
+      poleInsetHeight: trim(extra.poleInsetHeight || ""),
       pcoScope: trim(extra.pcoScope || ""),
       pcoType: trim(extra.pcoType || ""),
       pcoDetail: trim(extra.pcoDetail || ""),
@@ -598,7 +600,7 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "ugRiserDirection", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "poleInsetHeight", "ugRiserDirection", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
     if (["lessThan12CommClearanceActive", "secondaryDripLoopActive"].includes(field)) {
       pole[field] = value === true || String(value).toLowerCase() === "true";
       return pole;
@@ -894,7 +896,7 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.otherHOA || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.secondaryDripLoopActive || state.poles[poleId]?.secondaryDripLoopHoa || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.poleInsetHeight || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.secondaryDripLoopActive || state.poles[poleId]?.secondaryDripLoopHoa || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
       || state.poles[poleId]?.riserActive === true
       || state.poles[poleId]?.riserActive === false
       || sideChange || commChange || equipmentChange;

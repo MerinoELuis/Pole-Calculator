@@ -1020,6 +1020,91 @@
     return S().getSpan(spanId);
   }
 
+  /**
+   * Returns the values needed to plan a Pole Inset at one pole.
+   *
+   * Pole Inset uses the lowest imported Power Midspan connected to the pole.
+   * Neutral/secondary power leaves 40 inches for clearance; Primary power
+   * leaves 43 inches.  The proposed-side values are kept separate so the UI
+   * can show the two End Drops created by the manually selected inset HOA.
+   */
+  function getPoleInsetDetails(poleId) {
+    const pole = S().getPole(poleId);
+    if (!pole) {
+      return {
+        maxHeightAtMidspan: "",
+        selectedHeight: "",
+        endDropToPole: "",
+        endDropToNextPole: "",
+        spanId: ""
+      };
+    }
+
+    const settings = S().getState().settings || {};
+    const secondaryClearance = H().parseHeight(
+      settings.polePowerCommsClearance || settings.clearanceToPower || "40\""
+    ) ?? 40;
+    const primaryClearance = getPrimaryPowerCommsClearance();
+    const powerCandidates = [];
+    const visitedPhysicalSpans = new Set();
+
+    S().getConnectedSpans(poleId).forEach(span => {
+      const sourceSpan = span.sourceSpanId ? S().getSpan(span.sourceSpanId) || span : span;
+      const physicalSpanId = sourceSpan.spanId || span.spanId;
+      if (visitedPhysicalSpans.has(physicalSpanId)) return;
+      visitedPhysicalSpans.add(physicalSpanId);
+
+      const rows = S().getSpanPowerForSpan(physicalSpanId);
+      rows.forEach(row => {
+        const midspan = H().parseHeight(row.midspan || "");
+        if (midspan === null) return;
+        const clearance = isPrimaryPowerRow(row) ? primaryClearance : secondaryClearance;
+        powerCandidates.push(midspan - clearance);
+      });
+
+      // Some exports provide only the authoritative Low Power Midspan on the
+      // span record. It is still a real power reference, but without a wire
+      // label it can only use the neutral/secondary 40-inch rule.
+      if (!rows.some(row => H().parseHeight(row.midspan || "") !== null)) {
+        const lowPowerMidspan = H().parseHeight(sourceSpan.sourceMidspanLowPower || sourceSpan.midspanLowPower || "");
+        if (lowPowerMidspan !== null) powerCandidates.push(lowPowerMidspan - secondaryClearance);
+      }
+    });
+
+    const proposedSides = S().getSpanSidesForPole(poleId)
+      .map(side => ({ side, span: S().getSpan(side.spanId) }))
+      .filter(item => item.span && !item.side.isProposedExcluded && H().parseHeight(item.side.proposedHOA || "") !== null)
+      .sort((a, b) => {
+        const aAdditional = a.side.isAdditionalProposed ? 1 : 0;
+        const bAdditional = b.side.isAdditionalProposed ? 1 : 0;
+        if (aAdditional !== bAdditional) return aAdditional - bAdditional;
+        const aForward = a.span.fromPole === poleId ? 0 : 1;
+        const bForward = b.span.fromPole === poleId ? 0 : 1;
+        return aForward - bForward;
+      });
+    const selectedSide = proposedSides[0]?.side || null;
+    const selectedSpan = proposedSides[0]?.span || null;
+    const selectedHeight = H().parseHeight(pole.poleInsetHeight || "");
+    const localProposed = H().parseHeight(selectedSide?.proposedHOA || "");
+    let nextPoleProposed = H().parseHeight(selectedSide?.proposedHOAChange || "");
+    if (nextPoleProposed === null && localProposed !== null) {
+      const existingEndDrop = H().parseHeight(selectedSide?.endDrop || "");
+      if (existingEndDrop !== null) nextPoleProposed = localProposed + existingEndDrop;
+    }
+
+    return {
+      maxHeightAtMidspan: powerCandidates.length ? format(Math.min(...powerCandidates)) : "",
+      selectedHeight: pole.poleInsetHeight || "",
+      endDropToPole: selectedHeight !== null && localProposed !== null
+        ? format(selectedHeight - localProposed)
+        : "",
+      endDropToNextPole: selectedHeight !== null && nextPoleProposed !== null
+        ? format(nextPoleProposed - selectedHeight)
+        : "",
+      spanId: selectedSpan?.spanId || ""
+    };
+  }
+
   function validEquipmentActionHeightInches(equipment) {
     if (!equipment?.actionActive) return null;
     const target = H().parseHeight(equipment.actionHeight || "");
@@ -2093,6 +2178,7 @@
     calculateProposedMidspanBase,
     calculateSpanSideMidspan,
     calculateSpanPowerDerived,
+    getPoleInsetDetails,
     evaluateSpanSideMidspan,
     evaluateCommMidspanClearance,
     evaluateCommFlagging,
