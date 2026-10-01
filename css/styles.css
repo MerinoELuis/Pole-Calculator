@@ -212,6 +212,7 @@ html[data-theme="dark"] .calc-result {
 html[data-theme="dark"] th { background: #101010; color: #ffffff; }
 html[data-theme="dark"] tr.changed-row td { background: #102d2b; }
 html[data-theme="dark"] tr.warning-row td { background: #332b16; }
+html[data-theme="dark"] .calculated-value { color: #ffffff; }
 html[data-theme="dark"] .warning-item,
 html[data-theme="dark"] .review-summary-item.not-ready,
 html[data-theme="dark"] .excel-review-check.not_ready { background: #332b16; color: var(--text); }
