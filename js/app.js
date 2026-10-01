@@ -2371,7 +2371,7 @@
     </label>
     <div class="pole-action-fields action-detail-grid pole-inset-details">
       <div class="pole-action-field pole-action-readout"><span>Max Height at Midspan</span><strong>${escapeHtml(poleInsetDetails.maxHeightAtMidspan || "—")}</strong></div>
-      <label class="pole-action-field"><span>Pole Inset HOA (Manual)</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetHeight" value="${escapeHtml(poleInsetDetails.selectedHeight || "")}" placeholder="Enter height"></label>
+      <label class="pole-action-field"><span>Pole Inset HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetHeight" value="${escapeHtml(poleInsetDetails.selectedHeight || "")}" placeholder="Enter height"></label>
       <div class="pole-action-field pole-action-readout"><span>End Drop to Pole</span><strong>${escapeHtml(poleInsetDetails.endDropToPole || "—")}</strong></div>
       <div class="pole-action-field pole-action-readout"><span>End Drop to Next Pole</span><strong>${escapeHtml(poleInsetDetails.endDropToNextPole || "—")}</strong></div>
     </div>` : ""}

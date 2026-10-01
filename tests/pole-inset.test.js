@@ -33,7 +33,7 @@ const details = C.getPoleInsetDetails("P1");
 assert.equal(details.maxHeightAtMidspan, "26'8\"", "Pole Inset must use the lower 40/43-inch power-midspan ceiling");
 assert.equal(details.selectedHeight, "18'", "Pole Inset must expose the manually selected HOA");
 assert.equal(details.endDropToPole, "-2'", "Pole Inset must show the End Drop to the local pole");
-assert.equal(details.endDropToNextPole, "1'", "Pole Inset must show the End Drop to the next pole");
+assert.equal(details.endDropToNextPole, "-1'", "Pole Inset must show the End Drop from the next pole toward the inset");
 assert.equal(details.spanId, "S1", "Pole Inset must identify the proposed span used for End Drops");
 
 S.upsertPole({ ...S.getPole("P1"), poleInsetHeight: "" });

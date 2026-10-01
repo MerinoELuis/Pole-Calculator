@@ -1099,7 +1099,7 @@
         ? format(selectedHeight - localProposed)
         : "",
       endDropToNextPole: selectedHeight !== null && nextPoleProposed !== null
-        ? format(nextPoleProposed - selectedHeight)
+        ? format(selectedHeight - nextPoleProposed)
         : "",
       spanId: selectedSpan?.spanId || ""
     };
