@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.124";
+  const CURRENT_VERSION = "1.8.125";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -1169,6 +1169,27 @@
         comms: Array.isArray(pole.comms) ? pole.comms.map(c => createComm(c.owner, c.existingHOA, c.notes, c)) : []
       };
     });
+
+    // Older ComEd imports were incorrectly marked as mandatory MidAm Ground
+    // actions because both workflows use the METRONET calculation profile.
+    // Clear only that imported marker; a later manual checkbox remains intact.
+    const isComedState = String(next.settings.projectProfile || "").toUpperCase() === "METRONET"
+      && String(next.settings.metronetWI || "").toUpperCase() === "COMED";
+    if (isComedState) {
+      Object.keys(next.poles).forEach(id => {
+        const pole = next.poles[id];
+        const equipment = Array.isArray(pole.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
+        const cleaned = equipment.map(item => {
+          const isStreetlight = String(item.category || item.type || "").toUpperCase().includes("STREETLIGHT");
+          return isStreetlight && item.groundingRequired === true
+            ? { ...item, groundingRequired: false, actionActive: false }
+            : item;
+        });
+        if (cleaned.some((item, index) => item !== equipment[index])) {
+          next.poles[id] = { ...pole, metadata: { ...(pole.metadata || {}), powerEquipment: cleaned } };
+        }
+      });
+    }
 
     Object.keys(next.spans).forEach(id => {
       const span = next.spans[id];

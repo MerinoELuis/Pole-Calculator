@@ -106,6 +106,29 @@ assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "19'4\"", "mandatory ground
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
 
 S.resetState();
+S.applyProjectProfile("COMED");
+S.upsertPole(S.createPole({
+  poleId: "COMED-STREETLIGHT",
+  lowPower: "25'",
+  metadata: {
+    powerEquipment: [{
+      category: "STREETLIGHT",
+      attachmentHeight: "26'",
+      bottomHeight: "21'",
+      dripLoopHeight: "21'",
+      actionActive: false,
+      groundingRequired: false
+    }]
+  }
+}));
+C.recalculateAll();
+assert.equal(S.getPole("COMED-STREETLIGHT").metadata.powerEquipment[0].actionActive, false, "ComEd Ground must remain off until manually activated");
+assert.doesNotMatch(mrText("COMED-STREETLIGHT"), /GROUND STREETLIGHT/);
+S.updatePowerEquipmentField("COMED-STREETLIGHT", 0, "actionActive", true);
+C.recalculateAll();
+assert.match(mrText("COMED-STREETLIGHT"), /MNT GROUND STREETLIGHT/);
+
+S.resetState();
 S.applyProjectProfile("INTEC");
 S.upsertPole(S.createPole({
   poleId: "INTEC-EQUIPMENT",

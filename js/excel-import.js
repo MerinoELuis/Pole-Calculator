@@ -972,7 +972,9 @@
   // Utility/Power equipment is included; communication risers are deliberately
   // excluded from this power-clearance model.
   function importPoleEquipment(equipmentRows, anchorGuyRows) {
-    const isMidAm = String(S().getState().settings?.projectProfile || "").toUpperCase() === "METRONET";
+    const importSettings = S().getState().settings || {};
+    const isMidAm = String(importSettings.projectProfile || "").toUpperCase() === "METRONET"
+      && String(importSettings.metronetWI || importSettings.proposedOwner || "").toUpperCase() === "MIDAM";
     const metadataByPole = new Map();
     const metadataFor = poleId => {
       if (!metadataByPole.has(poleId)) {

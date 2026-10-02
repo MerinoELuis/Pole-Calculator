@@ -165,11 +165,12 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 2. Grounding does not invent a vertical height or remove physical clearances. MidAm still applies `Bottom Height - 20"` and `Drip Loop Height - 12"`; the lower ceiling controls.
 3. Transformer `Secure` requires a manually entered New HOA. INTEC adds `Secure transformer drip loop to HOA <height>.`; Metronet adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
 4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC and `MNT GROUND STREETLIGHT` for Metronet.
-5. Power Riser has independent `Raise` and `Secure` actions. `Raise` requires a New HOA above the imported attachment and adds the riser movement (`Raise APS riser from HOA <old> to HOA <new>.` for INTEC, or `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.` for Metronet). `Secure` adds `Secure riser drip loop to HOA <effective riser HOA - 8\">.`; when Raise is inactive or invalid, the imported attachment HOA is used. Transformer uses a `Secure` action with a manually entered New HOA.
-6. INTEC Streetlight `Raise` is independent of `Ground`. New HOA must be above Attachment Height and no more than `12"` higher. The bracket, bottom, and drip-loop references move by the same delta, and MR adds `Raise streetlight from HOA <old> to <new>.`
-7. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
-8. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
-9. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
+5. ComEd Streetlight `Ground` is optional and does not generate an MR until the operator activates it manually.
+6. Power Riser has independent `Raise` and `Secure` actions. `Raise` requires a New HOA above the imported attachment and adds the riser movement (`Raise APS riser from HOA <old> to HOA <new>.` for INTEC, or `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.` for Metronet). `Secure` adds `Secure riser drip loop to HOA <effective riser HOA - 8\">.`; when Raise is inactive or invalid, the imported attachment HOA is used. Transformer uses a `Secure` action with a manually entered New HOA.
+7. INTEC Streetlight `Raise` is independent of `Ground`. New HOA must be above Attachment Height and no more than `12"` higher. The bracket, bottom, and drip-loop references move by the same delta, and MR adds `Raise streetlight from HOA <old> to <new>.`
+8. A valid Transformer/Riser target replaces that equipment height in its pole-clearance calculation.
+9. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
+10. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
 
 ## MidAm Collection Identity
 
