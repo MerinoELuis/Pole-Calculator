@@ -42,6 +42,18 @@ assert.equal(C.getPoleInsetDetails("P1").endDropToNextPole, "", "End Drop to Nex
 
 S.resetState();
 S.applyProjectProfile("INTEC");
+S.upsertPole(S.createPole({ poleId: "P3" }));
+S.upsertPole(S.createPole({ poleId: "P2" }));
+S.upsertPole(S.createPole({ poleId: "P4" }));
+S.upsertSpan(S.createSpan("LOWER", "P2", "P3", "N", "", { type: "Fore Span", lengthDisplay: "150'" }));
+S.upsertSpan(S.createSpan("SELECTED", "P3", "P4", "S", "", { type: "Fore Span", lengthDisplay: "150'" }));
+S.upsertSpanSide(S.createSpanSide({ spanId: "SELECTED", poleId: "P3", proposedHOA: "23'10\"" }));
+S.addSpanPower(S.createSpanPower({ spanId: "LOWER", poleId: "P3", wireId: "LOWER-N", size: "Neutral", midspan: "20'11\"" }));
+S.addSpanPower(S.createSpanPower({ spanId: "SELECTED", poleId: "P3", wireId: "SELECTED-N", size: "Neutral", midspan: "23'4\"" }));
+assert.equal(C.getPoleInsetDetails("P3").maxHeightAtMidspan, "20'", "Pole Inset must use the selected proposed span power midspan");
+
+S.resetState();
+S.applyProjectProfile("INTEC");
 S.upsertPole(S.createPole({ poleId: "EMPTY" }));
 assert.equal(C.getPoleInsetDetails("EMPTY").maxHeightAtMidspan, "", "Missing Power Midspan must not fabricate a Pole Inset ceiling");
 

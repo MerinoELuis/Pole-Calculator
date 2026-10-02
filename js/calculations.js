@@ -1025,7 +1025,8 @@
   /**
    * Returns the values needed to plan a Pole Inset at one pole.
    *
-   * Pole Inset uses the lowest imported Power Midspan connected to the pole.
+   * Pole Inset uses the selected proposed span's imported Power Midspan when
+   * available, then falls back to the lowest connected Power Midspan.
    * Neutral/secondary power leaves 40 inches for clearance; Primary power
    * leaves 43 inches.  The proposed-side values are kept separate so the UI
    * can show the two End Drops created by the manually selected inset HOA.
@@ -1042,12 +1043,34 @@
       };
     }
 
+    const proposedSides = S().getSpanSidesForPole(poleId)
+      .map(side => ({ side, span: S().getSpan(side.spanId) }))
+      .filter(item => item.span && !item.side.isProposedExcluded && H().parseHeight(item.side.proposedHOA || "") !== null)
+      .sort((a, b) => {
+        const aAdditional = a.side.isAdditionalProposed ? 1 : 0;
+        const bAdditional = b.side.isAdditionalProposed ? 1 : 0;
+        if (aAdditional !== bAdditional) return aAdditional - bAdditional;
+        const aForward = a.span.fromPole === poleId ? 0 : 1;
+        const bForward = b.span.fromPole === poleId ? 0 : 1;
+        return aForward - bForward;
+      });
+    const selectedSide = proposedSides[0]?.side || null;
+    const selectedSpan = proposedSides[0]?.span || null;
+    const selectedPhysicalSpanId = selectedSpan
+      ? (selectedSpan.sourceSpanId || selectedSpan.spanId || "")
+      : "";
+
     const settings = S().getState().settings || {};
     const secondaryClearance = H().parseHeight(
       settings.polePowerCommsClearance || settings.clearanceToPower || "40\""
     ) ?? 40;
     const primaryClearance = getPrimaryPowerCommsClearance();
     const powerCandidates = [];
+    const preferredPowerCandidates = [];
+    const addPowerCandidate = (value, physicalSpanId) => {
+      powerCandidates.push(value);
+      if (!selectedPhysicalSpanId || physicalSpanId === selectedPhysicalSpanId) preferredPowerCandidates.push(value);
+    };
     const visitedPhysicalSpans = new Set();
 
     S().getConnectedSpans(poleId).forEach(span => {
@@ -1062,7 +1085,7 @@
         if (midspan === null) return;
         const clearance = isPrimaryPowerRow(row) ? primaryClearance : secondaryClearance;
         if (clearance === null) return;
-        powerCandidates.push(midspan - clearance);
+        addPowerCandidate(midspan - clearance, physicalSpanId);
       });
 
       // Some exports provide only the authoritative Low Power Midspan on the
@@ -1070,23 +1093,10 @@
       // label it can only use the neutral/secondary 40-inch rule.
       if (!rows.some(row => H().parseHeight(row.midspan || "") !== null)) {
         const lowPowerMidspan = H().parseHeight(sourceSpan.sourceMidspanLowPower || sourceSpan.midspanLowPower || "");
-        if (lowPowerMidspan !== null) powerCandidates.push(lowPowerMidspan - secondaryClearance);
+        if (lowPowerMidspan !== null) addPowerCandidate(lowPowerMidspan - secondaryClearance, physicalSpanId);
       }
     });
 
-    const proposedSides = S().getSpanSidesForPole(poleId)
-      .map(side => ({ side, span: S().getSpan(side.spanId) }))
-      .filter(item => item.span && !item.side.isProposedExcluded && H().parseHeight(item.side.proposedHOA || "") !== null)
-      .sort((a, b) => {
-        const aAdditional = a.side.isAdditionalProposed ? 1 : 0;
-        const bAdditional = b.side.isAdditionalProposed ? 1 : 0;
-        if (aAdditional !== bAdditional) return aAdditional - bAdditional;
-        const aForward = a.span.fromPole === poleId ? 0 : 1;
-        const bForward = b.span.fromPole === poleId ? 0 : 1;
-        return aForward - bForward;
-      });
-    const selectedSide = proposedSides[0]?.side || null;
-    const selectedSpan = proposedSides[0]?.span || null;
     const selectedHeight = H().parseHeight(pole.poleInsetHeight || "");
     const localProposed = H().parseHeight(selectedSide?.proposedHOA || "");
     let nextPoleProposed = H().parseHeight(selectedSide?.proposedHOAChange || "");
@@ -1095,8 +1105,9 @@
       if (existingEndDrop !== null) nextPoleProposed = localProposed + existingEndDrop;
     }
 
+    const insetCandidates = preferredPowerCandidates.length ? preferredPowerCandidates : powerCandidates;
     return {
-      maxHeightAtMidspan: powerCandidates.length ? format(Math.min(...powerCandidates)) : "",
+      maxHeightAtMidspan: insetCandidates.length ? format(Math.min(...insetCandidates)) : "",
       selectedHeight: pole.poleInsetHeight || "",
       endDropToPole: selectedHeight !== null && localProposed !== null
         ? format(selectedHeight - localProposed)
