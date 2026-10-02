@@ -426,6 +426,23 @@
         });
       }
     }
+    if (comed) {
+      const owner = text(pick(entry.row, ["Owner"], { contains: false }));
+      const normalizedOwner = normalizedText(owner).replace(/\s*>\s*/g, ">");
+      if (!owner) {
+        add(result, {
+          phase: "HOA", section: "Collection", code: "MISSING_COMED_COLLECTION_OWNER", status: "ERROR",
+          title: "Owner", message: "Collection Owner is empty. ComEd requires UTILITY > Power.",
+          expected: "UTILITY > Power", actual: "Empty"
+        });
+      } else if (normalizedOwner !== "utility>power") {
+        add(result, {
+          phase: "HOA", section: "Collection", code: "INVALID_COMED_COLLECTION_OWNER", status: "ERROR",
+          title: "Owner", message: `Collection Owner ${owner} is invalid for the ComEd project.`,
+          expected: "UTILITY > Power", actual: owner
+        });
+      }
+    }
 
     const lowPower = exactDisplayLowPower(entry.row);
     if (!text(lowPower)) {

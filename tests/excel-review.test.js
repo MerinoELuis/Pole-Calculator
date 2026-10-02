@@ -519,6 +519,36 @@ review.runReview();
 anchorChecks = review.reviewPole("058 14998783").checks;
 assert.equal(anchorChecks.some(item => item.code === "ANCHOR_MISSING_REQUIRED_DATA"), false, "a complete Anchor row must pass the integrity audit");
 
+// ComEd Collection Owner is a pole-level rule. This job had MidAm owners on
+// later poles even though the ComEd WI requires UTILITY > Power.
+state.settings = { projectProfile: "METRONET", metronetWI: "COMED", proposedOwner: "Power" };
+state.poles = { "011 472051002": { poleId: "011 472051002" } };
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {};
+state.mr = [];
+state.excelReviewIgnoredChecks = {};
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Owner", "Lowest Power.display"],
+    rows: [{ Id: "011 472051002", Sequence: 11, Owner: "UTILITY > MidAm", "Lowest Power.display": "27'" }]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: { headers: [], rows: [] },
+  equipment: { headers: [], rows: [] },
+  anchors: { headers: [], rows: [] },
+  anchorGuys: { headers: [], rows: [] },
+  makeReady: { headers: [], rows: [] },
+  commTransfers: { headers: [], rows: [] }
+};
+review.runReview();
+let comedCollectionChecks = review.reviewPole("011 472051002").checks;
+assert.ok(comedCollectionChecks.some(item => item.code === "INVALID_COMED_COLLECTION_OWNER" && item.status === "ERROR"), "ComEd must flag a MidAm Collection Owner");
+state.excelReviewSource.collection.rows[0].Owner = "UTILITY > Power";
+review.runReview();
+comedCollectionChecks = review.reviewPole("011 472051002").checks;
+assert.equal(comedCollectionChecks.some(item => item.code === "INVALID_COMED_COLLECTION_OWNER"), false, "UTILITY > Power must pass the ComEd Collection Owner rule");
+
 // Olsson OPPD uses its own Excel Review rules. P1 and 1 are equivalent
 // sequence values, Year Installed is not required, power ownership is OPPD,
 // and the approved power insulator catalog is the OPPD catalog.
