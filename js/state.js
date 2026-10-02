@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.120";
+  const CURRENT_VERSION = "1.8.121";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -114,6 +114,7 @@
       primaryPowerCommsClearance: "43\"",
       commClearance: DEFAULT_COMM_CLEARANCE,
       boltClearance: DEFAULT_BOLT_CLEARANCE,
+      existingBoltClearance: "4\"",
       midspanPowerCommClearance: "30\"",
       midspanPrimaryPowerCommClearance: "33\"",
       midspanCommCommClearance: "4\"",
@@ -1097,6 +1098,23 @@
       next.settings.metronetWI = "COMED";
       if (!next.settings.proposedOwner || ["METRONET", "MIDAM"].includes(String(next.settings.proposedOwner).toUpperCase())) {
         next.settings.proposedOwner = "Power";
+      }
+      // Older ComEd saves inherited generic MetroNet values. Replace only
+      // those known legacy defaults; keep any explicitly edited clearance.
+      const comedLegacyValues = {
+        polePowerCommsClearance: "40\"",
+        clearanceToPower: "40\"",
+        boltClearance: "4\"",
+        streetlightBracketCommClearance: "20\""
+      };
+      const comedDefaults = global.ProjectProfiles?.getProfileSettings?.("COMED") || {};
+      Object.entries(comedLegacyValues).forEach(([field, legacy]) => {
+        if (!rawSettings || !Object.prototype.hasOwnProperty.call(rawSettings, field) || rawSettings[field] === legacy) {
+          if (Object.prototype.hasOwnProperty.call(comedDefaults, field)) next.settings[field] = comedDefaults[field];
+        }
+      });
+      if (!Object.prototype.hasOwnProperty.call(rawSettings || {}, "existingBoltClearance")) {
+        next.settings.existingBoltClearance = comedDefaults.existingBoltClearance || "4\"";
       }
     }
     // Back Span calculation is a profile rule, not an operator preference.

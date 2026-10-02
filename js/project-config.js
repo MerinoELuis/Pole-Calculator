@@ -155,14 +155,17 @@
         // ComEd has its own explicit clearance set. Keep these values here
         // instead of relying on the generic MetroNet/empty-state defaults so
         // the selected WI is visible and recalculation uses the right rules.
-        polePowerCommsClearance: "40\"",
-        clearanceToPower: "40\"",
+        polePowerCommsClearance: "48\"",
+        clearanceToPower: "48\"",
         primaryPowerCommsClearance: "43\"",
         commClearance: "12\"",
         boltClearance: "6\"",
+        existingBoltClearance: "4\"",
         midspanPowerCommClearance: "30\"",
         midspanPrimaryPowerCommClearance: "30\"",
-        midspanCommCommClearance: "4\""
+        midspanCommCommClearance: "4\"",
+        streetlightBracketCommClearance: "4\"",
+        streetlightDripLoopCommClearance: "12\""
       }
     },
     OLSSON_OPPD: {

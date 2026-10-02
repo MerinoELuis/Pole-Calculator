@@ -78,6 +78,11 @@
     return H().parseHeight(settings.boltClearance || "4\"") ?? 4;
   }
 
+  function getExistingBoltClearance() {
+    const settings = S().getState().settings || {};
+    return H().parseHeight(settings.existingBoltClearance || settings.boltClearance || "4\"") ?? 4;
+  }
+
   function commOwnerLabel(sc) {
     return String(sc?.rawOwner || sc?.owner || "")
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -911,6 +916,7 @@
     const proposed = H().parseHeight(spanSide?.proposedHOA || "");
     if (proposed === null) return { ok: true, message: "" };
     const boltRequired = getPoleBoltBoltClearance();
+    const existingBoltRequired = getExistingBoltClearance();
     const commRequired = getPoleCommCommClearance();
     const overlash = getSettingPosition() === "OVERLASH";
     const issues = [];
@@ -940,8 +946,8 @@
         if (item.existing !== null && !item.transferred && !item.serviceDrop) {
           const boltDiff = Math.abs(proposed - item.existing);
           if (boltDiff === 0 && overlash) overlashMatch = true;
-          if (!overlash && boltDiff > 0 && boltDiff < boltRequired) {
-            issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against Existing HOA ${format(item.existing)}.`);
+          if (!overlash && boltDiff > 0 && boltDiff < existingBoltRequired) {
+            issues.push(`Proposed ${format(proposed)} does not respect Pole · New attachment-existing bolt ${format(existingBoltRequired)} against Existing HOA ${format(item.existing)}.`);
           }
         }
       });
@@ -1158,6 +1164,8 @@
       const bracket = bottom !== null ? bottom : attachment;
       const bracketClearance = isMidAmProfile()
         ? H().parseHeight(settings.streetlightBracketCommClearance || "")
+        : isComedProfile()
+          ? H().parseHeight(settings.streetlightBracketCommClearance || "4\"")
         : isCsuProfile()
           ? H().parseHeight(equipment.actionActive
             ? (settings.streetlightBracketCommClearance || "16\"")
@@ -1165,6 +1173,8 @@
           : H().parseHeight(equipment.actionActive ? "12\"" : (settings.polePowerCommsClearance || settings.clearanceToPower || "40\""));
       const dripLoopClearance = isMidAmProfile()
         ? H().parseHeight(settings.streetlightDripLoopCommClearance || "")
+        : isComedProfile()
+          ? H().parseHeight(settings.streetlightDripLoopCommClearance || "12\"")
         : isCsuProfile()
           ? H().parseHeight(settings.streetlightDripLoopCommClearance || "24\"")
           : genericClearance;
