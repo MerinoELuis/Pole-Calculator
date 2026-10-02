@@ -1268,6 +1268,12 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   min-width: 1500px;
 }
 
+/* A changed comm with a clearance problem must never look successful. */
+.comm-movement-table tr.warning-row td {
+  background: #fff1f2;
+  color: #7f1d1d;
+}
+
 .power-table {
   min-width: 880px;
 }
@@ -2350,6 +2356,11 @@ html[data-theme="dark"] .comm-movement-table tr.warning-row td {
 }
 html[data-theme="dark"] .comm-movement-table tr.changed-row td {
   background: #062a1d;
+  color: #ffffff;
+}
+html[data-theme="dark"] .comm-movement-table tr.changed-row.warning-row td,
+html[data-theme="dark"] .comm-movement-table tr.warning-row td {
+  background: #3b0d12;
   color: #ffffff;
 }
 html[data-theme="dark"] .comm-movement-table .flagging-message {
