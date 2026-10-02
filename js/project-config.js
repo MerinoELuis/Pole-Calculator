@@ -151,7 +151,18 @@
       visible: false,
       settings: {
         metronetWI: "COMED",
-        proposedOwner: "Power"
+        proposedOwner: "Power",
+        // ComEd has its own explicit clearance set. Keep these values here
+        // instead of relying on the generic MetroNet/empty-state defaults so
+        // the selected WI is visible and recalculation uses the right rules.
+        polePowerCommsClearance: "40\"",
+        clearanceToPower: "40\"",
+        primaryPowerCommsClearance: "43\"",
+        commClearance: "12\"",
+        boltClearance: "6\"",
+        midspanPowerCommClearance: "30\"",
+        midspanPrimaryPowerCommClearance: "30\"",
+        midspanCommCommClearance: "4\""
       }
     },
     OLSSON_OPPD: {

@@ -52,6 +52,8 @@ Important settings and defaults:
 | `attachmentMessengerSize` | blank | Messenger diameter exported to AutoProposed. Defaults to `0.25` for Cox 96CT and `0.242` for detected 144CT when empty. |
 | `fiberSizes` | `{}` | Fiber diameter by detected count. Cox 96CT defaults to `0.53`; detected 144CT defaults to `0.51`. User-entered values are preserved. |
 
+The hidden `COMED` work instruction uses the MetroNet calculation profile with an explicit clearance set: 40 inches pole Power-comm, 43 inches Primary-comm, 12 inches Comm-comm, 6 inches Bolt-bolt, 30 inches Midspan Power-comm, 30 inches Midspan Primary-comm, and 4 inches Midspan Comm-comm.
+
 ## Pole
 
 Imported, editable, and derived values live together but have different ownership.

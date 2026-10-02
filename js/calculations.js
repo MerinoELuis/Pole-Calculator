@@ -877,11 +877,11 @@
         // the new bolt is only 2" from that existing point, even if the other
         // comm was moved down to 21'. That must still flag.
         const otherExistingHeight = H().parseHeight(other.existingHOA || "");
-        // Once the other communication has an HOA Change, its old bolt is no
-        // longer an active attachment point. The moved cable's new HOA is
-        // already checked above; retaining the old point would incorrectly
-        // flag the cable that was given clearance by that move.
-        if (!serviceDropBoltExempt && !other.otherHOA && !other.existingHOAChange && !other.transferToNewPole && otherExistingHeight !== null) {
+        // A moved communication may leave its old HOA, but the bolt that
+        // existed there remains a historical point for spacing other cables.
+        // Transfers are the explicit exception because that old bolt belongs
+        // to the prior pole; Service Drops are exempt from Bolt-bolt rules.
+        if (!serviceDropBoltExempt && !other.transferToNewPole && otherExistingHeight !== null) {
           const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
           if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
             issues.push(`Pole bolt-bolt: ${format(existingPointDiff)} against Existing HOA ${format(otherExistingHeight)} from ${otherOwner || "no owner"}; minimum ${format(boltClearance)}.`);

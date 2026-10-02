@@ -387,15 +387,15 @@ const clearanceMoved = S.createSpanComm({
   poleId: "P1",
   owner: "COMMUNICATION > Telco",
   wireId: "MOVED",
-  existingHOA: "21'2\"",
+  existingHOA: "21'4\"",
   existingHOAChange: "20'8\""
 });
 S.upsertSpanComm(clearanceUnmoved);
 S.upsertSpanComm(clearanceMoved);
-assert.doesNotMatch(
+assert.match(
   C.evaluateCommFlagging(clearanceUnmoved, "").flaggingMessage,
-  /Existing HOA 21'2"/i,
-  "a moved communication must not reserve its old bolt point after making room for another comm"
+  /Existing HOA 21'4".*minimum 4"/i,
+  "a moved communication must retain its historical bolt point for other comm spacing"
 );
 
 seedSpan("INTEC", "DG-STILL-BOLT", "100'", "");
