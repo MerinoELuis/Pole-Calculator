@@ -2205,7 +2205,9 @@
       .filter(sc => sc.flaggingStatus === "PROBLEM")
       .length;
     const proposedIssues = S.getSpanSidesForPole(poleId)
-      .filter(side => side.proposedFlaggingStatus === "PROBLEM")
+      // The proposed table combines pole and midspan clearance in one
+      // Clearance Issue badge. Count either source once in the pole index.
+      .filter(side => side.proposedFlaggingStatus === "PROBLEM" || side.clearanceMSStatus === "PROBLEM")
       .length;
     const standaloneIssue = pole?.standaloneProposedHOA && global.Calculations.evaluateSpanSideFlagging({
       spanId: "",

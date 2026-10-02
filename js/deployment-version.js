@@ -5,7 +5,7 @@
   // metadata from the workflow. The committed fallback keeps local copies
   // explicit instead of leaving the version badge blank.
   global.AppDeploymentVersion = Object.freeze({
-    version: "1.8.123",
+    version: "1.8.124",
     commit: "local",
     shortCommit: "local",
     branch: "main",
