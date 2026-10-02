@@ -78,11 +78,6 @@
     return H().parseHeight(settings.boltClearance || "4\"") ?? 4;
   }
 
-  function getExistingBoltClearance() {
-    const settings = S().getState().settings || {};
-    return H().parseHeight(settings.existingBoltClearance || settings.boltClearance || "4\"") ?? 4;
-  }
-
   function commOwnerLabel(sc) {
     return String(sc?.rawOwner || sc?.owner || "")
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -100,11 +95,13 @@
 
   function getPrimaryPowerCommsClearance() {
     const settings = S().getState().settings || {};
+    if (isComedProfile()) return null;
     return H().parseHeight(settings.primaryPowerCommsClearance || "43\"") ?? 43;
   }
 
   function getMidspanPrimaryPowerCommsClearance() {
     const settings = S().getState().settings || {};
+    if (isComedProfile()) return null;
     return H().parseHeight(settings.midspanPrimaryPowerCommClearance || "33\"") ?? 33;
   }
 
@@ -916,7 +913,6 @@
     const proposed = H().parseHeight(spanSide?.proposedHOA || "");
     if (proposed === null) return { ok: true, message: "" };
     const boltRequired = getPoleBoltBoltClearance();
-    const existingBoltRequired = getExistingBoltClearance();
     const commRequired = getPoleCommCommClearance();
     const overlash = getSettingPosition() === "OVERLASH";
     const issues = [];
@@ -946,8 +942,8 @@
         if (item.existing !== null && !item.transferred && !item.serviceDrop) {
           const boltDiff = Math.abs(proposed - item.existing);
           if (boltDiff === 0 && overlash) overlashMatch = true;
-          if (!overlash && boltDiff > 0 && boltDiff < existingBoltRequired) {
-            issues.push(`Proposed ${format(proposed)} does not respect Pole · New attachment-existing bolt ${format(existingBoltRequired)} against Existing HOA ${format(item.existing)}.`);
+          if (!overlash && boltDiff > 0 && boltDiff < boltRequired) {
+            issues.push(`Proposed ${format(proposed)} does not respect Pole · Bolt-bolt ${format(boltRequired)} against Existing HOA ${format(item.existing)}.`);
           }
         }
       });
@@ -1065,6 +1061,7 @@
         const midspan = H().parseHeight(row.midspan || "");
         if (midspan === null) return;
         const clearance = isPrimaryPowerRow(row) ? primaryClearance : secondaryClearance;
+        if (clearance === null) return;
         powerCandidates.push(midspan - clearance);
       });
 

@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.121";
+  const CURRENT_VERSION = "1.8.122";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -114,7 +114,6 @@
       primaryPowerCommsClearance: "43\"",
       commClearance: DEFAULT_COMM_CLEARANCE,
       boltClearance: DEFAULT_BOLT_CLEARANCE,
-      existingBoltClearance: "4\"",
       midspanPowerCommClearance: "30\"",
       midspanPrimaryPowerCommClearance: "33\"",
       midspanCommCommClearance: "4\"",
@@ -1104,7 +1103,7 @@
       const comedLegacyValues = {
         polePowerCommsClearance: "40\"",
         clearanceToPower: "40\"",
-        boltClearance: "4\"",
+        boltClearance: "6\"",
         streetlightBracketCommClearance: "20\""
       };
       const comedDefaults = global.ProjectProfiles?.getProfileSettings?.("COMED") || {};
@@ -1113,9 +1112,6 @@
           if (Object.prototype.hasOwnProperty.call(comedDefaults, field)) next.settings[field] = comedDefaults[field];
         }
       });
-      if (!Object.prototype.hasOwnProperty.call(rawSettings || {}, "existingBoltClearance")) {
-        next.settings.existingBoltClearance = comedDefaults.existingBoltClearance || "4\"";
-      }
     }
     // Back Span calculation is a profile rule, not an operator preference.
     // Older INTEC saves persisted the former `false` default, which made an

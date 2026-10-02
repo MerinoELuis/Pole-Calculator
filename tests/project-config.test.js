@@ -43,12 +43,11 @@ assert.equal(comed.projectProfile, "METRONET", "COMED must use the MetroNet calc
 assert.equal(comed.metronetWI, "COMED", "COMED must select the COMED work instruction");
 assert.equal(comed.proposedOwner, "Power", "COMED must use Power as the proposed owner");
 assert.equal(comed.polePowerCommsClearance, "48\"", "COMED must use 48 inches from low power to comm");
-assert.equal(comed.primaryPowerCommsClearance, "43\"", "COMED must use 43 inches from primary to comm");
+assert.equal(comed.primaryPowerCommsClearance, "", "COMED must not use a separate Primary-comm clearance");
 assert.equal(comed.commClearance, "12\"", "COMED must use 12 inches between different comm owners");
-assert.equal(comed.boltClearance, "6\"", "COMED must use 6 inches between bolt points");
-assert.equal(comed.existingBoltClearance, "4\"", "COMED must use 4 inches from a new attachment to an existing bolt");
+assert.equal(comed.boltClearance, "4\"", "COMED must use 4 inches between bolt points");
 assert.equal(comed.midspanPowerCommClearance, "30\"", "COMED must use 30 inches from low power midspan to comm");
-assert.equal(comed.midspanPrimaryPowerCommClearance, "30\"", "COMED must use 30 inches from primary midspan to comm");
+assert.equal(comed.midspanPrimaryPowerCommClearance, "", "COMED must not use a separate Midspan Primary-comm clearance");
 assert.equal(comed.midspanCommCommClearance, "4\"", "COMED must use 4 inches between comm midspans");
 assert.equal(comed.streetlightBracketCommClearance, "4\"", "COMED must use 4 inches below a low streetlight bracket");
 assert.equal(comed.streetlightDripLoopCommClearance, "12\"", "COMED must use 12 inches below a streetlight drip loop");

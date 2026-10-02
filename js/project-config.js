@@ -157,12 +157,11 @@
         // the selected WI is visible and recalculation uses the right rules.
         polePowerCommsClearance: "48\"",
         clearanceToPower: "48\"",
-        primaryPowerCommsClearance: "43\"",
+        primaryPowerCommsClearance: "",
         commClearance: "12\"",
-        boltClearance: "6\"",
-        existingBoltClearance: "4\"",
+        boltClearance: "4\"",
         midspanPowerCommClearance: "30\"",
-        midspanPrimaryPowerCommClearance: "30\"",
+        midspanPrimaryPowerCommClearance: "",
         midspanCommCommClearance: "4\"",
         streetlightBracketCommClearance: "4\"",
         streetlightDripLoopCommClearance: "12\""

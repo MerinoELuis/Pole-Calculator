@@ -1784,17 +1784,18 @@
       .map(profile =>
       `<option value="${escapeHtml(profile.id)}" ${selectedProfile === profile.id ? "selected" : ""}>${escapeHtml(profile.label)}</option>`
     ).join("");
+    const isComedWI = String(settings.metronetWI || "").toUpperCase() === "COMED";
     const clearanceRows = [
       ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
-      ["primaryPowerCommsClearance", "Pole · Primary-comm", settings.primaryPowerCommsClearance || "43\""],
       ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
       ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
-      ["existingBoltClearance", "Pole · New attachment-existing bolt", settings.existingBoltClearance || "4\""],
       ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
-      ["midspanPrimaryPowerCommClearance", "Midspan · Primary-comm", settings.midspanPrimaryPowerCommClearance || "33\""],
       ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
     ];
-    const isComedWI = String(settings.metronetWI || "").toUpperCase() === "COMED";
+    if (!isComedWI) {
+      clearanceRows.splice(1, 0, ["primaryPowerCommsClearance", "Pole · Primary-comm", settings.primaryPowerCommsClearance || "43\""]);
+      clearanceRows.splice(clearanceRows.length - 1, 0, ["midspanPrimaryPowerCommClearance", "Midspan · Primary-comm", settings.midspanPrimaryPowerCommClearance || "33\""]);
+    }
     if ((selectedProfile === "METRONET" && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM")
       || (selectedProfile === "METRONET" && isComedWI)) {
       clearanceRows.push(
@@ -3263,7 +3264,6 @@
       "clearanceToPower",
       "commClearance",
       "boltClearance",
-      "existingBoltClearance",
       "streetlightBracketCommClearance",
       "streetlightDripLoopCommClearance",
       "powerGuyCommClearance",
@@ -3699,7 +3699,7 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "poleInsetHeight", "ocalcMS", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "environmentClearance", "commClearance", "boltClearance", "existingBoltClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "poleInsetHeight", "ocalcMS", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "environmentClearance", "commClearance", "boltClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }
