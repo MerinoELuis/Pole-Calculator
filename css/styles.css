@@ -1601,6 +1601,18 @@ tr.danger-row {
   background: #fff7f7;
 }
 
+.excel-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.excel-review-actions .btn {
+  white-space: nowrap;
+}
+
 .excel-review-global h3 { margin: 0 0 10px; }
 .excel-review-poles { display: grid; gap: 8px; }
 

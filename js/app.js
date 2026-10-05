@@ -2020,6 +2020,25 @@
       : `${activeCount} poles have active Excel Review findings`;
   }
 
+  function updateExcelReviewWarningActions(review) {
+    const controls = [
+      { button: els.ignoreHoaWarningsBtn, phase: "HOA", label: "HOA" },
+      { button: els.ignoreFinalWarningsBtn, phase: "FINAL", label: "Final QC" }
+    ];
+    controls.forEach(({ button, phase, label }) => {
+      if (!button) return;
+      const state = global.ExcelReview?.warningControlState?.(phase) || { count: 0, allIgnored: false };
+      const enabled = Boolean(review?.reviewedAt && state.count);
+      button.disabled = !enabled;
+      button.classList.toggle("btn-disabled", !enabled);
+      button.textContent = state.allIgnored ? `Restore all ${label} warnings` : `Ignore all ${label} warnings`;
+      button.setAttribute("aria-label", button.textContent);
+      button.title = enabled
+        ? `${state.count} ${label} warning${state.count === 1 ? "" : "s"} in this review`
+        : `No ${label} warnings to ignore`;
+    });
+  }
+
   function renderExcelReviewResults() {
     if (!els.excelReviewResults || !global.ExcelReview) return;
     const openPoleIds = new Set(Array.from(els.excelReviewResults.querySelectorAll("details[open][data-review-result-pole]"))
@@ -2027,6 +2046,7 @@
     const review = global.ExcelReview.getReviewState();
     const summary = review.summary || {};
     renderExcelReviewTabWarning(review);
+    updateExcelReviewWarningActions(review);
     if (els.excelReviewTimestamp) {
       els.excelReviewTimestamp.textContent = review.reviewedAt
         ? `Last reviewed ${new Date(review.reviewedAt).toLocaleString()}`
@@ -2088,6 +2108,19 @@
         renderExcelReviewResults();
       });
     });
+  }
+
+  function setAllExcelReviewWarningsIgnored(phase) {
+    if (!global.ExcelReview?.warningControlState || !global.ExcelReview?.setAllWarningsIgnored) return;
+    const control = global.ExcelReview.warningControlState(phase);
+    if (!control.count) return;
+    recordUndoSnapshot();
+    const ignored = !control.allIgnored;
+    global.ExcelReview.setAllWarningsIgnored(phase, ignored);
+    renderExcelReviewResults();
+    markDirty();
+    const label = phase === "FINAL" ? "Final QC" : "HOA";
+    toast(`${ignored ? "Ignored" : "Restored"} all ${label} warnings.`, "info");
   }
 
   // Height discrepancies are operationally more important than class-only
@@ -3858,6 +3891,8 @@
       renderExcelReviewResults();
       toast("Excel Review completed.", "success");
     });
+    els.ignoreHoaWarningsBtn.addEventListener("click", () => setAllExcelReviewWarningsIgnored("HOA"));
+    els.ignoreFinalWarningsBtn.addEventListener("click", () => setAllExcelReviewWarningsIgnored("FINAL"));
     els.saveLocalBtn.addEventListener("click", async () => {
       try {
         await saveLocalFile();
@@ -3993,6 +4028,8 @@
       excelReviewResults: qs("excelReviewResults"),
       excelReviewTimestamp: qs("excelReviewTimestamp"),
       rerunExcelReviewBtn: qs("rerunExcelReviewBtn"),
+      ignoreHoaWarningsBtn: qs("ignoreHoaWarningsBtn"),
+      ignoreFinalWarningsBtn: qs("ignoreFinalWarningsBtn"),
       appLayout: qs("appLayout"),
       clearanceSettings: qs("clearanceSettings"),
       toastHost: qs("toastHost"),

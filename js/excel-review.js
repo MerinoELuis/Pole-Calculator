@@ -1617,6 +1617,35 @@
     return runReview();
   }
 
+  function checksForWarnings(phase) {
+    const wantedPhase = phase === "FINAL" ? "FINAL" : "HOA";
+    return [
+      ...(current.globalChecks || []),
+      ...(current.results || []).flatMap(result => result.checks || [])
+    ].filter(item => item.phase === wantedPhase && item.status === "WARNING");
+  }
+
+  function setAllWarningsIgnored(phase, ignored) {
+    const warnings = checksForWarnings(phase);
+    const state = S().getState();
+    state.excelReviewIgnoredChecks = state.excelReviewIgnoredChecks || {};
+    warnings.forEach(item => {
+      if (!item.ignoreKey) return;
+      if (ignored) state.excelReviewIgnoredChecks[item.ignoreKey] = true;
+      else delete state.excelReviewIgnoredChecks[item.ignoreKey];
+    });
+    return runReview();
+  }
+
+  function warningControlState(phase) {
+    const warnings = checksForWarnings(phase);
+    return {
+      count: warnings.length,
+      ignoredCount: warnings.filter(item => item.ignored).length,
+      allIgnored: warnings.length > 0 && warnings.every(item => item.ignored)
+    };
+  }
+
   /** @namespace ExcelReview */
   global.ExcelReview = {
     runReview,
@@ -1625,6 +1654,8 @@
     getSummary,
     getReviewState,
     setCheckIgnored,
+    setAllWarningsIgnored,
+    warningControlState,
     clearResults
   };
 })(window);

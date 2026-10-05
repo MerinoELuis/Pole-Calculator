@@ -130,6 +130,31 @@ assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "
 assert.equal(output.summary.total, 2);
 assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
 
+const initialHoaWarnings = output.results.flatMap(result => result.checks)
+  .filter(item => item.phase === "HOA" && item.status === "WARNING");
+assert.ok(initialHoaWarnings.length, "fixture must include an HOA warning for bulk-ignore coverage");
+review.setAllWarningsIgnored("HOA", true);
+assert.ok(review.getReviewState().results.flatMap(result => result.checks)
+  .filter(item => item.phase === "HOA" && item.status === "WARNING")
+  .every(item => item.ignored), "bulk HOA ignore must mark every HOA warning ignored");
+assert.equal(review.warningControlState("HOA").allIgnored, true, "HOA warning control must report all warnings ignored");
+review.setAllWarningsIgnored("HOA", false);
+assert.equal(review.warningControlState("HOA").allIgnored, false, "HOA warning control must restore warnings");
+
+state.excelReviewSource.makeReady.rows.push({ Id: "P1", "Attachment Height.display": "21'" });
+output = review.runReview();
+const finalWarnings = output.results.flatMap(result => result.checks)
+  .filter(item => item.phase === "FINAL" && item.status === "WARNING");
+assert.ok(finalWarnings.length, "fixture must include a Final QC warning for bulk-ignore coverage");
+review.setAllWarningsIgnored("FINAL", true);
+assert.ok(review.getReviewState().results.flatMap(result => result.checks)
+  .filter(item => item.phase === "FINAL" && item.status === "WARNING")
+  .every(item => item.ignored), "bulk Final QC ignore must mark every Final warning ignored");
+assert.equal(review.warningControlState("FINAL").allIgnored, true, "Final QC warning control must report all warnings ignored");
+review.setAllWarningsIgnored("FINAL", false);
+state.excelReviewSource.makeReady.rows.pop();
+output = review.runReview();
+
 const finalWorkbookSource = state.excelReviewSource.makeReady;
 state.excelReviewSource.makeReady = { headers: [], rows: [] };
 output = review.runReview();

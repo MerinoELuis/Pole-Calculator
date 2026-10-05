@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Pole Span MR Calculator</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.128" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.129" />
 </head>
 <body>
   <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
@@ -39,7 +39,7 @@
     <header class="topbar">
       <div>
         <h1>Pole Span MR Calculator</h1>
-        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.128</p>
+        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.129</p>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
@@ -136,7 +136,11 @@
               <h2>Excel Review</h2>
               <p id="excelReviewTimestamp" class="muted">No review has been run.</p>
             </div>
-            <button id="rerunExcelReviewBtn" class="btn btn-primary" type="button">Re-run Review</button>
+            <div class="excel-review-actions">
+              <button id="ignoreHoaWarningsBtn" class="btn" type="button" disabled>Ignore all HOA warnings</button>
+              <button id="ignoreFinalWarningsBtn" class="btn" type="button" disabled>Ignore all Final QC warnings</button>
+              <button id="rerunExcelReviewBtn" class="btn btn-primary" type="button">Re-run Review</button>
+            </div>
           </div>
           <div id="excelReviewResults"></div>
         </section>
@@ -199,7 +203,7 @@
   </section>
 
   <script src="libs/xlsx.full.min.js"></script>
-  <script src="js/deployment-version.js?v=1.8.128"></script>
+  <script src="js/deployment-version.js?v=1.8.129"></script>
   <script src="js/height-utils.js"></script>
   <script src="js/project-config.js"></script>
   <script src="js/state.js"></script>
@@ -213,8 +217,8 @@
   <script src="js/compact-autoproposed.js"></script>
   <script src="js/auto-calculate-solver.js"></script>
   <script src="js/auto-calculate-source-compat.js"></script>
-  <script src="js/floating-calculator.js?v=1.8.128"></script>
-  <script src="js/app.js?v=1.8.128"></script>
+  <script src="js/floating-calculator.js?v=1.8.129"></script>
+  <script src="js/app.js?v=1.8.129"></script>
   <script src="js/ui/dom-contract.js"></script>
   <script src="js/ui/comm-table.js"></script>
   <script src="js/ui/span-colors.js"></script>
