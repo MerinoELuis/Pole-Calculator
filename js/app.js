@@ -1894,7 +1894,10 @@
   }
 
   function updateAutoCalculateButtonState() {
-    if (!els.autoCalculateBtn) return;
+    if (!els.autoCalculateBtn) {
+      updateFollowProposedButtonState();
+      return;
+    }
     const hasPoleData = Object.keys(S.getState().poles || {}).length > 0;
     const position = String(S.getState().settings?.position || "TOP_COMM").toUpperCase();
     const isLowComm = position === "LOW_COMM";
@@ -1925,6 +1928,26 @@
       els.exportDebugJsonBtn.classList.toggle("btn-disabled", !hasPoleData || !localOnly);
       els.exportDebugJsonBtn.classList.toggle("hidden", !localOnly);
     }
+    updateFollowProposedButtonState();
+  }
+
+  function updateFollowProposedButtonState() {
+    const button = els.followProposedBtn;
+    if (!button) return;
+    const state = S.getState();
+    const hasPoleData = Object.keys(state.poles || {}).length > 0;
+    const position = String(state.settings?.position || "TOP_COMM").toUpperCase();
+    const active = state.settings?.autoMoveCommsToProposed === true
+      || String(state.settings?.autoMoveCommsToProposed).toLowerCase() === "true";
+    const disabled = !hasPoleData || position !== "TOP_COMM" || autoCalculateRunning;
+    button.disabled = disabled;
+    button.setAttribute("aria-pressed", String(active));
+    button.classList.toggle("btn-disabled", disabled);
+    button.classList.toggle("btn-primary", active && !disabled);
+    button.textContent = active ? "Follow Proposed: ON" : "Follow Proposed: OFF";
+    button.title = position !== "TOP_COMM"
+      ? "Follow Proposed is available only in Top Comm mode."
+      : "When enabled, changing Proposed recalculates existing comm movements.";
   }
 
   function renderPoleClassResults() {
@@ -3631,6 +3654,9 @@
     recordUndoSnapshot();
 
     if (scope === "pole") {
+      const previousProposed = field === "standaloneProposedHOA"
+        ? H.parseHeight(S.getPole(el.dataset.pole)?.standaloneProposedHOA || "")
+        : null;
       if (field === "lowPower") {
         const pole = S.getPole(el.dataset.pole);
         S.upsertPole({
@@ -3642,6 +3668,14 @@
         S.updatePoleField(el.dataset.pole, field, value);
       }
       global.Calculations.recalculateSpansForPole(el.dataset.pole);
+      const nextProposed = field === "standaloneProposedHOA" ? H.parseHeight(value) : null;
+      if (field === "standaloneProposedHOA"
+        && (S.getState().settings?.autoMoveCommsToProposed === true
+          || String(S.getState().settings?.autoMoveCommsToProposed).toLowerCase() === "true")
+        && nextProposed !== null
+        && nextProposed !== previousProposed) {
+        global.AutoCalculateSolver?.applyProposedCommTarget?.(el.dataset.pole, nextProposed);
+      }
     }
 
     if (scope === "equipment") {
@@ -3663,7 +3697,18 @@
     }
 
     if (scope === "spanSide") {
+      const previousProposed = field === "proposedHOA"
+        ? H.parseHeight(S.getSpanSide(el.dataset.span, el.dataset.pole)?.proposedHOA || "")
+        : null;
       global.Calculations.updateSpanSideField(el.dataset.span, el.dataset.pole, field, value);
+      const nextProposed = field === "proposedHOA" ? H.parseHeight(value) : null;
+      if (field === "proposedHOA"
+        && (S.getState().settings?.autoMoveCommsToProposed === true
+          || String(S.getState().settings?.autoMoveCommsToProposed).toLowerCase() === "true")
+        && nextProposed !== null
+        && nextProposed !== previousProposed) {
+        global.AutoCalculateSolver?.applyProposedCommTarget?.(el.dataset.pole, nextProposed);
+      }
     }
 
     if (scope === "span") {
@@ -3822,6 +3867,16 @@
     els.exportProposedJsonBtn.addEventListener("click", () => {
       if (els.exportProposedJsonBtn.disabled) return;
       global.ProjectExport.exportProposedJson();
+    });
+    els.followProposedBtn.addEventListener("click", () => {
+      if (els.followProposedBtn.disabled) return;
+      recordUndoSnapshot();
+      const next = !(S.getState().settings?.autoMoveCommsToProposed === true);
+      S.updateSetting("autoMoveCommsToProposed", next);
+      updateFollowProposedButtonState();
+      render();
+      markDirty();
+      toast(next ? "Follow Proposed enabled." : "Follow Proposed disabled.", "info");
     });
     els.exportDebugJsonBtn.addEventListener("click", () => {
       if (els.exportDebugJsonBtn.disabled) return;
@@ -3995,6 +4050,7 @@
       excelFileInput: qs("excelFileInput"),
       updateExcelFileInput: qs("updateExcelFileInput"),
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
+      followProposedBtn: qs("followProposedBtn"),
       exportDebugJsonBtn: qs("exportDebugJsonBtn"),
       autoCalculateBtn: qs("autoCalculateBtn"),
       mobileKeyboardToggleBtn: qs("toggleMobileKeyboardBtn"),

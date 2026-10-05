@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.129";
+  const CURRENT_VERSION = "1.8.130";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -128,6 +128,7 @@
       borrowMidspanFromPhysicalSpan: false,
       proposeForeSpanWithoutMidspan: false,
       allowLowPowerMidspanAdjustment: true,
+      autoMoveCommsToProposed: false,
       showServiceDrop: true,
       showResagServiceDrop: true,
       hideProposedOwner: false,
@@ -629,6 +630,10 @@
       });
       return state.settings;
     }
+    if (field === "autoMoveCommsToProposed") {
+      state.settings[field] = value === true || String(value).toLowerCase() === "true";
+      return state.settings;
+    }
     state.settings[field] = trim(value);
     if (field === "polePowerCommsClearance") state.settings.clearanceToPower = trim(value);
     if (field === "clearanceToPower") state.settings.polePowerCommsClearance = trim(value);
@@ -1089,6 +1094,8 @@
     // while older JSON files automatically receive newly introduced profile
     // rules such as MidAm streetlight and Back Span behavior.
     next.settings = { ...emptyState().settings, ...profileDefaults, ...rawSettings };
+    next.settings.autoMoveCommsToProposed = next.settings.autoMoveCommsToProposed === true
+      || String(next.settings.autoMoveCommsToProposed).toLowerCase() === "true";
     if (requestedProfile === "CSU") {
       next.settings.projectProfile = "METRONET";
       next.settings.metronetWI = "CSU";

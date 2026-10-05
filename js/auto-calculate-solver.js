@@ -9,6 +9,7 @@
     SKIPPED: "SKIPPED"
   });
   const AUTO = "AUTO";
+  const FOLLOW_PROPOSED = "FOLLOW_PROPOSED";
   const MAX_PASSES = 3;
   const MAX_CANDIDATES = 72;
   const CANDIDATE_YIELD_INTERVAL = 6;
@@ -185,7 +186,8 @@
 
   function manualComm(row) {
     const active = C()?.isCommMovementsActive ? C().isCommMovementsActive(row?.poleId) : true;
-    return Boolean(active && (row?.otherHOA || row?.existingHOAChange) && row?.autoCalcStatus !== AUTO);
+    return Boolean(active && (row?.otherHOA || row?.existingHOAChange)
+      && ![AUTO, FOLLOW_PROPOSED].includes(row?.autoCalcStatus));
   }
 
   // A local HOA movement changes its span midspan by half that movement.
@@ -261,6 +263,41 @@
         ...group,
         serviceDrop: group.rowKeys.length > 0 && group.rowKeys.every(key => Boolean(spanComms[key]?.serviceDrop)),
         ...midspanBoundsForGroup(group)
+      }))
+      .sort((a, b) => b.existingInches - a.existingInches);
+  }
+
+  // Follow Proposed deliberately starts from the imported HOA every time the
+  // operator changes Proposed. A prior manual HOA edit is therefore not a
+  // permanent lock; it is replaced by the next explicit Proposed change.
+  function followGroupsForPole(poleId) {
+    const spanComms = S()?.getState?.()?.spanComms || {};
+    const groups = new Map();
+    (S()?.getSpanCommsForPole?.(poleId) || [])
+      .filter(row => !C()?.isPofComm?.(row))
+      .forEach(row => {
+        const existing = parse(row.existingHOA || "");
+        if (existing === null) return;
+        const ownerToken = normalizeOwner(owner(row));
+        const key = `${ownerToken}|${existing}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key,
+            owner: owner(row),
+            ownerToken,
+            existingInches: existing,
+            effectiveInches: existing,
+            locked: false,
+            lockedInches: null,
+            rowKeys: []
+          });
+        }
+        groups.get(key).rowKeys.push(commKey(row));
+      });
+    return Array.from(groups.values())
+      .map(group => ({
+        ...group,
+        serviceDrop: group.rowKeys.length > 0 && group.rowKeys.every(key => Boolean(spanComms[key]?.serviceDrop))
       }))
       .sort((a, b) => b.existingInches - a.existingInches);
   }
@@ -470,7 +507,9 @@
     for (let index = topCommFloors.length - 2; index >= 0; index -= 1) {
       topCommFloors[index] = Math.max(
         topCommFloors[index],
-        topCommFloors[index + 1] + gap(ordered[index], ordered[index + 1], state)
+        topCommFloors[index + 1] + (options.preserveExistingGaps
+          ? Math.max(gap(ordered[index], ordered[index + 1], state), Math.abs(ordered[index].existingInches - ordered[index + 1].existingInches))
+          : gap(ordered[index], ordered[index + 1], state))
       );
     }
     const plan = [];
@@ -488,15 +527,20 @@
         if (Number.isFinite(group.maximumInches)) preferred = Math.min(preferred, group.maximumInches);
         target = Math.min(maxPole, Math.max(preferred, minimum));
       } else {
+        const requiredGap = previous
+          ? (options.preserveExistingGaps
+            ? Math.max(gap(previous.group, group, state), Math.abs(previous.group.existingInches - group.existingInches))
+            : gap(previous.group, group, state))
+          : 0;
         const maximum = previous
-          ? previous.targetInches - gap(previous.group, group, state)
+          ? previous.targetInches - requiredGap
           : proposedInches - commClearance(state);
         const ceiling = Number.isFinite(group.maximumInches)
           ? Math.min(maximum, group.maximumInches, maxPole)
           : Math.min(maximum, maxPole);
         const floor = topCommFloors[index] || 0;
         let preferred = group.existingInches;
-        if (options.preferHighest) {
+        if (options.followProposed || options.preferHighest) {
           target = highestLegalTarget(ceiling, floor, existingBoltPoints, state, group.serviceDrop);
         } else if (ceiling >= floor) {
           target = Math.max(floor, Math.min(preferred, ceiling));
@@ -552,16 +596,16 @@
     S()?.upsertPole?.({ ...pole, commMovementsActive: hasChanges });
   }
 
-  function applyPlan(plan) {
+  function applyPlan(plan, options = {}) {
     const state = S()?.getState?.();
     plan.forEach(item => item.group.rowKeys.forEach(key => {
       const row = state?.spanComms?.[key];
-      if (!row || manualComm(row)) return;
+      if (!row || (!options.followProposed && manualComm(row))) return;
       const moved = parse(row.existingHOA || "") !== item.targetInches;
       S()?.upsertSpanComm?.({
         ...row,
         existingHOAChange: moved ? format(item.targetInches) : "",
-        autoCalcStatus: moved ? AUTO : "",
+        autoCalcStatus: moved ? (options.followProposed ? FOLLOW_PROPOSED : AUTO) : "",
         autoCalcMessage: ""
       });
     }));
@@ -569,6 +613,25 @@
       .map(key => state?.spanComms?.[key]?.poleId)
       .filter(Boolean)));
     poleIds.forEach(syncCommMovementToggle);
+  }
+
+  function applyProposedCommTarget(poleId, proposedInches) {
+    const state = S()?.getState?.();
+    if (modeFromState(state) !== "TOP_COMM") return { applied: false, disabled: true, plan: [] };
+    const target = Number(proposedInches);
+    if (!Number.isFinite(target)) return { applied: false, disabled: false, plan: [] };
+    const pole = S()?.getPole?.(poleId);
+    if (!pole) return { applied: false, disabled: false, plan: [] };
+    const groups = followGroupsForPole(poleId);
+    if (!groups.length) return { applied: false, disabled: false, plan: [] };
+    const maxPole = parse(pole.maxCommHeight || "") ?? target;
+    const plan = buildStackPlan(groups, target, "TOP_COMM", maxPole, state, {
+      followProposed: true,
+      preserveExistingGaps: true
+    });
+    applyPlan(plan, { followProposed: true });
+    recalculateAffected(poleId);
+    return { applied: true, disabled: false, plan };
   }
 
   function applyProposed(spans, poleId, proposedInches, mode) {
@@ -781,7 +844,7 @@
 
   function clearAutomaticPolePlan(poleId) {
     (S()?.getSpanCommsForPole?.(poleId) || []).forEach(row => {
-      if (row.autoCalcStatus !== AUTO) return;
+      if (![AUTO, FOLLOW_PROPOSED].includes(row.autoCalcStatus)) return;
       S().upsertSpanComm({
         ...row,
         existingHOAChange: "",
@@ -1165,10 +1228,12 @@
     modeFromState,
     normalizeOwner,
     groupsForPole,
+    followGroupsForPole,
     proposedSpansForPole: eligibleProposedSpans,
     idealProposedHeight,
     candidateHeights,
     buildStackPlan,
+    applyProposedCommTarget,
     splitIssueMessage,
     isMidspanIssue,
     physicalSpanPair,
