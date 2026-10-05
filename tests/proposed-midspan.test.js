@@ -422,6 +422,35 @@ assert.match(
   "DG alone must not receive the Service Drop Bolt-bolt exception"
 );
 
+seedSpan("METRONET", "MIDAM-HISTORICAL-BOLTS", "100'", "");
+const midamHistoricalA = S.createSpanComm({
+  spanId: "MIDAM-HISTORICAL-BOLTS",
+  poleId: "P1",
+  owner: "COMMUNICATION > Telco",
+  wireId: "A",
+  existingHOA: "20'"
+});
+const midamHistoricalB = S.createSpanComm({
+  spanId: "MIDAM-HISTORICAL-BOLTS",
+  poleId: "P1",
+  owner: "COMMUNICATION > Telco",
+  wireId: "B",
+  existingHOA: "20'4\""
+});
+S.upsertSpanComm(midamHistoricalA);
+S.upsertSpanComm(midamHistoricalB);
+assert.doesNotMatch(
+  C.evaluateCommFlagging(midamHistoricalA, "").flaggingMessage,
+  /bolt-bolt/i,
+  "MidAm must not flag imported historical bolt spacing before a movement"
+);
+S.upsertSpanComm({ ...midamHistoricalB, existingHOAChange: "20'2\"" });
+assert.match(
+  C.evaluateCommFlagging({ ...midamHistoricalB, existingHOAChange: "20'2\"" }, "").flaggingMessage,
+  /Pole bolt-bolt: 2".*minimum 6"/i,
+  "MidAm must apply the six-inch bolt rule when a communication is moved"
+);
+
 seedSpan("INTEC", "PROPOSED-SERVICE-BOLT", "100'", "18'10\"");
 S.upsertSpanComm(S.createSpanComm({
   spanId: "PROPOSED-SERVICE-BOLT",

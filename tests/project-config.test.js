@@ -18,7 +18,7 @@ const oppd = profiles.applyProfileSettings({}, "OLSSON_OPPD");
 
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
-assert.equal(metronet.position, "LOW_COMM", "existing Metronet calculation defaults must remain unchanged");
+assert.equal(metronet.position, "TOP_COMM", "MidAm must default to Top Comm");
 assert.equal(metronet.calculateBackspanMidspan, true, "MidAm must calculate an imported Back Span midspan");
 assert.equal(intec.calculateBackspanMidspan, true, "INTEC must calculate a Back Span only when that row owns a midspan");
 assert.equal(intec.midspanPrimaryPowerCommClearance, "33\"", "INTEC must use 33 inches from Primary midspan to comm");
@@ -27,6 +27,8 @@ assert.equal(metronet.environmentClearances.RAILROAD, "23'6\"", "MidAm railroad 
 assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "MidAm non-sailboat water crossing must use 14 feet");
 assert.equal(metronet.streetlightBracketCommClearance, "20\"", "MidAm streetlight bracket clearance must be configured");
 assert.equal(metronet.streetlightDripLoopCommClearance, "12\"", "MidAm uncovered drip-loop clearance must be configured");
+assert.equal(metronet.boltClearance, "6\"", "MidAm must use 6 inches between new bolt points");
+assert.equal(metronet.midspanCommCommClearance, "12\"", "MidAm must use 12 inches between comm midspans");
 assert.equal(metronet.powerGuyCommClearance, "", "MidAm must not apply the removed power guy-to-comm clearance");
 assert.equal(profiles.detectProfile({ owners: ["UTILITY > MidAm"] }), "METRONET", "MidAm utility ownership must select Metronet automatically");
 assert.equal(profiles.normalizeProfileId("WI"), "INTEC", "WI is a Metronet field, not a separate project profile");

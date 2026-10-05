@@ -849,7 +849,12 @@
       const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
-      if (isCommMovementsActive(sc.poleId) && (sc.otherHOA || sc.existingHOAChange) && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
+      const currentCommMoved = isCommMovementsActive(sc.poleId) && Boolean(sc.otherHOA || sc.existingHOAChange);
+      // MidAm imports may contain legacy bolt spacing that is less than the
+      // new-work minimum. Validate six-inch spacing only when this row moves;
+      // untouched imported attachments are historical data.
+      const validateExistingBoltSpacing = !isMidAmProfile() || currentCommMoved;
+      if (currentCommMoved && !sc.serviceDrop && !sc.transferToNewPole && ownExistingHeight !== null) {
         const ownBoltDiff = Math.abs(poleHeight - ownExistingHeight);
         if (ownBoltDiff > 0 && ownBoltDiff < boltClearance) {
           issues.push(`Pole bolt-bolt: ${format(ownBoltDiff)} against Existing HOA ${format(ownExistingHeight)}; minimum ${format(boltClearance)}.`);
@@ -870,7 +875,7 @@
         const required = sameOwner ? boltClearance : poleClearance;
         const label = sameOwner ? "Pole bolt-bolt" : "Pole comm-comm";
         const serviceDropBoltExempt = Boolean(sc.serviceDrop || other.serviceDrop);
-        if (!(sameOwner && serviceDropBoltExempt) && diff < required) {
+        if (!(sameOwner && serviceDropBoltExempt) && diff < required && (!sameOwner || validateExistingBoltSpacing)) {
           issues.push(`${label}: ${format(diff)} with ${otherOwner || "no owner"}; minimum ${format(required)}.`);
         }
 
@@ -883,7 +888,7 @@
         // existed there remains a historical point for spacing other cables.
         // Transfers are the explicit exception because that old bolt belongs
         // to the prior pole; Service Drops are exempt from Bolt-bolt rules.
-        if (!serviceDropBoltExempt && !other.transferToNewPole && otherExistingHeight !== null) {
+        if (validateExistingBoltSpacing && !serviceDropBoltExempt && !other.transferToNewPole && otherExistingHeight !== null) {
           const existingPointDiff = Math.abs(poleHeight - otherExistingHeight);
           if (existingPointDiff > 0 && existingPointDiff < boltClearance) {
             issues.push(`Pole bolt-bolt: ${format(existingPointDiff)} against Existing HOA ${format(otherExistingHeight)} from ${otherOwner || "no owner"}; minimum ${format(boltClearance)}.`);

@@ -37,7 +37,7 @@
       id: "METRONET",
       label: "Metronet",
       settings: {
-        position: "LOW_COMM",
+        position: "TOP_COMM",
         mrCase: "UPPER",
         // Metronet uses a separate WI selector. MidAm is the currently
         // supported work issuer and is exported as the Proposed owner.
@@ -57,6 +57,8 @@
         polePowerCommsClearance: "40\"",
         clearanceToPower: "40\"",
         commClearance: "12\"",
+        boltClearance: "6\"",
+        midspanCommCommClearance: "12\"",
         streetlightBracketCommClearance: "20\"",
         streetlightDripLoopCommClearance: "12\"",
         powerGuyCommClearance: "",
