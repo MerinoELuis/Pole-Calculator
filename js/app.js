@@ -2338,6 +2338,7 @@
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
       ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="mini-dot danger">Flag ${flagging.calculationIssueCount}</span>` : ""}
       ${flagging.heightCritical ? `<span class="mini-dot danger" title="Critical pole height issue">&#9888; Height</span>` : ""}
+      ${hasMR ? `<span class="mini-dot warning" title="Make Ready exists for this pole">MR</span>` : ""}
       ${hasProposed ? `<span class="mini-dot changed">Proposed</span>` : ""}
     </button>`;
   }
