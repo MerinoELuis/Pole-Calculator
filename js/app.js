@@ -2474,6 +2474,7 @@
     const { pole } = poleSummary(poleId);
     const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
+    const hasMR = (S.getState().mr || []).some(item => item?.poleId === poleId && String(item.text || "").trim());
     return `<div class="pole-workspace-header">
       <div class="pole-heading-block">
         <div class="pole-heading-row">
@@ -2488,6 +2489,7 @@
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
           ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="badge danger">Flagging ${flagging.calculationIssueCount}</span>` : ""}
           ${flagging.heightCritical ? `<span class="badge danger" title="Critical pole height issue">&#9888; Height Critical</span>` : ""}
+          ${hasMR ? `<span class="badge warning" title="Make Ready exists for this pole">MR</span>` : ""}
           ${hasProposed ? `<span class="badge changed">Proposed</span>` : ""}
         </div>
       </div>

@@ -14,6 +14,8 @@ assert.match(source, /event\.key\.toLowerCase\(\) === "y"/, "Ctrl+Y must be boun
 assert.match(source, /event\.shiftKey && event\.key\.toLowerCase\(\) === "z"/, "Ctrl+Shift+Z must be bound to redo");
 assert.match(source, /function poleHasProposed\(poleId\)/, "pole badges must detect an applied Proposed value");
 assert.match(source, /<span class="badge changed">Proposed<\/span>/, "pole header must show Proposed instead of Changed");
+assert.match(source, /const hasMR = .*S\.getState\(\)\.mr/, "pole header must detect Make Ready for the current pole");
+assert.match(source, /<span class="badge warning" title="Make Ready exists for this pole">MR<\/span>/, "pole header must show MR when Make Ready exists");
 assert.doesNotMatch(source, /<span class="badge changed">Changed<\/span>/, "pole header must not show the obsolete Changed badge");
 
 console.log("application undo/redo keyboard contract tests passed");
