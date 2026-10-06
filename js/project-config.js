@@ -58,7 +58,7 @@
         clearanceToPower: "40\"",
         commClearance: "12\"",
         boltClearance: "6\"",
-        midspanCommCommClearance: "12\"",
+        midspanCommCommClearance: "4\"",
         streetlightBracketCommClearance: "20\"",
         streetlightDripLoopCommClearance: "12\"",
         powerGuyCommClearance: "",

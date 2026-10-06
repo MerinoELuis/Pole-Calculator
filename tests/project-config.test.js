@@ -28,7 +28,7 @@ assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "Mid
 assert.equal(metronet.streetlightBracketCommClearance, "20\"", "MidAm streetlight bracket clearance must be configured");
 assert.equal(metronet.streetlightDripLoopCommClearance, "12\"", "MidAm uncovered drip-loop clearance must be configured");
 assert.equal(metronet.boltClearance, "6\"", "MidAm must use 6 inches between new bolt points");
-assert.equal(metronet.midspanCommCommClearance, "12\"", "MidAm must use 12 inches between comm midspans");
+assert.equal(metronet.midspanCommCommClearance, "4\"", "MidAm must use 4 inches between comm midspans");
 assert.equal(metronet.powerGuyCommClearance, "", "MidAm must not apply the removed power guy-to-comm clearance");
 assert.equal(profiles.detectProfile({ owners: ["UTILITY > MidAm"] }), "METRONET", "MidAm utility ownership must select Metronet automatically");
 assert.equal(profiles.normalizeProfileId("WI"), "INTEC", "WI is a Metronet field, not a separate project profile");
