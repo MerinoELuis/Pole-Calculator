@@ -2504,6 +2504,7 @@
     const settings = S.getState().settings || {};
     const isSimplifiedMetronetProposed = String(settings.projectProfile || "").toUpperCase() === "METRONET"
       && (String(settings.metronetWI || "").toUpperCase() === "CSU"
+        || String(settings.metronetWI || "").toUpperCase() === "MIDAM"
         || String(settings.metronetWI || "").toUpperCase() === "COMED"
         || String(settings.proposedOwner || "").toUpperCase() === "MNT");
     const showEndDrop = !isSimplifiedMetronetProposed;
