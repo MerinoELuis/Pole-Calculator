@@ -2329,6 +2329,7 @@
     const { pole, warnings, hasChanges } = poleSummary(poleId);
     const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
+    const hasMR = (state.mr || []).some(item => item?.poleId === poleId && String(item.text || "").trim());
     const hidden = (state.ui.hiddenPoleIds || []).includes(poleId);
     const active = state.selectedPoleId === poleId ? " active" : "";
     return `<button class="pole-index-link${active}${hidden ? " hidden-pole" : ""}" data-pole-select="${escapeHtml(poleId)}" type="button" title="${hidden ? "Show this pole" : "Open this pole"}">
