@@ -2374,8 +2374,8 @@
     if (!isMidAm) return "";
     const violations = global.Calculations?.getMidamPreMoveViolations?.(poleId) || [];
     if (!violations.length) return "";
-    return `<section class="subsection wide midam-violations-section">
-      <div class="subsection-title-row"><h4>Violations Before Movements</h4></div>
+    return `<section class="subsection wide midam-violations-section" id="existing-violations-${escapeHtml(poleId)}">
+      <div class="subsection-title-row"><h4>Existing Violations</h4></div>
       <ul class="midam-violation-list">${violations.map(item => `<li class="${escapeHtml(item.scope || "pole")}-violation">${escapeHtml(item.message)}</li>`).join("")}</ul>
     </section>`;
   }
