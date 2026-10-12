@@ -2368,14 +2368,15 @@
   }
 
   function formatExistingViolationsText(violations) {
-    const groups = [
-      ["ON POLE", violations.filter(item => item.scope === "pole")],
-      ["MIDSPAN", violations.filter(item => item.scope === "midspan")]
-    ].filter(([, items]) => items.length);
-    return groups.map(([heading, items]) => [
-      heading,
-      ...items.map(item => String(item.message || "").trim().toUpperCase())
-    ].join("\n")).join("\n\n");
+    return violations.map(item => {
+      const scope = item.scope === "pole" ? "ON POLE" : "MIDSPAN";
+      const message = String(item.message || "")
+        .trim()
+        .replace(/^on[- ]pole\s+violation:\s*/i, "")
+        .replace(/^midspan\s+violation:\s*/i, "")
+        .toUpperCase();
+      return `${scope} VIOLATION: ${message}`;
+    }).join("\n");
   }
 
   function renderMidamPreMoveViolations(poleId) {
@@ -2388,7 +2389,7 @@
     const text = formatExistingViolationsText(violations);
     return `<section class="subsection wide midam-violations-section" id="existing-violations-${escapeHtml(poleId)}">
       <div class="subsection-title-row">
-        <h4>Existing Violations</h4>
+        <h4>Existing Violations <span class="badge danger">Flagging ${violations.length}</span></h4>
         <button class="mini-btn" type="button" data-copy-existing-violations data-pole="${escapeHtml(poleId)}">Copy</button>
       </div>
       <pre class="existing-violations-output">${escapeHtml(text)}</pre>
