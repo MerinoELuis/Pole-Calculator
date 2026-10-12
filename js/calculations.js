@@ -981,9 +981,13 @@
         .map(sc => ({ sc, height: getImportedMidspanInchesForComm(sc), owner: commOwnerLabel(sc) || "Comm" }))
         .filter(item => item.height !== null && !item.sc.serviceDrop));
       const maxMidspan = H().parseHeight(span.midspanMaxCommHeight || "");
+      const environmentClearance = H().parseHeight(span.environmentClearance || "");
       rows.forEach(item => {
         if (maxMidspan !== null && item.height > maxMidspan) {
           add("midspan", `Midspan violation: ${item.owner} at ${format(item.height)} on ${direction}; max ${format(maxMidspan)}.`);
+        }
+        if (environmentClearance !== null && item.height < environmentClearance) {
+          add("midspan", `Midspan violation: ${item.owner} at ${format(item.height)} on ${direction}; environment clearance ${format(item.height)} < ${format(environmentClearance)}.`);
         }
       });
       const midspanClearance = getMidspanCommCommClearance();

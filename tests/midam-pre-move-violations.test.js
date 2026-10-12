@@ -23,7 +23,7 @@ S.applyProjectProfile("METRONET");
 S.upsertPole(S.createPole({ poleId: "P1", maxCommHeight: "20'" }));
 S.upsertPole(S.createPole({ poleId: "P2" }));
 S.upsertSpan(S.createSpan("FORE", "P1", "P2", "E", "", {
-  type: "Fore Span", rawType: "Fore Span", midspanMaxCommHeight: "18'"
+  type: "Fore Span", rawType: "Fore Span", midspanMaxCommHeight: "18'", environment: "STREET", environmentClearance: "20'"
 }));
 S.upsertSpan(S.createSpan("BACK", "P1", "P2", "W", "", {
   type: "Back Span", rawType: "Back Span"
@@ -48,6 +48,7 @@ S.upsertSpanComm(S.createSpanComm({
 const violations = C.getMidamPreMoveViolations("P1");
 assert.ok(violations.some(item => /On-pole violation:.*Telco.*21'/.test(item.message)), "must describe the imported on-pole violation");
 assert.ok(violations.some(item => /Midspan violation:.*Telco.*19'.*E/.test(item.message)), "must describe the Fore Span midspan violation and direction");
+assert.ok(violations.some(item => /environment clearance/.test(item.message)), "must describe an imported midspan environment clearance violation");
 assert.ok(violations.every(item => item.scope === "pole" || item.scope === "midspan"));
 assert.ok(!violations.some(item => /separation 0/.test(item.message)), "reference rows must not create duplicate on-pole violations");
 
