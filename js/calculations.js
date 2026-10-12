@@ -991,12 +991,16 @@
         }
       });
       const midspanClearance = getMidspanCommCommClearance();
+      const ignoredMidspanCommSpacing = H().parseHeight("1'") ?? 12;
       for (let leftIndex = 0; leftIndex < rows.length; leftIndex += 1) {
         for (let rightIndex = leftIndex + 1; rightIndex < rows.length; rightIndex += 1) {
           const left = rows[leftIndex];
           const right = rows[rightIndex];
           const separation = Math.abs(left.height - right.height);
-          if (separation < midspanClearance) {
+          // Midspan comm-to-comm EVs below one foot are intentionally
+          // suppressed for now. Keep reporting larger spacing failures and
+          // all independent height/environment violations.
+          if (separation < midspanClearance && separation >= ignoredMidspanCommSpacing) {
             add("midspan", `Midspan violation: ${left.owner} at ${format(left.height)} and ${right.owner} at ${format(right.height)} on ${direction}; separation ${format(separation)}, minimum ${format(midspanClearance)}.`);
           }
         }
