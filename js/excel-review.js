@@ -882,14 +882,23 @@
             expected: "UTILITY > MidAm", actual: owner || "Empty"
           });
         }
+        const attachment = text(pick(row, ["Attachment Height.display", "Attachment Height Display"]));
         const bottom = text(pick(row, ["Bottom Height.display", "Bottom Height Display"]));
         const dripLoop = text(pick(row, ["Drip Loop Height.display", "Drip Loop Height Display"]));
-        if (!bottom || !dripLoop) {
+        if (!attachment) {
           add(result, {
-            phase: "HOA", section: "Equipment", code: "MISSING_MIDAM_STREETLIGHT_HEIGHT", status: "ERROR",
-            title: "Streetlight Clearance Data",
-            message: "Streetlight bottom and uncovered drip-loop heights are required for MidAm pole clearance.",
-            expected: "Bottom Height.display and Drip Loop Height.display", actual: `Bottom ${bottom || "Empty"}; Drip loop ${dripLoop || "Empty"}`
+            phase: "HOA", section: "Equipment", code: "MISSING_MIDAM_STREETLIGHT_ATTACHMENT", status: "ERROR",
+            title: "Streetlight Attachment Height",
+            message: "MidAm streetlights must provide Attachment Height.",
+            expected: "Attachment Height.display", actual: "Empty"
+          });
+        }
+        if (bottom || dripLoop) {
+          add(result, {
+            phase: "HOA", section: "Equipment", code: "INVALID_MIDAM_STREETLIGHT_HEIGHT", status: "ERROR",
+            title: "Streetlight Height Fields",
+            message: "MidAm streetlights may only contain Attachment Height; Bottom Height and Drip Loop Height must be empty.",
+            expected: "Attachment Height.display only", actual: `Attachment ${attachment || "Empty"}; Bottom ${bottom || "Empty"}; Drip loop ${dripLoop || "Empty"}`
           });
         }
       });

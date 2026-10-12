@@ -1164,6 +1164,16 @@
       : H().parseHeight(equipment.dripLoopHeight || "");
 
     if (category.includes("STREETLIGHT")) {
+      if (isMidAmProfile()) {
+        // MidAm Streetlight rows use only the imported Attachment Height. The
+        // workbook's Bottom/Drip Loop fields are invalid for this WI and are
+        // reported by Excel Review rather than used in pole clearance math.
+        const midAmAttachment = H().parseHeight(equipment.attachmentHeight || "");
+        const midAmClearance = H().parseHeight(settings.streetlightBracketCommClearance || "20\"");
+        return midAmAttachment !== null && midAmClearance !== null
+          ? midAmAttachment - midAmClearance
+          : null;
+      }
       const raisedAttachment = validStreetlightRaiseInches(equipment);
       if (raisedAttachment !== null && attachment !== null) {
         // The complete Streetlight assembly moves by the same delta, so its

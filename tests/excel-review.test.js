@@ -425,8 +425,8 @@ state.excelReviewSource = {
     ]
   },
   equipment: {
-    headers: ["Id", "Type", "Owner", "Bottom Height.display", "Drip Loop Height.display"],
-    rows: [{ Id: "PMIDAM", Type: "Streetlight > SMALL", Owner: "UTILITY > Other", "Bottom Height.display": "", "Drip Loop Height.display": "" }]
+    headers: ["Id", "Type", "Owner", "Attachment Height.display", "Bottom Height.display", "Drip Loop Height.display"],
+    rows: [{ Id: "PMIDAM", Type: "Streetlight > SMALL", Owner: "UTILITY > Other", "Attachment Height.display": "", "Bottom Height.display": "", "Drip Loop Height.display": "" }]
   },
     anchorGuys: {
       headers: ["Id", "Owner", "Size"],
@@ -450,8 +450,25 @@ const midAmCodes = new Set(review.reviewPole("PMIDAM").checks.map(item => item.c
   "INVALID_MIDAM_POWER_GUY_SIZE",
   "INVALID_MIDAM_COMM_GUY_SIZE",
   "INVALID_MIDAM_STREETLIGHT_OWNER",
-  "MISSING_MIDAM_STREETLIGHT_HEIGHT"
+  "MISSING_MIDAM_STREETLIGHT_ATTACHMENT"
 ].forEach(code => assert.ok(midAmCodes.has(code), `expected MidAm review check ${code}`));
+
+state.excelReviewSource.equipment = {
+  headers: ["Id", "Type", "Owner", "Attachment Height.display", "Bottom Height.display", "Drip Loop Height.display"],
+  rows: [{
+    Id: "PMIDAM",
+    Type: "Streetlight > SMALL",
+    Owner: "UTILITY > MidAm",
+    "Attachment Height.display": "25'",
+    "Bottom Height.display": "24'",
+    "Drip Loop Height.display": "23'6\""
+  }]
+};
+review.runReview();
+assert.ok(
+  review.reviewPole("PMIDAM").checks.some(item => item.code === "INVALID_MIDAM_STREETLIGHT_HEIGHT"),
+  "MidAm streetlights with Bottom or Drip Loop heights must fail review"
+);
 assert.equal(review.reviewPole("PMIDAM").checks.some(item => item.code === "INVALID_MIDAM_COMM_GUY_SIZE" && /Proposed MNT/i.test(item.actual)), false, "proposed communication guy size must not be audited as an existing communication owner");
 assert.equal(midAmCodes.has("MISSING_LOW_POWER"), false, "MidAm review must accept Lowest Power.display");
 assert.equal(midAmCodes.has("MISSING_YEAR_INSTALLED"), false, "MidAm review must not require Year Installed");

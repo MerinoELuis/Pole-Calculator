@@ -102,7 +102,8 @@ C.recalculateAll();
 assert.equal(S.getPole("STREETLIGHT").metadata.powerEquipment[0].actionActive, true, "MidAm must automatically ground every Streetlight");
 assert.equal(S.getPole("STREETLIGHT").metadata.lowPowerBaseline, "25'", "old Save files must gain a Low Power baseline without losing mandatory Ground");
 assert.equal(S.getPole("STREETLIGHT").lowPower, "25'", "grounding has no vertical target and must not invent a Low Power height");
-assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "19'4\"", "mandatory grounding must retain bracket and drip-loop clearances");
+assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "21'8\"", "MidAm pole clearance must ignore invalid Bottom/Drip Loop fields and retain the lower Low Power ceiling");
+assert.equal(C.getPowerEquipmentCeiling(S.getPole("STREETLIGHT").metadata.powerEquipment[0]), "24'4\"", "MidAm streetlight equipment ceiling must use Attachment Height only");
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
 
 S.resetState();

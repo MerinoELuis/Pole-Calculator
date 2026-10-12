@@ -27,11 +27,11 @@ S.upsertPole(S.createPole({
   lowPower: "30'",
   metadata: {
     powerEquipment: [
-      { category: "STREETLIGHT", bottomHeight: "25'", dripLoopHeight: "24'6\"" },
+      { category: "STREETLIGHT", attachmentHeight: "25'", bottomHeight: "", dripLoopHeight: "" },
       { category: "TRANSFORMER", attachmentHeight: "28'" }
     ],
     midAmConstraints: {
-      streetlights: [{ bottomHeight: "25'", dripLoopHeight: "24'6\"" }],
+      streetlights: [{ attachmentHeight: "25'", bottomHeight: "", dripLoopHeight: "" }],
       powerGuys: []
     }
   }

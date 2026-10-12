@@ -155,14 +155,14 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 
 1. INTEC keeps `40"` below Low Power, Transformer Bottom Height, Streetlight drip loops, and ungrounded Streetlight brackets.
 2. An INTEC grounded Streetlight bracket keeps `12"` to the top comm. Grounding changes only the bracket rule; its drip loop still keeps `40"`.
-3. MidAm Streetlights use `Bottom Height - Streetlight bracket-comm` and `Drip Loop Height - Streetlight drip loop-comm`; the lower result controls.
+3. MidAm Streetlights use only `Attachment Height - Streetlight bracket-comm`; Bottom Height and Drip Loop Height are invalid MidAm fields and are reported by Excel Review.
 4. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
 5. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
 
 ### Power Equipment Actions
 
 1. Every MidAm Streetlight has mandatory `Ground`: import and recalculation activate it automatically, the UI cannot disable it, and MR adds `MNT GROUND STREETLIGHT`.
-2. Grounding does not invent a vertical height or remove physical clearances. MidAm still applies `Bottom Height - 20"` and `Drip Loop Height - 12"`; the lower ceiling controls.
+2. Grounding does not invent a vertical height or remove physical clearances. MidAm applies the Attachment Height clearance; Bottom Height and Drip Loop Height are not used.
 3. Transformer `Secure` requires a manually entered New HOA. INTEC adds `Secure transformer drip loop to HOA <height>.`; Metronet adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
 4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC and `MNT GROUND STREETLIGHT` for Metronet.
 5. ComEd Streetlight `Ground` is optional and does not generate an MR until the operator activates it manually.
