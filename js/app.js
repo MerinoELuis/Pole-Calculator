@@ -2376,6 +2376,8 @@
         .trim()
         .replace(/^on[- ]pole\s+violation:\s*/i, "")
         .replace(/^midspan\s+violation:\s*/i, "")
+        .replace(/;\s*separation\s+.*$/i, "")
+        .replace(/\s+on\s+[^.;]+\.?$/i, "")
         .toUpperCase();
       return `${scope} VIOLATION: ${message}`;
     }).join("\n");
