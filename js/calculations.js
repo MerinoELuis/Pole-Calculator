@@ -931,7 +931,11 @@
     };
     const poleRows = S().getSpanCommsForPole(poleId)
       .map(sc => ({ sc, height: getPreMoveCommHeight(sc), owner: commOwnerLabel(sc) || "Comm" }))
-      .filter(item => item.height !== null && !item.sc.serviceDrop);
+      // Reciprocal Back/Other rows marked REF describe the same physical
+      // attachment and are not a second on-pole communication.  Counting
+      // them here creates false zero-separation violations (and misleading
+      // duplicate owner pairs) before any movement is applied.
+      .filter(item => item.height !== null && !item.sc.serviceDrop && !isReferenceSpanComm(item.sc));
     const maxPole = H().parseHeight(pole.maxCommHeight || "");
     poleRows.forEach(item => {
       if (maxPole !== null && item.height > maxPole) {

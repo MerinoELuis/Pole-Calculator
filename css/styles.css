@@ -1105,7 +1105,27 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   font-weight: 700;
 }
 
+.existing-violations-output {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #f2c28b;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 html[data-theme="dark"] .midam-violation-list li {
+  border-color: #b45309;
+  background: #451a03;
+  color: #fed7aa;
+}
+
+html[data-theme="dark"] .existing-violations-output {
   border-color: #b45309;
   background: #451a03;
   color: #fed7aa;

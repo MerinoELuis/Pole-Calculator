@@ -2367,6 +2367,17 @@
     return `<pre class="mr-output">${escapeHtml(item.text)}</pre>`;
   }
 
+  function formatExistingViolationsText(violations) {
+    const groups = [
+      ["ON POLE", violations.filter(item => item.scope === "pole")],
+      ["MIDSPAN", violations.filter(item => item.scope === "midspan")]
+    ].filter(([, items]) => items.length);
+    return groups.map(([heading, items]) => [
+      heading,
+      ...items.map(item => String(item.message || "").trim().toUpperCase())
+    ].join("\n")).join("\n\n");
+  }
+
   function renderMidamPreMoveViolations(poleId) {
     const settings = S.getState().settings || {};
     const isMidAm = String(settings.projectProfile || "").toUpperCase() === "METRONET"
@@ -2374,9 +2385,13 @@
     if (!isMidAm) return "";
     const violations = global.Calculations?.getMidamPreMoveViolations?.(poleId) || [];
     if (!violations.length) return "";
+    const text = formatExistingViolationsText(violations);
     return `<section class="subsection wide midam-violations-section" id="existing-violations-${escapeHtml(poleId)}">
-      <div class="subsection-title-row"><h4>Existing Violations</h4></div>
-      <ul class="midam-violation-list">${violations.map(item => `<li class="${escapeHtml(item.scope || "pole")}-violation">${escapeHtml(item.message)}</li>`).join("")}</ul>
+      <div class="subsection-title-row">
+        <h4>Existing Violations</h4>
+        <button class="mini-btn" type="button" data-copy-existing-violations data-pole="${escapeHtml(poleId)}">Copy</button>
+      </div>
+      <pre class="existing-violations-output">${escapeHtml(text)}</pre>
     </section>`;
   }
 
@@ -2919,6 +2934,18 @@
     root.querySelectorAll("[data-toggle-comm-movements]").forEach(btn => btn.addEventListener("click", () => toggleCommMovements(btn.dataset.pole)));
     root.querySelectorAll("[data-clear-comm-movements]").forEach(btn => btn.addEventListener("click", () => clearCommMovements(btn.dataset.pole)));
     root.querySelectorAll("[data-copy-mr]").forEach(btn => btn.addEventListener("click", () => copyMR(btn.dataset.pole)));
+    root.querySelectorAll("[data-copy-existing-violations]").forEach(btn => btn.addEventListener("click", async () => {
+      const violations = global.Calculations?.getMidamPreMoveViolations?.(btn.dataset.pole) || [];
+      const text = formatExistingViolationsText(violations);
+      if (!text) return toast("No existing violations to copy.", "warning");
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("Existing violations copied.", "success");
+      } catch (error) {
+        console.error(error);
+        toast("Could not copy existing violations.", "error");
+      }
+    }));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
     root.querySelectorAll("[data-delete-proposed-span]").forEach(btn => btn.addEventListener("click", () => deleteProposedSpan(btn.dataset.pole, btn.dataset.span)));
   }
