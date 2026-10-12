@@ -2377,6 +2377,7 @@
         .replace(/^on[- ]pole\s+violation:\s*/i, "")
         .replace(/^midspan\s+violation:\s*/i, "")
         .replace(/;\s*separation\s+.*$/i, "")
+        .replace(/;\s*environment\s+clearance\s+.*$/i, "")
         .toUpperCase();
       return `${scope} VIOLATION: ${message}`;
     }).join("\n");
