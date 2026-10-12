@@ -1083,6 +1083,34 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   grid-column: 1;
 }
 
+.midam-violations-section {
+  grid-column: 1;
+}
+
+.midam-violation-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.midam-violation-list li {
+  padding: 9px 11px;
+  border: 1px solid #f2c28b;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+html[data-theme="dark"] .midam-violation-list li {
+  border-color: #b45309;
+  background: #451a03;
+  color: #fed7aa;
+}
+
 .make-ready-section .subsection-title-row {
   margin-bottom: 8px;
 }

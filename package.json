@@ -1,6 +1,6 @@
 {
   "name": "pole-span-mr-calculator",
-  "version": "1.8.139",
+  "version": "1.8.140",
   "private": true,
   "description": "Dependency-free test tooling for the static Pole Span MR Calculator.",
   "scripts": {

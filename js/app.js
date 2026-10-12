@@ -2367,6 +2367,19 @@
     return `<pre class="mr-output">${escapeHtml(item.text)}</pre>`;
   }
 
+  function renderMidamPreMoveViolations(poleId) {
+    const settings = S.getState().settings || {};
+    const isMidAm = String(settings.projectProfile || "").toUpperCase() === "METRONET"
+      && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
+    if (!isMidAm) return "";
+    const violations = global.Calculations?.getMidamPreMoveViolations?.(poleId) || [];
+    if (!violations.length) return "";
+    return `<section class="subsection wide midam-violations-section">
+      <div class="subsection-title-row"><h4>Violations Before Movements</h4></div>
+      <ul class="midam-violation-list">${violations.map(item => `<li class="${escapeHtml(item.scope || "pole")}-violation">${escapeHtml(item.message)}</li>`).join("")}</ul>
+    </section>`;
+  }
+
   function renderPoleActions(poleId) {
     const pole = S.getPole(poleId);
     const projectProfile = String(S.getState().settings?.projectProfile || "INTEC").toUpperCase();
@@ -2779,6 +2792,7 @@
           </div>
           ${renderMRText(poleId)}
         </section>
+        ${renderMidamPreMoveViolations(poleId)}
         <section class="subsection">
           <h4>Pole Actions</h4>
           ${renderPoleActions(poleId)}

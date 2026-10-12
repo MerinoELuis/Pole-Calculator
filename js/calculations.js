@@ -909,6 +909,81 @@
     };
   }
 
+  function isForeSpan(span) {
+    return /fore\s*span|forespan/i.test(String(span?.type || span?.rawType || ""));
+  }
+
+  function getPreMoveCommHeight(sc) {
+    return H().parseHeight(sc?.existingHOA || "");
+  }
+
+  /** Returns imported MidAm violations before any HOA movements are applied. */
+  function getMidamPreMoveViolations(poleId) {
+    if (!isMidAmProfile()) return [];
+    const pole = S().getPole(poleId);
+    if (!pole) return [];
+    const violations = [];
+    const add = (scope, message) => {
+      const text = String(message || "").trim();
+      if (text && !violations.some(item => item.scope === scope && item.message === text)) {
+        violations.push({ scope, message: text });
+      }
+    };
+    const poleRows = S().getSpanCommsForPole(poleId)
+      .map(sc => ({ sc, height: getPreMoveCommHeight(sc), owner: commOwnerLabel(sc) || "Comm" }))
+      .filter(item => item.height !== null && !item.sc.serviceDrop);
+    const maxPole = H().parseHeight(pole.maxCommHeight || "");
+    poleRows.forEach(item => {
+      if (maxPole !== null && item.height > maxPole) {
+        add("pole", `On-pole violation: ${item.owner} at ${format(item.height)} exceeds max ${format(maxPole)}.`);
+      }
+    });
+    const poleClearance = getPoleCommCommClearance();
+    const boltClearance = getPoleBoltBoltClearance();
+    for (let leftIndex = 0; leftIndex < poleRows.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < poleRows.length; rightIndex += 1) {
+        const left = poleRows[leftIndex];
+        const right = poleRows[rightIndex];
+        const sameOwner = normalizeOwnerForMatch(left.owner) === normalizeOwnerForMatch(right.owner);
+        const minimum = sameOwner ? boltClearance : poleClearance;
+        const separation = Math.abs(left.height - right.height);
+        if (separation < minimum) {
+          add("pole", `On-pole violation: ${left.owner} at ${format(left.height)} and ${right.owner} at ${format(right.height)}; separation ${format(separation)}, minimum ${format(minimum)}.`);
+        }
+      }
+    }
+
+    const foreSpans = S().getConnectedSpans(poleId)
+      .filter(span => span?.fromPole === poleId && isForeSpan(span));
+    const seenSpans = new Set();
+    foreSpans.forEach(span => {
+      if (seenSpans.has(span.spanId)) return;
+      seenSpans.add(span.spanId);
+      const direction = String(span.direction || "").trim() || "Fore Span";
+      const rows = S().getSpanCommsForSpan(span.spanId)
+        .map(sc => ({ sc, height: getImportedMidspanInchesForComm(sc), owner: commOwnerLabel(sc) || "Comm" }))
+        .filter(item => item.height !== null && !item.sc.serviceDrop);
+      const maxMidspan = H().parseHeight(span.midspanMaxCommHeight || "");
+      rows.forEach(item => {
+        if (maxMidspan !== null && item.height > maxMidspan) {
+          add("midspan", `Midspan violation: ${item.owner} at ${format(item.height)} on ${direction}; max ${format(maxMidspan)}.`);
+        }
+      });
+      const midspanClearance = getMidspanCommCommClearance();
+      for (let leftIndex = 0; leftIndex < rows.length; leftIndex += 1) {
+        for (let rightIndex = leftIndex + 1; rightIndex < rows.length; rightIndex += 1) {
+          const left = rows[leftIndex];
+          const right = rows[rightIndex];
+          const separation = Math.abs(left.height - right.height);
+          if (separation < midspanClearance) {
+            add("midspan", `Midspan violation: ${left.owner} at ${format(left.height)} and ${right.owner} at ${format(right.height)} on ${direction}; separation ${format(separation)}, minimum ${format(midspanClearance)}.`);
+          }
+        }
+      }
+    });
+    return violations;
+  }
+
   /**
    * Checks Proposed against effective comm heights, old bolt points, and other proposals.
    * @param {Object} spanSide
@@ -2215,6 +2290,7 @@
     evaluateSpanSideMidspan,
     evaluateCommMidspanClearance,
     evaluateCommFlagging,
+    getMidamPreMoveViolations,
     evaluateSpanSideFlagging,
     evaluateProposedPoleClearance,
     getPowerEquipmentCeiling,
