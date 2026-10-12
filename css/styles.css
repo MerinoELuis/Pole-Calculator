@@ -694,6 +694,7 @@ button:disabled { cursor: not-allowed; }
 .badge.owner { background: #ecfeff; color: #0e7490; }
 .badge.changed { background: #dcfce7; color: #15803d; }
 .badge.warning { background: #fef3c7; color: #b45309; }
+.badge.ev { background: #ffedd5; color: #c2410c; }
 .badge.danger { background: #fee2e2; color: #b91c1c; }
 .badge.ug { background: #fef3c7; color: #b45309; }
 .badge.pco { background: #e0f2fe; color: #0369a1; }
@@ -738,6 +739,7 @@ button:disabled { cursor: not-allowed; }
   background: #e2e8f0;
 }
 .mini-dot.warning { color: #b45309; background: #fef3c7; }
+.mini-dot.ev { color: #c2410c; background: #ffedd5; }
 .mini-dot.danger { color: #b91c1c; background: #fee2e2; }
 .mini-dot.ug { color: #b45309; background: #fef3c7; }
 .mini-dot.pco { color: #0369a1; background: #e0f2fe; }
@@ -2410,6 +2412,11 @@ html[data-theme="dark"] .badge.pof,
 html[data-theme="dark"] .badge.ignored {
   background: #161616;
   color: #ffffff;
+}
+html[data-theme="dark"] .badge.ev,
+html[data-theme="dark"] .mini-dot.ev {
+  background: #7c2d12;
+  color: #fed7aa;
 }
 html[data-theme="dark"] .input:disabled,
 html[data-theme="dark"] select:disabled,

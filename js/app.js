@@ -2341,7 +2341,7 @@
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
       ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="mini-dot danger">Flag ${flagging.calculationIssueCount}</span>` : ""}
       ${flagging.heightCritical ? `<span class="mini-dot danger" title="Critical pole height issue">&#9888; Height</span>` : ""}
-      ${hasExistingViolations ? `<span class="mini-dot warning" title="Existing violations">EV</span>` : ""}
+      ${hasExistingViolations ? `<span class="mini-dot ev" title="Existing violations">EV</span>` : ""}
       ${hasMR ? `<span class="mini-dot warning" title="Make Ready exists for this pole">MR</span>` : ""}
       ${hasProposed ? `<span class="mini-dot changed">Proposed</span>` : ""}
     </button>`;
@@ -2525,7 +2525,7 @@
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
           ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="badge danger">Flagging ${flagging.calculationIssueCount}</span>` : ""}
           ${flagging.heightCritical ? `<span class="badge danger" title="Critical pole height issue">&#9888; Height Critical</span>` : ""}
-          ${hasExistingViolations ? `<span class="badge warning" title="Existing violations">EV</span>` : ""}
+          ${hasExistingViolations ? `<span class="badge ev" title="Existing violations">EV</span>` : ""}
           ${hasMR ? `<span class="badge warning" title="Make Ready exists for this pole">MR</span>` : ""}
           ${hasProposed ? `<span class="badge changed">Proposed</span>` : ""}
         </div>
