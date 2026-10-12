@@ -21,8 +21,8 @@ assert.match(
 
 assert.match(
   html,
-  /id="calcExpression"[^>]*placeholder="12'6&quot; \+ 3'8&quot;"/,
-  "The expression input must show a feet-and-inches addition placeholder."
+  /id="calcExpression"[^>]*placeholder="12'6&quot; \+ 3'8&quot; - 1' \+ 2&quot;"/,
+  "The expression input must show a mixed multi-operation placeholder."
 );
 
 assert.doesNotMatch(

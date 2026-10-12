@@ -31,6 +31,50 @@
     return true;
   }
 
+  function convertSingleValue(value, H) {
+    const source = String(value || "").trim();
+    if (!source) return "";
+    if (/(?:\"|\bin)$/i.test(source) && !source.includes("'")) return H.inchesToHeight(source);
+    if (/^[+-]?\d+\.\d+$/.test(source)) return H.decimalFeetToHeight(source);
+    if (source.includes("'")) {
+      const decimal = H.heightToDecimalFeet(source);
+      return decimal === "" ? "" : `${decimal} ft`;
+    }
+    if (/^[+-]?\d+$/.test(source)) return H.decimalFeetToHeight(source);
+    return "";
+  }
+
+  /** Evaluates up to three mixed + / - feet-and-inches operations. */
+  function evaluateExpression(input, H) {
+    const source = normalizeInchQuotes(String(input ?? "").trim()).replace(/[−–—]/g, "-");
+    if (!source) return "";
+
+    const terms = [];
+    const operators = [];
+    let termStart = 0;
+    for (let index = 0; index < source.length; index += 1) {
+      const character = source[index];
+      if ((character !== "+" && character !== "-") || index === 0) continue;
+      const term = source.slice(termStart, index).trim();
+      if (!term) return "";
+      terms.push(term);
+      operators.push(character);
+      termStart = index + 1;
+    }
+    terms.push(source.slice(termStart).trim());
+    if (terms.some(term => !term) || operators.length > 3) return "";
+    if (!operators.length) return convertSingleValue(source, H);
+
+    let total = H.parseHeight(terms[0]);
+    if (total === null) return "";
+    for (let index = 0; index < operators.length; index += 1) {
+      const value = H.parseHeight(terms[index + 1]);
+      if (value === null) return "";
+      total = operators[index] === "+" ? total + value : total - value;
+    }
+    return H.formatHeight(total);
+  }
+
   function setupFloatingCalculator() {
     const panel = document.getElementById("floatingCalculator");
     const openBtn = document.getElementById("openCalculatorBtn");
@@ -44,19 +88,6 @@
 
     if (!panel || !openBtn || !scrollTopBtn || !closeBtn || !expression || !result || !H) return;
 
-    function convertSingleValue(value) {
-      const source = String(value || "").trim();
-      if (!source) return "";
-      if (/(?:\"|\bin)$/i.test(source) && !source.includes("'")) return H.inchesToHeight(source);
-      if (/^[+-]?\d+\.\d+$/.test(source)) return H.decimalFeetToHeight(source);
-      if (source.includes("'")) {
-        const decimal = H.heightToDecimalFeet(source);
-        return decimal === "" ? "" : `${decimal} ft`;
-      }
-      if (/^[+-]?\d+$/.test(source)) return H.decimalFeetToHeight(source);
-      return "";
-    }
-
     function runCalculation() {
       try {
         const source = expression.value.trim();
@@ -64,10 +95,7 @@
           result.textContent = "";
           return;
         }
-        const operation = source.match(/^(.+?)\s*([+-])\s*(.+)$/);
-        const output = operation
-          ? (operation[2] === "+" ? H.addHeights(operation[1], operation[3]) : H.subtractHeights(operation[1], operation[3]))
-          : convertSingleValue(source);
+        const output = evaluateExpression(source, H);
         result.textContent = output || "Invalid input";
       } catch (error) {
         result.textContent = error.message;
@@ -138,6 +166,7 @@
   global.FloatingCalculator = {
     setupFloatingCalculator,
     normalizeInchQuotes,
-    normalizeExpressionInput
+    normalizeExpressionInput,
+    evaluateExpression
   };
 })(window);

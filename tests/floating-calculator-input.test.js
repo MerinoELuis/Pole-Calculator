@@ -5,13 +5,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const source = fs.readFileSync(
-  path.join(__dirname, "../js/floating-calculator.js"),
-  "utf8"
-);
-
 const window = { document: null };
-vm.runInNewContext(source, { window, console, String, Number });
+for (const file of ["height-utils.js", "floating-calculator.js"]) {
+  const source = fs.readFileSync(path.join(__dirname, "../js", file), "utf8");
+  vm.runInNewContext(source, { window, console, String, Number }, { filename: file });
+}
 
 const calculator = window.FloatingCalculator;
 
@@ -59,6 +57,17 @@ assert.equal(
   calculator.normalizeExpressionInput(input),
   false,
   "Already normalized input must not be changed again."
+);
+
+assert.equal(
+  calculator.evaluateExpression("20' + 2'6\" - 1' + 6\"", window.HeightUtils),
+  "22'",
+  "The calculator must evaluate three mixed operations left-to-right."
+);
+assert.equal(
+  calculator.evaluateExpression("20' + 2' - 1' + 6\" - 2\"", window.HeightUtils),
+  "",
+  "A fourth operation must be rejected."
 );
 
 console.log("floating calculator input normalization tests passed");
