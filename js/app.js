@@ -2331,6 +2331,7 @@
     const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
     const hasMR = (state.mr || []).some(item => item?.poleId === poleId && String(item.text || "").trim());
+    const hasExistingViolations = Boolean(global.Calculations?.getMidamPreMoveViolations?.(poleId)?.length);
     const hidden = (state.ui.hiddenPoleIds || []).includes(poleId);
     const active = state.selectedPoleId === poleId ? " active" : "";
     return `<button class="pole-index-link${active}${hidden ? " hidden-pole" : ""}" data-pole-select="${escapeHtml(poleId)}" type="button" title="${hidden ? "Show this pole" : "Open this pole"}">
@@ -2340,6 +2341,7 @@
       ${flagging.resolution ? `<span class="mini-dot ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
       ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="mini-dot danger">Flag ${flagging.calculationIssueCount}</span>` : ""}
       ${flagging.heightCritical ? `<span class="mini-dot danger" title="Critical pole height issue">&#9888; Height</span>` : ""}
+      ${hasExistingViolations ? `<span class="mini-dot warning" title="Existing violations">EV</span>` : ""}
       ${hasMR ? `<span class="mini-dot warning" title="Make Ready exists for this pole">MR</span>` : ""}
       ${hasProposed ? `<span class="mini-dot changed">Proposed</span>` : ""}
     </button>`;
@@ -2389,7 +2391,7 @@
     const text = formatExistingViolationsText(violations);
     return `<section class="subsection wide midam-violations-section" id="existing-violations-${escapeHtml(poleId)}">
       <div class="subsection-title-row">
-        <h4>Existing Violations <span class="badge danger">Flagging ${violations.length}</span></h4>
+        <h4>Existing Violations</h4>
         <button class="mini-btn" type="button" data-copy-existing-violations data-pole="${escapeHtml(poleId)}">Copy</button>
       </div>
       <pre class="existing-violations-output">${escapeHtml(text)}</pre>
@@ -2507,6 +2509,7 @@
     const hasProposed = poleHasProposed(poleId);
     const flagging = poleFlaggingSummary(poleId);
     const hasMR = (S.getState().mr || []).some(item => item?.poleId === poleId && String(item.text || "").trim());
+    const hasExistingViolations = Boolean(global.Calculations?.getMidamPreMoveViolations?.(poleId)?.length);
     return `<div class="pole-workspace-header">
       <div class="pole-heading-block">
         <div class="pole-heading-row">
@@ -2521,6 +2524,7 @@
           ${flagging.resolution ? `<span class="badge ${flagging.resolution.toLowerCase()}">${flagging.resolution}</span>` : ""}
           ${!flagging.resolution && flagging.calculationIssueCount ? `<span class="badge danger">Flagging ${flagging.calculationIssueCount}</span>` : ""}
           ${flagging.heightCritical ? `<span class="badge danger" title="Critical pole height issue">&#9888; Height Critical</span>` : ""}
+          ${hasExistingViolations ? `<span class="badge warning" title="Existing violations">EV</span>` : ""}
           ${hasMR ? `<span class="badge warning" title="Make Ready exists for this pole">MR</span>` : ""}
           ${hasProposed ? `<span class="badge changed">Proposed</span>` : ""}
         </div>
