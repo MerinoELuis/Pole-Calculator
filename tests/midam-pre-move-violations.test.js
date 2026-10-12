@@ -40,6 +40,10 @@ S.upsertSpanComm(S.createSpanComm({
   spanId: "BACK", poleId: "P1", owner: "COMMUNICATION > Telco", ownerBase: "COMMUNICATION > Telco",
   existingHOA: "21'"
 }));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "FORE", poleId: "P1", wireId: "W2", owner: "COMMUNICATION > Telco", ownerBase: "COMMUNICATION > Telco",
+  existingHOA: "21'", midspan: "19'"
+}));
 
 const violations = C.getMidamPreMoveViolations("P1");
 assert.ok(violations.some(item => /On-pole violation:.*Telco.*21'/.test(item.message)), "must describe the imported on-pole violation");

@@ -929,6 +929,18 @@
         violations.push({ scope, message: text });
       }
     };
+    const uniqueRows = rows => {
+      const seen = new Set();
+      return rows.filter(item => {
+        // One physical attachment can be represented by several Span.Wire
+        // rows at the same endpoint. Do not compare those reciprocal/wire
+        // references against each other as separate communications.
+        const key = `${normalizeOwnerForMatch(item.owner)}|${item.height}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
     const poleRows = S().getSpanCommsForPole(poleId)
       .map(sc => ({ sc, height: getPreMoveCommHeight(sc), owner: commOwnerLabel(sc) || "Comm" }))
       // Reciprocal Back/Other rows marked REF describe the same physical
@@ -936,18 +948,19 @@
       // them here creates false zero-separation violations (and misleading
       // duplicate owner pairs) before any movement is applied.
       .filter(item => item.height !== null && !item.sc.serviceDrop && !isReferenceSpanComm(item.sc));
+    const uniquePoleRows = uniqueRows(poleRows);
     const maxPole = H().parseHeight(pole.maxCommHeight || "");
-    poleRows.forEach(item => {
+    uniquePoleRows.forEach(item => {
       if (maxPole !== null && item.height > maxPole) {
         add("pole", `On-pole violation: ${item.owner} at ${format(item.height)} exceeds max ${format(maxPole)}.`);
       }
     });
     const poleClearance = getPoleCommCommClearance();
     const boltClearance = getPoleBoltBoltClearance();
-    for (let leftIndex = 0; leftIndex < poleRows.length; leftIndex += 1) {
-      for (let rightIndex = leftIndex + 1; rightIndex < poleRows.length; rightIndex += 1) {
-        const left = poleRows[leftIndex];
-        const right = poleRows[rightIndex];
+    for (let leftIndex = 0; leftIndex < uniquePoleRows.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < uniquePoleRows.length; rightIndex += 1) {
+        const left = uniquePoleRows[leftIndex];
+        const right = uniquePoleRows[rightIndex];
         const sameOwner = normalizeOwnerForMatch(left.owner) === normalizeOwnerForMatch(right.owner);
         const minimum = sameOwner ? boltClearance : poleClearance;
         const separation = Math.abs(left.height - right.height);
@@ -964,9 +977,9 @@
       if (seenSpans.has(span.spanId)) return;
       seenSpans.add(span.spanId);
       const direction = String(span.direction || "").trim() || "Fore Span";
-      const rows = S().getSpanCommsForSpan(span.spanId)
+      const rows = uniqueRows(S().getSpanCommsForSpan(span.spanId)
         .map(sc => ({ sc, height: getImportedMidspanInchesForComm(sc), owner: commOwnerLabel(sc) || "Comm" }))
-        .filter(item => item.height !== null && !item.sc.serviceDrop);
+        .filter(item => item.height !== null && !item.sc.serviceDrop));
       const maxMidspan = H().parseHeight(span.midspanMaxCommHeight || "");
       rows.forEach(item => {
         if (maxMidspan !== null && item.height > maxMidspan) {
