@@ -1083,8 +1083,12 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   grid-column: 1;
 }
 
+.pole-actions-section {
+  grid-column: 2;
+}
+
 .midam-violations-section {
-  grid-column: 1;
+  grid-column: 1 / -1;
 }
 
 .midam-violation-list {
@@ -1526,6 +1530,9 @@ tr.danger-row {
   }
   .workspace-grid {
     grid-template-columns: 1fr;
+  }
+  .pole-actions-section {
+    grid-column: 1;
   }
 }
 

@@ -2807,11 +2807,11 @@
           </div>
           ${renderMRText(poleId)}
         </section>
-        ${renderMidamPreMoveViolations(poleId)}
-        <section class="subsection">
+        <section class="subsection pole-actions-section">
           <h4>Pole Actions</h4>
           ${renderPoleActions(poleId)}
         </section>
+        ${renderMidamPreMoveViolations(poleId)}
       </div>
     </article>`;
   }
