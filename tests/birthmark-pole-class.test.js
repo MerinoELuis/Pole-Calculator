@@ -32,6 +32,16 @@ const importedRow = ExcelImport.buildPoleClassChecks([{
 assert.equal(importedRow.birthmarkExists, true, "Birthmark Photos should activate the Pole Type Check toggle");
 assert.equal(importedRow.birthmarkClassOverride, true, "MidAm birthmark should override a class mismatch");
 
+const birthmarkWithoutCircumference = ExcelImport.recalculatePoleClassCheck({
+  tip: "32'",
+  importedType: "Southern Pine > 4 > 40",
+  circumference: "",
+  projectProfile: "METRONET",
+  metronetWI: "MIDAM",
+  birthmarkExists: true
+});
+assert.equal(birthmarkWithoutCircumference.status, "OK", "Birthmark must make class valid even without imported circumference");
+
 const mismatchWithoutBirthmark = ExcelImport.recalculatePoleClassCheck({
   tip: "28'",
   importedType: "Southern Pine > 4 > 35",

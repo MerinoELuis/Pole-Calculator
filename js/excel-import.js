@@ -339,18 +339,19 @@
       && Boolean(tableMatch)
       && Boolean(importedClass)
       && importedClass !== expectedClass;
+    const birthmarkClassAuthority = birthmarkExists && isMidamPoleClassProfile(data);
     const issues = [];
 
     if (!data.tip) issues.push("Missing Tip");
-    if (circumference === null && !useOppdRule) issues.push("Missing Circumference");
-    if (!importedType) issues.push("Missing Type");
+    if (circumference === null && !useOppdRule && !birthmarkClassAuthority) issues.push("Missing Circumference");
+    if (!importedType && !birthmarkClassAuthority) issues.push("Missing Type");
     if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No reference height row");
     if (useOppdRule && !hasCircumference) {
       // No circumference means there is no class check for Olsson.  Keep the
       // normal missing-type and height checks below, but do not reject a row
       // solely because its imported class is not one of the OPPD classes.
     } else {
-      if (data.tip && circumference !== null && !tableMatch) issues.push("No table match");
+      if (data.tip && circumference !== null && !tableMatch && !birthmarkClassAuthority) issues.push("No table match");
       if (tableMatch && importedClass && importedClass !== expectedClass && !birthmarkClassOverride) issues.push("Class mismatch");
     }
     if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
