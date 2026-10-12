@@ -1969,13 +1969,14 @@
       </div>
       <div class="table-wrap"><table class="pole-class-table">
         <thead><tr>
-          <th>Pole ID</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th><th>Status</th>
+          <th>Pole ID</th><th>Birthmark</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th><th>Status</th>
         </tr></thead>
         <tbody>${rows.map((row, index) => {
           const severity = poleClassSeverity(row);
           return `
           <tr class="${poleClassRowClass(severity)}">
             <td><strong>${poleLink(row.poleId)}</strong></td>
+            <td><input class="pole-class-birthmark-toggle" type="checkbox" ${row.birthmarkExists ? "checked" : ""} disabled aria-label="Birthmark ${row.birthmarkExists ? "available" : "not available"}" title="${row.birthmarkExists ? "Birthmark available; it is authoritative for class in Metronet MidAm." : "No Birthmark was imported."}"></td>
             <td>${escapeHtml(row.tip || "")}</td>
             <td>${escapeHtml(row.importedCircumference || "")}</td>
             <td><input class="input pole-class-diameter-input" data-scope="poleClassCheck" data-index="${index}" data-field="manualDiameter" value="${escapeHtml(row.manualDiameter || "")}" /></td>
@@ -3747,10 +3748,15 @@
 
     if (scope === "settings") {
       S.updateSetting(field, value);
-      if (field === "projectProfile" && global.ExcelImport?.recalculatePoleClassCheck) {
-        const profile = String(S.getState().settings?.projectProfile || value || "").toUpperCase();
+      if (["projectProfile", "metronetWI", "proposedOwner"].includes(field) && global.ExcelImport?.recalculatePoleClassCheck) {
+        const settings = S.getState().settings || {};
         S.getState().poleClassChecks = (S.getState().poleClassChecks || [])
-          .map(row => global.ExcelImport.recalculatePoleClassCheck({ ...row, projectProfile: profile }));
+          .map(row => global.ExcelImport.recalculatePoleClassCheck({
+            ...row,
+            projectProfile: String(settings.projectProfile || "").toUpperCase(),
+            metronetWI: String(settings.metronetWI || "").toUpperCase(),
+            proposedOwner: String(settings.proposedOwner || "")
+          }));
       }
       global.Calculations.recalculateAll();
     }

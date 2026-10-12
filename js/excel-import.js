@@ -50,6 +50,13 @@
     return /^(true|yes|1|si|sí)$/i.test(String(value || "").trim());
   }
 
+  function hasBirthmarkValue(value) {
+    if (typeof value === "boolean") return value;
+    const text = String(value ?? "").trim();
+    if (!text) return false;
+    return !/^(0|false|no|n|none|null|n\/a)$/i.test(text);
+  }
+
   function findKey(row, names, options = {}) {
     if (!row) return "";
     const keys = Object.keys(row);
@@ -240,6 +247,15 @@
     return String(state?.settings?.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
   }
 
+  function isMidamPoleClassProfile(data = {}) {
+    const state = S()?.getState?.();
+    const projectProfile = String(data.projectProfile || state?.settings?.projectProfile || "").toUpperCase();
+    if (projectProfile !== "METRONET") return false;
+    const wi = String(data.metronetWI || state?.settings?.metronetWI || "").toUpperCase();
+    if (wi) return wi === "MIDAM";
+    return String(data.proposedOwner || state?.settings?.proposedOwner || "").toUpperCase() === "MIDAM";
+  }
+
   function parseNumber(value) {
     if (isBlank(value)) return null;
     const match = String(value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
@@ -315,6 +331,14 @@
         : "");
     const importedClass = String(parsedType.classValue || "").toUpperCase();
     const expectedClass = String((useOppdRule ? recommendedClass : calculatedClass) || "").toUpperCase();
+    const birthmarkExists = data.birthmarkExists === undefined
+      ? hasBirthmarkValue(data.birthmark)
+      : Boolean(data.birthmarkExists);
+    const birthmarkClassOverride = birthmarkExists
+      && isMidamPoleClassProfile(data)
+      && Boolean(tableMatch)
+      && Boolean(importedClass)
+      && importedClass !== expectedClass;
     const issues = [];
 
     if (!data.tip) issues.push("Missing Tip");
@@ -327,7 +351,7 @@
       // solely because its imported class is not one of the OPPD classes.
     } else {
       if (data.tip && circumference !== null && !tableMatch) issues.push("No table match");
-      if (tableMatch && importedClass && importedClass !== expectedClass) issues.push("Class mismatch");
+      if (tableMatch && importedClass && importedClass !== expectedClass && !birthmarkClassOverride) issues.push("Class mismatch");
     }
     if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
 
@@ -340,6 +364,9 @@
       recommendedHeight: recommendedHeight || "",
       recommendedClass,
       expectedType,
+      birthmark: String(data.birthmark ?? ""),
+      birthmarkExists,
+      birthmarkClassOverride,
       status: issues.length ? issues.join(", ") : "OK",
       tableMinimumCircumference: tableMatch?.minimum || "",
       circumferenceSource: diameterForCalc === null ? (importedCircumference === null ? "Imported diameter" : "Collection") : "Manual diameter"
@@ -354,6 +381,8 @@
       const tipHeight = heightFromRow(row, ["Tip.display", "Tip Display"], ["Tip"]);
       const circumferenceRaw = pick(row, ["Circumference", "Circumfer", "Circumference (\")", "Ground Circumference"], { contains: true });
       const diameterRaw = pick(row, ["Diameter", "Groundline Diameter"], { contains: true });
+      const birthmarkRaw = pick(row, ["Birthmark", "Birth Mark", "Birthmark Photos", "Birth Mark Photos"], { contains: true });
+      const state = S()?.getState?.();
 
       return recalculatePoleClassCheck({
         poleId,
@@ -362,7 +391,11 @@
         importedDiameter: parseNumber(diameterRaw) === null ? "" : String(parseNumber(diameterRaw)),
         manualDiameter: "",
         importedType,
-        projectProfile: String(S()?.getState?.()?.settings?.projectProfile || "").toUpperCase(),
+        birthmark: birthmarkRaw,
+        birthmarkExists: hasBirthmarkValue(birthmarkRaw),
+        projectProfile: String(state?.settings?.projectProfile || "").toUpperCase(),
+        metronetWI: String(state?.settings?.metronetWI || "").toUpperCase(),
+        proposedOwner: String(state?.settings?.proposedOwner || ""),
         source: "Collection"
       });
     }).filter(Boolean);
@@ -1183,6 +1216,8 @@
     isPowerWire,
     directionFromBearingDisplay,
     recalculatePoleClassCheck,
+    buildPoleClassChecks,
+    hasBirthmarkValue,
     ANSI_POLE_CLASSES,
     ANSI_CLASS_TABLE,
     ANSI_APPROX_GROUNDLINE_DISTANCE,

@@ -1417,6 +1417,13 @@ html[data-theme="dark"] .pole-inset-details .pole-action-readout strong {
   text-align: center;
 }
 
+.pole-class-birthmark-toggle {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: help;
+}
+
 .pole-class-critical-row {
   background: #fee2e2;
 }
