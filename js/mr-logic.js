@@ -112,6 +112,11 @@
     return String(settings.mrTemplate || settings.projectProfile || "").toUpperCase() === "METRONET";
   }
 
+  function isMidAmMR() {
+    const settings = S().getState().settings || {};
+    return isMetronetMR() && String(settings.proposedOwner || "").toUpperCase() === "MIDAM";
+  }
+
   function isOlssonMR() {
     const settings = S().getState().settings || {};
     // The selected project profile is authoritative. Older saved states can
@@ -851,11 +856,13 @@
             ? "MNT GROUND STREETLIGHT"
             : "Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.");
         }
-        if (!isMetronetMR() && row.raiseActive) {
+        if (row.raiseActive) {
           const source = H().parseHeight(row.attachmentHeight || "");
           const target = H().parseHeight(row.raiseHeight || "");
           if (source !== null && target !== null && target > source && target <= source + 12) {
-            lines.push(`Raise streetlight from HOA ${H().formatHeight(source)} to ${H().formatHeight(target)}.`);
+            lines.push(isMidAmMR()
+              ? `AT HOA ${H().formatHeight(source)} RAISE STREETLIGHT TO HOA ${H().formatHeight(target)} DUE TO CLEARANCE VIOLATIONS.`
+              : `Raise streetlight from HOA ${H().formatHeight(source)} to ${H().formatHeight(target)}.`);
           }
         }
         return lines;

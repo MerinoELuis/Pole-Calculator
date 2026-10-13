@@ -160,7 +160,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 9. Transformer Secure and Power Riser Raise update effective Low Power when limiting; Power Riser Secure generates a drip-loop instruction independently.
 10. Disabling optional equipment work restores imported baseline.
 10. Update Data preserves equipment actions and refreshes baseline values.
-11. INTEC Streetlight Raise accepts at most 12 inches above Attachment Height.
+11. INTEC and Metronet MidAm Streetlight Raise accept at most 12 inches above Attachment Height and generate their profile-specific MR wording.
 
 ## Compact AutoProposed Cases
 

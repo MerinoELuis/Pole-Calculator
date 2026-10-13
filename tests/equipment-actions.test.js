@@ -94,7 +94,9 @@ S.upsertPole(S.createPole({
       bottomHeight: "21'",
       dripLoopHeight: "21'",
       actionActive: false,
-      actionHeight: ""
+      actionHeight: "",
+      raiseActive: false,
+      raiseHeight: ""
     }]
   }
 }));
@@ -105,6 +107,11 @@ assert.equal(S.getPole("STREETLIGHT").lowPower, "25'", "grounding has no vertica
 assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "21'8\"", "MidAm pole clearance must ignore invalid Bottom/Drip Loop fields and retain the lower Low Power ceiling");
 assert.equal(C.getPowerEquipmentCeiling(S.getPole("STREETLIGHT").metadata.powerEquipment[0]), "24'4\"", "MidAm streetlight equipment ceiling must use Attachment Height only");
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
+S.updatePowerEquipmentField("STREETLIGHT", 0, "raiseActive", true);
+S.updatePowerEquipmentField("STREETLIGHT", 0, "raiseHeight", "27'");
+C.recalculateAll();
+assert.equal(C.getPowerEquipmentCeiling(S.getPole("STREETLIGHT").metadata.powerEquipment[0]), "25'4\"", "MidAm Streetlight Raise must move the Attachment Height ceiling");
+assert.match(mrText("STREETLIGHT"), /AT HOA 26' RAISE STREETLIGHT TO HOA 27' DUE TO CLEARANCE VIOLATIONS\./);
 
 S.resetState();
 S.applyProjectProfile("COMED");

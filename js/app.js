@@ -2724,12 +2724,14 @@
           && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
         const isIntecStreetlight = category === "STREETLIGHT"
           && String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
+        const isMidAmStreetlight = requiredMidAmGround;
+        const isRaiseableStreetlight = isIntecStreetlight || isMidAmStreetlight;
         const isRiser = category === "RISER";
         const isTransformer = category === "TRANSFORMER";
-        const actionControls = isIntecStreetlight
+        const actionControls = isRaiseableStreetlight
           ? `<div class="equipment-action-stack">
               <label class="equipment-action-control">
-                <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive ? "checked" : ""}>
+                <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
                 <span>Ground</span>
               </label>
               <label class="equipment-action-control">
@@ -2752,8 +2754,8 @@
               <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
               <span>${escapeHtml(isTransformer ? "Secure" : (actionLabels[category] || "Apply"))}</span>
             </label>`;
-        const heightField = isIntecStreetlight ? "raiseHeight" : "actionHeight";
-        const heightEnabled = isIntecStreetlight ? row.raiseActive : row.actionActive;
+        const heightField = isRaiseableStreetlight ? "raiseHeight" : "actionHeight";
+        const heightEnabled = isRaiseableStreetlight ? row.raiseActive : row.actionActive;
         return `<tr>
         <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
         <td class="inline-edit-cell" data-inline-equipment-edit="owner" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Double-click to edit equipment owner">${escapeHtml(row.owner || "")}</td>
@@ -2762,7 +2764,7 @@
         <td>${escapeHtml(row.dripLoopHeight || "")}</td>
         <td>${escapeHtml(row.orientation || "")}</td>
         <td>${actionControls}</td>
-        <td>${needsHeight || isIntecStreetlight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="${heightField}" value="${escapeHtml(row[heightField] || "")}" ${heightEnabled ? "" : "disabled"} ${isIntecStreetlight ? `title="Maximum raise: 1 foot above ${escapeHtml(row.attachmentHeight || "the imported HOA")}"` : ""}>` : `<span class="muted">&mdash;</span>`}</td>
+        <td>${needsHeight || isRaiseableStreetlight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="${heightField}" value="${escapeHtml(row[heightField] || "")}" ${heightEnabled ? "" : "disabled"} ${isRaiseableStreetlight ? `title="Maximum raise: 1 foot above ${escapeHtml(row.attachmentHeight || "the imported HOA")}"` : ""}>` : `<span class="muted">&mdash;</span>`}</td>
         <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
         <td><button class="icon-action danger-action" type="button" data-delete-equipment data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Delete equipment" aria-label="Delete equipment">&#10005;</button></td>
       </tr>`;

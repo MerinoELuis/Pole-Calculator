@@ -1236,10 +1236,11 @@
     return target;
   }
 
-  // INTEC allows a Streetlight to be raised independently of grounding, but
-  // never by more than one foot from the imported attachment HOA.
+  // INTEC and Metronet MidAm allow a Streetlight to be raised independently
+  // of grounding, but never by more than one foot from the imported HOA.
   function validStreetlightRaiseInches(equipment) {
-    if (isMidAmProfile() || !equipment?.raiseActive) return null;
+    const project = String(S().getState().settings?.projectProfile || "").toUpperCase();
+    if ((!isMidAmProfile() && project !== "INTEC") || !equipment?.raiseActive) return null;
     const source = H().parseHeight(equipment.attachmentHeight || "");
     const target = H().parseHeight(equipment.raiseHeight || "");
     if (source === null || target === null || target <= source || target > source + 12) return null;
@@ -1268,7 +1269,8 @@
         // MidAm Streetlight rows use only the imported Attachment Height. The
         // workbook's Bottom/Drip Loop fields are invalid for this WI and are
         // reported by Excel Review rather than used in pole clearance math.
-        const midAmAttachment = H().parseHeight(equipment.attachmentHeight || "");
+        const midAmAttachment = validStreetlightRaiseInches(equipment)
+          ?? H().parseHeight(equipment.attachmentHeight || "");
         const midAmClearance = H().parseHeight(settings.streetlightBracketCommClearance || "20\"");
         return midAmAttachment !== null && midAmClearance !== null
           ? midAmAttachment - midAmClearance
