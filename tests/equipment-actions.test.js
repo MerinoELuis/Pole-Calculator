@@ -108,8 +108,8 @@ assert.equal(S.getPole("STREETLIGHT").maxCommHeight, "21'8\"", "MidAm pole clear
 assert.equal(C.getPowerEquipmentCeiling(S.getPole("STREETLIGHT").metadata.powerEquipment[0]), "24'4\"", "MidAm streetlight equipment ceiling must use Attachment Height only");
 assert.match(mrText("STREETLIGHT"), /MNT GROUND STREETLIGHT/);
 S.updatePowerEquipmentField("STREETLIGHT", 0, "raiseActive", true);
-S.updatePowerEquipmentField("STREETLIGHT", 0, "raiseHeight", "27'");
 C.recalculateAll();
+assert.equal(S.getPole("STREETLIGHT").metadata.powerEquipment[0].raiseHeight, "27'", "activating MidAm Streetlight Raise must choose one foot above Attachment Height");
 assert.equal(C.getPowerEquipmentCeiling(S.getPole("STREETLIGHT").metadata.powerEquipment[0]), "25'4\"", "MidAm Streetlight Raise must move the Attachment Height ceiling");
 assert.match(mrText("STREETLIGHT"), /AT HOA 26' RAISE STREETLIGHT TO HOA 27' DUE TO CLEARANCE VIOLATIONS\./);
 

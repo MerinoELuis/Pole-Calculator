@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.153";
+  const CURRENT_VERSION = "1.8.154";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -830,7 +830,7 @@
    * Stores the user action attached to one normalized Power Equipment row.
    * The imported physical heights remain unchanged; actionHeight is the
    * proposed redress/raise height used by calculations and Make Ready. INTEC
-   * Streetlights keep Ground and Raise as independent user actions. Risers
+   * and Metronet MidAm Streetlights keep Ground and Raise as independent user actions. Risers
    * keep Raise and Secure as independent user actions.
    */
   function updatePowerEquipmentField(poleId, equipmentIndex, field, value) {
@@ -839,12 +839,23 @@
     const rows = pole?.metadata?.powerEquipment;
     const index = Number(equipmentIndex);
     if (!pole || !Array.isArray(rows) || !Number.isInteger(index) || !rows[index]) return null;
-    const nextRows = rows.map((row, rowIndex) => rowIndex === index
-      ? {
-          ...row,
-          [field]: ["actionActive", "raiseActive", "secureActive"].includes(field) ? Boolean(value) : trim(value)
+    const nextRows = rows.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
+      const nextRow = {
+        ...row,
+        [field]: ["actionActive", "raiseActive", "secureActive"].includes(field) ? Boolean(value) : trim(value)
+      };
+      const isMidAm = String(state.settings?.projectProfile || "").toUpperCase() === "METRONET"
+        && String(state.settings?.proposedOwner || "").toUpperCase() === "MIDAM";
+      const isStreetlight = String(row.category || row.type || "").toUpperCase().includes("STREETLIGHT");
+      if (field === "raiseActive" && Boolean(value) && isMidAm && isStreetlight) {
+        const source = global.HeightUtils?.parseHeight(row.attachmentHeight || "");
+        if (source !== null && source !== undefined) {
+          nextRow.raiseHeight = global.HeightUtils.formatHeight(source + 12);
         }
-      : row);
+      }
+      return nextRow;
+    });
     pole.metadata = { ...(pole.metadata || {}), powerEquipment: nextRows };
     return nextRows[index];
   }
