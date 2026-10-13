@@ -1125,6 +1125,10 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   white-space: pre-wrap;
 }
 
+.midam-violations-section .subsection-title-row {
+  margin-bottom: 8px;
+}
+
 html[data-theme="dark"] .midam-violation-list li {
   border-color: #b45309;
   background: #451a03;
