@@ -176,9 +176,59 @@ const referenceCatv = S.getSpanComm("P15-P14-BACK", "P15", catv, "P15-BACK-CATV"
 const referenceTelco = S.getSpanComm("P15-P14-BACK", "P15", telco, "P15-BACK-TELCO");
 assert.equal(referenceCatv.calculatedMidspan, "17'3\"", "P15-P14 CATV must use the P14-P15 measured midspan and its own movement");
 assert.equal(referenceTelco.calculatedMidspan, "16'4\"", "P15-P14 Telco must use the P14-P15 measured midspan and its own movement");
+assert.equal(C.displayMidspanForComm(referenceCatv), "", "a reciprocal Back Span must not display the source Midspan at the receiving pole");
+assert.equal(C.displayMidspanForComm(referenceTelco), "", "a reciprocal Back Span Telco must not display the source Midspan at the receiving pole");
 assert.equal(referenceCatv.flaggingStatus, "OK", "reciprocal calculated rows must not duplicate Fore Span violations");
 assert.equal(S.getSpanComm("P14-P15-FORE", "P14", catv, "P14-CATV").calculatedMidspan, "17'3\"", "P14-P15 CATV must use its physical reciprocal instead of P15-P16 when wireId is reused");
 assert.equal(S.getSpanComm("P14-P15-FORE", "P14", telco, "P14-TELCO").calculatedMidspan, "16'4\"", "P14-P15 Telco must use its physical reciprocal movement");
 assert.equal(S.getSpanComm("P15-P16-FORE", "P15", catv, "P14-CATV").calculatedMidspan, "16'8\"", "P15-P16 must keep its own cable midspan calculation");
+
+// Endpoint rows with the same wireId are one physical cable, not two comms.
+// The endpoint without an imported Midspan mirrors the source calculation and
+// must not generate a false zero-separation violation.
+S.resetState();
+S.applyProjectProfile("METRONET");
+S.updateSetting("proposedOwner", "MidAm");
+S.upsertPole(S.createPole({ poleId: "P77", lowPower: "23'6\"", maxCommHeight: "20'2\"" }));
+S.upsertPole(S.createPole({ poleId: "P16", lowPower: "23'6\"", maxCommHeight: "20'2\"" }));
+S.upsertSpan(S.createSpan("P77-P16", "P77", "P16", "N", "", {
+  type: "Fore Span", rawType: "Fore Span", environmentClearance: "15'6\"", midspanMaxCommHeight: "21'7\""
+}));
+const sharedWire = "SHARED-CATV-WIRE";
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "P77-P16", poleId: "P77", owner: catv, wireId: sharedWire,
+  existingHOA: "20'10\"", existingHOAChange: "18'10\"", midspan: "19'1\"", ocalcMS: "19'1\""
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "P77-P16", poleId: "P16", owner: catv, wireId: sharedWire,
+  existingHOA: "20'6\"", existingHOAChange: "18'2\""
+}));
+C.recalculateAll();
+const p77Catv = S.getSpanComm("P77-P16", "P77", catv, sharedWire);
+const p16Catv = S.getSpanComm("P77-P16", "P16", catv, sharedWire);
+assert.equal(p77Catv.calculatedMidspan, "16'11\"", "shared cable MS must include both endpoint movements");
+assert.equal(p16Catv.calculatedMidspan, "16'11\"", "the other endpoint must mirror the shared cable MS");
+assert.equal(p77Catv.flaggingStatus, "OK", "a shared cable must not flag zero MS separation against itself");
+assert.equal(p16Catv.flaggingStatus, "OK", "the mirrored endpoint must not flag zero MS separation against itself");
+assert.equal(p16Catv.midspan, "", "the mirrored endpoint must keep its imported Midspan blank");
+assert.equal(C.displayMidspanForComm(p16Catv), "", "the mirrored endpoint must not display the source Midspan as a second cable");
+
+// A transferred attachment's old HOA belongs to the previous pole. It must
+// not be used as a bolt point on the receiving pole, while the new HOA still
+// participates in normal clearances against other attachments.
+S.resetState();
+S.applyProjectProfile("METRONET");
+S.updateSetting("proposedOwner", "MidAm");
+S.upsertPole(S.createPole({ poleId: "TRANSFER-POLE", lowPower: "25'", maxCommHeight: "22'" }));
+S.upsertSpan(S.createSpan("TRANSFER-SPAN", "TRANSFER-POLE", "REMOTE", "N", "", {
+  type: "Fore Span", rawType: "Fore Span", environmentClearance: "15'6\"", midspanMaxCommHeight: "21'7\""
+}));
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "TRANSFER-SPAN", poleId: "TRANSFER-POLE", owner: catv, wireId: "TRANSFER-WIRE",
+  existingHOA: "20'6\"", existingHOAChange: "20'4\"", transferToNewPole: true
+}));
+C.recalculateAll();
+const transferred = S.getSpanComm("TRANSFER-SPAN", "TRANSFER-POLE", catv, "TRANSFER-WIRE");
+assert.equal(transferred.flaggingStatus, "OK", "a transferred comm old HOA must not create a bolt-bolt violation on the new pole");
 
 console.log("Back Span calculation tests passed.");

@@ -267,6 +267,9 @@
   }
 
   function generateTransferMRForPole(poleId) {
+    // MidAm treats a checked Transfer as work that has already been handled
+    // outside this Make Ready sheet. Do not emit a duplicate transfer MR.
+    if (isMidAmMR()) return [];
     const groups = new Map();
     const settings = S().getState().settings || {};
     S().getSpanCommsForPole(poleId).forEach(row => {
@@ -308,6 +311,7 @@
     const resag = generateResagServiceDropMR(spanComm);
     const owner = ownerForMR(spanComm);
     const transferContext = commGroupTransferContext(spanComm);
+    if (transferContext.enabled && isMidAmMR()) return resag;
     const dg = (transferContext.enabled ? transferContext.downGuy : (
       spanComm.downGuy || detectDownGuy(`${spanComm.notes || ""} ${spanComm.mr || ""}`)
     )) ? " with DG" : "";

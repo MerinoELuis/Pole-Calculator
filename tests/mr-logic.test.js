@@ -175,6 +175,7 @@ assert.match(
   /At HOA 22'6\" lower Cable One to HOA 21'\./,
   "an imported custom MR note must not hide its HOA movement"
 );
+
 state.spanComms.WECOM_MOVE = {
   spanId: "PROP",
   poleId: "P1",
@@ -535,5 +536,19 @@ state.poles.P1.pcoActive = true;
 state.poles.P1.pcoMRText = "";
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /^OPPD REPL POLE TO 45FT CLASS 2/, "Olsson PCO must use the OPPD replacement template");
+
+// MidAm transfers are already completed on the receiving pole and must not
+// generate a duplicate Transfer MR line.
+state.settings = { projectProfile: "METRONET", mrTemplate: "METRONET", proposedOwner: "MidAm", mrCase: "UPPER" };
+state.poles.P1.ugActive = false;
+state.poles.P1.pcoActive = false;
+state.spanComms.A.transferToNewPole = true;
+state.spanComms.B.transferToNewPole = true;
+state.spanComms.C.transferToNewPole = true;
+state.spanComms.D.transferToNewPole = true;
+state.spanComms.E.transferToNewPole = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const midAmTransferText = state.mr.find(item => item.poleId === "P1")?.text || "";
+assert.doesNotMatch(midAmTransferText, /Transfer CATV|Transfer CTL/i, "MidAm transfer rows must not generate Transfer MR");
 
 console.log("Make Ready logic tests passed.");

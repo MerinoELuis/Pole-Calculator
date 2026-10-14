@@ -1427,13 +1427,16 @@
       const isBackspan = /back\s*span|backspan/.test(spanType);
       const isOtherReference = /other/.test(spanType) && !ownMidspan;
       const calculatedBackspan = Boolean(global.Calculations.isCalculatedBackspanComm?.(sc));
+      const isDerivedPhysicalMidspan = Boolean(global.Calculations.isDerivedPhysicalMidspanComm?.(sc));
       // A Back Span is REF only while it lacks its own measured midspan. When
       // INTEC/MidAm imports one on this exact row, it participates in endpoint
       // movement calculations and should no longer look like a passive REF.
-      const isReferenceSpan = (isBackspan && !calculatedBackspan) || isOtherReference;
+      const isReferenceSpan = isDerivedPhysicalMidspan
+        || (isBackspan && !calculatedBackspan)
+        || isOtherReference;
       const midspan = displayMidspan(sc);
       const hasMidspan = H.parseHeight(midspan || "") !== null;
-      const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || sc.calculatedMidspan || sc.msProposed || sc.finalMidspan || "") !== null;
+      const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || "") !== null;
       // Keep different wires on the same physical span as separate editable
       // rows. They may share an imported midspan today but still need
       // independent HOA changes and midspan calculations after a move.
@@ -1444,7 +1447,7 @@
       const midspanLocked = Boolean(sc.otherHOA || sc.existingHOAChange || remote?.otherHOA || remote?.existingHOAChange);
       // Backspans are reference-only here, but Fore/Other rows without an
       // imported midspan must stay editable so the user can create the MS.
-      const canEditMidspan = !isBackspan && (!midspanLocked || !ownMidspan);
+      const canEditMidspan = !isBackspan && !isDerivedPhysicalMidspan && (!midspanLocked || !ownMidspan);
       const rawMidspan = H.parseHeight(sc.calculatedMidspan || sc.midspan || sc.ocalcMS || "");
       const resagTarget = H.parseHeight("15'6\"");
       const canResagServiceDrop = Boolean(

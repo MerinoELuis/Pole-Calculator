@@ -207,11 +207,19 @@
   function isReferenceSpanComm(sc) {
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
-    if (/back\s*span|backspan/.test(type)) return !isCalculatedBackspanComm(sc);
+    // A reciprocal row without its own imported Midspan is a reference to the
+    // same physical cable measured on the other endpoint. Its derived value
+    // is still calculated internally for endpoint movement and Proposed
+    // checks, but it must not be displayed as a second Midspan at the
+    // receiving pole. This covers both directed Back Span records and files
+    // that store the same physical Fore Span ID at both endpoints.
+    if (/back\s*span|backspan/.test(type)) {
+      return parseMidspanValue(ownMidspanValue(sc)) === null;
+    }
     if (/other/.test(type)) {
       return parseMidspanValue(ownMidspanValue(sc)) === null;
     }
-    return false;
+    return isDerivedPhysicalMidspanComm(sc);
   }
 
   const RESAG_SERVICE_DROP_HEIGHT_INCHES = 15 * 12 + 6;
@@ -564,6 +572,11 @@
     return findReciprocalMidspanSourceComm(spanComm);
   }
 
+  function isDerivedPhysicalMidspanComm(spanComm) {
+    if (!spanComm || parseMidspanValue(ownMidspanValue(spanComm)) !== null) return false;
+    return Boolean(findReciprocalMidspanSourceComm(spanComm));
+  }
+
   /**
    * Calculates a comm midspan from its own imported baseline and movements at
    * both physical endpoints. This function does not persist the result.
@@ -841,6 +854,10 @@
     if (midspan !== null) {
       S().getSpanCommsForSpan(sc.spanId).forEach(other => {
         if (spanCommKey(other) === spanCommKey(sc)) return;
+        // Both endpoints can contain a row for the same physical cable. A
+        // shared wireId means the two Midspan values are the same calculation,
+        // not two communications that need separation from each other.
+        if (sc.wireId && other.wireId && sc.wireId === other.wireId && ownersMatch(sc, other)) return;
         // Service drops are exempt from Midspan comm-comm separation. This
         // is intentionally independent of owner: two regular wires from the
         // same owner still need the configured clearance between them.
@@ -2389,6 +2406,7 @@
     spanHasRealMidspan,
     hasMakeReadyFiberReference,
     isReciprocalBackSpan,
+    isDerivedPhysicalMidspanComm,
     isSpanEligibleForProposed,
     isTerminalBackSpan,
     autoCalcProposedSpansForPole,

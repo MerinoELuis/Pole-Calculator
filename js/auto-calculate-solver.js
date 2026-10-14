@@ -309,6 +309,18 @@
       : commClearance(state);
   }
 
+  // Follow Proposed lays out the communication stack as a clearance stack.
+  // It must not collapse two comms from the same owner to the bolt-to-bolt
+  // minimum: if the imported Telco rows were about one foot apart, the new
+  // layout should seek the configured Comm-comm clearance as well.
+  function stackGap(upper, lower, state, options = {}) {
+    if (options.useCommClearanceForAllComms) {
+      if (upper?.ownerToken && upper.ownerToken === lower?.ownerToken && (upper.serviceDrop || lower.serviceDrop)) return 0;
+      return commClearance(state);
+    }
+    return gap(upper, lower, state);
+  }
+
   function eligibleProposedSpans(poleId) {
     const state = S()?.getState?.() || {};
     const allowNoMidspan = state.settings?.proposeForeSpanWithoutMidspan === true;
@@ -508,8 +520,8 @@
       topCommFloors[index] = Math.max(
         topCommFloors[index],
         topCommFloors[index + 1] + (options.preserveExistingGaps
-          ? Math.max(gap(ordered[index], ordered[index + 1], state), Math.abs(ordered[index].existingInches - ordered[index + 1].existingInches))
-          : gap(ordered[index], ordered[index + 1], state))
+          ? Math.max(stackGap(ordered[index], ordered[index + 1], state, options), Math.abs(ordered[index].existingInches - ordered[index + 1].existingInches))
+          : stackGap(ordered[index], ordered[index + 1], state, options))
       );
     }
     const plan = [];
@@ -520,7 +532,7 @@
         target = group.lockedInches;
       } else if (mode === "LOW_COMM") {
         const minimum = previous
-          ? previous.targetInches + gap(previous.group, group, state)
+          ? previous.targetInches + stackGap(previous.group, group, state, options)
           : proposedInches + commClearance(state);
         let preferred = group.existingInches;
         if (Number.isFinite(group.minimumInches)) preferred = Math.max(preferred, group.minimumInches);
@@ -529,8 +541,8 @@
       } else {
         const requiredGap = previous
           ? (options.preserveExistingGaps
-            ? Math.max(gap(previous.group, group, state), Math.abs(previous.group.existingInches - group.existingInches))
-            : gap(previous.group, group, state))
+            ? Math.max(stackGap(previous.group, group, state, options), Math.abs(previous.group.existingInches - group.existingInches))
+            : stackGap(previous.group, group, state, options))
           : 0;
         const maximum = previous
           ? previous.targetInches - requiredGap
@@ -627,7 +639,12 @@
     const maxPole = parse(pole.maxCommHeight || "") ?? target;
     const plan = buildStackPlan(groups, target, "TOP_COMM", maxPole, state, {
       followProposed: true,
-      preserveExistingGaps: true
+      // Follow Proposed uses the configured clearance between every pair of
+      // communications. It must not preserve a larger imported gap from the
+      // old stack, because the operator asked to rebuild the stack from the
+      // current Proposed and the configured Comm-comm clearance.
+      preserveExistingGaps: false,
+      useCommClearanceForAllComms: true
     });
     applyPlan(plan, { followProposed: true });
     recalculateAffected(poleId);

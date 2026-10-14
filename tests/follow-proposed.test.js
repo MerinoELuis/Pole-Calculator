@@ -51,14 +51,27 @@ S.upsertSpanComm({ ...row, existingHOAChange: "18'" });
 solver.applyProposedCommTarget("P1", H.parseHeight("21'10\""));
 assert.equal(S.getSpanComm("S1", "P1", "Telco", "").existingHOAChange, "20'10\"");
 
-// Existing spacing is preserved above the project minimum; the first target
-// stays six inches below the Proposed and the second remains one foot below it.
+// Follow Proposed rebuilds the stack from the configured minimums instead of
+// preserving a larger imported gap. The first target stays one foot below the
+// Proposed and the second seeks the configured Comm-comm clearance even when
+// both rows belong to the same owner.
 setup();
 S.upsertSpanComm(S.createSpanComm({ spanId: "S1", poleId: "P1", owner: "Telco", wireId: "A", existingHOA: "20'4\"" }));
-S.upsertSpanComm(S.createSpanComm({ spanId: "S1", poleId: "P1", owner: "Telco", wireId: "B", existingHOA: `19'4"` }));
+S.upsertSpanComm(S.createSpanComm({ spanId: "S1", poleId: "P1", owner: "Telco", wireId: "B", existingHOA: `18'` }));
 solver.applyProposedCommTarget("P1", H.parseHeight("20'10\""));
 assert.equal(S.getSpanComm("S1", "P1", "Telco", "A").existingHOAChange, "19'10\"");
 assert.equal(S.getSpanComm("S1", "P1", "Telco", "B").existingHOAChange, "18'10\"");
+
+// A same-owner pair that was originally about one foot apart must remain one
+// foot apart after Follow Proposed (not collapse to the six-inch bolt rule).
+setup();
+S.upsertSpanComm(S.createSpanComm({ spanId: "S1", poleId: "P1", owner: "CATV", wireId: "C", existingHOA: `22'4"` }));
+S.upsertSpanComm(S.createSpanComm({ spanId: "S1", poleId: "P1", owner: "Telco", wireId: "A", existingHOA: `20'8"` }));
+S.upsertSpanComm(S.createSpanComm({ spanId: "S1", poleId: "P1", owner: "Telco", wireId: "B", existingHOA: `19'10"` }));
+solver.applyProposedCommTarget("P1", H.parseHeight("21'2\""));
+assert.equal(S.getSpanComm("S1", "P1", "CATV", "C").existingHOAChange, "19'10\"");
+assert.equal(S.getSpanComm("S1", "P1", "Telco", "A").existingHOAChange, "18'10\"");
+assert.equal(S.getSpanComm("S1", "P1", "Telco", "B").existingHOAChange, "17'10\"");
 
 S.updateSetting("position", "LOW_COMM");
 assert.equal(solver.applyProposedCommTarget("P1", H.parseHeight("20'10\"")).disabled, true);

@@ -194,6 +194,10 @@ REF is a display/calculation state, not a different entity type.
 
 A Back Span row that contains an imported midspan may display the source value for inspection, but it remains reference-only in the current calculation path.
 
+A Back Span row without its own imported midspan may still retain a derived value
+from the reciprocal physical span for calculations; the UI displays it as `REF`
+without a duplicate Midspan at the receiving pole.
+
 ## SpanPower
 
 Power rows come from Span.Wire records classified as Primary, Secondary, Neutral, Power, or similar utility wires.
