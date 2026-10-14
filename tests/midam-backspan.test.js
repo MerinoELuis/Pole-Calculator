@@ -161,7 +161,9 @@ S.upsertSpanComm(S.createSpanComm({
   existingHOA: "16'8\"", existingHOAChange: "19'"
 }));
 S.upsertSpanComm(S.createSpanComm({
-  spanId: "P15-P16-FORE", poleId: "P15", owner: catv, wireId: "P15-P16-CATV",
+  // The same cable identity continues through P15, so this deliberately
+  // reuses P14-CATV. Remote matching must still stay on the P14-P15 pair.
+  spanId: "P15-P16-FORE", poleId: "P15", owner: catv, wireId: "P14-CATV",
   existingHOA: "18'10\"", existingHOAChange: "21'", midspan: "16'8\""
 }));
 S.upsertSpanComm(S.createSpanComm({
@@ -175,6 +177,8 @@ const referenceTelco = S.getSpanComm("P15-P14-BACK", "P15", telco, "P15-BACK-TEL
 assert.equal(referenceCatv.calculatedMidspan, "17'3\"", "P15-P14 CATV must use the P14-P15 measured midspan and its own movement");
 assert.equal(referenceTelco.calculatedMidspan, "16'4\"", "P15-P14 Telco must use the P14-P15 measured midspan and its own movement");
 assert.equal(referenceCatv.flaggingStatus, "OK", "reciprocal calculated rows must not duplicate Fore Span violations");
-assert.equal(S.getSpanComm("P15-P16-FORE", "P15", catv, "P15-P16-CATV").calculatedMidspan, "16'8\"", "P15-P16 must keep its own cable midspan calculation");
+assert.equal(S.getSpanComm("P14-P15-FORE", "P14", catv, "P14-CATV").calculatedMidspan, "17'3\"", "P14-P15 CATV must use its physical reciprocal instead of P15-P16 when wireId is reused");
+assert.equal(S.getSpanComm("P14-P15-FORE", "P14", telco, "P14-TELCO").calculatedMidspan, "16'4\"", "P14-P15 Telco must use its physical reciprocal movement");
+assert.equal(S.getSpanComm("P15-P16-FORE", "P15", catv, "P14-CATV").calculatedMidspan, "16'8\"", "P15-P16 must keep its own cable midspan calculation");
 
 console.log("Back Span calculation tests passed.");

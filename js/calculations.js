@@ -504,12 +504,22 @@
     };
     if (preferredWireId && !local.wireId) local.wireId = preferredWireId;
 
+    const context = { spanId, poleId, ownerBase, span, local };
     const candidates = S().getSpanCommsForPole(otherPole);
     if (!candidates.length) return null;
 
-    const context = { spanId, poleId, ownerBase, span, local };
-    const ranked = candidates
+    // A wireId can be reused across consecutive physical spans when the same
+    // cable continues through a pole. Prefer a matching row on this exact
+    // physical pole pair before considering that shared wireId on another
+    // span; otherwise P14->P15 could incorrectly borrow P15->P16's HOA.
+    const physicalMatches = candidates
+      .filter(row => samePhysicalSpan(S().getSpan(row.spanId), span))
       .map(row => ({ row, score: candidateRank(row, context) }))
+      .filter(item => item.score > 0);
+    const ranked = (physicalMatches.length ? physicalMatches : candidates.map(row => ({
+      row,
+      score: candidateRank(row, context)
+    })))
       .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score);
 
