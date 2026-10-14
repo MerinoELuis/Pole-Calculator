@@ -77,8 +77,9 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 4. Both endpoint movements are applied once.
 5. Same owner on two spans: only the physical matching span affects the row.
 6. Same owner with two Wire IDs: exact Wire ID wins remote matching.
-7. REF row: calculated midspan and Other Pole HOA remain blank.
-8. Other with its own midspan calculates normally.
+7. REF row without a measured value on either direction: calculated midspan and Other Pole HOA remain blank.
+8. MidAm reciprocal REF row uses the measured midspan from the same physical pole pair and its own cable movements; a neighboring span never supplies the baseline.
+9. Other with its own midspan calculates normally.
 
 ### Comm Flagging
 

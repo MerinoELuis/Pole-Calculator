@@ -113,7 +113,8 @@ Using the same priority prevents the table from displaying one value while flagg
 | Span type | Own midspan | Behavior |
 | --- | --- | --- |
 | Back Span, INTEC | missing or present | REF for current calculations. An imported value can remain visible for inspection. |
-| Back Span, MidAm | missing | REF with no calculated midspan. |
+| Back Span, MidAm | missing, reciprocal physical span measured | Calculates from the measured row on that same pole pair and keeps the reference relationship tied to that cable. |
+| Back Span, MidAm | missing on both directions | REF with no calculated midspan. |
 | Back Span, MidAm | present | Remains labeled REF, but its own imported baseline is recalculated from both endpoint movements. |
 | Other | missing | REF. No calculated midspan or Other Pole HOA. |
 | Other | present | Real midspan row; calculations and flagging apply. |

@@ -195,10 +195,13 @@
     const span = S().getSpan(sc?.spanId || "");
     const type = String(span?.type || span?.rawType || "").toLowerCase();
     const enabled = S().getState().settings?.calculateBackspanMidspan === true;
-    // Never borrow the reciprocal Fore Span value here. A Back Span becomes
-    // calculable only when this exact Span.Wire row owns an imported midspan.
+    // A Back Span may calculate from its own imported midspan or from the
+    // measured row belonging to the same physical pole pair. The latter is
+    // important when the workbook stores the cable only on the reciprocal
+    // Fore/REF relationship. It must never use a neighboring physical span.
     return Boolean(enabled && /back\s*span|backspan/.test(type)
-      && parseMidspanValue(ownMidspanValue(sc)) !== null);
+      && (parseMidspanValue(ownMidspanValue(sc)) !== null
+        || findReciprocalMidspanSourceComm(sc)));
   }
 
   function isReferenceSpanComm(sc) {
@@ -475,7 +478,10 @@
     if (candidate.spanId === context.spanId) score += 45;
     if (samePhysicalSpan(candidateSpan, context.span)) score += 35;
     if (sameOwner) score += 20;
-    if (getImportedMidspanInchesForComm(candidate) !== null) score += 5;
+    // Use only the raw imported value here. Calling the calculated/reference
+    // helpers while ranking candidates can recurse when a Back Span is being
+    // resolved from its reciprocal measured row.
+    if (parseMidspanValue(ownMidspanValue(candidate)) !== null) score += 5;
 
     return score;
   }
@@ -510,14 +516,42 @@
     return ranked[0]?.row || null;
   }
 
+  function findReciprocalMidspanSourceComm(spanComm) {
+    if (!spanComm) return null;
+    const span = S().getSpan(spanComm.spanId || "");
+    if (!span) return null;
+    const candidates = Object.values(S().getState().spanComms || {})
+      .filter(candidate => candidate !== spanComm)
+      .filter(candidate => {
+        const candidateSpan = S().getSpan(candidate.spanId || "");
+        return samePhysicalSpan(candidateSpan, span);
+      })
+      .filter(candidate => ownersMatch(candidate, spanComm))
+      .filter(candidate => parseMidspanValue(ownMidspanValue(candidate)) !== null);
+    if (!candidates.length) return null;
+
+    return candidates.sort((a, b) => {
+      const aSpan = S().getSpan(a.spanId || "");
+      const bSpan = S().getSpan(b.spanId || "");
+      const aExactWire = Boolean(spanComm.wireId && a.wireId && spanComm.wireId === a.wireId);
+      const bExactWire = Boolean(spanComm.wireId && b.wireId && spanComm.wireId === b.wireId);
+      const aSamePole = a.poleId === spanComm.poleId;
+      const bSamePole = b.poleId === spanComm.poleId;
+      const aFore = /fore\s*span|forespan/.test(String(aSpan?.type || aSpan?.rawType || "").toLowerCase());
+      const bFore = /fore\s*span|forespan/.test(String(bSpan?.type || bSpan?.rawType || "").toLowerCase());
+      const aScore = (aExactWire ? 100 : 0) + (aSamePole ? 20 : 0) + (aFore ? 10 : 0);
+      const bScore = (bExactWire ? 100 : 0) + (bSamePole ? 20 : 0) + (bFore ? 10 : 0);
+      return bScore - aScore || `${a.owner}${a.wireId || ""}`.localeCompare(`${b.owner}${b.wireId || ""}`);
+    })[0] || null;
+  }
+
   function findMidspanSourceComm(spanComm) {
     if (!spanComm) return null;
     const ownMidspan = getImportedMidspanInchesForComm(spanComm);
     if (ownMidspan !== null) return spanComm;
-    // Midspan belongs to the row/span where it was captured. Do not borrow it
-    // from the previous/next span or from a matching owner/wire elsewhere; REF
-    // rows must stay as references so only the real measured side is solved.
-    return null;
+    // A reciprocal REF row can use the measured value from the same physical
+    // pole pair. Do not borrow from the previous/next span or another route.
+    return findReciprocalMidspanSourceComm(spanComm);
   }
 
   /**
@@ -1617,7 +1651,10 @@
     if (!spanComm) return "";
     const span = S().getSpan(spanComm.spanId);
     if (!span) return spanComm.midspan || "";
-    if (isReferenceSpanComm(spanComm)) {
+    const reciprocalSource = parseMidspanValue(ownMidspanValue(spanComm)) === null
+      ? findReciprocalMidspanSourceComm(spanComm)
+      : null;
+    if (isReferenceSpanComm(spanComm) && !reciprocalSource) {
       const difference = H().diffLabel(spanComm.existingHOA, spanComm.otherHOA || spanComm.existingHOAChange || spanComm.existingHOA);
       const flagging = evaluateCommFlagging(spanComm, "");
       S().upsertSpanComm({
@@ -1642,7 +1679,12 @@
 
     const difference = H().diffLabel(spanComm.existingHOA, spanComm.otherHOA || spanComm.existingHOAChange || spanComm.existingHOA);
     const clearance = evaluateCommMidspanClearance(spanComm, calculated);
-    const flagging = evaluateCommFlagging(spanComm, calculated);
+    // The reciprocal row is a calculated view of the same physical cable.
+    // Keep its MS value available, but emit violations only from the measured
+    // Fore/physical source so EVs are not duplicated.
+    const flagging = reciprocalSource
+      ? { flaggingStatus: "OK", flaggingMessage: "OK" }
+      : evaluateCommFlagging(spanComm, calculated);
     S().upsertSpanComm({
       ...spanComm,
       remotePoleId: remote ? remote.poleId : S().getOtherPoleId(span, spanComm.poleId),
