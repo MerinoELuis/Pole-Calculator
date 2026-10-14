@@ -41,8 +41,9 @@
     if (!spanSide?.isSlack || !span) return "";
     const direction = String(span.direction || "").trim().toUpperCase();
     if (!direction) return "";
-    // MidAm/CSU does not have a confirmed Slack MR template in the current
-    // project rules, so do not invent INTEC wording for that profile.
+    if (isMidAmMR()) return `PL NEW SLACK SPAN ${direction}.`;
+    // CSU and ComEd do not have a confirmed Slack MR template in the current
+    // project rules, so do not invent MidAm wording for those profiles.
     if (isMetronetMR()) return "";
     return isOlssonMR()
       ? `PROPOSED SLACK SPAN ${direction}.`

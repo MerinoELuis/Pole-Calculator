@@ -71,6 +71,15 @@ state.spanSides.SLACK__P1.isSlack = false;
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Proposed slack span E\./, "turning Slack off must remove its MR instruction");
 
+state.settings = { projectProfile: "METRONET", mrTemplate: "METRONET", proposedOwner: "MidAm", mrCase: "UPPER" };
+state.spanSides.SLACK__P1.isSlack = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /PL NEW SLACK SPAN E\./, "Metronet MidAm Slack must generate the MidAm instruction");
+state.spanSides.SLACK__P1.isSlack = false;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /PL NEW SLACK SPAN E\./, "turning MidAm Slack off must remove its MR instruction");
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom", mrCase: "LOWER" };
+
 state.spanComms.MOVE = {
   spanId: "PROP",
   poleId: "P1",

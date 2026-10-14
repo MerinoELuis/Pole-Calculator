@@ -334,6 +334,18 @@ html[data-theme="dark"] .pole-index-toggle:hover {
   justify-content: flex-start;
   border-radius: 8px;
   text-align: left;
+  min-width: 0;
+  white-space: nowrap;
+}
+.pole-index-drawer .pole-index-link > span:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pole-index-drawer .pole-index-link .mini-dot {
+  flex: 0 0 auto;
 }
 
 button, input, select, textarea { font: inherit; }
@@ -2503,12 +2515,20 @@ html[data-theme="dark"] .review-ignore-btn[data-review-ignore-value="true"] {
    calculator keeps its own space and remains clickable while the rail is open. */
 @media (min-width: 701px) {
   body.pole-index-open {
+    --pole-index-rail-width: clamp(300px, 24vw, 460px);
+  }
+
+  body.pole-index-open {
     overflow: auto;
   }
 
   body.pole-index-open .app-shell {
-    width: min(1900px, calc(100% - 372px));
-    margin: 0 12px 24px 360px;
+    width: min(1900px, calc(100% - var(--pole-index-rail-width) - 32px));
+    margin: 0 16px 24px calc(var(--pole-index-rail-width) + 16px);
+  }
+
+  body.pole-index-open .pole-index-drawer {
+    width: min(var(--pole-index-rail-width), calc(100vw - 32px));
   }
 
   body.pole-index-open .pole-index-backdrop {
