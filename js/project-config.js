@@ -12,6 +12,7 @@
         position: "TOP_COMM",
         mrCase: "LOWER",
         proposedOwner: "Wecom",
+        proposedOwners: ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro", "Zayo Group.2"],
         primaryPowerCommsClearance: "43\"",
         // INTEC requires 33 inches from a Primary midspan to communications.
         midspanPrimaryPowerCommClearance: "33\"",

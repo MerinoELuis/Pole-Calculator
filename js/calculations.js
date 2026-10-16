@@ -32,6 +32,14 @@
     return S().getPole(poleId)?.commMovementsActive !== false;
   }
 
+  function hasCommMovement(sc) {
+    return Boolean(
+      sc
+      && isCommMovementsActive(sc.poleId)
+      && (sc.otherHOA || sc.existingHOAChange || sc.transferToNewPole || sc.resagServiceDrop)
+    );
+  }
+
   function getSpanLengthFeet(span) {
     if (!span) return null;
     const displayInches = H().parseHeight(span.lengthDisplay);
@@ -839,6 +847,7 @@
     const poleHeight = H().parseHeight(getEffectiveCommHOA(sc));
     const owner = commOwnerLabel(sc);
     const issues = [];
+    const currentCommMoved = hasCommMovement(sc);
 
     const envMin = getEnvironmentMinimum(span);
     if (midspan !== null && envMin !== null && midspan < envMin) {
@@ -866,6 +875,9 @@
         const otherDetails = commMidspanValueDetails(other, otherFresh.calculated);
         const otherMidspan = otherDetails.inches;
         if (otherMidspan === null) return;
+        // MidAm accepts an imported historical separation as-is. Once either
+        // communication in the pair is moved, validate the resulting spacing.
+        if (isMidAmProfile() && !currentCommMoved && !hasCommMovement(other)) return;
         const diff = Math.abs(midspan - otherMidspan);
         const otherOwner = commOwnerLabel(other) || "no owner";
         const spanName = span ? `${span.fromPole || "?"} -> ${span.toPole || "?"}` : sc.spanId;
@@ -910,7 +922,6 @@
       const ownExistingHeight = H().parseHeight(sc.existingHOA || "");
       const thisExisting = normalizedHeightLabelForCalc(sc.existingHOA);
       const thisEffective = normalizedHeightLabelForCalc(getEffectiveCommHOA(sc));
-      const currentCommMoved = isCommMovementsActive(sc.poleId) && Boolean(sc.otherHOA || sc.existingHOAChange);
       // MidAm imports may contain legacy bolt spacing that is less than the
       // new-work minimum. Validate six-inch spacing only when this row moves;
       // untouched imported attachments are historical data.
@@ -936,7 +947,12 @@
         const required = sameOwner ? boltClearance : poleClearance;
         const label = sameOwner ? "Pole bolt-bolt" : "Pole comm-comm";
         const serviceDropBoltExempt = Boolean(sc.serviceDrop || other.serviceDrop);
-        if (!(sameOwner && serviceDropBoltExempt) && diff < required && (!sameOwner || validateExistingBoltSpacing)) {
+        const pairMoved = currentCommMoved || hasCommMovement(other);
+        const validateHistoricalCommSpacing = !isMidAmProfile() || pairMoved;
+        if (!(sameOwner && serviceDropBoltExempt)
+          && diff < required
+          && (!sameOwner || validateExistingBoltSpacing)
+          && validateHistoricalCommSpacing) {
           issues.push(`${label}: ${format(diff)} with ${otherOwner || "no owner"}; minimum ${format(required)}.`);
         }
 

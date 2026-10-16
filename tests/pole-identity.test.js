@@ -76,4 +76,52 @@ assert.deepEqual(
   "Make Ready attachment sizes must retain every directional component"
 );
 
-console.log("Canonical pole identity import tests passed.");
+const ambiguousCollectionWorkbook = {
+  SheetNames: ["Collection", "Span"],
+  Sheets: {
+    Collection: [
+      ["Collection ID", "Id"],
+      ["C902", "P01"],
+      ["C902", "P02"]
+    ],
+    Span: [
+      ["Id", "Span Id", "Type"],
+      ["P01", "S1", "Fore Span"]
+    ]
+  }
+};
+const ambiguousCollectionState = ExcelImport.importOriginalWorkbook(ambiguousCollectionWorkbook, "ambiguous-collection.xlsx");
+assert.equal(
+  ambiguousCollectionState.spans.S1.toPole,
+  "Unknown-S1",
+  "a repeated Collection ID without a linked pole must not resolve every span to the last collection row"
+);
+assert.ok(ambiguousCollectionState.poles["Unknown-S1"].isGenerated, "unresolved linked poles must remain generated Unknown poles");
+
+(async () => {
+  const restored = await ExcelImport.importJsonFile({
+    name: "self-linked-debug.json",
+    text: async () => JSON.stringify({
+      state: {
+        poles: { P13: { poleId: "P13" } },
+        spans: {
+          S1: { spanId: "S1", fromPole: "P13", toPole: "P14", rawSpanId: "S1" },
+          S2: { spanId: "S2", fromPole: "P13", toPole: "P13", rawSpanId: "S2" }
+        },
+        excelReviewSource: {
+          collection: { rows: [{ "Collection ID": "C902", Id: "P13" }, { "Collection ID": "C902", Id: "P14" }] },
+          spans: { rows: [{ Id: "P13", "Span Id": "S1", Type: "Fore Span" }] }
+        },
+        spanSides: {},
+        spanComms: {}
+      }
+    })
+  });
+  assert.equal(restored.spans.S1.toPole, "Unknown-S1", "debug JSON must repair stale ambiguous links");
+  assert.equal(restored.spans.S2.toPole, "Unknown-S2", "debug JSON must repair a stale self-link even without a source row");
+  assert.ok(restored.poles["Unknown-S1"].isGenerated, "repaired JSON endpoints must remain generated Unknown poles");
+  console.log("Canonical pole identity import tests passed.");
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

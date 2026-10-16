@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.165";
+  const CURRENT_VERSION = "1.8.175";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -1177,6 +1177,24 @@
     next.ui.revealedUnknownPoleIds = Array.isArray(next.ui.revealedUnknownPoleIds)
       ? Array.from(new Set(next.ui.revealedUnknownPoleIds.map(trim).filter(id => Boolean(id && next.poles[id]))))
       : [];
+
+    // A physical span cannot terminate at the same pole where it starts. Old
+    // imports with an ambiguous Collection ID could persist that self-link;
+    // normalize it to the editable generated endpoint used by the importer.
+    Object.keys(next.spans).forEach(id => {
+      const span = next.spans[id];
+      const fromPole = trim(span?.fromPole || "");
+      const toPole = trim(span?.toPole || "");
+      if (!fromPole || !toPole || fromPole.toLowerCase() !== toPole.toLowerCase()) return;
+      const rawSpanId = trim(span.rawSpanId || span.spanId || id) || id;
+      next.spans[id] = {
+        ...span,
+        toPole: `Unknown-${rawSpanId}`,
+        linkedCollectionId: "",
+        linkedCollectionTitle: "",
+        isGeneratedOtherPole: true
+      };
+    });
 
     Object.keys(next.poles).forEach(id => {
       const pole = next.poles[id];

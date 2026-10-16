@@ -1144,13 +1144,13 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 html[data-theme="dark"] .midam-violation-list li {
   border-color: #b45309;
   background: #451a03;
-  color: #fed7aa;
+  color: #fff;
 }
 
 html[data-theme="dark"] .existing-violations-output {
   border-color: #b45309;
   background: #451a03;
-  color: #fed7aa;
+  color: #fff;
 }
 
 .make-ready-section .subsection-title-row {
@@ -1491,7 +1491,7 @@ html[data-theme="dark"] .pole-inset-details .pole-action-readout strong {
   width: 18px;
   height: 18px;
   accent-color: var(--primary);
-  cursor: help;
+  cursor: pointer;
 }
 
 .pole-class-critical-row {
@@ -1912,18 +1912,16 @@ tr.danger-row {
 
 tr.span-color-row td:first-child {
   box-shadow: inset 7px 0 0 var(--span-row-color);
-  padding-left: 16px;
+  padding-left: 10px;
 }
 
 .span-color-chip {
   display: inline-block;
-  width: 10px;
-  height: 28px;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   background: var(--span-row-color);
-  vertical-align: middle;
-  margin-right: 8px;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92), 0 0 0 3px rgba(15, 23, 42, 0.08);
+  flex: 0 0 auto;
 }
 
 .auto-notes {

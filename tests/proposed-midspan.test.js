@@ -451,6 +451,36 @@ assert.match(
   "MidAm must apply the six-inch bolt rule when a communication is moved"
 );
 
+seedSpan("METRONET", "MIDAM-HISTORICAL-COMM", "100'", "");
+const midamHistoricalCatv = S.createSpanComm({
+  spanId: "MIDAM-HISTORICAL-COMM",
+  poleId: "P1",
+  owner: "COMMUNICATION > CATV",
+  wireId: "CATV-WIRE",
+  existingHOA: "13'2\""
+});
+const midamHistoricalTelco = S.createSpanComm({
+  spanId: "MIDAM-HISTORICAL-COMM",
+  poleId: "P1",
+  owner: "COMMUNICATION > Telco",
+  wireId: "TELCO-WIRE",
+  existingHOA: "12'4\""
+});
+S.upsertSpanComm(midamHistoricalCatv);
+S.upsertSpanComm(midamHistoricalTelco);
+assert.doesNotMatch(
+  C.evaluateCommFlagging(midamHistoricalCatv, "").flaggingMessage,
+  /Pole comm-comm/i,
+  "MidAm must accept an imported comm-comm separation below one foot before any movement"
+);
+const movedMidamHistoricalTelco = { ...midamHistoricalTelco, existingHOAChange: "13'1\"" };
+S.upsertSpanComm(movedMidamHistoricalTelco);
+assert.match(
+  C.evaluateCommFlagging(movedMidamHistoricalTelco, "").flaggingMessage,
+  /Pole comm-comm: 1".*minimum (?:1'|12")/i,
+  "MidAm must flag the comm-comm separation once one of the existing comms is moved"
+);
+
 seedSpan("INTEC", "PROPOSED-SERVICE-BOLT", "100'", "18'10\"");
 S.upsertSpanComm(S.createSpanComm({
   spanId: "PROPOSED-SERVICE-BOLT",

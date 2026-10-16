@@ -24,12 +24,32 @@
       });
   }
 
-  function sheetSnapshot(sheet) {
+  function normalizeNumericProjectIdentifiers(rows) {
+    if (!Array.isArray(rows)) return rows;
+
+    const poleIdentifierFields = new Set([
+      "id", "poleid", "pole", "frompole", "topole", "otherpole", "remotepole",
+      "structurenumber", "collectionid", "linkedcollectionid"
+    ]);
+    rows.forEach(row => {
+      Object.keys(row || {}).forEach(key => {
+        const normalizedKey = normalizeHeaderName(key);
+        const value = row[key];
+        if (normalizedKey === "sequence" || normalizedKey === "seq" || poleIdentifierFields.has(normalizedKey)) {
+          const textValue = String(value ?? "").trim();
+          if (/^\d{1,2}$/.test(textValue)) row[key] = textValue.padStart(3, "0");
+        }
+      });
+    });
+    return rows;
+  }
+
+  function sheetSnapshot(sheet, normalizedRows) {
     const rows = Array.isArray(sheet) ? sheet : [];
     const headerRow = rows.find(row => Array.isArray(row) && row.some(value => !isBlank(value)));
     return {
       headers: headerRow ? headerRow.map(value => String(value ?? "").trim()).filter(Boolean) : [],
-      rows: rowsToObjects(rows)
+      rows: Array.isArray(normalizedRows) ? normalizedRows : rowsToObjects(rows)
     };
   }
 
@@ -334,12 +354,18 @@
     const birthmarkExists = data.birthmarkExists === undefined
       ? hasBirthmarkValue(data.birthmark)
       : Boolean(data.birthmarkExists);
-    const birthmarkClassOverride = birthmarkExists
+    // Keep the imported fact separate from the operator's review choice. New
+    // imports start active when a Birthmark value exists, while saved/manual
+    // edits can explicitly enable or disable the authority used by the check.
+    const birthmarkActive = data.birthmarkActive === undefined
+      ? birthmarkExists
+      : Boolean(data.birthmarkActive);
+    const birthmarkClassOverride = birthmarkActive
       && isMidamPoleClassProfile(data)
       && Boolean(tableMatch)
       && Boolean(importedClass)
       && importedClass !== expectedClass;
-    const birthmarkClassAuthority = birthmarkExists && isMidamPoleClassProfile(data);
+    const birthmarkClassAuthority = birthmarkActive && isMidamPoleClassProfile(data);
     const issues = [];
 
     if (!data.tip) issues.push("Missing Tip");
@@ -367,6 +393,7 @@
       expectedType,
       birthmark: String(data.birthmark ?? ""),
       birthmarkExists,
+      birthmarkActive,
       birthmarkClassOverride,
       status: issues.length ? issues.join(", ") : "OK",
       tableMinimumCircumference: tableMatch?.minimum || "",
@@ -394,6 +421,7 @@
         importedType,
         birthmark: birthmarkRaw,
         birthmarkExists: hasBirthmarkValue(birthmarkRaw),
+        birthmarkActive: hasBirthmarkValue(birthmarkRaw),
         projectProfile: String(state?.settings?.projectProfile || "").toUpperCase(),
         metronetWI: String(state?.settings?.metronetWI || "").toUpperCase(),
         proposedOwner: String(state?.settings?.proposedOwner || ""),
@@ -751,17 +779,28 @@
     const byCollectionId = {};
     const byPoleId = {};
     const byCanonicalPoleId = {};
+    const collectionPoleCandidates = {};
 
     collectionRows.forEach(row => {
       const collectionId = String(pick(row, ["collectionId", "Collection ID"])).trim();
       const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
       const sequence = String(pick(row, ["Sequence", "Seq"])).trim();
-      if (collectionId && poleId) byCollectionId[collectionId] = poleId;
+      if (collectionId && poleId) {
+        if (!collectionPoleCandidates[collectionId]) collectionPoleCandidates[collectionId] = new Set();
+        collectionPoleCandidates[collectionId].add(poleId);
+      }
       if (poleId) {
         byPoleId[poleId] = { collectionId, sequence };
         const canonical = S().canonicalPoleIdentity(poleId);
         if (canonical && !byCanonicalPoleId[canonical]) byCanonicalPoleId[canonical] = poleId;
       }
+    });
+
+    // A collection id is only a valid pole lookup when it identifies one
+    // pole. Some exports repeat the job/collection id on every pole; using
+    // the last row in that case makes every span point at the same pole.
+    Object.entries(collectionPoleCandidates).forEach(([collectionId, poleIds]) => {
+      if (poleIds.size === 1) byCollectionId[collectionId] = [...poleIds][0];
     });
 
     return { byCollectionId, byPoleId, byCanonicalPoleId };
@@ -1130,14 +1169,21 @@
       S().applyProjectProfile(global.ProjectProfiles.detectProfile({ fileName, owners }));
     }
 
+    // The bundled XLSX reader exposes numeric Excel cells as numbers, so a
+    // formatted value such as 001 arrives as 1. MidAm/ComEd/CSU pole IDs and
+    // sequences are three-digit identifiers; restore that padding before any
+    // indexes, links, review snapshots, or state entities are built.
+    [collectionRows, spanRows, wireRows, equipmentRows, anchorGuyRows, makeReadyRows]
+      .forEach(rows => normalizeNumericProjectIdentifiers(rows));
+
     state.excelReviewSource = {
-      collection: sheetSnapshot(collectionSheet),
-      spans: sheetSnapshot(spanSheet),
-      spanWires: sheetSnapshot(wireSheet),
-      equipment: sheetSnapshot(equipmentSheet),
+      collection: sheetSnapshot(collectionSheet, collectionRows),
+      spans: sheetSnapshot(spanSheet, spanRows),
+      spanWires: sheetSnapshot(wireSheet, wireRows),
+      equipment: sheetSnapshot(equipmentSheet, equipmentRows),
       anchors: sheetSnapshot(anchorSheet),
-      anchorGuys: sheetSnapshot(anchorGuySheet),
-      makeReady: sheetSnapshot(makeReadySheet),
+      anchorGuys: sheetSnapshot(anchorGuySheet, anchorGuyRows),
+      makeReady: sheetSnapshot(makeReadySheet, makeReadyRows),
       commTransfers: sheetSnapshot(commTransfersSheet)
     };
 
@@ -1162,6 +1208,53 @@
     return S().getState();
   }
 
+  function repairRestoredSpanLinks(nextState) {
+    const spans = nextState && nextState.spans && typeof nextState.spans === "object"
+      ? nextState.spans
+      : {};
+    const collectionRows = nextState?.excelReviewSource?.collection?.rows;
+    const spanRows = nextState?.excelReviewSource?.spans?.rows;
+    const collectionIndex = Array.isArray(collectionRows) && collectionRows.length
+      ? buildCollectionIndex(collectionRows)
+      : null;
+    const sourceRowsBySpanId = new Map();
+
+    (Array.isArray(spanRows) ? spanRows : []).forEach(row => {
+      const rawSpanId = String(pick(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"])).trim();
+      if (rawSpanId && !sourceRowsBySpanId.has(rawSpanId)) sourceRowsBySpanId.set(rawSpanId, row);
+    });
+
+    Object.keys(spans).forEach(spanKey => {
+      const span = spans[spanKey];
+      if (!span) return;
+
+      const rawSpanId = String(span.rawSpanId || span.rawSpanIds?.[0] || span.spanId || spanKey).trim() || spanKey;
+      const sourceRow = sourceRowsBySpanId.get(rawSpanId);
+      let missingOrAmbiguousLink = false;
+
+      if (collectionIndex && sourceRow) {
+        const linkedCollectionId = String(pick(sourceRow, ["Linked Collection.ID", "Linked Collection ID"], { contains: true })).trim();
+        const linkedTitle = String(pick(sourceRow, ["Linked Collection.Title", "Linked Collection Title", "Other Pole", "To Pole", "Remote Pole"], { contains: true })).trim();
+        missingOrAmbiguousLink = !linkedTitle && !collectionIndex.byCollectionId[linkedCollectionId];
+      }
+
+      const normalizedFrom = String(span.fromPole || "").trim().toLowerCase();
+      const normalizedTo = String(span.toPole || "").trim().toLowerCase();
+      const selfLinked = Boolean(normalizedFrom && normalizedTo && normalizedFrom === normalizedTo);
+      if (!missingOrAmbiguousLink && !selfLinked) return;
+
+      spans[spanKey] = {
+        ...span,
+        toPole: `Unknown-${rawSpanId}`,
+        linkedCollectionId: "",
+        linkedCollectionTitle: "",
+        isGeneratedOtherPole: true
+      };
+    });
+
+    return nextState;
+  }
+
   /**
    * Restores and normalizes a complete calculator JSON save.
    * @param {File} file
@@ -1169,7 +1262,7 @@
    */
   async function importJsonFile(file) {
     const payload = JSON.parse(await file.text());
-    const nextState = payload && payload.state ? payload.state : payload;
+    const nextState = repairRestoredSpanLinks(payload && payload.state ? payload.state : payload);
     if (!nextState || typeof nextState !== "object" || !nextState.poles || !nextState.spans) {
       throw new Error("The JSON does not contain valid calculator data.");
     }

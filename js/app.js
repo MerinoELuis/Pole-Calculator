@@ -1111,6 +1111,11 @@
         return;
       }
       const preserved = preserveValuesMissingFromUpdate(importedRow, oldRow, reconciliation);
+      // Birthmark activation is an operator choice, not a workbook fact. Keep
+      // an explicit manual on/off value when Update Data refreshes Collection.
+      if (Object.prototype.hasOwnProperty.call(oldRow, "birthmarkActive")) {
+        preserved.birthmarkActive = Boolean(oldRow.birthmarkActive);
+      }
       importedPoleClassById.set(
         identity,
         global.ExcelImport?.recalculatePoleClassCheck
@@ -1823,9 +1828,12 @@
       const bCount = Number((b.match(/\d+/) || [0])[0]);
       return aCount - bCount || a.localeCompare(b);
     });
+    const profileSettings = global.ProjectProfiles?.getProfileSettings?.(selectedProfile) || {};
     const proposedOwners = selectedProfile === "OLSSON_OPPD"
       ? ["Cox", "Verizon", "Uniti"]
-      : ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"];
+      : (Array.isArray(profileSettings.proposedOwners) && profileSettings.proposedOwners.length
+        ? profileSettings.proposedOwners
+        : ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"]);
     const ownerOptions = proposedOwners.map(owner =>
       `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
     ).join("");
@@ -1976,10 +1984,14 @@
         </tr></thead>
         <tbody>${rows.map((row, index) => {
           const severity = poleClassSeverity(row);
+          const birthmarkActive = row.birthmarkActive === undefined
+            ? Boolean(row.birthmarkExists)
+            : Boolean(row.birthmarkActive);
+          const birthmarkLabel = birthmarkActive ? "active" : "inactive";
           return `
           <tr class="${poleClassRowClass(severity)}">
             <td><strong>${poleLink(row.poleId)}</strong></td>
-            <td><input class="pole-class-birthmark-toggle" type="checkbox" ${row.birthmarkExists ? "checked" : ""} disabled aria-label="Birthmark ${row.birthmarkExists ? "available" : "not available"}" title="${row.birthmarkExists ? "Birthmark available; it is authoritative for class in Metronet MidAm." : "No Birthmark was imported."}"></td>
+            <td><input class="pole-class-birthmark-toggle" type="checkbox" data-scope="poleClassCheck" data-index="${index}" data-field="birthmarkActive" ${birthmarkActive ? "checked" : ""} aria-label="Birthmark ${birthmarkLabel}" title="${row.birthmarkExists ? `Birthmark imported; click to ${birthmarkActive ? "disable" : "enable"} its use in the class review.` : `No Birthmark imported; click to ${birthmarkActive ? "disable" : "enable"} manual Birthmark authority.`}"></td>
             <td>${escapeHtml(row.tip || "")}</td>
             <td>${escapeHtml(row.importedCircumference || "")}</td>
             <td><input class="input pole-class-diameter-input" data-scope="poleClassCheck" data-index="${index}" data-field="manualDiameter" value="${escapeHtml(row.manualDiameter || "")}" /></td>
@@ -3833,6 +3845,7 @@
       }
       renderPoleClassResults();
       renderPoleLists();
+      markDirty();
       return;
     }
 

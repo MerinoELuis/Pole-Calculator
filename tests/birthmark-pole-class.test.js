@@ -30,7 +30,28 @@ const importedRow = ExcelImport.buildPoleClassChecks([{
   "Birthmark Photos": 1
 }])[0];
 assert.equal(importedRow.birthmarkExists, true, "Birthmark Photos should activate the Pole Type Check toggle");
+assert.equal(importedRow.birthmarkActive, true, "an imported Birthmark should start active");
 assert.equal(importedRow.birthmarkClassOverride, true, "MidAm birthmark should override a class mismatch");
+
+const manuallyDisabledBirthmark = ExcelImport.recalculatePoleClassCheck({
+  ...importedRow,
+  birthmarkActive: false
+});
+assert.equal(manuallyDisabledBirthmark.birthmarkExists, true, "manual disable must retain the imported Birthmark fact");
+assert.equal(manuallyDisabledBirthmark.birthmarkActive, false, "Birthmark can be manually disabled");
+assert.match(manuallyDisabledBirthmark.status, /Class mismatch/, "disabling Birthmark must restore the class check");
+
+const manuallyEnabledBirthmark = ExcelImport.recalculatePoleClassCheck({
+  tip: "32'",
+  importedType: "Southern Pine > 4 > 40",
+  circumference: "",
+  projectProfile: "METRONET",
+  metronetWI: "MIDAM",
+  birthmarkExists: false,
+  birthmarkActive: true
+});
+assert.equal(manuallyEnabledBirthmark.birthmarkActive, true, "Birthmark can be manually enabled without an imported value");
+assert.equal(manuallyEnabledBirthmark.status, "OK", "manual Birthmark authority must apply to the class review");
 
 const birthmarkWithoutCircumference = ExcelImport.recalculatePoleClassCheck({
   tip: "32'",
