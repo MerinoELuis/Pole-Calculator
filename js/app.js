@@ -4169,8 +4169,8 @@
       mobileHeightKeyboard: qs("mobileHeightKeyboard")
     });
 
-    let savedTheme = "dark";
-    try { savedTheme = window.localStorage?.getItem(THEME_STORAGE_KEY) || "dark"; } catch (error) { /* storage can be unavailable */ }
+    let savedTheme = "light";
+    try { savedTheme = window.localStorage?.getItem(THEME_STORAGE_KEY) || "light"; } catch (error) { /* storage can be unavailable */ }
     applyTheme(savedTheme, false);
     renderDeploymentVersion();
     updateMobileKeyboardToggle();
