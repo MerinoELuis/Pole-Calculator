@@ -72,7 +72,8 @@
 
   function proposedOwnerForMR() {
     const settings = S().getState().settings || {};
-    return String(settings.proposedOwner || "Wecom").trim() || "Wecom";
+    const owner = String(settings.proposedOwner || "Wecom").trim() || "Wecom";
+    return /century\s*link|centurylink|\bctl\b/i.test(owner) ? "CTL" : owner;
   }
 
   function mrHeight(value) {
