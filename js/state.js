@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.177";
+  const CURRENT_VERSION = "1.8.181";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -202,6 +202,120 @@
       if (normalized) return normalized;
     }
     return "";
+  }
+
+  function sourceRowValue(row, candidates) {
+    if (!row || typeof row !== "object") return "";
+    for (const candidate of candidates) {
+      if (Object.prototype.hasOwnProperty.call(row, candidate) && trim(row[candidate])) {
+        return trim(row[candidate]);
+      }
+    }
+    return "";
+  }
+
+  function sourceHeight(row, candidates) {
+    const raw = sourceRowValue(row, candidates);
+    if (!raw) return "";
+    const inches = global.HeightUtils?.parseHeight(raw);
+    return inches === null || inches === undefined
+      ? ""
+      : (global.HeightUtils?.formatHeight ? global.HeightUtils.formatHeight(inches) : raw);
+  }
+
+  function isImportedCommunicationRow(row) {
+    const owner = sourceRowValue(row, ["Owner", "owner"]);
+    const size = sourceRowValue(row, ["Size", "Size.display", "Wire Size"]);
+    const text = `${owner} ${size}`.toLowerCase();
+    if (/^utility\s*>/i.test(owner)) return false;
+    if (/primary|neutral|secondary|transformer|service\s+drop|street\s*light/i.test(size)) return false;
+    return /communication|catv|telco|fiber|cable\s*one|century\s*link|centurylink|cox|vexus|wecom/i.test(text);
+  }
+
+  function importedServiceDrop(size) {
+    return /communication\s*drops?|service\s*drop|\bdrop\b/i.test(String(size || ""));
+  }
+
+  // Older saved states can contain the Collection comm rows and the raw
+  // Span.Wire rows while a matching spanComms row was lost during an update.
+  // Reconcile only rows that still exist on the pole (so an intentionally
+  // deleted cable is not recreated), and always derive Service Drop from the
+  // imported wire size rather than from stale saved state.
+  function repairImportedSpanComms(next) {
+    const sourceRows = next?.excelReviewSource?.spanWires?.rows;
+    if (!Array.isArray(sourceRows) || !sourceRows.length) return;
+
+    const poleByCanonical = new Map(Object.keys(next.poles || {}).map(id => [canonicalPoleIdentity(id), id]));
+    sourceRows.forEach(row => {
+      if (!isImportedCommunicationRow(row)) return;
+      const spanId = sourceRowValue(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"]);
+      const sourcePoleId = sourceRowValue(row, ["Id", "Pole ID", "Pole", "From Pole"]);
+      const owner = sourceRowValue(row, ["Owner", "owner"]);
+      const wireId = sourceRowValue(row, ["Wire Id", "Wire ID", "wireId"]);
+      if (!spanId || !sourcePoleId || !owner || !wireId || !next.spans?.[spanId]) return;
+
+      const poleId = next.poles?.[sourcePoleId]
+        ? sourcePoleId
+        : poleByCanonical.get(canonicalPoleIdentity(sourcePoleId)) || "";
+      const pole = next.poles?.[poleId];
+      if (!pole) return;
+      const poleComm = (pole.comms || []).find(comm => comm.wireId === wireId);
+      if (!poleComm) return;
+
+      const key = keyForSpanComm(spanId, poleId, owner, wireId);
+      const existing = next.spanComms[key];
+      const size = sourceRowValue(row, ["Size", "Size.display", "Wire Size"]);
+      const attachmentHeight = sourceHeight(row, [
+        "Attachment Height.display",
+        "Attachment Height Display",
+        "Existing HOA",
+        "HOA",
+        "Attachment Height"
+      ]) || poleComm.existingHOA || "";
+      const midspan = sourceHeight(row, [
+        "Mid Span Height.display",
+        "Midspan.display",
+        "Mid Span Height",
+        "Midspan"
+      ]);
+      const span = next.spans[spanId];
+      const remotePoleId = span.fromPole === poleId ? span.toPole : span.fromPole;
+      const values = {
+        spanId,
+        poleId,
+        owner,
+        ownerBase: owner,
+        existingHOA: attachmentHeight,
+        serviceDrop: importedServiceDrop(size),
+        remotePoleId: remotePoleId || "",
+        ocalcMS: midspan,
+        midspan,
+        rawOwner: owner,
+        size,
+        construction: sourceRowValue(row, ["Construction"]),
+        insulator: sourceRowValue(row, ["Insulator"]),
+        wireId,
+        wireIndex: sourceRowValue(row, ["Wire Index"]),
+        isEndpointPlaceholder: false
+      };
+
+      if (existing) {
+        // Imported facts are authoritative for this classification. Preserve
+        // user movement fields while correcting stale source metadata.
+        existing.serviceDrop = values.serviceDrop;
+        existing.size = values.size || existing.size;
+        existing.rawOwner = values.rawOwner || existing.rawOwner;
+        existing.ownerBase = values.ownerBase || existing.ownerBase;
+        if (!existing.existingHOA && values.existingHOA) existing.existingHOA = values.existingHOA;
+        if (!existing.midspan && values.midspan) {
+          existing.midspan = values.midspan;
+          existing.ocalcMS = values.ocalcMS;
+        }
+        return;
+      }
+
+      next.spanComms[key] = createSpanComm(values);
+    });
   }
 
   // STEEL describes construction and UG/PCO describe engineering state; none
@@ -1245,6 +1359,7 @@
       if (clean.spanId && clean.poleId && clean.owner) normalizedSpanComms[keyForSpanComm(clean.spanId, clean.poleId, clean.owner, clean.wireId || "")] = clean;
     });
     next.spanComms = normalizedSpanComms;
+    repairImportedSpanComms(next);
 
     const normalizedPower = {};
     Object.values(next.spanPower || {}).forEach(row => {

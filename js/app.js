@@ -592,12 +592,21 @@
   }
 
   function mergeCommUserWork(importedRow, oldRow) {
+    // Service Drop is an imported physical-wire classification. Do not carry
+    // a stale flag from an older row when the refreshed Span.Wire size says
+    // that the cable is a regular CATV/Telco bundle (or vice versa).
+    const importedSize = String(importedRow.size || "").trim();
+    const importedServiceDrop = importedSize
+      ? /communication\s*drops?|service\s*drop|\bdrop\b/i.test(importedSize)
+      : null;
     return {
       ...importedRow,
       existingHOAChange: oldRow.existingHOAChange || importedRow.existingHOAChange || "",
       otherHOA: oldRow.otherHOA || importedRow.otherHOA || "",
       otherHOAActive: Boolean(oldRow.otherHOAActive || importedRow.otherHOAActive),
-      serviceDrop: Boolean(oldRow.serviceDrop || importedRow.serviceDrop),
+      serviceDrop: importedServiceDrop === null
+        ? Boolean(oldRow.serviceDrop || importedRow.serviceDrop)
+        : importedServiceDrop,
       downGuy: Boolean(oldRow.downGuy || importedRow.downGuy),
       transferToNewPole: Boolean(oldRow.transferToNewPole),
       resagServiceDrop: Boolean(oldRow.resagServiceDrop),
