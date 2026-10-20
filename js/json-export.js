@@ -20,7 +20,7 @@
 
   function safeJobFilePart(value) {
     const raw = String(value || "pole_job")
-      .replace(/\.[^.]+$/, "")
+      .replace(/\.(?:json|xlsx?|xlsm|csv)$/i, "")
       // Strip an existing calculator/export suffix first so a preceding date
       // becomes the end of the job name and can be removed consistently.
       .replace(/_(?:Pole_Calculator|AutoProposed|Debug)$/i, "")

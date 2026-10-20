@@ -827,7 +827,7 @@
 
   function safeJobFilePart(value) {
     const raw = text(value || "pole_job")
-      .replace(/\.[^.]+$/, "")
+      .replace(/\.(?:json|xlsx?|xlsm|csv)$/i, "")
       .replace(/_(?:Pole_Calculator|AutoProposed|Debug)$/i, "")
       .replace(/^excel[_\-\s]*/i, "")
       .replace(/[_\-\s]*20\d{2}[-_]\d{2}[-_]\d{2}$/i, "")

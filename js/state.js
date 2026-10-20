@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.187";
+  const CURRENT_VERSION = "1.8.188";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -20,7 +20,7 @@
   // logic in AppStore so Save, AutoProposed and import all use one source.
   function jobNameFromFileName(value) {
     const clean = String(value || "")
-      .replace(/\.[^.]+$/, "")
+      .replace(/\.(?:json|xlsx?|xlsm|csv)$/i, "")
       .replace(/_(?:Pole_Calculator|AutoProposed|Debug)$/i, "")
       .replace(/^excel[_\-\s]*/i, "")
       .replace(/[_\-\s]*20\d{2}[-_]\d{2}[-_]\d{2}(?:\s*\(\d+\))?$/i, "")

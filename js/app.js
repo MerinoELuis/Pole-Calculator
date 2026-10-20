@@ -349,7 +349,7 @@
 
   function safeJobFilePart(value) {
     const raw = String(value || "pole_job")
-      .replace(/\.[^.]+$/, "")
+      .replace(/\.(?:json|xlsx?|xlsm|csv)$/i, "")
       // A loaded save may already include the app suffix. Remove it before the
       // date so names such as JOB_2026-07-13_Pole_Calculator are also cleaned.
       .replace(/_(?:Pole_Calculator|AutoProposed|Debug)$/i, "")

@@ -28,6 +28,11 @@ assert.equal(
   "Wecom-SUPRAZ3.3",
   "raw Excel prefix and date must not become part of the editable job name"
 );
+assert.equal(
+  store.jobNameFromFileName("Wecom6.1-2"),
+  "Wecom6.1-2",
+  "a dotted job identifier without a file extension must remain intact"
+);
 
 let state = store.setState({ importedFileName: "EXCEL_Wecom-SUPRAZ3.3_2026-07-21.xlsx" });
 assert.equal(state.jobName, "Wecom-SUPRAZ3.3", "older JSON without jobName must migrate from its source filename");
