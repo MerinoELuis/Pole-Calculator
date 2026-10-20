@@ -2496,7 +2496,9 @@
       <label class="pole-action-field">
         <span>Pole Inset Span</span>
         <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetSpanId">
-          ${(poleInsetDetails.spanOptions || []).map(option => `<option value="${escapeHtml(option.spanId)}" ${option.spanId === poleInsetDetails.spanId ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+          ${(poleInsetDetails.spanOptions || []).length
+            ? poleInsetDetails.spanOptions.map(option => `<option value="${escapeHtml(option.spanId)}" ${option.spanId === poleInsetDetails.spanId ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")
+            : '<option value="" selected disabled>No connected span available</option>'}
         </select>
       </label>
     </div>

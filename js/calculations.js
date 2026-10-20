@@ -1214,9 +1214,10 @@
    * can show the two End Drops created by the manually selected inset HOA.
    */
   function getPoleInsetSpanOptions(poleId) {
-    const proposedSides = S().getSpanSidesForPole(poleId)
-      .map(side => ({ side, span: S().getSpan(side.spanId) }))
-      .filter(item => item.span && !item.side.isProposedExcluded && H().parseHeight(item.side.proposedHOA || "") !== null)
+    const sideBySpanId = new Map(S().getSpanSidesForPole(poleId).map(side => [side.spanId, side]));
+    const proposedSides = S().getConnectedSpans(poleId)
+      .map(span => ({ side: sideBySpanId.get(span.spanId) || { spanId: span.spanId, poleId }, span }))
+      .filter(item => item.span && !item.side.isProposedExcluded)
       .sort((a, b) => {
         const aFore = isForeSpan(a.span) ? 0 : 1;
         const bFore = isForeSpan(b.span) ? 0 : 1;

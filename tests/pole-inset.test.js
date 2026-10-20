@@ -37,6 +37,9 @@ assert.equal(details.endDropToNextPole, "-1'", "Pole Inset must show the End Dro
 assert.equal(details.spanId, "S1", "Pole Inset must identify the proposed span used for End Drops");
 assert.equal(details.spanOptions[0].spanId, "S1", "Pole Inset must default to the Fore Span");
 
+S.upsertSpanSide(S.createSpanSide({ spanId: "S1", poleId: "P1", proposedHOA: "" }));
+assert.equal(C.getPoleInsetDetails("P1").spanOptions[0].spanId, "S1", "Pole Inset must list a connected Fore Span before Proposed HOA is entered");
+
 S.upsertSpan(S.createSpan("S2", "P1", "P2", "W", "", { type: "Other", lengthDisplay: "120'" }));
 S.upsertSpanSide(S.createSpanSide({ spanId: "S2", poleId: "P1", proposedHOA: "19'" }));
 S.upsertPole({ ...S.getPole("P1"), poleInsetSpanId: "S2" });
