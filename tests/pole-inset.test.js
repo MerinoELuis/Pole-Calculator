@@ -57,6 +57,12 @@ assert.match(reverseDetails.spanOptions.find(option => option.spanId === "S3").l
   "Pole Inset span labels must start at the current pole");
 assert.equal(reverseDetails.direction, "W", "Pole Inset direction must reverse when the current pole is the span endpoint");
 
+S.upsertSpan(S.createSpan("S4", "P0", "P1", "E", "", { type: "Back Span", lengthDisplay: "120'" }));
+S.upsertSpanSide(S.createSpanSide({ spanId: "S4", poleId: "P1", proposedHOA: "18'" }));
+S.addSpanPower(S.createSpanPower({ spanId: "S4", poleId: "P0", wireId: "N4", size: "Neutral", midspan: "24'" }));
+S.upsertPole({ ...S.getPole("P1"), poleInsetSpanId: "S4" });
+assert.equal(C.getPoleInsetDetails("P1").maxHeightAtMidspan, "20'8\"", "Pole Inset must use power from the reciprocal physical span record");
+
 S.upsertPole({ ...S.getPole("P1"), poleInsetHeight: "" });
 assert.equal(C.getPoleInsetDetails("P1").endDropToPole, "", "End Drop to Pole must stay blank without a manual inset HOA");
 assert.equal(C.getPoleInsetDetails("P1").endDropToNextPole, "", "End Drop to Next Pole must stay blank without a manual inset HOA");

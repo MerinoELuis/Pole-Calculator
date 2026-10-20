@@ -939,6 +939,7 @@
     const poleInset = [];
     const commMoves = [];
     const dropMoves = [];
+    const resagGroups = new Map();
     const proposed = [];
     const ensure = [];
     const ensureDirections = [];
@@ -1002,21 +1003,43 @@
       }
       ensure.push(`Ensure min 30" to low power at midspan ${joinMRList(ensureDirections)}.`);
     }
+    const collectResag = spanComm => {
+      const resag = generateResagServiceDropMR(spanComm);
+      if (!resag) return;
+      const owner = ownerForMR(spanComm);
+      const key = owner.toLowerCase();
+      if (!resagGroups.has(key)) resagGroups.set(key, { owner, directions: [], undirected: false });
+      const group = resagGroups.get(key);
+      const direction = directionForSpanComm(spanComm);
+      if (direction) {
+        if (!group.directions.includes(direction)) group.directions.push(direction);
+      } else {
+        group.undirected = true;
+      }
+    };
     S().getSpanCommsForPole(poleId)
       .slice()
       .sort((a, b) => (H().parseHeight(getEffectiveCommHOAForMR(b)) ?? -Infinity) - (H().parseHeight(getEffectiveCommHOAForMR(a)) ?? -Infinity))
       .forEach(sc => {
       if (commGroupTransferContext(sc).enabled) {
-        const resag = generateResagServiceDropMR(sc);
-        if (resag) dropMoves.push(resag);
+        collectResag(sc);
         return;
       }
       const text = generateMRForComm(sc);
       if (!text) return;
       text.split(/\n+/).filter(Boolean).forEach(line => {
-        if (/^Re-sag\b/i.test(line) || (sc.serviceDrop && !sc.transferToNewPole)) dropMoves.push(line);
+        if (/^Re-sag\b/i.test(line)) collectResag(sc);
+        else if (sc.serviceDrop && !sc.transferToNewPole) dropMoves.push(line);
         else commMoves.push(line);
       });
+    });
+    resagGroups.forEach(group => {
+      const directions = group.directions.slice();
+      if (group.undirected && !directions.length) directions.push("");
+      const directionText = directions.filter(Boolean).length
+        ? ` ${joinMRList(directions.filter(Boolean))}`
+        : "";
+      dropMoves.push(`Re-sag ${group.owner} comm drop${directionText}, ensure 15'6" at midspan.`);
     });
     proposed.push(...generateOverlashMRForPole(poleId));
     const attach = generateAttachMRForPole(poleId);

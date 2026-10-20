@@ -1271,6 +1271,18 @@
         .map(value => String(value || "").trim())
         .filter(Boolean)
     );
+    // Excel can represent one physical connection with a Fore/Other row and
+    // a reciprocal Back Span row. Both rows describe the same wire path, so a
+    // Pole Inset selected on either endpoint must use the power data attached
+    // to either record of that physical span.
+    if (selectedSpan) {
+      S().getConnectedSpans(poleId)
+        .filter(span => samePhysicalSpan(span, selectedSpan))
+        .forEach(span => {
+          if (span?.spanId) selectedSpanIds.add(span.spanId);
+          if (span?.sourceSpanId) selectedSpanIds.add(span.sourceSpanId);
+        });
+    }
     const selectedPowerRows = Array.from(selectedSpanIds)
       .flatMap(spanId => S().getSpanPowerForSpan(spanId));
     const selectedPowerCandidates = selectedPowerRows
