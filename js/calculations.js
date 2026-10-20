@@ -1207,8 +1207,7 @@
   /**
    * Returns the values needed to plan a Pole Inset at one pole.
    *
-   * Pole Inset uses the selected proposed span's imported Power Midspan when
-   * available, then falls back to the lowest connected Power Midspan.
+   * Pole Inset uses only the selected span's imported Power Midspan.
    * Neutral/secondary power leaves 40 inches for clearance; Primary power
    * leaves 43 inches.  The proposed-side values are kept separate so the UI
    * can show the two End Drops created by the manually selected inset HOA.
@@ -1262,46 +1261,37 @@
       : spanOptions[0]?.spanId || "";
     const selectedSide = selectedSpanId ? S().getSpanSide(selectedSpanId, poleId) : null;
     const selectedSpan = selectedSpanId ? S().getSpan(selectedSpanId) : null;
-    const selectedPhysicalSpanId = selectedSpan
-      ? (selectedSpan.sourceSpanId || selectedSpan.spanId || "")
-      : "";
-
     const settings = S().getState().settings || {};
     const secondaryClearance = H().parseHeight(
       settings.polePowerCommsClearance || settings.clearanceToPower || "40\""
     ) ?? 40;
     const primaryClearance = getPrimaryPowerCommsClearance();
-    const powerCandidates = [];
-    const preferredPowerCandidates = [];
-    const addPowerCandidate = (value, physicalSpanId) => {
-      powerCandidates.push(value);
-      if (!selectedPhysicalSpanId || physicalSpanId === selectedPhysicalSpanId) preferredPowerCandidates.push(value);
-    };
-    const visitedPhysicalSpans = new Set();
-
-    S().getConnectedSpans(poleId).forEach(span => {
-      const sourceSpan = span.sourceSpanId ? S().getSpan(span.sourceSpanId) || span : span;
-      const physicalSpanId = sourceSpan.spanId || span.spanId;
-      if (visitedPhysicalSpans.has(physicalSpanId)) return;
-      visitedPhysicalSpans.add(physicalSpanId);
-
-      const rows = S().getSpanPowerForSpan(physicalSpanId);
-      rows.forEach(row => {
+    const selectedSpanIds = new Set(
+      [selectedSpan?.spanId, selectedSpan?.sourceSpanId]
+        .map(value => String(value || "").trim())
+        .filter(Boolean)
+    );
+    const selectedPowerRows = Array.from(selectedSpanIds)
+      .flatMap(spanId => S().getSpanPowerForSpan(spanId));
+    const selectedPowerCandidates = selectedPowerRows
+      .map(row => {
         const midspan = H().parseHeight(row.midspan || "");
-        if (midspan === null) return;
+        if (midspan === null) return null;
         const clearance = isPrimaryPowerRow(row) ? primaryClearance : secondaryClearance;
-        if (clearance === null) return;
-        addPowerCandidate(midspan - clearance, physicalSpanId);
+        return clearance === null ? null : midspan - clearance;
+      })
+      .filter(value => value !== null);
+    const selectedSpanRecords = Array.from(selectedSpanIds)
+      .map(spanId => S().getSpan(spanId))
+      .filter(Boolean);
+    if (!selectedPowerCandidates.length) {
+      selectedSpanRecords.forEach(span => {
+        const lowPowerMidspan = H().parseHeight(span.sourceMidspanLowPower || span.midspanLowPower || "");
+        if (lowPowerMidspan !== null) selectedPowerCandidates.push(lowPowerMidspan - secondaryClearance);
+        const storedMax = H().parseHeight(span.midspanMaxCommHeight || "");
+        if (storedMax !== null) selectedPowerCandidates.push(storedMax);
       });
-
-      // Some exports provide only the authoritative Low Power Midspan on the
-      // span record. It is still a real power reference, but without a wire
-      // label it can only use the neutral/secondary 40-inch rule.
-      if (!rows.some(row => H().parseHeight(row.midspan || "") !== null)) {
-        const lowPowerMidspan = H().parseHeight(sourceSpan.sourceMidspanLowPower || sourceSpan.midspanLowPower || "");
-        if (lowPowerMidspan !== null) addPowerCandidate(lowPowerMidspan - secondaryClearance, physicalSpanId);
-      }
-    });
+    }
 
     const selectedHeight = H().parseHeight(pole.poleInsetHeight || "");
     const localProposed = H().parseHeight(selectedSide?.proposedHOA || "");
@@ -1311,7 +1301,7 @@
       if (existingEndDrop !== null) nextPoleProposed = localProposed + existingEndDrop;
     }
 
-    const insetCandidates = preferredPowerCandidates.length ? preferredPowerCandidates : powerCandidates;
+    const insetCandidates = selectedPowerCandidates;
     return {
       maxHeightAtMidspan: insetCandidates.length ? format(Math.min(...insetCandidates)) : "",
       selectedHeight: pole.poleInsetHeight || "",

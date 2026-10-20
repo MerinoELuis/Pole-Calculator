@@ -42,9 +42,11 @@ assert.equal(C.getPoleInsetDetails("P1").spanOptions[0].spanId, "S1", "Pole Inse
 
 S.upsertSpan(S.createSpan("S2", "P1", "P2", "W", "", { type: "Other", lengthDisplay: "120'" }));
 S.upsertSpanSide(S.createSpanSide({ spanId: "S2", poleId: "P1", proposedHOA: "19'" }));
+S.addSpanPower(S.createSpanPower({ spanId: "S2", poleId: "P1", wireId: "N2", size: "Neutral", midspan: "24'" }));
 S.upsertPole({ ...S.getPole("P1"), poleInsetSpanId: "S2" });
 assert.equal(C.getPoleInsetDetails("P1").spanId, "S2", "Pole Inset must use the selected span instead of the default Fore Span");
 assert.equal(C.getPoleInsetDetails("P1").direction, "W", "Pole Inset must expose the selected span direction for MR");
+assert.equal(C.getPoleInsetDetails("P1").maxHeightAtMidspan, "20'8\"", "Pole Inset max height must come from the selected span power midspan");
 
 S.upsertPole(S.createPole({ poleId: "P0" }));
 S.upsertSpan(S.createSpan("S3", "P0", "P1", "E", "", { type: "Other", lengthDisplay: "120'" }));
