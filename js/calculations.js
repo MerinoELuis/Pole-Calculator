@@ -1213,6 +1213,33 @@
    * leaves 43 inches.  The proposed-side values are kept separate so the UI
    * can show the two End Drops created by the manually selected inset HOA.
    */
+  function getPoleInsetSpanOptions(poleId) {
+    const proposedSides = S().getSpanSidesForPole(poleId)
+      .map(side => ({ side, span: S().getSpan(side.spanId) }))
+      .filter(item => item.span && !item.side.isProposedExcluded && H().parseHeight(item.side.proposedHOA || "") !== null)
+      .sort((a, b) => {
+        const aFore = isForeSpan(a.span) ? 0 : 1;
+        const bFore = isForeSpan(b.span) ? 0 : 1;
+        if (aFore !== bFore) return aFore - bFore;
+        const aAdditional = a.side.isAdditionalProposed ? 1 : 0;
+        const bAdditional = b.side.isAdditionalProposed ? 1 : 0;
+        if (aAdditional !== bAdditional) return aAdditional - bAdditional;
+        const aForward = a.span.fromPole === poleId ? 0 : 1;
+        const bForward = b.span.fromPole === poleId ? 0 : 1;
+        return aForward - bForward;
+      });
+    return proposedSides.map(({ side, span }) => {
+      const direction = String(span.direction || "").trim().toUpperCase();
+      const endpoints = [span.fromPole, span.toPole].filter(Boolean).join(" → ");
+      return {
+        spanId: span.spanId,
+        direction,
+        type: span.type || span.rawType || "",
+        label: [direction || "No direction", endpoints].filter(Boolean).join(" · ")
+      };
+    });
+  }
+
   function getPoleInsetDetails(poleId) {
     const pole = S().getPole(poleId);
     if (!pole) {
@@ -1221,23 +1248,18 @@
         selectedHeight: "",
         endDropToPole: "",
         endDropToNextPole: "",
-        spanId: ""
+        spanId: "",
+        direction: "",
+        spanOptions: []
       };
     }
 
-    const proposedSides = S().getSpanSidesForPole(poleId)
-      .map(side => ({ side, span: S().getSpan(side.spanId) }))
-      .filter(item => item.span && !item.side.isProposedExcluded && H().parseHeight(item.side.proposedHOA || "") !== null)
-      .sort((a, b) => {
-        const aAdditional = a.side.isAdditionalProposed ? 1 : 0;
-        const bAdditional = b.side.isAdditionalProposed ? 1 : 0;
-        if (aAdditional !== bAdditional) return aAdditional - bAdditional;
-        const aForward = a.span.fromPole === poleId ? 0 : 1;
-        const bForward = b.span.fromPole === poleId ? 0 : 1;
-        return aForward - bForward;
-      });
-    const selectedSide = proposedSides[0]?.side || null;
-    const selectedSpan = proposedSides[0]?.span || null;
+    const spanOptions = getPoleInsetSpanOptions(poleId);
+    const selectedSpanId = spanOptions.some(option => option.spanId === pole.poleInsetSpanId)
+      ? pole.poleInsetSpanId
+      : spanOptions[0]?.spanId || "";
+    const selectedSide = selectedSpanId ? S().getSpanSide(selectedSpanId, poleId) : null;
+    const selectedSpan = selectedSpanId ? S().getSpan(selectedSpanId) : null;
     const selectedPhysicalSpanId = selectedSpan
       ? (selectedSpan.sourceSpanId || selectedSpan.spanId || "")
       : "";
@@ -1297,7 +1319,9 @@
       endDropToNextPole: selectedHeight !== null && nextPoleProposed !== null
         ? format(selectedHeight - nextPoleProposed)
         : "",
-      spanId: selectedSpan?.spanId || ""
+      spanId: selectedSpan?.spanId || "",
+      direction: String(selectedSpan?.direction || "").trim().toUpperCase(),
+      spanOptions
     };
   }
 
@@ -2398,6 +2422,7 @@
     calculateProposedMidspanBase,
     calculateSpanSideMidspan,
     calculateSpanPowerDerived,
+    getPoleInsetSpanOptions,
     getPoleInsetDetails,
     evaluateSpanSideMidspan,
     evaluateCommMidspanClearance,

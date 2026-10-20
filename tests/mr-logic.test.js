@@ -44,7 +44,7 @@ const AppStore = {
   getSpanCommsForSpan: spanId => Object.values(state.spanComms).filter(row => row.spanId === spanId)
 };
 
-const sandbox = { window: { AppStore }, console, Set, Map };
+const sandbox = { window: { AppStore, Calculations: { getPoleInsetDetails: () => ({ direction: "E" }) } }, console, Set, Map };
 const heightPath = path.join(__dirname, "..", "js", "height-utils.js");
 const mrPath = path.join(__dirname, "..", "js", "mr-logic.js");
 vm.runInNewContext(fs.readFileSync(heightPath, "utf8"), sandbox, { filename: heightPath });
@@ -297,14 +297,14 @@ state.poles.P1.poleInsetReason = "OVERLOADED";
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.equal(
   state.mr.find(item => item.poleId === "P1").text.split("\n")[0],
-  "Pole overloaded unless comm inset pole placed at midspan to reduce span length.",
+  "Pole overloaded unless comm inset pole placed at midspan to reduce span length E.",
   "Pole Inset must generate the overloaded Make Ready wording"
 );
 state.poles.P1.poleInsetReason = "FAILING_CLEARANCES";
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.equal(
   state.mr.find(item => item.poleId === "P1").text.split("\n")[0],
-  "Pole failing clearances unless comm inset pole placed at midspan to reduce span length.",
+  "Pole failing clearances unless comm inset pole placed at midspan to reduce span length E.",
   "Pole Inset must generate the failing-clearances Make Ready wording"
 );
 state.poles.P1.poleInsetActive = false;

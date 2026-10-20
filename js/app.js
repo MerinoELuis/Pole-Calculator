@@ -1083,6 +1083,7 @@
         pcoActive: Boolean(mappedOldPole.pcoActive || preservedPole.pcoActive),
         poleInsetActive: Boolean(mappedOldPole.poleInsetActive || preservedPole.poleInsetActive),
         poleInsetReason: mappedOldPole.poleInsetReason || preservedPole.poleInsetReason || "FAILING_CLEARANCES",
+        poleInsetSpanId: mappedOldPole.poleInsetSpanId || preservedPole.poleInsetSpanId || "",
         redTagActive: Boolean(mappedOldPole.redTagActive || preservedPole.redTagActive),
         redTagMinHeight: mappedOldPole.redTagMinHeight || preservedPole.redTagMinHeight || "",
         redTagClass: mappedOldPole.redTagClass || preservedPole.redTagClass || "",
@@ -2484,13 +2485,21 @@
       ${isMetronet ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? "Add or remove the MidAm ANC Make Ready" : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
       ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
     </div>
-    ${poleInsetEnabled ? `<label class="pole-action-field">
-      <span>Pole Inset Reason</span>
-      <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetReason">
-        <option value="OVERLOADED" ${poleInsetReason === "OVERLOADED" ? "selected" : ""}>Overloaded</option>
-        <option value="FAILING_CLEARANCES" ${poleInsetReason === "FAILING_CLEARANCES" ? "selected" : ""}>Failing clearances</option>
-      </select>
-    </label>
+    ${poleInsetEnabled ? `<div class="pole-action-fields action-detail-grid pole-inset-controls">
+      <label class="pole-action-field">
+        <span>Pole Inset Reason</span>
+        <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetReason">
+          <option value="OVERLOADED" ${poleInsetReason === "OVERLOADED" ? "selected" : ""}>Overloaded</option>
+          <option value="FAILING_CLEARANCES" ${poleInsetReason === "FAILING_CLEARANCES" ? "selected" : ""}>Failing clearances</option>
+        </select>
+      </label>
+      <label class="pole-action-field">
+        <span>Pole Inset Span</span>
+        <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetSpanId">
+          ${(poleInsetDetails.spanOptions || []).map(option => `<option value="${escapeHtml(option.spanId)}" ${option.spanId === poleInsetDetails.spanId ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+    </div>
     <div class="pole-action-fields action-detail-grid pole-inset-details">
       <div class="pole-action-field pole-action-readout"><span>Max Height at Midspan</span><strong>${escapeHtml(poleInsetDetails.maxHeightAtMidspan || "—")}</strong></div>
       <label class="pole-action-field"><span>Pole Inset HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetHeight" value="${escapeHtml(poleInsetDetails.selectedHeight || "")}" placeholder="Enter height"></label>
@@ -3278,7 +3287,10 @@
     S.upsertPole({
       ...pole,
       poleInsetActive: !pole.poleInsetActive,
-      poleInsetReason: pole.poleInsetReason === "OVERLOADED" ? "OVERLOADED" : "FAILING_CLEARANCES"
+      poleInsetReason: pole.poleInsetReason === "OVERLOADED" ? "OVERLOADED" : "FAILING_CLEARANCES",
+      poleInsetSpanId: !pole.poleInsetActive
+        ? (pole.poleInsetSpanId || global.Calculations.getPoleInsetDetails?.(poleId)?.spanId || "")
+        : (pole.poleInsetSpanId || "")
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
@@ -3419,6 +3431,7 @@
       "ugMRText",
       "pcoMRText",
       "poleInsetReason",
+      "poleInsetSpanId",
       "poleInsetHeight",
       "ugRiserDirection",
       "ancSize",

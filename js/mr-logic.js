@@ -66,6 +66,7 @@
     return String(value || "COMM")
       .replace(/^COMMUNICATION\s*>\s*/i, "")
       .replace(/,\s*.*$/, "")
+      .replace(/\s+communications?$/i, "")
       .replace(/\s+inc\.?$/i, "")
       .trim() || "COMM";
   }
@@ -73,7 +74,7 @@
   function proposedOwnerForMR() {
     const settings = S().getState().settings || {};
     const owner = String(settings.proposedOwner || "Wecom").trim() || "Wecom";
-    return /century\s*link|centurylink|\bctl\b/i.test(owner) ? "CTL" : owner;
+    return /century\s*link|centurylink|\bctl\b/i.test(owner) ? "CTL" : displayOwnerName(owner);
   }
 
   function mrHeight(value) {
@@ -917,7 +918,10 @@
     const reason = String(pole.poleInsetReason || "").toUpperCase() === "FAILING_CLEARANCES"
       ? "failing clearances"
       : "overloaded";
-    return `Pole ${reason} unless comm inset pole placed at midspan to reduce span length.`;
+    const details = global.Calculations?.getPoleInsetDetails?.(pole.poleId) || {};
+    const direction = String(details.direction || "").trim().toUpperCase();
+    const directionSuffix = direction ? ` ${direction}` : "";
+    return `Pole ${reason} unless comm inset pole placed at midspan to reduce span length${directionSuffix}.`;
   }
 
   /**

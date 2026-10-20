@@ -35,6 +35,13 @@ assert.equal(details.selectedHeight, "18'", "Pole Inset must expose the manually
 assert.equal(details.endDropToPole, "-2'", "Pole Inset must show the End Drop to the local pole");
 assert.equal(details.endDropToNextPole, "-1'", "Pole Inset must show the End Drop from the next pole toward the inset");
 assert.equal(details.spanId, "S1", "Pole Inset must identify the proposed span used for End Drops");
+assert.equal(details.spanOptions[0].spanId, "S1", "Pole Inset must default to the Fore Span");
+
+S.upsertSpan(S.createSpan("S2", "P1", "P2", "W", "", { type: "Other", lengthDisplay: "120'" }));
+S.upsertSpanSide(S.createSpanSide({ spanId: "S2", poleId: "P1", proposedHOA: "19'" }));
+S.upsertPole({ ...S.getPole("P1"), poleInsetSpanId: "S2" });
+assert.equal(C.getPoleInsetDetails("P1").spanId, "S2", "Pole Inset must use the selected span instead of the default Fore Span");
+assert.equal(C.getPoleInsetDetails("P1").direction, "W", "Pole Inset must expose the selected span direction for MR");
 
 S.upsertPole({ ...S.getPole("P1"), poleInsetHeight: "" });
 assert.equal(C.getPoleInsetDetails("P1").endDropToPole, "", "End Drop to Pole must stay blank without a manual inset HOA");
