@@ -46,6 +46,15 @@ S.upsertPole({ ...S.getPole("P1"), poleInsetSpanId: "S2" });
 assert.equal(C.getPoleInsetDetails("P1").spanId, "S2", "Pole Inset must use the selected span instead of the default Fore Span");
 assert.equal(C.getPoleInsetDetails("P1").direction, "W", "Pole Inset must expose the selected span direction for MR");
 
+S.upsertPole(S.createPole({ poleId: "P0" }));
+S.upsertSpan(S.createSpan("S3", "P0", "P1", "E", "", { type: "Other", lengthDisplay: "120'" }));
+S.upsertSpanSide(S.createSpanSide({ spanId: "S3", poleId: "P1", proposedHOA: "18'" }));
+S.upsertPole({ ...S.getPole("P1"), poleInsetSpanId: "S3" });
+const reverseDetails = C.getPoleInsetDetails("P1");
+assert.match(reverseDetails.spanOptions.find(option => option.spanId === "S3").label, /^P1 → P0/,
+  "Pole Inset span labels must start at the current pole");
+assert.equal(reverseDetails.direction, "W", "Pole Inset direction must reverse when the current pole is the span endpoint");
+
 S.upsertPole({ ...S.getPole("P1"), poleInsetHeight: "" });
 assert.equal(C.getPoleInsetDetails("P1").endDropToPole, "", "End Drop to Pole must stay blank without a manual inset HOA");
 assert.equal(C.getPoleInsetDetails("P1").endDropToNextPole, "", "End Drop to Next Pole must stay blank without a manual inset HOA");

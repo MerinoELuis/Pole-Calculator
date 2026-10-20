@@ -1230,13 +1230,14 @@
         return aForward - bForward;
       });
     return proposedSides.map(({ side, span }) => {
-      const direction = String(span.direction || "").trim().toUpperCase();
-      const endpoints = [span.fromPole, span.toPole].filter(Boolean).join(" → ");
+      const direction = spanDirectionForPole(span, poleId);
+      const otherPole = span.fromPole === poleId ? span.toPole : span.fromPole;
+      const endpoints = [poleId, otherPole].filter(Boolean).join(" → ");
       return {
         spanId: span.spanId,
         direction,
         type: span.type || span.rawType || "",
-        label: [direction || "No direction", endpoints].filter(Boolean).join(" · ")
+        label: [endpoints, direction || "No direction"].filter(Boolean).join(" · ")
       };
     });
   }
@@ -1321,7 +1322,7 @@
         ? format(selectedHeight - nextPoleProposed)
         : "",
       spanId: selectedSpan?.spanId || "",
-      direction: String(selectedSpan?.direction || "").trim().toUpperCase(),
+      direction: selectedSpan ? spanDirectionForPole(selectedSpan, poleId) : "",
       spanOptions
     };
   }
