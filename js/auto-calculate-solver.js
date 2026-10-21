@@ -562,6 +562,11 @@
           target = Math.max(0, ceiling);
         }
       }
+      if (options.onlyLower && !group.locked && target > group.existingInches) {
+        // TOP COMM pole-first recovery may lower automatic communications,
+        // but it must never raise one merely to satisfy a stack floor.
+        target = group.existingInches;
+      }
       plan.push({ group, targetInches: Math.round(target) });
     });
     return plan;
@@ -827,6 +832,19 @@
     return { poleId, mode, ...collectIssues(poleId), ...movementMetrics(poleId, mode) };
   }
 
+  // TOP COMM Auto Proposed is intentionally pole-first.  Midspan and
+  // environment findings remain visible in the normal comm tables, but they
+  // do not reject an otherwise legal pole arrangement in this mode.
+  function analyzeTopCommPoleState(poleId, mode) {
+    const actual = analyzeCurrentState(poleId, mode);
+    return {
+      ...actual,
+      midspanViolationCount: 0,
+      midspanViolationInches: 0,
+      midspanMessages: []
+    };
+  }
+
   function makeResult(mode, analysis, candidateCount, statusOverride = "") {
     const status = statusOverride || statusForAnalysis(analysis);
     const isIntec = String(S()?.getState?.()?.settings?.projectProfile || "INTEC").toUpperCase() === "INTEC";
@@ -881,9 +899,193 @@
     syncCommMovementToggle(poleId);
   }
 
+  function topCommPoleOnlyCandidates(groups, maxPole, state, manualReference = null) {
+    if (manualReference !== null) return [Math.round(manualReference)];
+    const top = groups.reduce((highest, group) => Math.max(
+      highest,
+      Number.isFinite(group.effectiveInches) ? group.effectiveInches : group.existingInches
+    ), -Infinity);
+    const ideal = Number.isFinite(top) ? top + commClearance(state) : maxPole;
+    const first = Math.max(0, Math.min(maxPole, Math.round(ideal)));
+    const candidates = [first];
+    // A blocked direct position is resolved by lowering the communications
+    // and, only when necessary, lowering Proposed to the next legal position.
+    // Keep the direct candidate first so a valid open position never causes an
+    // unnecessary movement.
+    for (let value = first - 1; value >= 0 && candidates.length < MAX_CANDIDATES; value -= 1) {
+      candidates.push(value);
+    }
+    return candidates;
+  }
+
+  async function solveTopCommPoleOnly(poleId, options = {}) {
+    const pole = S()?.getPole?.(poleId);
+    const mode = "TOP_COMM";
+    const debugTrace = beginPoleTrace(poleId, mode, options.tracePass || 1);
+    if (!pole) return { status: STATUS.SKIPPED, applied: false };
+    if (pole.ugActive || pole.pcoActive) {
+      const result = {
+        status: STATUS.SKIPPED,
+        mode,
+        message: pole.ugActive ? "Pole is already marked UG." : "Pole is already marked PCO.",
+        recommendation: "",
+        candidateCount: 0,
+        updatedAt: new Date().toISOString()
+      };
+      setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = pole.ugActive ? "POLE_ALREADY_UG" : "POLE_ALREADY_PCO";
+      finishPoleTrace(debugTrace, result, poleId);
+      return { status: result.status, applied: false, result };
+    }
+
+    const spans = eligibleProposedSpans(poleId);
+    if (!spans.length) {
+      const result = {
+        status: STATUS.SKIPPED,
+        mode,
+        message: "No eligible Proposed span was found.",
+        recommendation: "",
+        candidateCount: 0,
+        updatedAt: new Date().toISOString()
+      };
+      setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = "NO_ELIGIBLE_PROPOSED_SPAN";
+      finishPoleTrace(debugTrace, result, poleId);
+      return { status: result.status, applied: false, result };
+    }
+
+    const maxPole = parse(pole.maxCommHeight || "");
+    if (maxPole === null) {
+      const result = {
+        status: STATUS.MANUAL,
+        mode,
+        message: "Missing Max Height on Pole. Auto Calculate cannot place a pole-side Proposed attachment.",
+        recommendation: "Complete the pole power/equipment data and run Auto Calculate again.",
+        candidateCount: 0,
+        updatedAt: new Date().toISOString()
+      };
+      setResult(poleId, result);
+      if (debugTrace) debugTrace.skipReason = "MISSING_MAX_HEIGHT_ON_POLE";
+      finishPoleTrace(debugTrace, result, poleId);
+      return { status: result.status, applied: false, result };
+    }
+
+    clearAutomaticPolePlan(poleId);
+    recalculateAffected(poleId);
+    const baseline = clone(S().getState());
+    const groups = groupsForPole(poleId).map(group => ({
+      ...group,
+      // Midspan/environment bounds are deliberately ignored by this
+      // pole-first mode.  The existing flagging remains visible after the
+      // pole arrangement is accepted.
+      minimumInches: null,
+      maximumInches: null
+    }));
+    const manualReference = manualProposedReference(spans, poleId, mode);
+    const candidates = topCommPoleOnlyCandidates(groups, maxPole, baseline, manualReference);
+    if (debugTrace) {
+      debugTrace.automaticPlanCleared = true;
+      debugTrace.maxHeightOnPole = format(maxPole);
+      debugTrace.baseline = {
+        groups: groups.map(groupSnapshot),
+        analysis: analysisSnapshot(analyzeTopCommPoleState(poleId, mode))
+      };
+      debugTrace.search = {
+        strategy: "TOP_COMM_POLE_FIRST_LOWER_COMMS",
+        progressiveCandidateCount: candidates.length,
+        candidateOrder: candidates.map((value, index) => ({
+          order: index + 1,
+          proposedHOA: format(value),
+          phase: index === 0 ? "DIRECT_OR_MAX" : "LOWER_TO_LEGAL_POSITION"
+        }))
+      };
+    }
+
+    let best = null;
+    let evaluatedCount = 0;
+    for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+      throwIfCancelled(options);
+      const proposedInches = candidates[candidateIndex];
+      S().setState(clone(baseline));
+      applyProposed(spans, poleId, proposedInches, mode);
+      const candidatePlan = buildStackPlan(
+        groupsForPole(poleId).map(group => ({ ...group, minimumInches: null, maximumInches: null })),
+        proposedInches,
+        mode,
+        maxPole,
+        S().getState(),
+        { onlyLower: true }
+      );
+      applyPlan(candidatePlan);
+      recalculateAffected(poleId);
+      const actualAnalysis = analyzeCurrentState(poleId, mode);
+      const analysis = analyzeTopCommPoleState(poleId, mode);
+      const comparison = compareAnalyses(analysis, best?.analysis);
+      const becameBest = !best || comparison < 0;
+      if (!best || comparison < 0) best = { analysis, actualAnalysis, state: clone(S().getState()) };
+      evaluatedCount = candidateIndex + 1;
+      const poleSafe = analysis.poleViolationCount === 0;
+      if (debugTrace) {
+        debugTrace.candidates.push({
+          order: evaluatedCount,
+          phase: candidateIndex === 0 ? "DIRECT_OR_MAX" : "LOWER_TO_LEGAL_POSITION",
+          proposedHOA: format(proposedInches),
+          commPlan: candidatePlan.map(item => ({ ...groupSnapshot(item.group), targetHOA: format(item.targetInches) })),
+          analysis: analysisSnapshot(analysis),
+          actualMidspan: {
+            count: actualAnalysis.midspanViolationCount,
+            totalShortfall: format(actualAnalysis.midspanViolationInches),
+            messages: [...(actualAnalysis.midspanMessages || [])]
+          },
+          becameBest,
+          decision: poleSafe ? "ACCEPT_POLE_SOLUTION" : (becameBest ? "KEEP_BEST_POLE_RESULT" : "REJECT_LOWER_RANK"),
+          stopReason: poleSafe ? "POLE_RULES_SATISFIED" : ""
+        });
+      }
+      if (options.onCandidateProgress) {
+        options.onCandidateProgress({
+          poleId,
+          candidateIndex: evaluatedCount,
+          candidateCount: poleSafe ? evaluatedCount : candidates.length
+        });
+      }
+      if (poleSafe) break;
+      await yieldToBrowser();
+    }
+
+    if (!best) {
+      S().setState(baseline);
+      const result = {
+        status: STATUS.MANUAL,
+        mode,
+        message: "No candidate arrangement could be evaluated.",
+        recommendation: "Review the imported heights and span data.",
+        candidateCount: evaluatedCount,
+        updatedAt: new Date().toISOString()
+      };
+      setResult(poleId, result);
+      finishPoleTrace(debugTrace, result, poleId);
+      return { status: result.status, applied: false, result };
+    }
+
+    S().setState(best.state);
+    recalculateAffected(poleId);
+    const finalAnalysis = analyzeTopCommPoleState(poleId, mode);
+    const result = makeResult(mode, finalAnalysis, evaluatedCount);
+    result.actualMidspanViolationCount = best.actualAnalysis?.midspanViolationCount || 0;
+    result.actualMidspanViolationInches = best.actualAnalysis?.midspanViolationInches || 0;
+    result.message = finalAnalysis.poleViolationCount === 0
+      ? "Pole-side Top Comm placement satisfied; Midspan findings remain visible for review."
+      : result.message;
+    setResult(poleId, result);
+    finishPoleTrace(debugTrace, result, poleId);
+    return { status: result.status, applied: true, result, analysis: finalAnalysis };
+  }
+
   async function solvePole(poleId, mode, options = {}) {
     const pole = S()?.getPole?.(poleId);
     if (!pole) return { status: STATUS.SKIPPED, applied: false };
+    if (mode === "TOP_COMM") return solveTopCommPoleOnly(poleId, options);
     const debugTrace = beginPoleTrace(poleId, mode, options.tracePass || 1);
     if (pole.ugActive || pole.pcoActive) {
       const result = { status: STATUS.SKIPPED, mode, message: pole.ugActive ? "Pole is already marked UG." : "Pole is already marked PCO.", recommendation: "", candidateCount: 0, updatedAt: new Date().toISOString() };
@@ -1064,14 +1266,20 @@
     if (!pole || pole.ugActive || pole.pcoActive) return false;
     const previous = pole.metadata?.autoCalculateResult;
     if (!previous || [STATUS.SKIPPED, STATUS.MANUAL].includes(previous.status)) return false;
-    return statusForAnalysis(analyzeCurrentState(poleId, mode)) !== STATUS.SAFE
+    const analysis = mode === "TOP_COMM"
+      ? analyzeTopCommPoleState(poleId, mode)
+      : analyzeCurrentState(poleId, mode);
+    return statusForAnalysis(analysis) !== STATUS.SAFE
       || hasAutomaticMovement(poleId);
   }
 
   function selectivePoleSignature(poleId, mode) {
+    const analysis = mode === "TOP_COMM"
+      ? analyzeTopCommPoleState(poleId, mode)
+      : analyzeCurrentState(poleId, mode);
     return JSON.stringify({
       automatic: poleAutomaticSignature(poleId),
-      rank: rankAnalysis(analyzeCurrentState(poleId, mode))
+      rank: rankAnalysis(analysis)
     });
   }
 

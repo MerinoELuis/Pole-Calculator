@@ -88,14 +88,24 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date,
   const solved = await window.AutoCalculateSolver.solvePole("P1", "TOP_COMM", {
     onCandidateProgress: detail => candidateProgress.push(detail)
   });
-  assert.equal(solved.status, "BEST_AVAILABLE");
+  assert.equal(solved.status, "SAFE");
   assert.equal(state.spanSides.S1__P1.proposedHOA, "22'");
   assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "21'");
   assert.equal(state.poles.P1.metadata.autoCalculateResult.poleViolationCount, 0);
-  assert.equal(state.poles.P1.metadata.autoCalculateResult.midspanViolationCount, 1);
-  assert.match(state.poles.P1.metadata.autoCalculateResult.recommendation, /UG or PCO/);
+  assert.equal(state.poles.P1.metadata.autoCalculateResult.midspanViolationCount, 0);
+  assert.equal(state.poles.P1.metadata.autoCalculateResult.actualMidspanViolationCount, 1);
+  assert.equal(state.poles.P1.metadata.autoCalculateResult.recommendation, "");
   assert.ok(candidateProgress.length > 0, "candidate progress should be reported while evaluating a pole");
   assert.equal(candidateProgress.at(-1).candidateIndex, candidateProgress.at(-1).candidateCount);
+
+  state = JSON.parse(initialState);
+  state.poles.P1.maxCommHeight = "20'8\"";
+  state.spanComms.S1__P1__CATV__.existingHOA = "20'8\"";
+  recalculate();
+  const loweredToMakeRoom = await window.AutoCalculateSolver.solvePole("P1", "TOP_COMM");
+  assert.equal(loweredToMakeRoom.status, "SAFE");
+  assert.equal(state.spanSides.S1__P1.proposedHOA, "20'8\"");
+  assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "19'8\"");
 
   state = JSON.parse(initialState);
   state.poles.P1.maxCommHeight = "23'";
@@ -113,7 +123,7 @@ vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date,
   state.spanComms.S1__P1__CATV__.autoCalcStatus = "AUTO";
   recalculate();
   const recoveredAutoPlan = await window.AutoCalculateSolver.solvePole("P1", "TOP_COMM");
-  assert.equal(recoveredAutoPlan.status, "BEST_AVAILABLE");
+  assert.equal(recoveredAutoPlan.status, "SAFE");
   assert.equal(state.spanSides.S1__P1.proposedHOA, "22'");
   assert.equal(state.spanComms.S1__P1__CATV__.existingHOAChange, "21'");
   assert.equal(

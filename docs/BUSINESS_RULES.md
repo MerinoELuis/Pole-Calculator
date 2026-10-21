@@ -286,55 +286,51 @@ TOP_COMM: Proposed = Top Comm + Pole Comm-comm
 LOW_COMM: Proposed = Low Comm - Pole Comm-comm
 ```
 
-For healthy TOP COMM, the ideal is the first operational candidate. When the current arrangement has a Midspan violation, Max Height on Pole becomes the first recovery candidate and comms are arranged downward from their highest legal positions; wider alternatives remain fallback candidates.
+For TOP COMM, the ideal is the first operational candidate. If the direct
+position does not fit the pole, the solver lowers only the automatic comms that
+occupy the required stack space; Midspan and Environment findings remain visible
+but do not reject this pole-first arrangement.
 
 During one Auto Calculate run the solver:
 
 1. Recalculates the current state.
 2. Visits each eligible aerial pole.
 3. Groups duplicate span relationships representing the same physical comm.
-4. For healthy TOP COMM, first tries the direct height above Top Comm. If Midspan is already in violation, it first tries the pole maximum and stacks comms downward at the highest legal bolt positions. Exact Midspan-driven boundaries follow, and only unresolved cases open the wider one-inch and six-inch fallback candidates.
+4. For TOP COMM, first tries the direct height above Top Comm. If that height does not fit the pole, it uses the highest legal Proposed position and lowers only the automatic comms needed to make room.
 5. Builds a clearance-aware stack for TOP COMM or LOW COMM.
 6. Preserves user-entered HOA Change and Proposed values.
-7. Applies each candidate to a clean state copy and runs the existing pole, Proposed and Midspan validations.
-8. Accepts the first `SAFE` TOP COMM candidate. After the direct progressive candidates, it also accepts a pole-compliant `BEST_AVAILABLE` result without opening the broad fallback scan; otherwise it keeps searching for a pole-compliant arrangement.
+7. Applies each candidate to a clean state copy and runs the existing pole and Proposed validations. TOP COMM keeps Midspan calculations for display and trace information, not as a rejection condition.
+8. Accepts the first TOP COMM candidate that satisfies the pole-side rules.
 9. Processes every pole once. A later connected change retries only a previously processed pole that now has a violation or may remove an automatic movement, with at most three evaluations per pole.
 
 Before a retry, the pole's previous `AUTO` Proposed and HOA Change values are
 removed from its baseline. Candidate geometry starts from imported Existing
-HOA values, while manual changes remain locked. A Midspan-driven minimum stack
-is created only when at least one group has a real calculated minimum; an
-all-zero placeholder stack is not a valid boundary.
+HOA values, while manual changes remain locked. TOP COMM does not create an
+automatic Midspan-driven minimum stack.
 
-An Environment or Power MS shortfall is converted into the local HOA movement
-required to correct that endpoint's half of the Midspan change. For example, a
-Midspan that is `2"` below Environment contributes a `4"` local pole target.
-The candidate is accepted only when all ordinary pole, bolt, comm, power, and
-Midspan validations also permit it.
+Environment and Power MS shortfalls are not converted into automatic comm
+movements by the TOP COMM pole-first solver. They remain visible for review
+after the pole-side arrangement is accepted.
 
 Candidate priority is strict and lexicographic:
 
 1. Result category.
 2. Number and total shortfall of pole violations.
-3. Number and total shortfall of Midspan violations.
-4. Number of comm groups moved.
-5. Total movement in inches.
-6. Distance from the ideal Proposed height.
+3. Number of comm groups moved.
+4. Total movement in inches.
+5. Distance from the ideal Proposed height.
 
 Result categories:
 
-- `SAFE`: pole and Midspan both comply.
-- `BEST_AVAILABLE`: the pole complies, but Midspan still has one or more violations.
+- `SAFE`: the pole-side rules comply. TOP COMM may still show Midspan findings for review.
+- `BEST_AVAILABLE`: a pole-compliant partial result used by LOW COMM or legacy analysis.
 - `CRITICAL`: no pole-compliant aerial arrangement was found; the best evaluated arrangement is retained.
 - `MANUAL`: required pole data is missing.
 - `SKIPPED`: no eligible Proposed span exists or the pole is already UG/PCO.
 
-A `BEST_AVAILABLE` arrangement always outranks a candidate where Midspan complies but the pole does not. The original/current arrangement may remain selected when it already ranks better than every newly generated candidate.
-
-For TOP COMM Midspan recovery, if pole and Midspan violation counts and
-shortfalls tie, the higher Proposed wins before movement cost. The solver
-never accepts that height when it creates a pole, power, or other upper
-clearance violation.
+A pole-compliant TOP COMM arrangement is accepted even when Midspan findings
+remain visible. The solver never accepts a height when it creates a pole,
+power, bolt, or communication-spacing violation.
 
 UG and PCO remain operator decisions. For INTEC, a non-SAFE result recommends review for UG or PCO but never activates either option automatically. Existing Streetlight Ground/Raise, Transformer Secure, Power Riser Raise/Secure, Re-sag and Transfer actions remain user-controlled; when active, their effects participate in normal recalculation and candidate validation.
 
