@@ -82,7 +82,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `poleInsetHeight` | editable | Manually selected Pole Inset HOA. The Pole Actions panel derives the local and next-pole End Drops from this value. |
 | `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
 | `riserActive` | editable tri-state | `null` keeps automatic Fore/Back adjacent-UG behavior; `true` adds and `false` suppresses riser MR on a normal pole. UG/PCO disables the action. |
-| `ancActive`, `ancSize`, `ancDistance`, `ancDirection`, `dgHoa` | editable | MidAm ANC action and its size, anchor distance, direction, and DG attachment HOA. |
+| `ancActive`, `ancSize`, `ancDistance`, `ancDistanceManual`, `ancDirection`, `ancDirectionManual`, `dgHoa` | editable/derived | ANC action and its size, anchor distance, direction, and DG attachment HOA. When `ancDistanceManual` is false, distance defaults to one-third of Proposed rounded up to the next whole foot; when `ancDirectionManual` is false, direction follows the connected UG span; when `dgHoa` is blank, it defaults to Proposed. |
 | `ohgActive`, `ohgHoa`, `ohgDirection` | editable | MidAm OHG action and its attachment HOA/direction. |
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes, project constraints, Power Equipment actions and the latest Auto Calculate result. |
@@ -107,6 +107,12 @@ of saved project state or the compact AutoProposed contract. The trace records
 each pole attempt and evaluated candidate from the latest Auto Calculate run,
 including its Proposed, comm targets, validation analysis, ranking decision,
 stop reason, and final selected plan.
+
+The Debug export also includes a top-level `undoTrace`. It records each
+`Ctrl+Z`, `Ctrl+Y`, or `Ctrl+Shift+Z` operation without committing the active
+input first. Each entry identifies the keyboard action, timestamp, history
+depths, and the state paths changed between the current snapshot and the
+restored snapshot.
 
 Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 

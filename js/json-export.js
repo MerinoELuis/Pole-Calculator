@@ -141,6 +141,30 @@
     };
   }
 
+  function movementDebugRow(row) {
+    const existing = H().parseHeight(row.existingHOA || "");
+    const effectiveText = global.Calculations.getEffectiveCommHOA(row);
+    const effective = H().parseHeight(effectiveText);
+    const difference = existing !== null && effective !== null ? effective - existing : null;
+    const detail = midspanDebugRow(row);
+    return {
+      identity: detail.identity,
+      span: detail.span,
+      existingHOA: row.existingHOA || "",
+      hoaChange: row.existingHOAChange || "",
+      otherHOA: row.otherHOA || "",
+      effectiveHOA: effectiveText || "",
+      movement: difference === null ? "" : H().formatHeight(difference),
+      movementInches: difference,
+      movementSource: row.autoCalcStatus || "MANUAL",
+      midspanContribution: difference === null ? "" : H().formatHeight(difference / 2),
+      midspanContributionInches: difference === null ? null : difference / 2,
+      midspan: detail.midspan,
+      remoteMatch: detail.remoteMatch,
+      flagging: detail.flagging
+    };
+  }
+
   function exportJson() {
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -390,6 +414,10 @@
         lastExcelUpdate: state.updateDiagnostics || null
       },
       autoCalculateTrace: global.AutoCalculateSolver?.getDebugTrace?.() || null,
+      undoTrace: global.AppUndoTrace?.getTrace?.() || [],
+      movementTrace: spanComms
+        .filter(row => row.existingHOAChange || row.otherHOA || row.autoCalcStatus)
+        .map(movementDebugRow),
       midspanCalculations: spanComms.map(midspanDebugRow),
       state
     });

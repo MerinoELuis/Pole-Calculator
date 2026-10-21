@@ -438,10 +438,21 @@
     if (/wecom/.test(text)) return "Wecom";
     if (/fiber/.test(text)) return "FIBER";
     if (/communication/.test(text)) {
-      const owner = String(rawOwner || "").replace(/^COMMUNICATION\s*>\s*/i, "").trim();
+      const owner = normalizeImportedCommOwner(rawOwner);
       return owner || "COMM";
     }
     return "";
+  }
+
+  // Collection owners are supplied as labels such as
+  // "COMMUNICATION > Cox Communications". Keep the actual owner identity
+  // while removing the category prefix and generic Communications suffix so
+  // every imported row and its generated MR use one consistent label.
+  function normalizeImportedCommOwner(rawOwner) {
+    return String(rawOwner || "")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/\s+communications?$/i, "")
+      .trim();
   }
 
   function ownerMatchToken(value) {
@@ -693,13 +704,13 @@
 
     rowsToObjects(findSheet(workbook, ["Comms"]) || []).forEach(row => {
       const poleId = String(pick(row, ["poleId", "Pole ID", "Id"])).trim();
-      const owner = String(pick(row, ["owner", "Owner", "Comm"])).trim();
+      const owner = normalizeImportedCommOwner(pick(row, ["owner", "Owner", "Comm"]));
       if (poleId && owner) S().upsertComm(poleId, owner, pick(row, ["existingHOA", "Existing HOA", "Altura actual"]), pick(row, ["notes", "Notas"]), {
-        ownerBase: pick(row, ["ownerBase", "Owner Base"]),
+        ownerBase: normalizeImportedCommOwner(pick(row, ["ownerBase", "Owner Base"])) || owner,
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
         pofActive: truthyCell(pick(row, ["pofActive", "POF", "POF Active"])),
         serviceDrop: truthyCell(pick(row, ["serviceDrop", "Service Drop"])),
-        rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
+        rawOwner: normalizeImportedCommOwner(pick(row, ["rawOwner", "Raw Owner"])) || owner,
         unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
         size: pick(row, ["size", "Size"]),
         wireId: pick(row, ["wireId", "Wire ID"])
@@ -707,11 +718,12 @@
     });
 
     rowsToObjects(spanCommsSheet || []).forEach(row => {
+      const owner = normalizeImportedCommOwner(pick(row, ["owner", "Owner", "Comm"]));
       S().upsertSpanComm({
         spanId: String(pick(row, ["spanId", "Span ID"])).trim(),
         poleId: String(pick(row, ["poleId", "Pole ID"])).trim(),
-        owner: String(pick(row, ["owner", "Owner", "Comm"])).trim(),
-        ownerBase: pick(row, ["ownerBase", "Owner Base"]),
+        owner,
+        ownerBase: normalizeImportedCommOwner(pick(row, ["ownerBase", "Owner Base"])) || owner,
         existingHOA: pick(row, ["existingHOA", "Existing HOA"]),
         existingHOAChange: pick(row, ["existingHOAChange", "Existing HOA Change"]),
         otherHOA: pick(row, ["otherHOA", "Other HOA Height"]),
@@ -731,7 +743,7 @@
         finalMidspan: pick(row, ["finalMidspan", "Final Midspan", "Midspan final ajustado"]),
         mr: pick(row, ["mr", "MR", "Make Ready"]),
         notes: pick(row, ["notes", "Notas"]),
-        rawOwner: pick(row, ["rawOwner", "Raw Owner"]),
+        rawOwner: normalizeImportedCommOwner(pick(row, ["rawOwner", "Raw Owner"])) || owner,
         unknownOwner: String(pick(row, ["unknownOwner", "Unknown Owner"])).toLowerCase() === "yes",
         size: pick(row, ["size", "Size"]),
         construction: pick(row, ["construction", "Construction"]),
@@ -959,7 +971,7 @@
       }
       if (!S().getPole(poleId)) S().upsertPole(S().createPole(poleId));
 
-      const rawOwner = String(pick(row, ["Owner", "owner"])).trim();
+      const sourceOwner = String(pick(row, ["Owner", "owner"])).trim();
       const size = String(pick(row, ["Size", "Size.display", "Wire Size"])).trim();
       const construction = String(pick(row, ["Construction"])).trim();
       const insulator = String(pick(row, ["Insulator"])).trim();
@@ -976,18 +988,20 @@
           attachmentHeight,
           midspan,
           size,
-          owner: rawOwner,
+          owner: sourceOwner,
           wireId
         });
         return;
       }
 
-      if (!isCommunicationWire(row) && !rawOwner) return;
-      const owner = rawOwner || (wireId ? `UNKNOWN-${wireId}` : `UNKNOWN-${spanId}-${poleId}`);
+      if (!isCommunicationWire(row) && !sourceOwner) return;
+      const owner = sourceOwner
+        ? normalizeImportedCommOwner(sourceOwner)
+        : (wireId ? `UNKNOWN-${wireId}` : `UNKNOWN-${spanId}-${poleId}`);
       const ownerBase = owner;
-      const unknownOwner = !rawOwner;
+      const unknownOwner = !sourceOwner;
       const serviceDrop = /communication\s*drops?|service\s*drop|\bdrop\b/i.test(size);
-      S().upsertComm(poleId, owner, attachmentHeight, "", { rawOwner, size, wireId, ownerBase, unknownOwner });
+      S().upsertComm(poleId, owner, attachmentHeight, "", { rawOwner: owner, size, wireId, ownerBase, unknownOwner });
       S().upsertSpanComm({
         spanId,
         poleId,
@@ -1002,7 +1016,7 @@
         calculatedMidspan: "",
         mr: "",
         notes: "",
-        rawOwner,
+        rawOwner: owner,
         unknownOwner,
         size,
         construction,

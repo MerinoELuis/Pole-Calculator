@@ -58,15 +58,48 @@ sandbox.window.MRLogic.generateMRForPole("P1");
 const p1Text = state.mr.find(item => item.poleId === "P1").text;
 assert.match(p1Text, /Backspan to go UG SE due to on adj pole proposed pole overloaded\./);
 assert.match(p1Text, /Pl riser W at HOA 18'\./);
+assert.equal(sandbox.window.MRLogic.isANCEnabled("P1"), true, "INTEC must auto-enable ANC on the aerial pole adjacent to UG");
+assert.match(p1Text, /Pl new ANC 7' SE and pl new DG at HOA 19'\./i, "INTEC adjacent UG must aim the automatic ANC toward the adjacent UG pole without an ANC size");
 assert.match(p1Text, /Transfer CATV to new pole at HOA 21'6" and 21'10" with DG\./);
 assert.match(p1Text, /Transfer CTL to new pole at HOA 19'10", 20'2" and 20'6"\./);
 assert.ok(p1Text.indexOf("Transfer CATV") < p1Text.indexOf("Transfer CTL"), "transfer groups must follow the pole from highest to lowest comm");
 assert.equal(p1Text.trim().split("\n").at(-1), "Pl riser W at HOA 18'.", "riser must be final and use the imported IO direction");
+state.spanSides.PROP__P1.proposedHOA = "30'";
+assert.equal(sandbox.window.MRLogic.getEffectiveANCDistance("P1"), "10'", "automatic ANC distance must be one-third of Proposed");
+state.spanSides.PROP__P1.proposedHOA = "28'10\"";
+assert.equal(sandbox.window.MRLogic.getEffectiveANCDistance("P1"), "10'", "automatic ANC distance must round one-third up to the next whole foot");
+state.spanSides.PROP__P1.proposedHOA = "19'";
+assert.equal(sandbox.window.MRLogic.getEffectiveANCDGHOA("P1"), "19'", "ANC DG HOA must default to Proposed when no manual DG HOA is entered");
+
+state.poles.P1.ancActive = true;
+state.poles.P1.ancSize = "8\"";
+state.poles.P1.ancDistance = "15'";
+state.poles.P1.ancDistanceManual = true;
+state.poles.P1.ancDirection = "N";
+state.poles.P1.ancDirectionManual = true;
+state.poles.P1.dgHoa = "22'2\"";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /Pl new ANC 15' N and pl new DG at HOA 22'2"\./i, "INTEC ANC action must generate the configured anchor and DG MR without an ANC size");
+state.poles.P1.ancActive = null;
+state.poles.P1.ancDirection = "";
+state.poles.P1.ancDirectionManual = false;
+state.poles.P1.dgHoa = "";
+state.poles.P1.ancDistanceManual = false;
 
 state.spans.SLACK = { spanId: "SLACK", fromPole: "P1", toPole: "P3", type: "Fore Span", rawType: "Fore Span", direction: "E" };
 state.spanSides.SLACK__P1 = { spanId: "SLACK", poleId: "P1", isSlack: true };
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /Proposed slack span E\./, "INTEC Slack must generate the lowercase MR instruction");
+state.spanSides.SLACK__P3 = { spanId: "SLACK", poleId: "P3", isSlack: false };
+sandbox.window.MRLogic.generateMRForPole("P3");
+assert.match(state.mr.find(item => item.poleId === "P3").text, /Proposed slack span W\./, "the opposite end of a Slack span must use the reversed physical direction");
+delete state.spanSides.SLACK__P3;
+state.spanSides.PROP__P1.isSlack = true;
+sandbox.window.MRLogic.generateMRForPole("P1");
+const combinedSlackText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(combinedSlackText, /Proposed slack span (?:E and N|N and E)\./, "multiple Slack spans must be combined into one MR line");
+assert.equal(combinedSlackText.split(/\r?\n/).filter(line => /Proposed slack span/i.test(line)).length, 1, "combined Slack directions must not generate duplicate MR lines");
+state.spanSides.PROP__P1.isSlack = false;
 state.spanSides.SLACK__P1.isSlack = false;
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Proposed slack span E\./, "turning Slack off must remove its MR instruction");
@@ -292,6 +325,37 @@ assert.doesNotMatch(state.mr.find(item => item.poleId === "P1").text, /Pl riser/
 assert.equal(sandbox.window.MRLogic.isRiserAvailable("P1"), false, "Riser control must be unavailable while the pole is PCO");
 state.poles.P1.pcoActive = false;
 
+state.poles.P1.ugActive = true;
+state.poles.P1.ugSpanId = "PROP";
+state.poles.P1.ugReason = "Red tag";
+state.spans.OTHER_REVERSE = { spanId: "OTHER_REVERSE", fromPole: "P2", toPole: "P1", type: "Other", rawType: "Other", direction: "N" };
+const ugSpanOptions = sandbox.window.MRLogic.getUGSpanOptions("P1");
+assert.ok(ugSpanOptions.some(option => option.spanId === "PROP" && option.relation === "Forespan" && option.direction === "N"), "INTEC UG selector must expose the connected Fore Span and its direction");
+assert.equal(ugSpanOptions.filter(option => option.otherPoleId === "P2" && option.direction === "S" && option.relation === "Otherspan").length, 1, "UG selector must collapse reciprocal rows to the row owned by the current pole");
+assert.equal(ugSpanOptions.find(option => option.otherPoleId === "P2" && option.direction === "S" && option.relation === "Otherspan").spanId, "OTHER", "UG selector must prefer the current pole's span record");
+delete state.spans.OTHER_REVERSE;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(
+  state.mr.find(item => item.poleId === "P1").text,
+  [
+    "Forespan to go UG N due to Red tag.",
+    "Red tag",
+    "TDU Replace required",
+    "PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9\"",
+    "inability to place ANC"
+  ].join("\n"),
+  "a selected INTEC UG span must generate an editable directed MR template"
+);
+state.poles.P1.ugSpanMRSpanId = "PROP";
+state.poles.P1.ugSpanMRText = "Forespan to go UG N due to custom reason.\nRed tag";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(state.mr.find(item => item.poleId === "P1").text, state.poles.P1.ugSpanMRText, "the selected-span UG MR must preserve manual edits");
+state.poles.P1.ugSpanMRText = "";
+state.poles.P1.ugSpanId = "ALL";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.equal(state.mr.find(item => item.poleId === "P1").text.split("\n").length, 6, "INTEC UG All must retain the six-line replacement template");
+state.poles.P1.ugActive = false;
+
 state.poles.P1.poleInsetActive = true;
 state.poles.P1.poleInsetReason = "OVERLOADED";
 sandbox.window.MRLogic.generateMRForPole("P1");
@@ -339,6 +403,8 @@ assert.match(incompleteMetronetAdjacentText, /PL NEW RISER FOR UG TRANSFER SE\./
 state.poles.P2.ugMRText = "BACKSPAN GOING UG DUE TO CLEARANCE VIOLATION.";
 state.poles.P1.ugRiserDirection = "NE";
 state.poles.P1.metadata = { powerEquipment: [{ category: "STREETLIGHT", actionActive: true }] };
+state.poles.P1.ancDirection = "E";
+state.poles.P1.ancDirectionManual = true;
 state.spanSides.BACK__P1 = { spanId: "BACK", poleId: "P1", proposedHOA: "23'", notes: "8\" ANC 15' E" };
 sandbox.window.MRLogic.generateMRForPole("P1");
 const metronetAdjacentUGText = state.mr.find(item => item.poleId === "P1").text;
@@ -358,6 +424,7 @@ state.poles.P1.riserActive = null;
 state.poles.P1.ancActive = true;
 state.poles.P1.ancSize = "8\"";
 state.poles.P1.ancDistance = "15'";
+state.poles.P1.ancDistanceManual = true;
 state.poles.P1.ancDirection = "E";
 state.poles.P1.dgHoa = "23'";
 state.poles.P1.ohgActive = true;

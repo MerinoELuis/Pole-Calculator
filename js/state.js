@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.189";
+  const CURRENT_VERSION = "1.8.209";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -232,6 +232,16 @@
     return /communication|catv|telco|fiber|cable\s*one|century\s*link|centurylink|cox|vexus|wecom/i.test(text);
   }
 
+  // Keep imported communication identities consistent with excel-import.js.
+  // The repair pass reads the original Span.Wire snapshot, so it must not
+  // reinsert the category prefix or generic Communications suffix.
+  function normalizeImportedCommOwner(value) {
+    return String(value || "")
+      .replace(/^COMMUNICATION\s*>\s*/i, "")
+      .replace(/\s+communications?$/i, "")
+      .trim();
+  }
+
   function importedServiceDrop(size) {
     return /communication\s*drops?|service\s*drop|\bdrop\b/i.test(String(size || ""));
   }
@@ -250,7 +260,7 @@
       if (!isImportedCommunicationRow(row)) return;
       const spanId = sourceRowValue(row, ["Span Id", "Span ID", "spanId", "Wire Span ID"]);
       const sourcePoleId = sourceRowValue(row, ["Id", "Pole ID", "Pole", "From Pole"]);
-      const owner = sourceRowValue(row, ["Owner", "owner"]);
+      const owner = normalizeImportedCommOwner(sourceRowValue(row, ["Owner", "owner"]));
       const wireId = sourceRowValue(row, ["Wire Id", "Wire ID", "wireId"]);
       if (!spanId || !sourcePoleId || !owner || !wireId || !next.spans?.[spanId]) return;
 
@@ -380,6 +390,9 @@
         poleType: trim(data.poleType || ""),
         isGenerated: Boolean(data.isGenerated),
         ugActive: Boolean(data.ugActive),
+        ugSpanId: trim(data.ugSpanId || "ALL") || "ALL",
+        ugSpanMRSpanId: trim(data.ugSpanMRSpanId || ""),
+        ugSpanMRText: trim(data.ugSpanMRText || ""),
         ugReason: trim(data.ugReason || ""),
         ugMRText: trim(data.ugMRText || ""),
         ugRiserDirection: trim(data.ugRiserDirection || "").toUpperCase(),
@@ -388,8 +401,10 @@
         secondaryDripLoopHoa: trim(data.secondaryDripLoopHoa || ""),
         ancActive: data.ancActive === true ? true : data.ancActive === false ? false : null,
         ancSize: trim(data.ancSize || "8\""),
-        ancDistance: trim(data.ancDistance || "15'"),
+        ancDistance: trim(data.ancDistance || ""),
+        ancDistanceManual: data.ancDistanceManual === true,
         ancDirection: trim(data.ancDirection || "").toUpperCase(),
+        ancDirectionManual: data.ancDirectionManual === true || Boolean(String(data.ancDirection || "").trim()),
         dgHoa: trim(data.dgHoa || ""),
         ohgActive: Boolean(data.ohgActive),
         ohgHoa: trim(data.ohgHoa || ""),
@@ -430,6 +445,9 @@
       poleType: trim(extra.poleType || ""),
       isGenerated: Boolean(extra.isGenerated),
       ugActive: Boolean(extra.ugActive),
+      ugSpanId: trim(extra.ugSpanId || "ALL") || "ALL",
+      ugSpanMRSpanId: trim(extra.ugSpanMRSpanId || ""),
+      ugSpanMRText: trim(extra.ugSpanMRText || ""),
       ugReason: trim(extra.ugReason || ""),
       ugMRText: trim(extra.ugMRText || ""),
       ugRiserDirection: trim(extra.ugRiserDirection || "").toUpperCase(),
@@ -438,8 +456,10 @@
       secondaryDripLoopHoa: trim(extra.secondaryDripLoopHoa || ""),
       ancActive: extra.ancActive === true ? true : extra.ancActive === false ? false : null,
       ancSize: trim(extra.ancSize || "8\""),
-      ancDistance: trim(extra.ancDistance || "15'"),
+      ancDistance: trim(extra.ancDistance || ""),
+      ancDistanceManual: extra.ancDistanceManual === true,
       ancDirection: trim(extra.ancDirection || "").toUpperCase(),
+      ancDirectionManual: extra.ancDirectionManual === true || Boolean(String(extra.ancDirection || "").trim()),
       dgHoa: trim(extra.dgHoa || ""),
       ohgActive: Boolean(extra.ohgActive),
       ohgHoa: trim(extra.ohgHoa || ""),
@@ -696,10 +716,21 @@
   }
 
   function getSpanComm(spanId, poleId, owner, wireId = "") {
-    if (wireId) return state.spanComms[keyForSpanComm(spanId, poleId, owner, wireId)] || null;
+    if (wireId) {
+      const direct = state.spanComms[keyForSpanComm(spanId, poleId, owner, wireId)];
+      if (direct) return direct;
+      const normalizedOwner = normalizeImportedCommOwner(owner);
+      return Object.values(state.spanComms).find(sc => sc.spanId === spanId
+        && sc.poleId === poleId
+        && sc.wireId === wireId
+        && normalizeImportedCommOwner(sc.owner) === normalizedOwner) || null;
+    }
     const exact = state.spanComms[keyForSpanComm(spanId, poleId, owner, "")];
     if (exact) return exact;
-    return Object.values(state.spanComms).find(sc => sc.spanId === spanId && sc.poleId === poleId && sc.owner === owner) || null;
+    const normalizedOwner = normalizeImportedCommOwner(owner);
+    return Object.values(state.spanComms).find(sc => sc.spanId === spanId
+      && sc.poleId === poleId
+      && normalizeImportedCommOwner(sc.owner) === normalizedOwner) || null;
   }
 
   function upsertPole(pole) {
@@ -717,12 +748,15 @@
   function updatePoleField(poleId, field, value) {
     const pole = state.poles[poleId];
     if (!pole) return null;
-    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "poleInsetSpanId", "poleInsetHeight", "ugRiserDirection", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
+    if (!["poleHeight", "lowPower", "maxCommHeight", "topComm", "lowComm", "standaloneProposedHOA", "ugSpanId", "ugSpanMRSpanId", "ugSpanMRText", "ugReason", "ugMRText", "pcoMRText", "poleInsetReason", "poleInsetSpanId", "poleInsetHeight", "ugRiserDirection", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgHoa", "ohgDirection", "lessThan12CommClearanceActive", "redTagMinHeight", "redTagClass", "redTagReason", "notes", "sequence"].includes(field)) return pole;
     if (["lessThan12CommClearanceActive", "secondaryDripLoopActive"].includes(field)) {
       pole[field] = value === true || String(value).toLowerCase() === "true";
       return pole;
     }
     pole[field] = trim(value);
+    if (field === "ancDistance") pole.ancDistanceManual = Boolean(String(value || "").trim());
+    if (field === "ancDirection") pole.ancDirectionManual = Boolean(String(value || "").trim());
+    if (field === "ugSpanId") pole[field] = pole[field] || "ALL";
     if (["ugRiserDirection", "ancDirection", "ohgDirection"].includes(field)) pole[field] = pole[field].toUpperCase();
     if (field === "poleInsetReason") pole[field] = normalizePoleInsetReason(value);
     return pole;
@@ -1358,7 +1392,43 @@
     const normalizedSpanComms = {};
     Object.values(next.spanComms).forEach(sc => {
       const clean = createSpanComm(sc);
-      if (clean.spanId && clean.poleId && clean.owner) normalizedSpanComms[keyForSpanComm(clean.spanId, clean.poleId, clean.owner, clean.wireId || "")] = clean;
+      const owner = normalizeImportedCommOwner(clean.owner || clean.ownerBase || clean.rawOwner);
+      if (!clean.spanId || !clean.poleId || !owner) return;
+      const normalized = createSpanComm({
+        ...clean,
+        owner,
+        ownerBase: normalizeImportedCommOwner(clean.ownerBase) || owner,
+        rawOwner: normalizeImportedCommOwner(clean.rawOwner) || owner
+      });
+      const key = keyForSpanComm(normalized.spanId, normalized.poleId, normalized.owner, normalized.wireId || "");
+      const previous = normalizedSpanComms[key];
+      if (!previous) {
+        normalizedSpanComms[key] = normalized;
+        return;
+      }
+      // Older states can contain both the raw-owner and normalized-owner key
+      // for the same physical wire. Merge them while preserving any manual
+      // movement, transfer, or midspan value already present.
+      normalizedSpanComms[key] = createSpanComm({
+        ...previous,
+        ...normalized,
+        existingHOA: normalized.existingHOA || previous.existingHOA,
+        existingHOAChange: normalized.existingHOAChange || previous.existingHOAChange,
+        otherHOA: normalized.otherHOA || previous.otherHOA,
+        remoteHOA: normalized.remoteHOA || previous.remoteHOA,
+        midspan: normalized.midspan || previous.midspan,
+        ocalcMS: normalized.ocalcMS || previous.ocalcMS,
+        calculatedMidspan: normalized.calculatedMidspan || previous.calculatedMidspan,
+        msProposed: normalized.msProposed || previous.msProposed,
+        finalMidspan: normalized.finalMidspan || previous.finalMidspan,
+        mr: normalized.mr || previous.mr,
+        notes: normalized.notes || previous.notes,
+        serviceDrop: normalized.serviceDrop || previous.serviceDrop,
+        downGuy: normalized.downGuy || previous.downGuy,
+        transferToNewPole: normalized.transferToNewPole || previous.transferToNewPole,
+        resagServiceDrop: normalized.resagServiceDrop || previous.resagServiceDrop,
+        pofActive: normalized.pofActive || previous.pofActive
+      });
     });
     next.spanComms = normalizedSpanComms;
     repairImportedSpanComms(next);

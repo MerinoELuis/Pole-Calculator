@@ -37,7 +37,7 @@ Excel Review runs only after import/update completes successfully. Every run fir
 
 ## Unsaved Work
 
-Every state-changing UI action records an undo snapshot and marks the job dirty. `Ctrl+Z` undoes, while `Ctrl+Y` and `Ctrl+Shift+Z` redo the last undone action. A new edit clears the redo history. The Save button displays `Save *` while dirty. `Ctrl+S` uses the application Save flow.
+Every state-changing UI action records an undo snapshot and marks the job dirty. `Ctrl+Z` undoes, while `Ctrl+Y` and `Ctrl+Shift+Z` redo the last undone action. A new edit clears the redo history. `Ctrl+Z` does not commit the active field first; the Debug export records the undo/redo operation and the state paths it restored. The Save button displays `Save *` while dirty. `Ctrl+S` uses the application Save flow.
 
 The browser's `beforeunload` warning protects closing or reloading with unsaved changes. Browser security does not permit a fully custom Save/Cancel dialog during tab close.
 

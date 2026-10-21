@@ -38,8 +38,11 @@
   }
 
   function generateProposedSlackMR(spanSide, span) {
-    if (!spanSide?.isSlack || !span) return "";
-    const direction = String(span.direction || "").trim().toUpperCase();
+    if (!spanSide || !span) return "";
+    const spanIsSlack = Boolean(spanSide.isSlack)
+      || S().getSpanSidesForSpan(span.spanId).some(side => Boolean(side.isSlack));
+    if (!spanIsSlack) return "";
+    const direction = directionForPhysicalSpan(span, spanSide.poleId);
     if (!direction) return "";
     if (isMidAmMR()) return `PL NEW SLACK SPAN ${direction}.`;
     // CSU and ComEd do not have a confirmed Slack MR template in the current
@@ -48,6 +51,14 @@
     return isOlssonMR()
       ? `PROPOSED SLACK SPAN ${direction}.`
       : `Proposed slack span ${direction}.`;
+  }
+
+  function directionForPhysicalSpan(span, poleId) {
+    const direction = String(span?.direction || "").trim().toUpperCase();
+    if (!direction) return "";
+    if (span?.fromPole === poleId) return direction;
+    if (span?.toPole === poleId) return oppositeDirection(direction);
+    return direction;
   }
 
   function ownerForMR(spanComm) {
@@ -191,14 +202,58 @@
     return parsed === null ? String(value || "15'").trim() : H().formatHeight(parsed);
   }
 
+  function proposedHoaForAnchor(pole) {
+    if (!pole) return "";
+    if (pole.standaloneProposedHOA) return String(pole.standaloneProposedHOA).trim();
+    return S().getSpanSidesForPole(pole.poleId).find(item => item.proposedHOA)?.proposedHOA || "";
+  }
+
+  function defaultAnchorDistance(pole) {
+    const proposed = H().parseHeight(proposedHoaForAnchor(pole));
+    if (proposed === null) return "";
+    // The automatic anchor distance is one-third of Proposed, rounded up to
+    // the next whole foot so the field never understates the required reach.
+    return H().formatHeight(Math.ceil((proposed / 3) / 12) * 12);
+  }
+
+  function effectiveAnchorDistance(pole) {
+    const manual = String(pole?.ancDistance || "").trim();
+    if (pole?.ancDistanceManual === true && manual) return normalizeAnchorDistance(manual);
+    return defaultAnchorDistance(pole) || normalizeAnchorDistance(manual || "15'");
+  }
+
+  function automaticAnchorDirection(pole) {
+    const ugConnection = connectedUGSpanItems(pole?.poleId)
+      .find(item => item.adjacentPoleUG);
+    return String(ugConnection?.direction || poleSpanDirection(pole?.poleId) || "").toUpperCase();
+  }
+
+  function effectiveAnchorDirection(pole) {
+    const manual = String(pole?.ancDirection || "").trim().toUpperCase();
+    if (pole?.ancDirectionManual === true && manual) return manual;
+    // An ANC that the user enabled manually must wait for a direction choice.
+    // Only ANC inferred from an adjacent UG connection receives an automatic
+    // direction.
+    if (pole?.ancActive === true) return "";
+    return automaticAnchorDirection(pole);
+  }
+
+  function effectiveAnchorDGHOA(pole) {
+    if (!isANCEnabled(pole?.poleId)) return "";
+    const manual = String(pole?.dgHoa || "").trim();
+    return formattedMRHeight(manual || proposedHoaForAnchor(pole));
+  }
+
   function metronetConfiguredAnchorMR(pole) {
     if (!isANCEnabled(pole?.poleId)) return "";
-    const direction = String(pole.ancDirection || poleSpanDirection(pole.poleId) || "").toUpperCase();
-    const distance = normalizeAnchorDistance(pole.ancDistance || "15'");
-    const dgHoa = formattedMRHeight(pole.dgHoa || pole.standaloneProposedHOA || (
-      S().getSpanSidesForPole(pole.poleId).find(item => item.proposedHOA)?.proposedHOA || ""
-    ));
+    const direction = effectiveAnchorDirection(pole);
+    const distance = effectiveAnchorDistance(pole);
+    const proposedHoa = proposedHoaForAnchor(pole);
+    const dgHoa = effectiveAnchorDGHOA(pole) || formattedMRHeight(proposedHoa);
     if (!direction || !dgHoa) return "";
+    if (isIntecMR()) {
+      return `Pl new ANC ${distance} ${direction} and pl new DG at HOA ${dgHoa}.`;
+    }
     return `PL NEW ${normalizeAnchorSize(pole.ancSize)} ANC ${distance} ${direction} AND PL NEW DG AT HOA ${dgHoa}.`;
   }
 
@@ -525,9 +580,15 @@
   }
 
   function ugReasonFromPole(pole) {
+    const selectedLine = selectedIntecUGInstruction(pole);
+    const selectedMatch = String(selectedLine || "").match(/to\s+go\s+ug(?:\s+[NSEW]{1,2})?\s+due\s+to\s+(.+?)[.]*\s*$/i);
+    if (selectedMatch) {
+      const selectedReason = cleanUGReason(selectedMatch[1]);
+      if (selectedReason) return selectedReason;
+    }
     const firstLine = editableUGTemplate(pole).split(/\r?\n/).find(line => /unable\s+to\s+attach\s+due\s+to/i.test(line));
     const match = String(firstLine || "").match(/unable\s+to\s+attach\s+due\s+to\s+(.+?)[.]*\s*$/i);
-    return cleanUGReason(match?.[1] || pole?.ugReason);
+    return cleanUGReason(match?.[1]) || cleanUGReason(pole?.ugReason);
   }
 
   function metronetUGReasonFromPole(pole) {
@@ -623,6 +684,77 @@
     return relation;
   }
 
+  function ugSpanOptionsForPole(poleId) {
+    const byPhysicalConnection = new Map();
+    S().getConnectedSpans(poleId).forEach(span => {
+        const otherPoleId = S().getOtherPoleId(span, poleId);
+        const relation = normalizeSpanRelation(span.rawType || span.type, span.fromPole !== poleId);
+        const direction = span.fromPole === poleId
+          ? String(span.direction || "").toUpperCase()
+          : oppositeDirection(String(span.direction || "").toUpperCase());
+        if (!span?.spanId || !otherPoleId) return;
+        const physicalKey = `${otherPoleId}::${direction}`;
+        const candidate = {
+          spanId: span.spanId,
+          otherPoleId,
+          relation,
+          direction,
+          label: `${relation}${direction ? ` ${direction}` : ""} · ${otherPoleId}`,
+          ownedByPole: span.fromPole === poleId
+        };
+        const existing = byPhysicalConnection.get(physicalKey);
+        // Excel can contain the reciprocal record for the same physical
+        // connection. For the current pole, prefer the row owned by this pole
+        // so a reciprocal row does not create a duplicate UG option.
+        if (!existing || (candidate.ownedByPole && !existing.ownedByPole)) {
+          byPhysicalConnection.set(physicalKey, candidate);
+        }
+      });
+    return Array.from(byPhysicalConnection.values())
+      .sort((a, b) => `${a.relation} ${a.direction} ${a.otherPoleId}`.localeCompare(`${b.relation} ${b.direction} ${b.otherPoleId}`));
+  }
+
+  function selectedIntecUGSpan(pole) {
+    const spanId = String(pole?.ugSpanId || "ALL").trim();
+    if (!pole?.ugActive || !spanId || spanId.toUpperCase() === "ALL") return null;
+    const span = S().getSpan(spanId);
+    if (!span || (span.fromPole !== pole.poleId && span.toPole !== pole.poleId)) return null;
+    return span;
+  }
+
+  function defaultIntecUGSpanLines(pole) {
+    const span = selectedIntecUGSpan(pole);
+    if (!span) return [];
+    const relation = normalizeSpanRelation(span.rawType || span.type, span.fromPole !== pole.poleId);
+    const direction = span.fromPole === pole.poleId
+      ? String(span.direction || "").toUpperCase()
+      : oppositeDirection(String(span.direction || "").toUpperCase());
+    const reason = cleanUGReason(pole.ugReason) || "[enter specific reason]";
+    return [
+      `${relation} to go UG${direction ? ` ${direction}` : ""} due to ${reason}.`,
+      "Red tag",
+      "TDU Replace required",
+      "PCO neutral (inclusive of triplex/quadruplexes as noted above) exceeds 26'9\"",
+      "inability to place ANC"
+    ];
+  }
+
+  function getEditableUGSpanTemplate(pole) {
+    const spanId = String(pole?.ugSpanId || "ALL").trim();
+    if (!spanId || spanId.toUpperCase() === "ALL") return "";
+    const saved = String(pole?.ugSpanMRText || "").trim();
+    if (saved && (!pole?.ugSpanMRSpanId || pole.ugSpanMRSpanId === spanId)) return saved;
+    return defaultIntecUGSpanLines(pole).join("\n");
+  }
+
+  function selectedIntecUGLines(pole) {
+    return getEditableUGSpanTemplate(pole).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  }
+
+  function selectedIntecUGInstruction(pole) {
+    return selectedIntecUGLines(pole)[0] || "";
+  }
+
   function defaultRiserDirection(relation, direction) {
     const normalizedDirection = String(direction || "").toUpperCase();
     if (!normalizedDirection) return "";
@@ -676,10 +808,15 @@
 
   function isANCEnabled(poleId) {
     const pole = S().getPole(poleId);
-    if (!pole || pole.ugActive || pole.pcoActive || !isMetronetMR()) return false;
+    if (!pole || pole.ugActive || pole.pcoActive || (!isMetronetMR() && !isIntecMR())) return false;
     if (pole.ancActive === true) return true;
     if (pole.ancActive === false) return false;
-    return connectedUGSpanItems(poleId).some(item => item.adjacentPoleUG);
+    // Aerial poles receiving an adjacent UG transfer need an ANC/DG in both
+    // MidAm and INTEC.  Keep an explicit `false` override authoritative, but
+    // otherwise enable the automatic anchor whenever the connected UG pole is
+    // the reason this pole is being worked.
+    return (isMetronetMR() || isIntecMR())
+      && connectedUGSpanItems(poleId).some(item => item.adjacentPoleUG);
   }
 
   function resolvedRiserDirection(poleId, connection = null) {
@@ -941,6 +1078,7 @@
     const dropMoves = [];
     const resagGroups = new Map();
     const proposed = [];
+    const slackGroups = new Map();
     const ensure = [];
     const ensureDirections = [];
     let ensureSpanCount = 0;
@@ -949,8 +1087,11 @@
     const pole = S().getPole(poleId);
     const redTag = generateRedTagMR(pole);
     if (pole?.ugActive || pole?.pcoActive) {
+      const selectedUGLines = pole.ugActive && isIntecMR() ? selectedIntecUGLines(pole) : [];
       const lines = pole.ugActive
-        ? (isMetronetMR() ? metronetUGReplacementMR(pole) : (isOlssonMR() ? defaultOlssonUGLines(pole) : ugReplacementMR(pole)))
+        ? (selectedUGLines.length
+          ? selectedUGLines
+          : (isMetronetMR() ? metronetUGReplacementMR(pole) : (isOlssonMR() ? defaultOlssonUGLines(pole) : ugReplacementMR(pole))))
         : pcoReplacementMR(pole);
       const text = [redTag, ...lines].filter(Boolean).map(applyCase).join("\n");
       if (text) state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
@@ -969,10 +1110,10 @@
     power.push(...generatePowerEquipmentMRForPole(poleId));
     const olssonCommClearanceNote = generateOlssonCommClearanceNote(pole);
     if (olssonCommClearanceNote) poleActionNotes.push(olssonCommClearanceNote);
-    if (isMetronetMR() || isOlssonMR()) {
+    if (isMetronetMR() || isIntecMR() || isOlssonMR()) {
       const configuredAnchor = metronetConfiguredAnchorMR(pole);
       const configuredOHG = metronetConfiguredOHGMR(pole);
-      if (isMetronetMR() && configuredAnchor) anc.push(configuredAnchor);
+      if ((isMetronetMR() || isIntecMR()) && configuredAnchor) anc.push(configuredAnchor);
       if (configuredOHG) anc.push(configuredOHG);
     }
     const secondaryDripLoop = generateSecondaryDripLoopMR(pole);
@@ -981,6 +1122,16 @@
     S().getSpanSidesForPole(poleId).forEach(side => {
       const text = generateMRForSpanSide(side);
       if (text) text.split(/\n+/).filter(Boolean).forEach(line => {
+        const slackMatch = line.match(/^(Proposed slack span|PROPOSED SLACK SPAN|PL NEW SLACK SPAN)\s+([NSEW]{1,2})\.$/i);
+        if (slackMatch) {
+          const prefix = slackMatch[1];
+          const key = prefix.toUpperCase();
+          if (!slackGroups.has(key)) slackGroups.set(key, { prefix, directions: [] });
+          const group = slackGroups.get(key);
+          const direction = slackMatch[2].toUpperCase();
+          if (!group.directions.includes(direction)) group.directions.push(direction);
+          return;
+        }
         if (/ensure min 30/i.test(line)) {
           ensure.push(line);
           ensureSpanCount += 1;
@@ -992,6 +1143,9 @@
         }
         else proposed.push(line);
       });
+    });
+    slackGroups.forEach(group => {
+      proposed.unshift(`${group.prefix} ${joinMRList(group.directions)}.`);
     });
     // Every INTEC Ensure instruction identifies the affected span direction.
     // When several proposed spans exist, only directions whose own span has a
@@ -1044,10 +1198,13 @@
     proposed.push(...generateOverlashMRForPole(poleId));
     const attach = generateAttachMRForPole(poleId);
     if (attach) proposed.unshift(attach);
+    // Keep the new attachment immediately before ANC work.  Other proposed
+    // instructions remain in their existing position after the ANC block.
+    const attachmentLine = attach ? proposed.shift() : "";
 
     // Ensure reminders belong after all existing communication movements but
     // before the new attachment/proposed work they protect.
-    const lines = [redTag, ...poleInset, ...ug, ...power, ...poleActionNotes, ...anc, ...commMoves, ...dropMoves, ...ensure, ...proposed, ...risers].filter(Boolean).map(applyCase);
+    const lines = [redTag, ...poleInset, ...ug, ...power, ...poleActionNotes, ...commMoves, ...dropMoves, ...ensure, attachmentLine, ...anc, ...proposed, ...risers].filter(Boolean).map(applyCase);
     const seen = new Set();
     const unique = lines.map(line => line.trim()).filter(Boolean).filter(line => {
       const key = normalizeMRLine(line);
@@ -1099,9 +1256,16 @@
     getImportedRiserDirection: importedRiserDirection,
     getResolvedRiserDirection: resolvedRiserDirection,
     getDefaultRiserDirection: defaultRiserDirection,
+    getUGSpanOptions: ugSpanOptionsForPole,
+    getEditableUGSpanTemplate,
+    getDefaultUGSpanTemplate: pole => defaultIntecUGSpanLines(pole).join("\n"),
+    getSelectedIntecUGInstruction: selectedIntecUGInstruction,
     isRiserAvailable,
     isRiserEnabled,
     isANCEnabled,
+    getEffectiveANCDistance: poleId => effectiveAnchorDistance(S().getPole(poleId)),
+    getEffectiveANCDirection: poleId => effectiveAnchorDirection(S().getPole(poleId)),
+    getEffectiveANCDGHOA: poleId => effectiveAnchorDGHOA(S().getPole(poleId)),
     generateRiserInstruction,
     generateMRForSpanSide,
     generateAllMR,

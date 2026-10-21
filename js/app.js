@@ -12,7 +12,10 @@
   const editableInputTimers = new Map();
   const undoHistory = [];
   const redoHistory = [];
+  const undoTrace = [];
   const MAX_UNDO_STEPS = 100;
+  const MAX_UNDO_TRACE = 200;
+  let undoTraceSequence = 0;
   let restoringUndo = false;
   let saveFileHandle = null;
   let lastSavedSerialized = "";
@@ -334,6 +337,63 @@
   function cloneCurrentState() {
     return JSON.parse(JSON.stringify(S.getState()));
   }
+
+  function traceValue(value) {
+    if (value === undefined) return null;
+    if (value === null || typeof value !== "object") return value;
+    if (Array.isArray(value)) return { type: "array", length: value.length };
+    return { type: "object", keys: Object.keys(value).length };
+  }
+
+  function collectUndoChanges(before, after, path, changes, metadata) {
+    if (Object.is(before, after)) return;
+    if (changes.length >= metadata.limit) {
+      metadata.truncated = true;
+      return;
+    }
+    const beforeObject = before && typeof before === "object" && !Array.isArray(before);
+    const afterObject = after && typeof after === "object" && !Array.isArray(after);
+    if (beforeObject && afterObject) {
+      const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort();
+      keys.forEach(key => collectUndoChanges(
+        before[key],
+        after[key],
+        path ? `${path}.${key}` : key,
+        changes,
+        metadata
+      ));
+      return;
+    }
+    changes.push({
+      path: path || "$",
+      before: traceValue(before),
+      after: traceValue(after)
+    });
+  }
+
+  function recordUndoTrace(action, source, before, after, details = {}) {
+    const changes = [];
+    const metadata = { limit: 300, truncated: false };
+    collectUndoChanges(before, after, "", changes, metadata);
+    undoTrace.push({
+      sequence: ++undoTraceSequence,
+      timestamp: new Date().toISOString(),
+      action,
+      source,
+      result: changes.length ? "CHANGED" : "NO_CHANGE",
+      undoDepthBefore: details.undoDepthBefore ?? undoHistory.length,
+      undoDepthAfter: details.undoDepthAfter ?? undoHistory.length,
+      redoDepthBefore: details.redoDepthBefore ?? redoHistory.length,
+      redoDepthAfter: details.redoDepthAfter ?? redoHistory.length,
+      changes,
+      changesTruncated: metadata.truncated
+    });
+    if (undoTrace.length > MAX_UNDO_TRACE) undoTrace.shift();
+  }
+
+  global.AppUndoTrace = {
+    getTrace: () => undoTrace.map(entry => JSON.parse(JSON.stringify(entry)))
+  };
 
   function recordUndoSnapshot() {
     if (restoringUndo) return;
@@ -1201,7 +1261,7 @@
   // after aliases, preserved baselines and recalculated values are applied.
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
-      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDirection", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection", "redTagActive", "redTagMinHeight", "redTagClass", "redTagReason"]],
+      ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugSpanId", "ugSpanMRSpanId", "ugSpanMRText", "ugReason", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDistanceManual", "ancDirection", "ancDirectionManual", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection", "redTagActive", "redTagMinHeight", "redTagClass", "redTagReason"]],
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "isSlack", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
@@ -1229,12 +1289,28 @@
     console.groupEnd();
   }
 
-  function undoLastAction() {
+  function undoLastAction(source = "Ctrl+Z") {
     const previous = undoHistory.pop();
-    if (!previous) return toast("No changes to undo.", "info");
     const currentSnapshot = cloneCurrentState();
+    const undoDepthBefore = undoHistory.length + (previous ? 1 : 0);
+    const redoDepthBefore = redoHistory.length;
+    if (!previous) {
+      recordUndoTrace("UNDO", source, currentSnapshot, currentSnapshot, {
+        undoDepthBefore,
+        undoDepthAfter: undoHistory.length,
+        redoDepthBefore,
+        redoDepthAfter: redoHistory.length
+      });
+      return toast("No changes to undo.", "info");
+    }
     redoHistory.push({ serialized: JSON.stringify(currentSnapshot), snapshot: currentSnapshot });
     if (redoHistory.length > MAX_UNDO_STEPS) redoHistory.shift();
+    recordUndoTrace("UNDO", source, currentSnapshot, previous.snapshot, {
+      undoDepthBefore,
+      undoDepthAfter: undoHistory.length,
+      redoDepthBefore,
+      redoDepthAfter: redoHistory.length
+    });
     restoringUndo = true;
     try {
       clearTimeout(delayedMidspanRenderTimer);
@@ -1251,12 +1327,28 @@
     toast("Last change undone.", "success");
   }
 
-  function redoLastAction() {
+  function redoLastAction(source = "Ctrl+Y") {
     const next = redoHistory.pop();
-    if (!next) return toast("No changes to redo.", "info");
     const currentSnapshot = cloneCurrentState();
+    const undoDepthBefore = undoHistory.length;
+    const redoDepthBefore = redoHistory.length + (next ? 1 : 0);
+    if (!next) {
+      recordUndoTrace("REDO", source, currentSnapshot, currentSnapshot, {
+        undoDepthBefore,
+        undoDepthAfter: undoHistory.length,
+        redoDepthBefore,
+        redoDepthAfter: redoHistory.length
+      });
+      return toast("No changes to redo.", "info");
+    }
     undoHistory.push({ serialized: JSON.stringify(currentSnapshot), snapshot: currentSnapshot });
     if (undoHistory.length > MAX_UNDO_STEPS) undoHistory.shift();
+    recordUndoTrace("REDO", source, currentSnapshot, next.snapshot, {
+      undoDepthBefore,
+      undoDepthAfter: undoHistory.length,
+      redoDepthBefore,
+      redoDepthAfter: redoHistory.length
+    });
     restoringUndo = true;
     try {
       clearTimeout(delayedMidspanRenderTimer);
@@ -2438,6 +2530,17 @@
     const ugTemplate = showUGReason
       ? global.MRLogic.getEditableUGTemplate(pole)
       : "";
+    const ugSpanOptions = isIntec && pole?.ugActive
+      ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
+      : [];
+    const savedUGSpanId = String(pole?.ugSpanId || "ALL").trim() || "ALL";
+    const selectedUGSpanId = savedUGSpanId.toUpperCase() === "ALL"
+      || ugSpanOptions.some(option => option.spanId === savedUGSpanId)
+      ? savedUGSpanId
+      : "ALL";
+    const ugSpanTemplate = isIntec && selectedUGSpanId.toUpperCase() !== "ALL"
+      ? (global.MRLogic.getEditableUGSpanTemplate?.(pole) || "")
+      : "";
     const showPCOEditor = Boolean(pole?.pcoActive);
     const pcoTemplate = showPCOEditor
       ? global.MRLogic.getEditablePCOTemplate(pole)
@@ -2445,7 +2548,14 @@
     const makeReadyText = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
     const riserAvailable = (isIntec || isMetronet || isOlsson) && Boolean(global.MRLogic.isRiserAvailable?.(poleId));
     const riserEnabled = riserAvailable && Boolean(global.MRLogic.isRiserEnabled?.(poleId));
-    const poleInsetEnabled = !isMetronet && !isOlsson && Boolean(pole?.poleInsetActive);
+    // Pole Inset and UG/PCO are mutually exclusive actions.  Use the
+    // effective state here as a guard as well as in the toggle handlers so
+    // stale/imported state cannot leave the Pole Inset controls visible after
+    // the pole is moved to UG or PCO.
+    const poleInsetEnabled = !isMetronet && !isOlsson
+      && !pole?.ugActive
+      && !pole?.pcoActive
+      && Boolean(pole?.poleInsetActive);
     const poleInsetReason = String(pole?.poleInsetReason || "FAILING_CLEARANCES").toUpperCase() === "OVERLOADED"
       ? "OVERLOADED"
       : "FAILING_CLEARANCES";
@@ -2462,11 +2572,19 @@
     const directionOptions = ["", "N", "NE", "E", "SE", "S", "SW", "W", "NW"]
       .map(direction => `<option value="${direction}" ${direction === riserDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
       .join("");
-    const ancAvailable = isMetronet && !pole?.ugActive && !pole?.pcoActive;
+    const ancAvailable = (isIntec || isMetronet) && !pole?.ugActive && !pole?.pcoActive;
     const ohgAvailable = (isMetronet || isOlsson) && !pole?.ugActive && !pole?.pcoActive;
     const ancEnabled = ancAvailable && Boolean(global.MRLogic.isANCEnabled?.(poleId));
     const ohgEnabled = ohgAvailable && Boolean(pole?.ohgActive);
-    const anchorDirection = String(pole?.ancDirection || "").toUpperCase();
+    const ancDistance = global.MRLogic.getEffectiveANCDistance?.(poleId)
+      || pole?.ancDistance
+      || "";
+    const ancDGHOA = global.MRLogic.getEffectiveANCDGHOA?.(poleId)
+      || pole?.dgHoa
+      || "";
+    const anchorDirection = String(global.MRLogic.getEffectiveANCDirection?.(poleId)
+      || pole?.ancDirection
+      || "").toUpperCase();
     const ohgDirection = String(pole?.ohgDirection || "").toUpperCase();
     const anchorDirectionOptions = ["", "N", "E", "S", "W"]
       .map(direction => `<option value="${direction}" ${direction === anchorDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
@@ -2482,7 +2600,7 @@
       <button class="mini-btn ${riserEnabled ? "active-action" : ""}" type="button" data-toggle-riser data-pole="${escapeHtml(poleId)}" ${riserAvailable ? "" : "disabled"} title="${riserAvailable ? "Add or remove the pole Riser Make Ready" : "Riser is disabled while this pole is UG or PCO"}">Riser</button>
       ${isOlsson ? `<button class="mini-btn ${pole?.lessThan12CommClearanceActive ? "active-action" : ""}" type="button" data-toggle-less-than-12-comm data-pole="${escapeHtml(poleId)}" title="Add or remove LESS THAN 12&quot; COMM CLEARANCE REQUESTED.">&lt;12&quot; Comm</button>` : ""}
       ${isOlsson ? `<button class="mini-btn ${secondaryDripLoopActive ? "active-action" : ""}" type="button" data-toggle-secondary-drip-loop data-pole="${escapeHtml(poleId)}" title="Add or remove the secondary drip-loop Make Ready">Secure Secondary Drip Loop</button>` : ""}
-      ${isMetronet ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? "Add or remove the MidAm ANC Make Ready" : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
+      ${(isIntec || isMetronet) ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? `Add or remove the ${isMetronet ? "MidAm" : "INTEC"} ANC Make Ready` : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
       ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
     </div>
     ${poleInsetEnabled ? `<div class="pole-action-fields action-detail-grid pole-inset-controls">
@@ -2513,10 +2631,23 @@
       <label class="pole-action-field"><span>Red Tag Minimum Class</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagClass" value="${escapeHtml(pole?.redTagClass || "")}"></label>
       <label class="pole-action-field"><span>Red Tag Reason</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagReason" value="${escapeHtml(pole?.redTagReason || "")}" placeholder="CLEARANCES / LOAD FAILURE"></label>
     </div>` : ""}
-    ${showUGReason ? `<label class="pole-action-field">
+    ${showUGReason ? `<div class="pole-action-fields action-detail-grid ug-controls">
+      ${isIntec ? `<label class="pole-action-field">
+        <span>UG Span</span>
+        <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugSpanId">
+          <option value="ALL" ${selectedUGSpanId.toUpperCase() === "ALL" ? "selected" : ""}>ALL</option>
+          ${ugSpanOptions.map(option => `<option value="${escapeHtml(option.spanId)}" ${option.spanId === selectedUGSpanId ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      ` : ""}
+    </div>
+    ${isIntec && selectedUGSpanId.toUpperCase() !== "ALL" ? `<div class="pole-action-field ug-span-preview">
+      <span>UG Make Ready</span>
+      <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugSpanMRText">${escapeHtml(ugSpanTemplate)}</textarea>
+    </div>` : `<label class="pole-action-field">
       <span>UG Make Ready</span>
       <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
-    </label>` : ""}
+    </label>`}` : ""}
     ${showPCOEditor ? `<label class="pole-action-field">
       <span>PCO Make Ready</span>
       <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="pcoMRText">${escapeHtml(pcoTemplate)}</textarea>
@@ -2530,10 +2661,10 @@
       <input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="secondaryDripLoopHoa" value="${escapeHtml(pole?.secondaryDripLoopHoa || "")}" placeholder="25'8\"">
     </label>` : ""}
     ${ancEnabled ? `<div class="pole-action-fields action-detail-grid">
-      <label class="pole-action-field"><span>ANC Size</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancSize" value="${escapeHtml(pole?.ancSize || "8\"")}"></label>
-      <label class="pole-action-field"><span>ANC Distance</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDistance" value="${escapeHtml(pole?.ancDistance || "15'")}"></label>
+      ${isIntec ? "" : `<label class="pole-action-field"><span>ANC Size</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancSize" value="${escapeHtml(pole?.ancSize || "8\"")}"></label>`}
+      <label class="pole-action-field"><span>ANC Distance</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDistance" value="${escapeHtml(ancDistance)}" title="Defaults to one-third of Proposed, rounded up to the next whole foot; edit to override"></label>
       <label class="pole-action-field"><span>ANC Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDirection">${anchorDirectionOptions}</select></label>
-      <label class="pole-action-field"><span>DG HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="dgHoa" value="${escapeHtml(pole?.dgHoa || "")}"></label>
+      <label class="pole-action-field"><span>DG HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="dgHoa" value="${escapeHtml(ancDGHOA)}" title="Defaults to Proposed when ANC is active; edit to override"></label>
     </div>` : ""}
     ${ohgEnabled ? `<div class="pole-action-fields action-detail-grid">
       <label class="pole-action-field"><span>OHG Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ohgDirection">${ohgDirectionOptions}</select></label>
@@ -2593,7 +2724,7 @@
     });
     return `<div class="table-wrap"><table class="span-proposed-table wide-table">
       <thead><tr>
-        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Slack</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>UG Transfer</th><th>Actions</th>
+        <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Slack</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Actions</th>
       </tr></thead>
       <tbody>${spans.map(span => {
         const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -2625,10 +2756,6 @@
           <td>${renderCombinedSpanFlagging(side)}</td>
           <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
           <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>
-          <td class="span-ug-action">
-            <button class="mini-btn ${spanUG ? "active-action" : ""}" type="button" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(physicalSpan.spanId)}" ${pole?.ugActive || pole?.pcoActive ? "disabled" : ""} title="${pole?.ugActive || pole?.pcoActive ? "This pole is using the complete UG case" : "Send only this span underground (Case 2)"}">UG</button>
-            ${spanUG ? `<input class="input span-ug-reason" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="ugReason" value="${escapeHtml(spanUGReason)}" aria-label="UG reason for span" title="Case 2 UG reason">` : ""}
-          </td>
           <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
         </tr>`;
       }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
@@ -2638,7 +2765,7 @@
           <td>${standaloneFlagging.status === "PROBLEM"
             ? `<div class="flagging-cell"><span class="badge danger">Clearance Issue</span><div class="flagging-message">${escapeHtml(standaloneFlagging.message || "")}</div></div>`
             : (pole?.standaloneProposedHOA ? `<span class="badge changed">OK</span>` : "")}</td>
-          <td></td><td></td><td></td><td></td>
+           <td></td><td></td><td></td>
         </tr>` : ""}</tbody>
     </table></div>`;
   }
@@ -2998,10 +3125,12 @@
     const pole = S.getPole(poleId);
     if (!pole) return;
     recordUndoSnapshot();
+    const nextUGActive = !pole.ugActive;
     S.upsertPole({
       ...pole,
-      ugActive: !pole.ugActive,
-      pcoActive: pole.ugActive ? pole.pcoActive : false
+      ugActive: nextUGActive,
+      ugSpanId: pole.ugSpanId || "ALL",
+      pcoActive: nextUGActive ? false : pole.pcoActive
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
@@ -3011,10 +3140,11 @@
     const pole = S.getPole(poleId);
     if (!pole) return;
     recordUndoSnapshot();
+    const nextPCOActive = !pole.pcoActive;
     S.upsertPole({
       ...pole,
-      pcoActive: !pole.pcoActive,
-      ugActive: pole.pcoActive ? pole.ugActive : false
+      pcoActive: nextPCOActive,
+      ugActive: nextPCOActive ? false : pole.ugActive
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
@@ -3174,13 +3304,15 @@
   function toggleANC(poleId) {
     const pole = S.getPole(poleId);
     const projectProfile = String(S.getState().settings?.projectProfile || "").toUpperCase();
-    if (!pole || projectProfile !== "METRONET" || pole.ugActive || pole.pcoActive) return;
+    if (!pole || !["METRONET", "INTEC"].includes(projectProfile) || pole.ugActive || pole.pcoActive) return;
     recordUndoSnapshot();
     S.upsertPole({
       ...pole,
       ancActive: global.MRLogic.isANCEnabled?.(poleId) ? false : true,
       ancSize: pole.ancSize || "8\"",
-      ancDistance: pole.ancDistance || "15'"
+      ancDistance: pole.ancDistance || "",
+      ancDistanceManual: pole.ancDistanceManual === true,
+      ancDirectionManual: pole.ancDirectionManual === true
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
@@ -3429,6 +3561,8 @@
       "transferToNewPole",
       "resagServiceDrop",
       "pofActive",
+      "ugSpanId",
+      "ugSpanMRText",
       "ugReason",
       "ugMRText",
       "pcoMRText",
@@ -3677,7 +3811,11 @@
       }
       const poleId = el.dataset.pole || "";
       S.updatePoleField(poleId, el.dataset.field, el.value);
-      const affectedPoleIds = el.dataset.field === "ugMRText"
+      if (el.dataset.field === "ugSpanMRText") {
+        S.updatePoleField(poleId, "ugSpanMRSpanId", S.getPole(poleId)?.ugSpanId || "ALL");
+      }
+      const affectsUGConnections = ["ugMRText", "ugSpanId", "ugSpanMRText", "ugReason"].includes(el.dataset.field);
+      const affectedPoleIds = affectsUGConnections
         ? (global.MRLogic.generateMRForUGChange?.(poleId) || [poleId])
         : (global.MRLogic.generateMRForPole(poleId), [poleId]);
       // Keep the active editor in place while refreshing adjacent cards. This
@@ -3761,6 +3899,17 @@
         });
       } else {
         S.updatePoleField(el.dataset.pole, field, value);
+      }
+      if (field === "ugSpanId" && String(value || "").toUpperCase() !== "ALL") {
+        const pole = S.getPole(el.dataset.pole);
+        if (pole && pole.ugSpanMRSpanId !== value) {
+          S.updatePoleField(el.dataset.pole, "ugSpanMRSpanId", value);
+          S.updatePoleField(
+            el.dataset.pole,
+            "ugSpanMRText",
+            global.MRLogic.getDefaultUGSpanTemplate?.(pole) || ""
+          );
+        }
       }
       global.Calculations.recalculateSpansForPole(el.dataset.pole);
       const nextProposed = field === "standaloneProposedHOA" ? H.parseHeight(value) : null;
@@ -4122,13 +4271,13 @@
       }
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
         event.preventDefault();
-        undoLastAction();
+        undoLastAction("Ctrl+Z");
       }
       if ((event.ctrlKey || event.metaKey)
         && ((!event.shiftKey && event.key.toLowerCase() === "y")
           || (event.shiftKey && event.key.toLowerCase() === "z"))) {
         event.preventDefault();
-        redoLastAction();
+        redoLastAction(event.shiftKey ? "Ctrl+Shift+Z" : "Ctrl+Y");
       }
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
