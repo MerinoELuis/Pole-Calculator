@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const sandbox = { window: {} };
-for (const file of ["height-utils.js", "excel-import.js"]) {
+for (const file of ["domain/height-math.js", "import/import-normalizers.js", "import/excel-import.js"]) {
   const modulePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 }

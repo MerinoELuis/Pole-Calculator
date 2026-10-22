@@ -269,16 +269,12 @@ The proposed export intentionally omits internal app IDs such as `spanId` and av
 
 - `index.html`
 - `css/styles.css`
-- `js/app.js`
-- `js/state.js`
-- `js/height-utils.js`
-- `js/excel-import.js`
-- `js/excel-export.js`
-- `js/json-export.js`
-- `js/calculations.js`
-- `js/mr-logic.js`
-- `js/validations.js`
-- `js/floating-calculator.js`
+- `js/core/` — state, compatibility, history, persistence, profiles and deployment metadata
+- `js/domain/` — height math, pole resolution, span/comm calculations and graph helpers
+- `js/rules/` — Auto Calculate search, Make Ready and validation rules
+- `js/import/` — workbook normalization, import, review and Update Data reconciliation
+- `js/export/` — Excel, JSON and compact AutoProposed exports
+- `js/ui/` — app coordinator, rendering, controls, dialogs, theme and post-render behavior
 - `libs/xlsx.full.min.js`
 - `docs/ARCHITECTURE.md`
 - `docs/DATA_MODEL.md`

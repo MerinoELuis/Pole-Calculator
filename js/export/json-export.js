@@ -1,8 +1,8 @@
 (function (global) {
   "use strict";
 
-  // JSON export is the lightweight save-point format. It stores the full state,
-  // including user edits and calculated fields, so work can be resumed exactly.
+  // Compatibility adapter: JSON export preserves the established enumerable
+  // fields while the calculation/debug views read canonical AppStore values.
   const S = () => global.AppStore;
   const H = () => global.HeightUtils;
 
@@ -65,7 +65,7 @@
   function multipleWireOwnerGroups(state) {
     const groups = new Map();
     Object.values(state.spanComms || {}).forEach(row => {
-      const key = [row.spanId, row.poleId, normalizedOwner(row.ownerBase || row.owner)].join(" | ");
+      const key = [row.spanId, row.poleId, normalizedOwner(S().getOwnerCanonical?.(row) || row.ownerBase || row.owner)].join(" | ");
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push({ owner: row.owner, wireId: row.wireId || "", existingHOA: row.existingHOA || "", midspan: row.midspan || "" });
     });
@@ -82,7 +82,7 @@
     const remote = global.Calculations.findRemoteComm(
       row.spanId,
       row.poleId,
-      row.ownerBase || row.owner,
+      S().getOwnerCanonical?.(row) || row.ownerBase || row.owner,
       row.wireId || ""
     );
     const localExisting = H().parseHeight(row.existingHOA || "");
@@ -102,11 +102,11 @@
         spanId: row.spanId,
         poleId: row.poleId,
         owner: row.owner,
-        ownerBase: row.ownerBase || "",
+        ownerBase: S().getOwnerCanonical?.(row) || row.ownerBase || "",
         wireId: row.wireId || "",
         wireIndex: row.wireIndex || ""
       },
-      span: span ? { fromPole: span.fromPole, toPole: span.toPole, type: span.type || "" } : null,
+      span: span ? { fromPole: span.fromPole, toPole: span.toPole, type: S().getSpanRelation?.(span) || span.type || "" } : null,
       local: {
         existingHOA: row.existingHOA || "",
         hoaChange: row.existingHOAChange || "",
@@ -220,7 +220,7 @@
     return {
       label: span ? `${fromPole} -> ${toPole}` : "",
       toPole,
-      type: span?.type || "",
+      type: S().getSpanRelation?.(span) || span?.type || "",
       direction: directionFromPole(span, poleId),
       bearingDegrees: span?.bearingDegrees ?? "",
       lengthDisplay: span?.lengthDisplay || ""

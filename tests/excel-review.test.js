@@ -52,6 +52,10 @@ function parseHeight(value) {
 
 const AppStore = {
   getState: () => state,
+  getPoleResolution: pole => pole?.poleResolution || (pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : "AERIAL"),
+  getOwnerDisplay: row => row?.ownerDisplay || row?.owner || row?.ownerCanonical || row?.ownerImported || "",
+  getOwnerImported: row => row?.ownerImported || row?.rawOwner || row?.ownerCanonical || row?.ownerBase || row?.ownerDisplay || row?.owner || "",
+  getSpanRelation: span => span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "",
   canonicalPoleIdentity(value) {
     const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
     while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
@@ -80,7 +84,7 @@ const sandbox = {
   Map
 };
 
-const modulePath = path.join(__dirname, "..", "js", "excel-review.js");
+const modulePath = path.join(__dirname, "..", "js", "import", "excel-review.js");
 vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 const review = sandbox.window.ExcelReview;
 

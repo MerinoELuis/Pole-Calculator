@@ -4,6 +4,25 @@
   // ProjectProfiles keeps customer/project defaults outside of the calculator
   // logic. Add new projects here instead of scattering special cases across
   // app.js, calculations.js, or the importers.
+  // These editable clearance fields are owned by the selected department. When
+  // changing profiles, reset omitted fields to the INTEC baseline first so a
+  // value from the previous department cannot silently become the new rule.
+  const BASE_CLEARANCE_SETTINGS = Object.freeze({
+    polePowerCommsClearance: "40\"",
+    clearanceToPower: "40\"",
+    primaryPowerCommsClearance: "43\"",
+    commClearance: "12\"",
+    boltClearance: "4\"",
+    midspanPowerCommClearance: "30\"",
+    midspanPrimaryPowerCommClearance: "33\"",
+    midspanCommCommClearance: "4\"",
+    transformerCommClearance: "42\"",
+    streetlightBracketCommClearance: "",
+    streetlightUngroundedBracketCommClearance: "",
+    streetlightDripLoopCommClearance: "",
+    powerGuyCommClearance: ""
+  });
+
   const PROFILES = {
     INTEC: {
       id: "INTEC",
@@ -246,6 +265,7 @@
     const profile = getProfile(normalizedId);
     return {
       ...settings,
+      ...BASE_CLEARANCE_SETTINGS,
       projectProfile: profile.id,
       ...getProfileSettings(normalizedId)
     };

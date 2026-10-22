@@ -6,9 +6,13 @@ global.window = global;
 global.localStorage = { getItem: () => null, setItem: () => {} };
 global.Calculations = { recalculateAll: () => {} };
 
-require("../js/height-utils.js");
-require("../js/state.js");
-require("../js/excel-import.js");
+require("../js/domain/height-math.js");
+require("../js/core/project-config.js");
+require("../js/domain/pole-resolution.js");
+require("../js/core/state-compat.js");
+require("../js/core/store.js");
+require("../js/import/import-normalizers.js");
+require("../js/import/excel-import.js");
 
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 STEEL UG"), "P01-LX339927");
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 PCO STEEL"), "P01-LX339927");

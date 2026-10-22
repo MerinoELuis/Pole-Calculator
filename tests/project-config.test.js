@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const sandbox = { window: {} };
-const modulePath = path.join(__dirname, "..", "js", "project-config.js");
+const modulePath = path.join(__dirname, "..", "js", "core", "project-config.js");
 vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 
 const profiles = sandbox.window.ProjectProfiles;
@@ -15,6 +15,8 @@ const intec = profiles.applyProfileSettings({}, "INTEC");
 const csu = profiles.applyProfileSettings({}, "CSU");
 const comed = profiles.applyProfileSettings({}, "COMED");
 const oppd = profiles.applyProfileSettings({}, "OLSSON_OPPD");
+const metroToIntec = profiles.applyProfileSettings(metronet, "INTEC");
+const comedToIntec = profiles.applyProfileSettings(comed, "INTEC");
 
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
@@ -29,6 +31,13 @@ assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "Mid
 assert.equal(metronet.streetlightBracketCommClearance, "20\"", "MidAm streetlight bracket clearance must be configured");
 assert.equal(metronet.streetlightDripLoopCommClearance, "12\"", "MidAm uncovered drip-loop clearance must be configured");
 assert.equal(metronet.boltClearance, "6\"", "MidAm must use 6 inches between new bolt points");
+assert.equal(intec.boltClearance, "4\"", "INTEC must default to 4 inches between bolt points");
+assert.equal(metroToIntec.boltClearance, "4\"", "switching from MidAm to INTEC must restore the INTEC bolt clearance");
+assert.equal(comedToIntec.boltClearance, "4\"", "switching from ComEd to INTEC must restore the INTEC bolt clearance");
+assert.equal(comedToIntec.polePowerCommsClearance, "40\"", "switching from ComEd to INTEC must not retain ComEd power clearance");
+assert.equal(comedToIntec.clearanceToPower, "40\"", "switching from ComEd to INTEC must reset the linked legacy power-clearance value");
+assert.equal(comedToIntec.primaryPowerCommsClearance, "43\"", "switching to INTEC must restore its primary-comm clearance");
+assert.equal(comedToIntec.midspanPrimaryPowerCommClearance, "33\"", "switching to INTEC must restore its primary-midspan clearance");
 assert.equal(metronet.midspanCommCommClearance, "4\"", "MidAm must use 4 inches between comm midspans");
 assert.equal(metronet.powerGuyCommClearance, "", "MidAm must not apply the removed power guy-to-comm clearance");
 assert.equal(profiles.detectProfile({ owners: ["UTILITY > MidAm"] }), "METRONET", "MidAm utility ownership must select Metronet automatically");

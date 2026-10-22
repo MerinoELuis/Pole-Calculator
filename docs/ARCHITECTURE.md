@@ -8,59 +8,85 @@ The application is a static browser application. It has no backend, framework, r
 
 Node and `package.json` provide the dependency-free `npm test` tooling; the package's numeric version is also used as the release identifier during deployment. They do not add a runtime dependency to the browser application.
 
-The numeric application version follows `package.json` semantic versioning. GitHub Pages injects that version plus the exact commit, branch, deployment time, and Actions run into `js/deployment-version.js`; the header displays the numeric version and build identifier.
+The numeric application version follows `package.json` semantic versioning. GitHub Pages injects that version plus the exact commit, branch, deployment time, and Actions run into `js/core/deployment-version.js`; the header displays the numeric version and build identifier.
 
 Every browser module is an IIFE that publishes a small API on `window`.
 
 `index.html` loads modules in dependency order:
 
 1. `libs/xlsx.full.min.js`
-2. `js/deployment-version.js`
-3. `js/height-utils.js`
-4. `js/project-config.js`
-5. `js/state.js`
-6. `js/calculations.js`
-7. `js/midspan.js`
-8. `js/mr-logic.js`
-9. `js/validations.js`
-10. `js/excel-import.js`
-11. `js/excel-review.js`
-12. `js/json-export.js`
-13. `js/compact-autoproposed.js`
-14. `js/auto-calculate-solver.js`
-15. `js/auto-calculate-source-compat.js`
-16. `js/floating-calculator.js`
-17. `js/app.js`
-18. `js/ui/dom-contract.js`
-19. `js/ui/comm-table.js`
-20. `js/ui/span-colors.js`
-21. `js/ui/runtime.js`
+2. `js/core/deployment-version.js`
+3. `js/domain/height-math.js`
+4. `js/core/project-config.js`
+5. `js/domain/pole-resolution.js`
+6. `js/core/state-compat.js`
+7. `js/core/store.js`
+8. `js/domain/comm-movements.js`
+9. `js/domain/clearance-rules.js`
+10. `js/domain/midspan-engine.js`
+11. `js/rules/mr-logic.js`
+12. `js/rules/validations.js`
+13. `js/import/import-normalizers.js`
+14. `js/import/excel-import.js`
+15. `js/import/update-data-reconciler.js`
+16. `js/import/excel-review.js`
+17. `js/export/excel-export.js`
+18. `js/export/json-export.js`
+19. `js/export/compact-autoproposed.js`
+20. `js/rules/auto-calculate-solver.js`
+21. `js/ui/dialogs.js`
+22. `js/ui/theme.js`
+23. `js/ui/mobile-keyboard.js`
+24. `js/ui/floating-calculator.js`
+25. `js/ui/pole-renderer.js`
+26. `js/ui/controls.js`
+27. `js/core/persistence.js`
+28. `js/core/history.js`
+29. `js/ui/app.js`
+30. `js/ui/dom-contract.js`
+31. `js/ui/comm-table.js`
+32. `js/ui/span-colors.js`
+33. `js/ui/runtime.js`
 
-Changing this order can break global dependencies. `auto-calculate-solver.js` needs `Calculations`, `AppStore`, and `HeightUtils`. `auto-calculate-source-compat.js` then wraps SpanSide upsert/state normalization before `app.js` binds the button. The UI runtime loads after the renderer because it annotates and normalizes generated DOM.
+Changing this order can break global dependencies. Pole resolution and state compatibility load before the store; movement routines register before clearance calculations inject their helpers; import normalizers load before ExcelImport; the solver and UI factories load before the app coordinator initializes them. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
 
 ## Module Responsibilities
 
 | Module | Global API | Responsibility |
 | --- | --- | --- |
-| `height-utils.js` | `HeightUtils` | Parse and format height values using integer inches. |
-| `project-config.js` | `ProjectProfiles` | Keep INTEC and Metronet defaults outside calculation code. |
-| `state.js` | `AppStore` | Own and normalize the single application state. |
-| `calculations.js` | `Calculations` | Derive pole limits, power limits, comm midspans, Proposed results, End Drop, recalculation, and flagging. |
-| `auto-calculate-solver.js` | `AutoCalculateSolver` | Search TOP/LOW COMM arrangements, rank SAFE/BEST AVAILABLE/CRITICAL results, and install the public Auto Calculate entry point. |
-| `auto-calculate-source-compat.js` | `AutoCalculateSourceCompat` | Preserve automatic Proposed source fields through AppStore normalization without changing the core state schema. |
-| `midspan.js` | `MidspanLogic` | Small midspan-oriented facade over the store and calculations. |
-| `mr-logic.js` | `MRLogic` | Generate ordered Make Ready text for each pole. |
-| `validations.js` | `Validations` | Generate broad data-integrity warnings. Table flagging remains in `calculations.js`. |
-| `excel-import.js` | `ExcelImport` | Convert Excel worksheets or saved data into normalized AppState entities. |
-| `excel-review.js` | `ExcelReview` | Audit preserved workbook rows against current calculated and MR state without rendering HTML. |
-| `json-export.js` | `ProjectExport` | Produce general project and diagnostic JSON downloads. |
-| `compact-autoproposed.js` | `CompactAutoProposed` | Produce the compact Web-to-plugin payload, apply UG/PCO safety, add movement MR, and manage attachment sizes. |
-| `floating-calculator.js` | `FloatingCalculator` | Evaluate feet/inches expressions and normalize two apostrophes into an inch quote. |
-| `app.js` | browser event handlers | Render the main UI, process edits, manage undo, Save/Load, Update Data, dialogs, and targeted refreshes. |
+| `core/store.js` | `AppStore` | Own normalized mutable application state and identity/relation accessors. |
+| `core/state-compat.js` | `StateCompatibility` | Normalize older saved/imported state shapes at explicit compatibility boundaries. |
+| `core/history.js` | `AppHistory` | Own undo/redo snapshots and the movement trace written to Debug data. |
+| `core/persistence.js` | `AppPersistence` | Save/load JSON, file handles, dirty-state tracking, and safe job filenames. |
+| `core/project-config.js` | `ProjectProfiles` | Keep INTEC and Metronet defaults outside calculation code. |
+| `core/deployment-version.js` | `DeploymentVersion` | Expose app version and deployment metadata. |
+| `domain/height-math.js` | `HeightUtils` | Parse and format height values using integer inches. |
+| `domain/pole-resolution.js` | `PoleResolution` | Normalize AERIAL, UG, and PCO state with UG priority. |
+| `domain/comm-movements.js` | `CalculationAutoMovementModule` | Encapsulate Auto Calculate movement planning and apply routines using helpers injected by clearance calculations. |
+| `domain/clearance-rules.js` | `Calculations` | Derive clearances, pole limits, comm midspans, Proposed results, End Drop, recalculation, and flagging. This remains the integrated calculation orchestrator. |
+| `domain/midspan-engine.js` | `MidspanEngine` (`MidspanLogic` compatibility alias) | Calculate comm Midspan from the imported baseline plus half of each endpoint movement; also provide span-oriented Midspan read/recalculation APIs. |
+| `domain/graph.js` | `PoleGraph` | Graph utilities for pole/span topology; not loaded by the browser runtime unless explicitly needed. |
+| `rules/mr-logic.js` | `MRLogic` | Generate ordered Make Ready text for each pole. |
+| `rules/auto-calculate-solver.js` | `AutoCalculateSolver` | Search TOP/LOW COMM arrangements, rank SAFE/BEST AVAILABLE/CRITICAL results, and install the public Auto Calculate entry point. |
+| `rules/validations.js` | `Validations` | Generate broad data-integrity warnings. Table flagging remains in `Calculations`. |
+| `import/import-normalizers.js` | `ImportNormalizers` | Normalize worksheet rows, headers, heights, identifiers, and common cell values. |
+| `import/excel-import.js` | `ExcelImport` | Convert Excel worksheets or saved data into normalized AppStore entities. |
+| `import/excel-review.js` | `ExcelReview` | Audit preserved workbook rows against current calculated and MR state without rendering HTML. |
+| `import/update-data-reconciler.js` | `UpdateDataReconciler` | Merge refreshed workbook data into saved operator work and report differences. |
+| `export/excel-export.js` | `ExcelExport` | Produce workbook downloads. |
+| `export/json-export.js` | `ProjectExport` | Produce general project and diagnostic JSON downloads. |
+| `export/compact-autoproposed.js` | `CompactAutoProposed` | Produce compact Web-to-plugin data with UG/PCO safety and movement MR. |
+| `ui/app.js` | browser coordinator | Initialize UI modules and coordinate events, history, persistence, dialogs, and targeted refreshes. |
+| `ui/pole-renderer.js` | `PoleWorkspaceRenderer` | Render pole cards, communication and Proposed tables, review panels, and targeted pole refreshes. |
+| `ui/controls.js` | `PoleActions` | Handle pole action controls, comm edits, and Proposed span actions. |
+| `ui/dialogs.js` | `AppDialogs` | Shared confirmation, prompt, and message dialogs. |
+| `ui/theme.js` | `ThemeControl` | Resolve and persist the active light/dark theme. |
+| `ui/mobile-keyboard.js` | `MobileKeyboardControl` | Manage mobile viewport and keyboard-specific input behavior. |
+| `ui/floating-calculator.js` | `FloatingCalculator` | Evaluate feet/inches expressions and normalize quotes. |
 | `ui/dom-contract.js` | `UiDomContract` | Annotate rendered cards and tables with stable component, pole, span, and column identities. |
 | `ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA without deleting calculation data. |
 | `ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and synchronize each Midspan row. |
-| `ui/runtime.js` | `PoleCalculatorUI` | Coordinate post-render UI modules through one queued refresh and one workspace observer. |
+| `ui/runtime.js` | `PoleCalculatorUI` | Coordinate post-render modules through one queued refresh and one workspace observer. |
 
 The quick ownership index is in `FILE_MAP.md`.
 
@@ -120,7 +146,7 @@ User-entered HOA Change and Proposed values are distinguished from values carryi
 
 ## UI Post-render Contract
 
-`app.js` remains the authoritative renderer. The `js/ui/` modules do not own business data and must not replace calculation logic.
+`ui/pole-renderer.js` owns pole-card rendering. `ui/controls.js` owns the handlers for actions generated by those cards. These UI modules receive callbacks and business APIs from `ui/app.js`; they do not own application state or calculation rules. Update Data reconciliation is kept in `import/update-data-reconciler.js`, while the app coordinates file selection and refresh lifecycle.
 
 The post-render sequence is:
 
@@ -187,7 +213,7 @@ The same module filters generated regular movement lines from UG/PCO replacement
 
 ## Project Profiles
 
-`project-config.js` is the extension point for customer defaults.
+`core/project-config.js` is the extension point for customer defaults. When the selected department changes, profile-owned clearances reset to the shared baseline first and then the selected profile's overrides are applied. This prevents a clearance omitted by one profile from inheriting the prior department's value.
 
 - INTEC: Top Comm by default, proposed owner visible, Service Drop/Re-sag visible, low-power Proposed MS adjustment enabled.
 - Metronet: Low Comm by default, WI selector with MidAm, Service Drop/Re-sag hidden, low-power Proposed MS adjustment disabled.
@@ -215,12 +241,12 @@ Auto Calculate supports either position setting for either profile. Profile-spec
 
 ## Safe Extension Points
 
-- Add project defaults in `project-config.js`.
-- Add Excel aliases in `excel-import.js`.
+- Add project defaults in `core/project-config.js`.
+- Add worksheet aliases and mappings in `import/excel-import.js`; put reusable cell/header conversions in `import/import-normalizers.js`.
 - Add normalized fields in constructors and `normalizeState()` together.
-- Add formulas or flagging rules in `calculations.js`.
-- Add candidate generation/ranking behavior in `auto-calculate-solver.js` without duplicating validations.
-- Add Make Ready wording in `mr-logic.js`.
-- Add compact Web-to-plugin fields in `compact-autoproposed.js` and update schema, fixtures, and golden output together.
+- Add formulas or flagging rules in `domain/clearance-rules.js`.
+- Add candidate generation/ranking behavior in `rules/auto-calculate-solver.js` without duplicating validations.
+- Add Make Ready wording in `rules/mr-logic.js`.
+- Add compact Web-to-plugin fields in `export/compact-autoproposed.js` and update schema, fixtures, and golden output together.
 - Add post-render behavior as a small `js/ui/` module with `refresh(root)` and register it in `ui/runtime.js`.
 - Do not add another workspace MutationObserver when the unified UI runtime can run the behavior.

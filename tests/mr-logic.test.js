@@ -33,6 +33,10 @@ const state = {
 
 const AppStore = {
   getState: () => state,
+  getPoleResolution: pole => pole?.poleResolution || (pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : "AERIAL"),
+  getOwnerCanonical: row => row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+  getOwnerImported: row => row?.ownerImported || row?.rawOwner || row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+  getSpanRelation: span => span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "",
   getPole: poleId => state.poles[poleId] || null,
   getSpan: spanId => state.spans[spanId] || null,
   getConnectedSpans: poleId => Object.values(state.spans).filter(span => span.fromPole === poleId || span.toPole === poleId),
@@ -45,8 +49,8 @@ const AppStore = {
 };
 
 const sandbox = { window: { AppStore, Calculations: { getPoleInsetDetails: () => ({ direction: "E" }) } }, console, Set, Map };
-const heightPath = path.join(__dirname, "..", "js", "height-utils.js");
-const mrPath = path.join(__dirname, "..", "js", "mr-logic.js");
+const heightPath = path.join(__dirname, "..", "js", "domain", "height-math.js");
+const mrPath = path.join(__dirname, "..", "js", "rules", "mr-logic.js");
 vm.runInNewContext(fs.readFileSync(heightPath, "utf8"), sandbox, { filename: heightPath });
 vm.runInNewContext(fs.readFileSync(mrPath, "utf8"), sandbox, { filename: mrPath });
 
@@ -80,6 +84,9 @@ state.poles.P1.ancDirectionManual = true;
 state.poles.P1.dgHoa = "22'2\"";
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /Pl new ANC 15' N and pl new DG at HOA 22'2"\./i, "INTEC ANC action must generate the configured anchor and DG MR without an ANC size");
+state.poles.P1.ancDirection = "NW";
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.match(state.mr.find(item => item.poleId === "P1").text, /Pl new ANC 15' NW and pl new DG at HOA 22'2"\./i, "INTEC ANC action must preserve a manually selected diagonal direction");
 state.poles.P1.ancActive = null;
 state.poles.P1.ancDirection = "";
 state.poles.P1.ancDirectionManual = false;

@@ -88,6 +88,22 @@
         }
       ]
     },
+    "anc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["distance"],
+      "description": "Enabled anchor action. Distance is the effective ANC reach in whole inches. Direction is omitted when the operator has not selected one.",
+      "properties": {
+        "distance": {
+          "$ref": "#/$defs/integerInches",
+          "minimum": 1
+        },
+        "direction": {
+          "type": "string",
+          "pattern": "^(N|NE|E|SE|S|SW|W|NW)$"
+        }
+      }
+    },
     "span": {
       "type": "object",
       "additionalProperties": false,
@@ -146,6 +162,13 @@
           "type": "array",
           "items": { "$ref": "#/$defs/move" }
         },
+        "anc": {
+          "$ref": "#/$defs/anc"
+        },
+        "dgHoa": {
+          "$ref": "#/$defs/integerInches",
+          "description": "Effective down-guy attachment HOA in whole inches; defaults to Proposed when the operator has not entered a DG HOA."
+        },
         "riser": {
           "$ref": "#/$defs/riser"
         }
@@ -161,6 +184,8 @@
               "anyOf": [
                 { "required": ["terminalHoa"] },
                 { "required": ["moves"] },
+                { "required": ["anc"] },
+                { "required": ["dgHoa"] },
                 { "required": ["riser"] }
               ]
             }

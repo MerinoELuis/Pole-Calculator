@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const window = { document: null };
-for (const file of ["height-utils.js", "floating-calculator.js"]) {
+for (const file of ["domain/height-math.js", "ui/floating-calculator.js"]) {
   const source = fs.readFileSync(path.join(__dirname, "../js", file), "utf8");
   vm.runInNewContext(source, { window, console, String, Number }, { filename: file });
 }

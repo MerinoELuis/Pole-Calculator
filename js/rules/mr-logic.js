@@ -6,6 +6,11 @@
   const H = () => global.HeightUtils;
   const S = () => global.AppStore;
 
+  const poleResolutionOf = pole => S().getPoleResolution(pole);
+  const ownerCanonicalOf = row => S().getOwnerCanonical(row);
+  const ownerImportedOf = row => S().getOwnerImported(row);
+  const spanRelationOf = span => S().getSpanRelation(span);
+
   function detectRaiseLower(spanComm) {
     const existing = H().parseHeight(spanComm.existingHOA);
     const changed = H().parseHeight(spanComm.otherHOA || spanComm.existingHOAChange);
@@ -61,14 +66,14 @@
     return direction;
   }
 
-  function ownerForMR(spanComm) {
-    const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
+  function getMROwnerLabel(spanComm) {
+    const raw = ownerImportedOf(spanComm) || ownerCanonicalOf(spanComm) || spanComm.ownerDisplay || "COMM";
     if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
     return displayOwnerName(raw);
   }
 
-  function ownerForIntecMovementMR(spanComm) {
-    const raw = spanComm.rawOwner || spanComm.ownerBase || spanComm.owner || "COMM";
+  function getIntecMovementOwnerLabel(spanComm) {
+    const raw = ownerImportedOf(spanComm) || ownerCanonicalOf(spanComm) || spanComm.ownerDisplay || "COMM";
     if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
     return displayOwnerName(raw);
   }
@@ -166,7 +171,7 @@
     return settings.allowLowPowerMidspanAdjustment !== false && !isMetronetMR();
   }
 
-  function metronetAnchorMR(spanSide, direction) {
+  function generateAnchorInstructionFromSpan(spanSide, direction) {
     const notes = String(spanSide?.notes || "");
     const hoa = mrHeight(spanSide?.proposedHOA || "");
     if (!hoa) return "";
@@ -184,7 +189,7 @@
     return `Pl new ${size}${sidewalk} ANC ${distance} and pl new DG at HOA ${hoa}.`;
   }
 
-  function poleSpanDirection(poleId) {
+  function getPoleSpanDirection(poleId) {
     const sides = S().getSpanSidesForPole(poleId);
     const side = sides.find(item => item.proposedHOA) || sides[0];
     const span = S().getSpan(side?.spanId || "");
@@ -216,7 +221,7 @@
     return H().formatHeight(Math.ceil((proposed / 3) / 12) * 12);
   }
 
-  function effectiveAnchorDistance(pole) {
+  function getEffectiveAnchorDistance(pole) {
     const manual = String(pole?.ancDistance || "").trim();
     if (pole?.ancDistanceManual === true && manual) return normalizeAnchorDistance(manual);
     return defaultAnchorDistance(pole) || normalizeAnchorDistance(manual || "15'");
@@ -225,10 +230,10 @@
   function automaticAnchorDirection(pole) {
     const ugConnection = connectedUGSpanItems(pole?.poleId)
       .find(item => item.adjacentPoleUG);
-    return String(ugConnection?.direction || poleSpanDirection(pole?.poleId) || "").toUpperCase();
+    return String(ugConnection?.direction || getPoleSpanDirection(pole?.poleId) || "").toUpperCase();
   }
 
-  function effectiveAnchorDirection(pole) {
+  function getEffectiveAnchorDirection(pole) {
     const manual = String(pole?.ancDirection || "").trim().toUpperCase();
     if (pole?.ancDirectionManual === true && manual) return manual;
     // An ANC that the user enabled manually must wait for a direction choice.
@@ -238,18 +243,18 @@
     return automaticAnchorDirection(pole);
   }
 
-  function effectiveAnchorDGHOA(pole) {
+  function getEffectiveAnchorDGHOA(pole) {
     if (!isANCEnabled(pole?.poleId)) return "";
     const manual = String(pole?.dgHoa || "").trim();
     return formattedMRHeight(manual || proposedHoaForAnchor(pole));
   }
 
-  function metronetConfiguredAnchorMR(pole) {
+  function generateConfiguredAnchorInstruction(pole) {
     if (!isANCEnabled(pole?.poleId)) return "";
-    const direction = effectiveAnchorDirection(pole);
-    const distance = effectiveAnchorDistance(pole);
+    const direction = getEffectiveAnchorDirection(pole);
+    const distance = getEffectiveAnchorDistance(pole);
     const proposedHoa = proposedHoaForAnchor(pole);
-    const dgHoa = effectiveAnchorDGHOA(pole) || formattedMRHeight(proposedHoa);
+    const dgHoa = getEffectiveAnchorDGHOA(pole) || formattedMRHeight(proposedHoa);
     if (!direction || !dgHoa) return "";
     if (isIntecMR()) {
       return `Pl new ANC ${distance} ${direction} and pl new DG at HOA ${dgHoa}.`;
@@ -259,7 +264,7 @@
 
   function metronetConfiguredOHGMR(pole) {
     if (!pole?.ohgActive) return "";
-    const direction = String(pole.ohgDirection || poleSpanDirection(pole.poleId) || "").toUpperCase();
+    const direction = String(pole.ohgDirection || getPoleSpanDirection(pole.poleId) || "").toUpperCase();
     const hoa = formattedMRHeight(pole.ohgHoa || pole.standaloneProposedHOA || (
       S().getSpanSidesForPole(pole.poleId).find(item => item.proposedHOA)?.proposedHOA || ""
     ));
@@ -279,20 +284,20 @@
     const settings = S().getState().settings || {};
     if (!spanComm?.serviceDrop || !spanComm?.resagServiceDrop || settings.showResagServiceDrop === false || isMetronetMR()) return "";
     const span = S().getSpan(spanComm.spanId || "");
-    if (/back\s*span|backspan/i.test(`${span?.type || ""} ${span?.rawType || ""}`)) return "";
+    if (/back\s*span|backspan/i.test(spanRelationOf(span))) return "";
     const originalMidspan = H().parseHeight(spanComm.calculatedMidspan || spanComm.midspan || spanComm.ocalcMS || "");
     const target = H().parseHeight("15'6\"");
     if (originalMidspan === null || target === null || originalMidspan >= target) return "";
     const direction = directionForSpanComm(spanComm);
-    return `Re-sag ${ownerForMR(spanComm)} comm drop${direction ? ` ${direction}` : ""}, ensure 15'6\" at midspan.`;
+    return `Re-sag ${getMROwnerLabel(spanComm)} comm drop${direction ? ` ${direction}` : ""}, ensure 15'6\" at midspan.`;
   }
 
   function commRowsInSamePoleGroup(spanComm) {
-    const owner = ownerForMR(spanComm).toLowerCase();
+    const owner = getMROwnerLabel(spanComm).toLowerCase();
     const existingHOA = H().parseHeight(spanComm?.existingHOA || "");
     return S().getSpanCommsForPole(spanComm?.poleId || "").filter(row => {
       const rowHOA = H().parseHeight(row?.existingHOA || "");
-      return ownerForMR(row).toLowerCase() === owner && rowHOA === existingHOA;
+      return getMROwnerLabel(row).toLowerCase() === owner && rowHOA === existingHOA;
     });
   }
 
@@ -307,7 +312,7 @@
   function generatedCommMovementMR(spanComm, action, dg = "") {
     if (!spanComm || !action) return "";
     const settings = S().getState().settings || {};
-    const owner = ownerForMR(spanComm);
+    const owner = getMROwnerLabel(spanComm);
     const existing = formattedMRHeight(spanComm.existingHOA);
     const changed = formattedMRHeight(spanComm.otherHOA || spanComm.existingHOAChange);
     if (isMetronetMR()) {
@@ -321,7 +326,7 @@
       return `Relocate ${owner} drop at HOA ${existing} to HOA ${changed}.`;
     }
     const verb = action === "Lower" ? "lower" : "raise";
-    return `At HOA ${existing} ${verb} ${ownerForIntecMovementMR(spanComm)} to HOA ${changed}${dg}.`;
+    return `At HOA ${existing} ${verb} ${getIntecMovementOwnerLabel(spanComm)} to HOA ${changed}${dg}.`;
   }
 
   function generateTransferMRForPole(poleId) {
@@ -335,7 +340,7 @@
       const context = commGroupTransferContext(row);
       const height = H().parseHeight(row.otherHOA || row.existingHOAChange || row.existingHOA || "");
       if (!context.enabled || height === null) return;
-      const owner = ownerForMR(row);
+      const owner = getMROwnerLabel(row);
       const key = owner.toLowerCase();
       if (!groups.has(key)) groups.set(key, { owner, heights: new Set(), downGuy: false });
       const group = groups.get(key);
@@ -367,7 +372,7 @@
     if (spanComm.serviceDrop && settings.showServiceDrop === false) return "";
     const custom = String(spanComm.mr || "").trim();
     const resag = generateResagServiceDropMR(spanComm);
-    const owner = ownerForMR(spanComm);
+    const owner = getMROwnerLabel(spanComm);
     const transferContext = commGroupTransferContext(spanComm);
     if (transferContext.enabled && isMidAmMR()) return resag;
     const dg = (transferContext.enabled ? transferContext.downGuy : (
@@ -406,7 +411,7 @@
     if (isMetronetMR()) {
       const pole = S().getPole(spanSide.poleId);
       if ((detectAnchor(spanSide) || detectDownGuy(spanSide.notes) || detectOHG(spanSide)) && pole?.ancActive !== false) {
-        const anchor = metronetAnchorMR(spanSide, span?.direction || "");
+        const anchor = generateAnchorInstructionFromSpan(spanSide, span?.direction || "");
         if (anchor) items.push(anchor);
       }
       if (detectRiser(spanSide) && pole?.riserActive !== false) items.push(`Pl new riser${dir}.`.replace("  ", " "));
@@ -472,7 +477,7 @@
   }
 
   function isBackSpan(span) {
-    return /back\s*span|backspan/i.test(`${span?.type || ""} ${span?.rawType || ""}`);
+    return /back\s*span|backspan/i.test(spanRelationOf(span));
   }
 
   function isOverlashSpanSide(spanSide) {
@@ -502,7 +507,7 @@
     return Object.values(S().getState().spanComms || {}).find(row => {
       const rowSpan = S().getSpan(row.spanId || "");
       if (!samePhysicalSpan(rowSpan, span)) return false;
-      return normalizedOwnerToken(row.rawOwner || row.ownerBase || row.owner || "") === owner
+      return normalizedOwnerToken(ownerImportedOf(row) || ownerCanonicalOf(row) || "") === owner
         && /\bmsgr\b|messenger/i.test(`${row.size || ""} ${row.construction || ""}`);
     }) || null;
   }
@@ -688,7 +693,7 @@
     const byPhysicalConnection = new Map();
     S().getConnectedSpans(poleId).forEach(span => {
         const otherPoleId = S().getOtherPoleId(span, poleId);
-        const relation = normalizeSpanRelation(span.rawType || span.type, span.fromPole !== poleId);
+        const relation = normalizeSpanRelation(spanRelationOf(span), span.fromPole !== poleId);
         const direction = span.fromPole === poleId
           ? String(span.direction || "").toUpperCase()
           : oppositeDirection(String(span.direction || "").toUpperCase());
@@ -716,7 +721,7 @@
 
   function selectedIntecUGSpan(pole) {
     const spanId = String(pole?.ugSpanId || "ALL").trim();
-    if (!pole?.ugActive || !spanId || spanId.toUpperCase() === "ALL") return null;
+    if (poleResolutionOf(pole) !== "UG" || !spanId || spanId.toUpperCase() === "ALL") return null;
     const span = S().getSpan(spanId);
     if (!span || (span.fromPole !== pole.poleId && span.toPole !== pole.poleId)) return null;
     return span;
@@ -725,7 +730,7 @@
   function defaultIntecUGSpanLines(pole) {
     const span = selectedIntecUGSpan(pole);
     if (!span) return [];
-    const relation = normalizeSpanRelation(span.rawType || span.type, span.fromPole !== pole.poleId);
+    const relation = normalizeSpanRelation(spanRelationOf(span), span.fromPole !== pole.poleId);
     const direction = span.fromPole === pole.poleId
       ? String(span.direction || "").toUpperCase()
       : oppositeDirection(String(span.direction || "").toUpperCase());
@@ -773,11 +778,11 @@
     spans.forEach(span => {
       const otherPoleId = S().getOtherPoleId(span, poleId);
       const otherPole = S().getPole(otherPoleId);
-      if (!otherPoleId || (span.ugActive !== true && !otherPole?.ugActive)) return;
+      if (!otherPoleId || (span.ugActive !== true && poleResolutionOf(otherPole) !== "UG")) return;
       const current = byOtherPole.get(otherPoleId);
       // Excel already defines whether the span is Fore, Back, or Other from
       // the imported side. Reverse it only when we are reading the far end.
-      const relation = normalizeSpanRelation(span.rawType || span.type, span.fromPole !== poleId);
+      const relation = normalizeSpanRelation(spanRelationOf(span), span.fromPole !== poleId);
       const directionFromThisPole = span.fromPole === poleId
         ? span.direction
         : oppositeDirection(span.direction);
@@ -787,7 +792,7 @@
         spanId: span.spanId,
         otherPoleId,
         isSpanUG: span.ugActive === true,
-        adjacentPoleUG: Boolean(otherPole?.ugActive),
+        adjacentPoleUG: poleResolutionOf(otherPole) === "UG",
         reason: String(span.ugReason || "").trim()
       };
       // Case 2 is a span-level decision. Keep every explicitly selected UG
@@ -808,7 +813,7 @@
 
   function isANCEnabled(poleId) {
     const pole = S().getPole(poleId);
-    if (!pole || pole.ugActive || pole.pcoActive || (!isMetronetMR() && !isIntecMR())) return false;
+    if (!pole || ["UG", "PCO"].includes(poleResolutionOf(pole)) || (!isMetronetMR() && !isIntecMR())) return false;
     if (pole.ancActive === true) return true;
     if (pole.ancActive === false) return false;
     // Aerial poles receiving an adjacent UG transfer need an ANC/DG in both
@@ -845,7 +850,7 @@
     const span = S().getSpan(side?.spanId || "");
     if (!span) return null;
     return {
-      relation: normalizeSpanRelation(span.rawType || span.type, span.fromPole !== poleId),
+      relation: normalizeSpanRelation(spanRelationOf(span), span.fromPole !== poleId),
       direction: span.fromPole === poleId ? (span.direction || "") : oppositeDirection(span.direction || ""),
       spanId: span.spanId,
       otherPoleId: S().getOtherPoleId(span, poleId) || ""
@@ -854,7 +859,7 @@
 
   function isRiserAvailable(poleId) {
     const pole = S().getPole(poleId);
-    return Boolean(pole && !pole.ugActive && !pole.pcoActive);
+    return Boolean(pole && !["UG", "PCO"].includes(poleResolutionOf(pole)));
   }
 
   // null preserves the legacy automatic Back Span behavior. true/false is an
@@ -874,7 +879,7 @@
   function generateRiserInstruction(poleId, options = {}) {
     const allowReplacement = options.allowReplacement === true;
     const pole = S().getPole(poleId);
-    if (!pole || pole.pcoActive || (!allowReplacement && !isRiserAvailable(poleId))) return "";
+    if (!pole || poleResolutionOf(pole) === "PCO" || (!allowReplacement && !isRiserAvailable(poleId))) return "";
     if (pole.riserActive === false && !allowReplacement) return "";
     if (!allowReplacement && !isRiserEnabled(poleId)) return "";
     const connection = riserConnectionForPole(poleId);
@@ -904,7 +909,7 @@
         .find(Boolean);
       const side = S().getSpanSidesForPole(pole?.poleId)
         .find(item => item.proposedHOA) || null;
-      const anchor = metronetConfiguredAnchorMR(pole) || metronetUGAnchorInstruction(pole?.poleId, {
+      const anchor = generateConfiguredAnchorInstruction(pole) || metronetUGAnchorInstruction(pole?.poleId, {
         spanId: side?.spanId || "",
         direction: relationMatch?.[1] || resolvedRiserDirection(pole?.poleId)
       });
@@ -934,10 +939,10 @@
     const pole = S().getPole(poleId);
     const proposedHOA = side?.proposedHOA || pole?.standaloneProposedHOA || "";
     if (!proposedHOA) return "";
-    return metronetAnchorMR({ ...(side || {}), proposedHOA }, connection?.direction || "");
+    return generateAnchorInstructionFromSpan({ ...(side || {}), proposedHOA }, connection?.direction || "");
   }
 
-  function connectedUGInstructions(poleId) {
+  function buildConnectedUGInstructions(poleId) {
     const items = connectedUGSpanItems(poleId);
 
     const lines = items.flatMap(item => {
@@ -948,7 +953,7 @@
           ? (cleanUGReason(item.reason) || metronetUGPlaceholderReason())
           : (metronetUGReasonFromPole(S().getPole(item.otherPoleId)) || metronetUGPlaceholderReason());
         const anchor = item.isSpanUG ? "" : (isANCEnabled(poleId)
-          ? (metronetConfiguredAnchorMR(S().getPole(poleId)) || metronetUGAnchorInstruction(poleId, item) || "Pl new ANC/DG for deadending lines.")
+          ? (generateConfiguredAnchorInstruction(S().getPole(poleId)) || metronetUGAnchorInstruction(poleId, item) || "Pl new ANC/DG for deadending lines.")
           : "");
         const transferDirection = resolvedRiserDirection(poleId, item) || item.direction;
         const riser = S().getPole(poleId)?.riserActive === false
@@ -1049,7 +1054,7 @@
   }
 
   function generatePoleInsetMR(pole) {
-    if (!pole?.poleInsetActive || pole.ugActive || pole.pcoActive) return "";
+    if (!pole?.poleInsetActive || ["UG", "PCO"].includes(poleResolutionOf(pole))) return "";
     const settings = S().getState().settings || {};
     if (["METRONET", "OLSSON_OPPD"].includes(String(settings.projectProfile || "").toUpperCase())) return "";
     const reason = String(pole.poleInsetReason || "").toUpperCase() === "FAILING_CLEARANCES"
@@ -1086,9 +1091,9 @@
     const anc = [];
     const pole = S().getPole(poleId);
     const redTag = generateRedTagMR(pole);
-    if (pole?.ugActive || pole?.pcoActive) {
-      const selectedUGLines = pole.ugActive && isIntecMR() ? selectedIntecUGLines(pole) : [];
-      const lines = pole.ugActive
+    if (["UG", "PCO"].includes(poleResolutionOf(pole))) {
+      const selectedUGLines = poleResolutionOf(pole) === "UG" && isIntecMR() ? selectedIntecUGLines(pole) : [];
+      const lines = poleResolutionOf(pole) === "UG"
         ? (selectedUGLines.length
           ? selectedUGLines
           : (isMetronetMR() ? metronetUGReplacementMR(pole) : (isOlssonMR() ? defaultOlssonUGLines(pole) : ugReplacementMR(pole))))
@@ -1097,7 +1102,7 @@
       if (text) state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
-    connectedUGInstructions(poleId).forEach(line => {
+    buildConnectedUGInstructions(poleId).forEach(line => {
       // Riser work is always the final instruction crews read in the pole MR.
       // Keep the UG relation at the top, place ANC after power work, and defer
       // the separate riser line until the end.
@@ -1111,7 +1116,7 @@
     const olssonCommClearanceNote = generateOlssonCommClearanceNote(pole);
     if (olssonCommClearanceNote) poleActionNotes.push(olssonCommClearanceNote);
     if (isMetronetMR() || isIntecMR() || isOlssonMR()) {
-      const configuredAnchor = metronetConfiguredAnchorMR(pole);
+      const configuredAnchor = generateConfiguredAnchorInstruction(pole);
       const configuredOHG = metronetConfiguredOHGMR(pole);
       if ((isMetronetMR() || isIntecMR()) && configuredAnchor) anc.push(configuredAnchor);
       if (configuredOHG) anc.push(configuredOHG);
@@ -1160,7 +1165,7 @@
     const collectResag = spanComm => {
       const resag = generateResagServiceDropMR(spanComm);
       if (!resag) return;
-      const owner = ownerForMR(spanComm);
+      const owner = getMROwnerLabel(spanComm);
       const key = owner.toLowerCase();
       if (!resagGroups.has(key)) resagGroups.set(key, { owner, directions: [], undirected: false });
       const group = resagGroups.get(key);
@@ -1263,9 +1268,9 @@
     isRiserAvailable,
     isRiserEnabled,
     isANCEnabled,
-    getEffectiveANCDistance: poleId => effectiveAnchorDistance(S().getPole(poleId)),
-    getEffectiveANCDirection: poleId => effectiveAnchorDirection(S().getPole(poleId)),
-    getEffectiveANCDGHOA: poleId => effectiveAnchorDGHOA(S().getPole(poleId)),
+    getEffectiveANCDistance: poleId => getEffectiveAnchorDistance(S().getPole(poleId)),
+    getEffectiveANCDirection: poleId => getEffectiveAnchorDirection(S().getPole(poleId)),
+    getEffectiveANCDGHOA: poleId => getEffectiveAnchorDGHOA(S().getPole(poleId)),
     generateRiserInstruction,
     generateMRForSpanSide,
     generateAllMR,

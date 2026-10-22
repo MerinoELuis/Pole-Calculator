@@ -49,9 +49,9 @@ The command performs JavaScript syntax checks, JSON parsing, fixture checks and 
 
 ## Preferred extension points
 
-- Project differences: `js/project-config.js`
-- Calculations and flagging: `js/calculations.js`
-- Auto Calculate candidate search and ranking: `js/auto-calculate-solver.js`
-- Make Ready wording: `js/mr-logic.js`
-- Compact AutoProposed export: `js/compact-autoproposed.js`
+- Project differences: `js/core/project-config.js`
+- Calculations and flagging: `js/domain/clearance-rules.js`
+- Auto Calculate candidate search and ranking: `js/rules/auto-calculate-solver.js`
+- Make Ready wording: `js/rules/mr-logic.js`
+- Compact AutoProposed export: `js/export/compact-autoproposed.js`
 - Post-render DOM identity and table behavior: `js/ui/`

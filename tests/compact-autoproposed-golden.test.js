@@ -24,6 +24,10 @@ const window = {
   AppStore: {
     getState: () => state,
     getPole: poleId => state.poles[poleId] || null,
+    getPoleResolution: pole => pole?.poleResolution || (pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : "AERIAL"),
+    getOwnerCanonical: row => row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+    getOwnerImported: row => row?.ownerImported || row?.rawOwner || row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+    getSpanRelation: span => span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "",
     canonicalPoleIdentity: value => String(value || "").trim().toUpperCase(),
     setState() {},
     updateSetting() {}
@@ -41,7 +45,7 @@ const window = {
   alert() {}
 };
 
-const source = fs.readFileSync(path.join(root, "js", "compact-autoproposed.js"), "utf8");
+const source = fs.readFileSync(path.join(root, "js", "export", "compact-autoproposed.js"), "utf8");
 vm.runInNewContext(source, { window }, { filename: "compact-autoproposed.js" });
 const actual = window.CompactAutoProposed.buildCompactPayload(state);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(actual)), expected);

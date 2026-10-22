@@ -12,7 +12,7 @@ const window = {
 };
 const sandbox = { window, console, Date, Set, Map, Math, JSON, Object, Array, String, Number, Boolean, RegExp };
 
-for (const file of ["height-utils.js", "project-config.js", "state.js", "calculations.js"]) {
+for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/clearance-rules.js"]) {
   const modulePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 }

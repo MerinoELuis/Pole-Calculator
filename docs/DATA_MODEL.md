@@ -26,6 +26,20 @@
 
 `excelReviewSource` is separate from normalized graph entities because empty Collection IDs, duplicate Span rows, unused Span.Wire rows, and incomplete Anchor rows still matter during auditing. Its `anchors` and `anchorGuys` snapshots stay separate because Anchor completeness and guy/DG rules have different purposes. Review results and timestamps are regenerated from this source and current calculator work. Only the user's ignored-finding keys are saved so accepted exceptions remain inactive after Save, Load, Undo, and Update Data.
 
+## Canonical accessors and compatibility fields
+
+Business logic reads identity and relationship values through `AppStore` accessors:
+
+| Accessor | Canonical value | Legacy fields retained for Save/Load and export |
+| --- | --- | --- |
+| `getOwnerCanonical(row)` | Matching owner identity | `ownerBase`, `owner` |
+| `getOwnerImported(row)` | Original imported owner text | `rawOwner`, `ownerBase`, `owner` |
+| `getOwnerDisplay(row)` | User-facing owner label | `owner`, `ownerBase`, `rawOwner` |
+| `getSpanRelation(span)` | Normalized Fore/Back/Other relation | `type`, `rawType` |
+| `getImportedSpanRelation(span)` | Original imported relation spelling | `rawType`, `type` |
+
+The canonical names are exposed as non-enumerable aliases on normalized entities, so existing JSON files and workbook exports retain their established schema. Constructors and `upsert*` methods accept canonical fields first and materialize the legacy fields at the state boundary. Modules should not introduce new direct dependencies on the legacy names.
+
 ## Settings
 
 Important settings and defaults:

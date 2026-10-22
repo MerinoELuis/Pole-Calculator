@@ -32,6 +32,11 @@
   const S = () => global.AppStore;
   const H = () => global.HeightUtils;
 
+  const poleResolutionOf = pole => S().getPoleResolution(pole);
+  const ownerCanonicalOf = row => S().getOwnerCanonical(row);
+  const ownerImportedOf = row => S().getOwnerImported(row);
+  const spanRelationOf = span => S().getSpanRelation(span);
+
   function text(value) {
     return String(value ?? "").trim();
   }
@@ -187,7 +192,7 @@
   }
 
   function ownerForMove(row) {
-    const raw = text(row?.rawOwner || row?.ownerBase || row?.owner || "COMM");
+    const raw = text(ownerImportedOf(row) || ownerCanonicalOf(row) || "COMM");
     if (/century\s*link|centurylink|\bctl\b/i.test(raw)) return "CTL";
     return raw
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -368,7 +373,7 @@
       const rowPoles = new Set([rowSpan.fromPole, rowSpan.toPole].filter(Boolean));
       if (rowPoles.size !== poles.size || Array.from(poles).some(id => !rowPoles.has(id))) return false;
       const wireSize = `${row.size || ""} ${row.construction || ""}`;
-      return normalizedOwnerToken(row.rawOwner || row.owner || "") === targetOwner
+      return normalizedOwnerToken(ownerImportedOf(row) || row.ownerDisplay || row.owner || "") === targetOwner
         && /\bmsgr\b|messenger/i.test(wireSize);
     });
   }
@@ -379,7 +384,7 @@
   }
 
   function spanKind(span) {
-    const type = text(span?.type || span?.rawType).toLowerCase();
+    const type = text(spanRelationOf(span)).toLowerCase();
     if (/fore\s*span|forespan/.test(type)) return "F";
     if (/back\s*span|backspan/.test(type)) return "B";
     return "O";
@@ -407,12 +412,12 @@
     // operator is still evaluating it as an aerial pole.  Only the explicit
     // Pole Actions state makes the pole UG; otherwise local comm movements
     // must remain exportable and visible in Make Ready.
-    return Boolean(pole?.ugActive);
+    return poleResolutionOf(pole) === "UG";
   }
 
   function isPolePco(state, poleId) {
     const pole = findPole(state, poleId);
-    return Boolean(pole?.pcoActive);
+    return poleResolutionOf(pole) === "PCO";
   }
 
   function blocksLocalActions(state, poleId) {
@@ -445,6 +450,8 @@
       pole && (
         (Array.isArray(pole.spans) && pole.spans.length) ||
         (Array.isArray(pole.moves) && pole.moves.length) ||
+        pole.anc ||
+        Object.prototype.hasOwnProperty.call(pole, "dgHoa") ||
         pole.riser ||
         Object.prototype.hasOwnProperty.call(pole, "terminalHoa")
       )
@@ -474,8 +481,8 @@
     // commonly part of an imported name, while the calculator must only mark
     // the relation UG when the destination action is active or the span's own
     // metadata explicitly identifies it as UG.
-    const explicitSource = `${span.rawType || ""} ${span.notes || ""}`;
-    return Boolean(targetPole?.ugActive || hasUgToken(explicitSource));
+    const explicitSource = `${S()?.getImportedSpanRelation?.(span) || span.importedRelation || span.rawType || ""} ${span.notes || ""}`;
+    return Boolean(poleResolutionOf(targetPole) === "UG" || hasUgToken(explicitSource));
   }
 
   function sideForSpan(state, poleId, spanId) {
@@ -494,6 +501,34 @@
     ));
   }
 
+  function samePhysicalSpan(first, second) {
+    if (!first || !second) return false;
+    const firstEndpoints = [first.fromPole, first.toPole].map(normalizedPhysicalPoleId).sort();
+    const secondEndpoints = [second.fromPole, second.toPole].map(normalizedPhysicalPoleId).sort();
+    if (!firstEndpoints[0] || firstEndpoints.join("|") !== secondEndpoints.join("|")) return false;
+
+    const firstLength = spanLengthInches(first);
+    const secondLength = spanLengthInches(second);
+    if (firstLength !== null && secondLength !== null && Math.abs(firstLength - secondLength) > 12) return false;
+
+    const referencePole = firstEndpoints[0];
+    const firstReferencePole = normalizedPhysicalPoleId(first.fromPole) === referencePole ? first.fromPole : first.toPole;
+    const secondReferencePole = normalizedPhysicalPoleId(second.fromPole) === referencePole ? second.fromPole : second.toPole;
+    const firstBearing = bearingFromPole(first, firstReferencePole);
+    const secondBearing = bearingFromPole(second, secondReferencePole);
+    const difference = angularDistance(firstBearing, secondBearing);
+    return difference === null || difference <= 3;
+  }
+
+  function isSlackOnPhysicalSpan(state, span) {
+    return Object.values(state?.spanSides || {}).some(side => {
+      if (!side?.isSlack) return false;
+      if (side.spanId === span.spanId || span.sourceSpanId === side.spanId) return true;
+      const markedSpan = state?.spans?.[side.spanId];
+      return samePhysicalSpan(markedSpan, span);
+    });
+  }
+
   function compactSpan(state, poleId, span, primaryProposal) {
     const item = {
       to: text(span.toPole),
@@ -509,11 +544,13 @@
       return item;
     }
 
+    const exactSide = sideForSpan(state, poleId, span.spanId);
+    if (isSlackOnPhysicalSpan(state, span)) item.slack = true;
+
     const reference = preferredReferenceForSpan(state, poleId, span);
     const fiber = reference ? fiberCountForReference(reference, span, poleId) : "";
     if (!fiber) return item;
 
-    const exactSide = sideForSpan(state, poleId, span.spanId);
     const outgoingSpanCount = Object.values(state?.spans || {})
       .filter(candidate => candidate?.fromPole === poleId && hasSpanGeometry(candidate))
       .length;
@@ -543,8 +580,6 @@
       // Overlash must not create a second messenger.
       item.overlash = true;
     }
-
-    if (proposal === exactSide && exactSide?.isSlack) item.slack = true;
 
     if (proposal === exactSide) {
       const endDrop = inches(exactSide?.endDrop);
@@ -747,6 +782,46 @@
     });
   }
 
+  function compactAnchorForPole(state, poleId) {
+    if (blocksLocalActions(state, poleId)) return null;
+    const pole = findPole(state, poleId);
+    if (!pole) return null;
+
+    const mrLogic = global.MRLogic;
+    const enabled = typeof mrLogic?.isANCEnabled === "function"
+      ? mrLogic.isANCEnabled(poleId)
+      : pole.ancActive === true;
+    if (!enabled) return null;
+
+    // Export the resolved values used by Make Ready (including defaults), not
+    // merely the raw form fields. An intentionally blank manual direction is
+    // kept blank so AutoProposed can distinguish it from a chosen direction.
+    const distanceValue = typeof mrLogic?.getEffectiveANCDistance === "function"
+      ? mrLogic.getEffectiveANCDistance(poleId)
+      : pole.ancDistance;
+    const directionValue = typeof mrLogic?.getEffectiveANCDirection === "function"
+      ? mrLogic.getEffectiveANCDirection(poleId)
+      : pole.ancDirection;
+    const dgHoaValue = typeof mrLogic?.getEffectiveANCDGHOA === "function"
+      ? mrLogic.getEffectiveANCDGHOA(poleId)
+      : pole.dgHoa;
+
+    const anc = {};
+    const distance = inches(distanceValue);
+    const direction = text(directionValue).toUpperCase();
+    const directions = new Set(["N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
+    if (distance !== null && distance > 0) {
+      anc.distance = distance;
+      if (directions.has(direction)) anc.direction = direction;
+    }
+
+    const dgHoa = inches(dgHoaValue);
+    return {
+      anc: Object.keys(anc).length ? anc : null,
+      dgHoa: dgHoa !== null ? dgHoa : null
+    };
+  }
+
   function buildCompactPayload(state = S()?.getState?.()) {
     if (!state) return { sizes: { messenger: null, fiber: {} }, owner: "", poles: [] };
     applyAttachmentDefaults(state);
@@ -761,7 +836,9 @@
           ? null
           : inches(state.poles[poleId]?.standaloneProposedHOA);
         const riser = compactRiserForPole(state, poleId);
-        if (!spans.length && !moves.length && terminalHoa === null && !riser) return;
+        const anchor = compactAnchorForPole(state, poleId);
+        const hasAnchor = Boolean(anchor?.anc) || anchor?.dgHoa !== null && anchor?.dgHoa !== undefined;
+        if (!spans.length && !moves.length && terminalHoa === null && !riser && !hasAnchor) return;
 
         const pole = { id: poleId };
         // When a one-span Make Ready attachment was promoted from
@@ -773,6 +850,8 @@
         if (spans.length) pole.spans = spans;
         if (moves.length) pole.moves = moves;
         if (riser) pole.riser = riser;
+        if (anchor?.anc) pole.anc = anchor.anc;
+        if (anchor?.dgHoa !== null && anchor?.dgHoa !== undefined) pole.dgHoa = anchor.dgHoa;
         poles.push(pole);
       });
 

@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const sandbox = { window: {}, console };
-const modulePath = path.join(__dirname, "..", "js", "height-utils.js");
+const modulePath = path.join(__dirname, "..", "js", "domain", "height-math.js");
 vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 
 const parseHeight = sandbox.window.HeightUtils.parseHeight;

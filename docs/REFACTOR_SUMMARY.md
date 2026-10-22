@@ -2,7 +2,7 @@
 
 ## Safety
 
-- Working branch: `compact-autoproposed-json`.
+- The reorganization work is kept on the active feature branch; `main` is not modified.
 - `main` was not modified.
 - Pre-refactor backup: `backup/compact-autoproposed-json-before-ai-refactor` at commit `837db33bb3dca88f0b8e1660846b8dc4610b904c`.
 
@@ -20,7 +20,21 @@
 
 ## Integrated
 
-UG/PCO export and Make Ready protection now lives in `js/compact-autoproposed.js` rather than a separate wrapper script.
+UG/PCO export and Make Ready protection now lives in `js/export/compact-autoproposed.js` rather than a separate wrapper script.
+
+The runtime is now grouped by responsibility:
+
+```text
+js/
+├─ core/      store, state compatibility, history, persistence, project config, deployment version
+├─ domain/    height math, pole mode, comm movement, clearance calculations, Midspan engine, graph helpers
+├─ rules/     Auto Calculate solver, Make Ready, validations
+├─ import/    import normalizers, Excel import/review, Update Data reconciliation
+├─ export/    Excel, JSON, and compact AutoProposed export
+└─ ui/        app coordinator, pole renderer, controls, dialogs, theme, mobile keyboard, post-render modules
+```
+
+`index.html` loads the modules in dependency order. The Midspan engine now owns the baseline-plus-half-movement calculation; `clearance-rules.js` remains the central orchestrator for clearance evaluations, persistence, and flagging so existing business-rule behavior stays consistent.
 
 ## Removed
 
@@ -31,7 +45,7 @@ UG/PCO export and Make Ready protection now lives in `js/compact-autoproposed.js
 
 ## Intentionally retained
 
-`js/app.js` remains the authoritative renderer and event controller. The refactor extracted the most change-prone post-render behaviors without a high-risk rewrite of the full 3,000-line UI controller. Further extraction should be incremental and covered by browser-level tests.
+The current browser coordinator is `js/ui/app.js`. Shared history, persistence, dialogs, theme, mobile keyboard handling, controls, and post-render behaviors have dedicated modules. The pole renderer and the integrated clearance calculation module remain the largest cohesive modules; future extraction from those should preserve their documented contracts and be covered by regression tests.
 
 ## Verification
 

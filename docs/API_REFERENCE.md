@@ -34,7 +34,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | Method | Purpose |
 | --- | --- |
 | `getState()` | Return the mutable current AppState. |
-| `setState(nextState)` | Normalize and replace current state. `AutoCalculateSourceCompat` preserves automatic Proposed source fields around this call. |
+| `setState(nextState)` | Normalize and replace current state, including Auto Calculate Proposed source fields. |
 | `resetState()` | Create a clean state with defaults. |
 | `saveToLocal()` / `loadFromLocal()` | Legacy localStorage helpers; primary UI persistence uses Save/Load files. |
 | `normalizeState(state)` | Upgrade and reconcile imported/saved state. |
@@ -44,6 +44,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | Method | Purpose |
 | --- | --- |
 | `createPole(...)` | Normalize a Pole. |
+| `createSpanSide(data)` | Normalize Proposed state, including Auto Calculate source status and mode. |
 | `createComm(...)` | Normalize a pole-level comm summary. |
 | `createSpan(...)` | Normalize a Span and generate an Unknown endpoint when required. |
 | `createSpanSide(data)` | Normalize Proposed state. |
@@ -132,16 +133,6 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `solvePole(poleId, mode, options?)` | Asynchronously evaluate and retain the best aerial arrangement for one pole. `onCandidateProgress(detail)` reports candidate batches. |
 | `autoCalculateMovements(options?)` | Process every pole once, then selectively retry only affected poles that can improve, with a three-attempt cap per pole. `onProgress(detail)` reports phase, percentage, pass, pole and candidate. |
 | `install()` | Replace `Calculations.autoCalculateMovements()` with the solver entry point. |
-
-## AutoCalculateSourceCompat
-
-| Method/property | Purpose |
-| --- | --- |
-| `PROPOSED_SOURCE_FIELDS` | `autoCalcProposedStatus` and `autoCalcProposedMode`. |
-| `keyForSide(side)` | Build the normalized SpanSide identity. |
-| `copySourceFields(target, source)` | Restore automatic Proposed source fields after constructor normalization. |
-
-The module wraps `AppStore.upsertSpanSide()` and `AppStore.setState()` before `app.js` loads. It preserves source metadata through candidate copies, Undo, and Save/Load without changing clearance formulas.
 
 ## ExcelImport
 

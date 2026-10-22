@@ -102,7 +102,7 @@
 
     pole.comms.forEach(comm => {
       if (!comm.owner) addWarning(warnings, poleId, "", "", "UNKNOWN_OWNER", "Hay un comm sin owner.");
-      if (comm.unknownOwner) addWarning(warnings, poleId, "", comm.owner, "UNKNOWN_OWNER", `Unnormalized owner: ${comm.rawOwner || comm.owner}.`);
+      if (comm.unknownOwner) addWarning(warnings, poleId, "", S().getOwnerDisplay?.(comm) || comm.ownerDisplay || comm.owner, "UNKNOWN_OWNER", `Unnormalized owner: ${S().getOwnerImported?.(comm) || comm.ownerImported || comm.rawOwner || comm.ownerDisplay || comm.owner}.`);
       if (comm.existingHOA && !H().isValidHeight(comm.existingHOA)) addWarning(warnings, poleId, "", comm.owner, "INVALID_EXISTING_HOA", `Invalid Existing HOA for ${comm.owner}.`, "danger");
     });
 
@@ -110,7 +110,7 @@
     if (!connected.length) addWarning(warnings, poleId, "", "", "DISCONNECTED_POLE", "The pole has no connected spans.");
 
     S().getSpanCommsForPole(poleId).forEach(sc => {
-      if (sc.unknownOwner) addWarning(warnings, poleId, sc.spanId, sc.owner, "UNKNOWN_OWNER", `Unnormalized owner in Span.Wire: ${sc.rawOwner || sc.owner}.`);
+      if (sc.unknownOwner) addWarning(warnings, poleId, sc.spanId, S().getOwnerDisplay?.(sc) || sc.ownerDisplay || sc.owner, "UNKNOWN_OWNER", `Unnormalized owner in Span.Wire: ${S().getOwnerImported?.(sc) || sc.ownerImported || sc.rawOwner || sc.ownerDisplay || sc.owner}.`);
       ["existingHOA", "existingHOAChange", "otherHOA", "ocalcMS", "midspan", "calculatedMidspan", "msProposed", "finalMidspan"].forEach(field => {
         if (sc[field] && !H().isValidHeight(sc[field])) addWarning(warnings, poleId, sc.spanId, sc.owner, `INVALID_${field.toUpperCase()}`, `Invalid ${field} for ${sc.owner}.`, "danger");
       });

@@ -14,6 +14,7 @@ assert.equal(schema.$defs.pole.additionalProperties, false);
 assert.equal(schema.$defs.span.additionalProperties, false);
 assert.equal(schema.$defs.move.additionalProperties, false);
 assert.equal(schema.$defs.riser.additionalProperties, false);
+assert.equal(schema.$defs.anc.additionalProperties, false);
 
 function exactKeys(value, allowed, context) {
   Object.keys(value || {}).forEach(key => assert.ok(allowed.includes(key), `${context}: unexpected property ${key}`));
@@ -35,7 +36,7 @@ function validatePayload(payload, filename) {
 
   payload.poles.forEach((pole, poleIndex) => {
     const context = `${filename}.poles[${poleIndex}]`;
-    exactKeys(pole, ["id", "pco", "terminalHoa", "spans", "moves", "riser"], context);
+    exactKeys(pole, ["id", "pco", "terminalHoa", "spans", "moves", "anc", "dgHoa", "riser"], context);
     assert.equal(typeof pole.id, "string");
     assert.ok(pole.id.trim());
     if ("terminalHoa" in pole) assert.equal(Number.isInteger(pole.terminalHoa), true);
@@ -43,8 +44,18 @@ function validatePayload(payload, filename) {
     if (pole.pco === true) {
       assert.equal("moves" in pole, false, `${context}: PCO cannot contain moves`);
       assert.equal("terminalHoa" in pole, false, `${context}: PCO cannot contain terminalHoa`);
+      assert.equal("anc" in pole, false, `${context}: PCO cannot contain ANC`);
+      assert.equal("dgHoa" in pole, false, `${context}: PCO cannot contain DG HOA`);
       assert.equal("riser" in pole, false, `${context}: PCO cannot contain riser`);
     }
+
+    if (pole.anc) {
+      exactKeys(pole.anc, ["distance", "direction"], `${context}.anc`);
+      assert.equal(Number.isInteger(pole.anc.distance), true, `${context}.anc.distance must be integer inches`);
+      assert.ok(pole.anc.distance > 0, `${context}.anc.distance must be positive`);
+      if ("direction" in pole.anc) assert.match(pole.anc.direction, /^(N|NE|E|SE|S|SW|W|NW)$/);
+    }
+    if ("dgHoa" in pole) assert.equal(Number.isInteger(pole.dgHoa), true, `${context}.dgHoa must be integer inches`);
 
     if (pole.riser) {
       exactKeys(pole.riser, ["action", "direction", "hoa", "fromHoa", "owner", "angle"], `${context}.riser`);
@@ -66,9 +77,10 @@ function validatePayload(payload, filename) {
 
     (pole.spans || []).forEach((span, spanIndex) => {
       const spanContext = `${context}.spans[${spanIndex}]`;
-      exactKeys(span, ["to", "kind", "bearing", "length", "hoa", "fiber", "endDrop", "nextHoa", "ug"], spanContext);
+      exactKeys(span, ["to", "kind", "bearing", "length", "hoa", "fiber", "endDrop", "nextHoa", "slack", "ug"], spanContext);
       assert.equal(typeof span.to, "string");
       assert.ok(["F", "B", "O"].includes(span.kind));
+      if ("slack" in span) assert.equal(typeof span.slack, "boolean", `${spanContext}.slack must be a boolean`);
       ["length", "hoa", "endDrop", "nextHoa"].forEach(field => {
         if (field in span) assert.equal(Number.isInteger(span[field]), true, `${spanContext}.${field} must be integer inches`);
       });

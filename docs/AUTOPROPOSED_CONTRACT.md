@@ -19,9 +19,11 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 
 ## Pole rules
 
-- Normal pole: may contain `terminalHoa`, `spans`, `moves` and an actionable `riser`.
-- PCO pole: remove local `moves` and `terminalHoa`; retain geometry-only local spans without `ug`.
-- Completely UG pole: remove local `moves` and `terminalHoa`; retain geometry-only local spans with `ug: true`.
+- Normal pole: may contain `terminalHoa`, `spans`, `moves`, an actionable `riser`, `anc` and `dgHoa`.
+- `anc.distance` and `dgHoa` use the effective Make Ready values, including defaults; `anc.direction` is omitted if the operator has not selected a direction.
+- A Slack-marked physical span exports `slack: true` from either endpoint, even if its own proposed HOA or fiber is not yet populated.
+- PCO pole: remove local `moves`, `terminalHoa`, `riser`, `anc` and `dgHoa`; retain geometry-only local spans without `ug`.
+- Completely UG pole: remove local `moves`, `terminalHoa`, `riser`, `anc` and `dgHoa`; retain geometry-only local spans with `ug: true`.
 - UG takes priority when UG and PCO are both active.
 - A blocked pole that has no remaining geometry is omitted from `poles`.
 - A neighboring normal pole may keep its own aerial proposal toward a PCO pole.

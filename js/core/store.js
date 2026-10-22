@@ -3,7 +3,7 @@
 
   // AppStore is the single source of truth for the calculator. UI modules read
   // from this state, and calculation modules write derived values back into it.
-  const CURRENT_VERSION = "1.8.209";
+  const CURRENT_VERSION = "1.8.223";
   const STORAGE_KEY = "poleCalculatorAppState.v2";
 
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
@@ -370,12 +370,29 @@
    * @param {Object} [extra]
    * @returns {Pole}
    */
+  // `poleResolution` is the internal name for the mutually exclusive UG/PCO
+  // pole mode. It is deliberately non-enumerable so old JSON exports keep
+  // their established `ugActive`/`pcoActive` fields while new code can use a
+  // single, explicit value.
+  function attachPoleResolutionAlias(record) {
+    Object.defineProperty(record, "poleResolution", {
+      configurable: true,
+      get: () => global.PoleResolution.forPole(record),
+      set: value => global.PoleResolution.apply(record, value)
+    });
+    return record;
+  }
+
+  function getPoleResolution(pole) {
+    return global.PoleResolution.forPole(pole);
+  }
+
   function createPole(poleId, poleHeight = "", notes = "", extra = {}) {
     // Constructors normalize all incoming data so later code can assume each
     // entity has the same shape, whether it came from Excel, JSON, or the UI.
     if (typeof poleId === "object" && poleId !== null) {
-      const data = poleId;
-      return {
+      const data = global.StateCompatibility.normalizePoleInput(poleId);
+      return attachPoleResolutionAlias({
         poleId: trim(data.poleId || data.id || ""),
         collectionId: trim(data.collectionId || ""),
         sequence: trim(data.sequence || ""),
@@ -389,7 +406,7 @@
         owner: trim(data.owner || ""),
         poleType: trim(data.poleType || ""),
         isGenerated: Boolean(data.isGenerated),
-        ugActive: Boolean(data.ugActive),
+        ugActive: data.ugActive,
         ugSpanId: trim(data.ugSpanId || "ALL") || "ALL",
         ugSpanMRSpanId: trim(data.ugSpanMRSpanId || ""),
         ugSpanMRText: trim(data.ugSpanMRText || ""),
@@ -414,7 +431,7 @@
         redTagMinHeight: trim(data.redTagMinHeight || ""),
         redTagClass: trim(data.redTagClass || ""),
         redTagReason: trim(data.redTagReason || ""),
-        pcoActive: Boolean(data.pcoActive),
+        pcoActive: data.pcoActive,
         commMovementsActive: data.commMovementsActive !== false,
         pcoMRText: trim(data.pcoMRText || ""),
         poleInsetActive: Boolean(data.poleInsetActive),
@@ -427,10 +444,11 @@
         notes: trim(data.notes || ""),
         comms: Array.isArray(data.comms) ? data.comms : [],
         metadata: data.metadata || {}
-      };
+      });
     }
 
-    return {
+    extra = global.StateCompatibility.normalizePoleInput(extra);
+    return attachPoleResolutionAlias({
       poleId: trim(poleId),
       collectionId: trim(extra.collectionId || ""),
       sequence: trim(extra.sequence || ""),
@@ -444,7 +462,7 @@
       owner: trim(extra.owner || ""),
       poleType: trim(extra.poleType || ""),
       isGenerated: Boolean(extra.isGenerated),
-      ugActive: Boolean(extra.ugActive),
+      ugActive: extra.ugActive,
       ugSpanId: trim(extra.ugSpanId || "ALL") || "ALL",
       ugSpanMRSpanId: trim(extra.ugSpanMRSpanId || ""),
       ugSpanMRText: trim(extra.ugSpanMRText || ""),
@@ -469,7 +487,7 @@
       redTagMinHeight: trim(extra.redTagMinHeight || ""),
       redTagClass: trim(extra.redTagClass || ""),
       redTagReason: trim(extra.redTagReason || ""),
-      pcoActive: Boolean(extra.pcoActive),
+      pcoActive: extra.pcoActive,
       commMovementsActive: extra.commMovementsActive !== false,
       pcoMRText: trim(extra.pcoMRText || ""),
       poleInsetActive: Boolean(extra.poleInsetActive),
@@ -482,23 +500,64 @@
       notes: trim(notes),
       comms: [],
       metadata: extra.metadata || {}
-    };
+    });
+  }
+
+  // Canonical owner names are exposed internally without changing the saved
+  // JSON contract.  The legacy enumerable fields remain the import/export
+  // adapter, while these aliases give calculations a clearer vocabulary.
+  function attachOwnerAliases(record) {
+    Object.defineProperties(record, {
+      ownerCanonical: {
+        configurable: true,
+        get: () => trim(record.ownerBase || record.owner || ""),
+        set: value => { record.ownerBase = trim(value); }
+      },
+      ownerImported: {
+        configurable: true,
+        get: () => trim(record.rawOwner || record.ownerBase || record.owner || ""),
+        set: value => { record.rawOwner = trim(value); }
+      },
+      ownerDisplay: {
+        configurable: true,
+        get: () => trim(record.owner || record.ownerBase || record.rawOwner || ""),
+        set: value => { record.owner = trim(value); }
+      }
+    });
+    return record;
+  }
+
+  // Canonical accessors keep business modules independent from the legacy
+  // field names that are still required by saved JSON and workbook exports.
+  function getOwnerCanonical(record) {
+    return trim(record?.ownerCanonical || record?.ownerBase || record?.owner || "");
+  }
+
+  function getOwnerImported(record) {
+    return trim(record?.ownerImported || record?.rawOwner || getOwnerCanonical(record) || "");
+  }
+
+  function getOwnerDisplay(record) {
+    return trim(record?.ownerDisplay || record?.owner || getOwnerCanonical(record) || getOwnerImported(record) || "");
   }
 
   function createComm(owner, existingHOA = "", notes = "", extra = {}) {
-    return {
-      owner: trim(owner),
-      ownerBase: trim(extra.ownerBase || owner),
+    const ownerDisplay = trim(extra.ownerDisplay || owner);
+    const ownerCanonical = trim(extra.ownerCanonical || extra.ownerBase || ownerDisplay);
+    const ownerImported = trim(extra.ownerImported || extra.rawOwner || "");
+    return attachOwnerAliases({
+      owner: ownerDisplay,
+      ownerBase: ownerCanonical,
       existingHOA: trim(existingHOA),
       existingHOAChange: trim(extra.existingHOAChange || ""),
       otherHOA: trim(extra.otherHOA || ""),
       pofActive: Boolean(extra.pofActive),
       notes: trim(notes),
-      rawOwner: trim(extra.rawOwner || ""),
+      rawOwner: ownerImported,
       unknownOwner: Boolean(extra.unknownOwner),
       size: trim(extra.size || ""),
       wireId: trim(extra.wireId || "")
-    };
+    });
   }
 
   /**
@@ -511,17 +570,41 @@
    * @param {Object} [extra]
    * @returns {Span}
    */
+  function attachSpanRelationAliases(record) {
+    Object.defineProperties(record, {
+      spanRelation: {
+        configurable: true,
+        get: () => trim(record.type || ""),
+        set: value => { record.type = trim(value); }
+      },
+      importedRelation: {
+        configurable: true,
+        get: () => trim(record.rawType || record.type || ""),
+        set: value => { record.rawType = trim(value); }
+      }
+    });
+    return record;
+  }
+
+  function getSpanRelation(span) {
+    return trim(span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "");
+  }
+
+  function getImportedSpanRelation(span) {
+    return trim(span?.importedRelation || span?.rawType || getSpanRelation(span) || "");
+  }
+
   function createSpan(spanId, fromPole, toPole = "", direction = "", notes = "", extra = {}) {
     const id = trim(spanId);
     const fallbackToPole = trim(toPole) || `Unknown-${id || Math.random().toString(36).slice(2, 8)}`;
-    return {
+    return attachSpanRelationAliases({
       spanId: id,
       fromPole: trim(fromPole),
       toPole: fallbackToPole,
       direction: trim(direction),
       bearingDegrees: extra.bearingDegrees === null || extra.bearingDegrees === undefined ? "" : extra.bearingDegrees,
       notes: trim(notes),
-      type: trim(extra.type || ""),
+      type: trim(extra.spanRelation || extra.type || ""),
       spanIndex: trim(extra.spanIndex || ""),
       length: trim(extra.length || ""),
       lengthDisplay: trim(extra.lengthDisplay || ""),
@@ -535,14 +618,14 @@
       ugActive: extra.ugActive === true ? true : extra.ugActive === false ? false : null,
       ugReason: trim(extra.ugReason || ""),
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
-      rawType: trim(extra.rawType || ""),
+      rawType: trim(extra.importedRelation || extra.rawType || extra.spanRelation || extra.type || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
       linkedCollectionTitle: trim(extra.linkedCollectionTitle || ""),
       sourceCollectionId: trim(extra.sourceCollectionId || ""),
       sourceSpanId: trim(extra.sourceSpanId || ""),
       isManualProposed: Boolean(extra.isManualProposed),
       isGeneratedOtherPole: Boolean(extra.isGeneratedOtherPole)
-    };
+    });
   }
 
   /**
@@ -558,6 +641,8 @@
       isProposedExcluded: Boolean(data.isProposedExcluded),
       isSlack: Boolean(data.isSlack),
       proposedHOA: trim(data.proposedHOA || ""),
+      autoCalcProposedStatus: trim(data.autoCalcProposedStatus || ""),
+      autoCalcProposedMode: trim(data.autoCalcProposedMode || ""),
       proposedHOAChange: trim(data.proposedHOAChange || ""),
       nextPoleProposedAuto: Boolean(data.nextPoleProposedAuto),
       proposedMidspan: normalizedHeightOrEmpty(data.proposedMidspan),
@@ -588,11 +673,14 @@
    * @returns {SpanComm}
    */
   function createSpanComm(data = {}) {
-    return {
+    const ownerDisplay = trim(data.ownerDisplay || data.owner || "");
+    const ownerCanonical = trim(data.ownerCanonical || data.ownerBase || ownerDisplay);
+    const ownerImported = trim(data.ownerImported || data.rawOwner || "");
+    return attachOwnerAliases({
       spanId: trim(data.spanId || ""),
       poleId: trim(data.poleId || ""),
-      owner: trim(data.owner || ""),
-      ownerBase: trim(data.ownerBase || data.owner || ""),
+      owner: ownerDisplay,
+      ownerBase: ownerCanonical,
       existingHOA: trim(data.existingHOA || ""),
       existingHOAChange: trim(data.existingHOAChange || ""),
       otherHOA: trim(data.otherHOA || ""),
@@ -621,7 +709,7 @@
       autoCalcMessage: trim(data.autoCalcMessage || ""),
       mr: trim(data.mr || ""),
       notes: trim(data.notes || ""),
-      rawOwner: trim(data.rawOwner || ""),
+      rawOwner: ownerImported,
       unknownOwner: Boolean(data.unknownOwner),
       size: trim(data.size || ""),
       construction: trim(data.construction || ""),
@@ -630,7 +718,7 @@
       wireIndex: trim(data.wireIndex || ""),
       isEndpointPlaceholder: Boolean(data.isEndpointPlaceholder),
       updatedAt: data.updatedAt || ""
-    };
+    });
   }
 
   function createSpanPower(data = {}) {
@@ -736,12 +824,14 @@
   function upsertPole(pole) {
     if (!pole || !pole.poleId) return null;
     const existing = state.poles[pole.poleId] || createPole(pole.poleId);
-    state.poles[pole.poleId] = {
+    state.poles[pole.poleId] = attachPoleResolutionAlias({
       ...existing,
       ...pole,
-      comms: Array.isArray(pole.comms) ? pole.comms : existing.comms || [],
+      comms: Array.isArray(pole.comms)
+        ? pole.comms.map(comm => attachOwnerAliases({ ...comm }))
+        : (existing.comms || []).map(comm => attachOwnerAliases({ ...comm })),
       metadata: { ...(existing.metadata || {}), ...(pole.metadata || {}) }
-    };
+    });
     return state.poles[pole.poleId];
   }
 
@@ -813,29 +903,30 @@
 
   function upsertComm(poleId, owner, existingHOA = "", notes = "", extra = {}) {
     const pole = state.poles[poleId] || upsertPole(createPole(poleId));
-    const ownerKey = trim(owner);
+    const ownerKey = trim(extra.ownerCanonical || extra.ownerBase || owner);
+    const ownerDisplay = trim(extra.ownerDisplay || owner);
     const wireKey = trim(extra.wireId || "");
-    let idx = pole.comms.findIndex(c => c.owner === ownerKey && (!wireKey || c.wireId === wireKey));
-    if (idx < 0) idx = pole.comms.findIndex(c => c.owner === ownerKey && !c.wireId && !wireKey);
+    let idx = pole.comms.findIndex(c => getOwnerCanonical(c) === ownerKey && (!wireKey || c.wireId === wireKey));
+    if (idx < 0) idx = pole.comms.findIndex(c => getOwnerCanonical(c) === ownerKey && !c.wireId && !wireKey);
 
     if (idx >= 0) {
-      pole.comms[idx] = {
+      pole.comms[idx] = attachOwnerAliases({
         ...pole.comms[idx],
-        owner: ownerKey,
-        ownerBase: trim(extra.ownerBase || pole.comms[idx].ownerBase || ownerKey),
+        owner: ownerDisplay,
+        ownerBase: ownerKey,
         existingHOA: trim(existingHOA) || pole.comms[idx].existingHOA,
         existingHOAChange: trim(extra.existingHOAChange || pole.comms[idx].existingHOAChange || ""),
         otherHOA: trim(extra.otherHOA || pole.comms[idx].otherHOA || ""),
         pofActive: Boolean(extra.pofActive || pole.comms[idx].pofActive),
         notes: trim(notes) || pole.comms[idx].notes,
-        rawOwner: trim(extra.rawOwner || pole.comms[idx].rawOwner || ""),
+        rawOwner: trim(extra.ownerImported || extra.rawOwner || pole.comms[idx].rawOwner || ""),
         unknownOwner: Boolean(extra.unknownOwner || pole.comms[idx].unknownOwner),
         size: trim(extra.size || pole.comms[idx].size || ""),
         wireId: trim(extra.wireId || pole.comms[idx].wireId || "")
-      };
+      });
       return pole.comms[idx];
     }
-    const comm = createComm(ownerKey, existingHOA, notes, extra);
+    const comm = createComm(ownerDisplay, existingHOA, notes, { ...extra, ownerCanonical: ownerKey });
     pole.comms.push(comm);
     return comm;
   }
@@ -844,7 +935,13 @@
     if (!span || !span.spanId) return null;
     const existing = state.spans[span.spanId] || createSpan(span.spanId, span.fromPole, span.toPole);
     const rawSpanIds = Array.from(new Set([...(existing.rawSpanIds || []), ...(span.rawSpanIds || [])].filter(Boolean)));
-    state.spans[span.spanId] = { ...existing, ...span, rawSpanIds };
+    state.spans[span.spanId] = attachSpanRelationAliases({
+      ...existing,
+      ...span,
+      type: trim(span.spanRelation || span.type || existing.spanRelation || existing.type || ""),
+      rawType: trim(span.importedRelation || span.rawType || existing.importedRelation || existing.rawType || ""),
+      rawSpanIds
+    });
     ensureSpanSideForSpan(state.spans[span.spanId]);
     return state.spans[span.spanId];
   }
@@ -872,13 +969,21 @@
   }
 
   function upsertSpanComm(data) {
-    if (!data || !data.spanId || !data.poleId || !data.owner) return null;
-    const key = keyForSpanComm(data.spanId, data.poleId, data.owner, data.wireId || "");
+    const ownerKey = trim(data?.ownerCanonical || data?.ownerBase || data?.owner || "");
+    if (!data || !data.spanId || !data.poleId || !ownerKey) return null;
+    const key = keyForSpanComm(data.spanId, data.poleId, ownerKey, data.wireId || "");
     const existing = state.spanComms[key] || createSpanComm(data);
-    state.spanComms[key] = createSpanComm({ ...existing, ...data, updatedAt: new Date().toISOString() });
+    state.spanComms[key] = createSpanComm({
+      ...existing,
+      ...data,
+      owner: data.ownerDisplay || data.owner || existing.owner,
+      ownerCanonical: ownerKey,
+      ownerImported: data.ownerImported || data.rawOwner || existing.ownerImported || "",
+      updatedAt: new Date().toISOString()
+    });
     const pole = state.poles[data.poleId];
     const poleComm = pole?.comms?.find(comm =>
-      comm.owner === data.owner && (!data.wireId || !comm.wireId || comm.wireId === data.wireId)
+      getOwnerCanonical(comm) === ownerKey && (!data.wireId || !comm.wireId || comm.wireId === data.wireId)
     );
     if (poleComm && Object.prototype.hasOwnProperty.call(data, "pofActive")) {
       poleComm.pofActive = Boolean(state.spanComms[key].pofActive);
@@ -1239,6 +1344,7 @@
   }
 
   function normalizeState(raw) {
+    raw = global.StateCompatibility.unwrapSavedState(raw) || {};
     const next = { ...emptyState(), ...raw };
     next.jobName = trim(next.jobName) || jobNameFromFileName(next.importedFileName);
     const rawSettings = raw && raw.settings ? raw.settings : {};
@@ -1392,15 +1498,18 @@
     const normalizedSpanComms = {};
     Object.values(next.spanComms).forEach(sc => {
       const clean = createSpanComm(sc);
-      const owner = normalizeImportedCommOwner(clean.owner || clean.ownerBase || clean.rawOwner);
+      const owner = normalizeImportedCommOwner(getOwnerCanonical(clean) || getOwnerImported(clean));
+      const displayOwner = getOwnerDisplay(clean) || owner;
+      const importedOwner = getOwnerImported(clean) || owner;
       if (!clean.spanId || !clean.poleId || !owner) return;
       const normalized = createSpanComm({
         ...clean,
-        owner,
-        ownerBase: normalizeImportedCommOwner(clean.ownerBase) || owner,
-        rawOwner: normalizeImportedCommOwner(clean.rawOwner) || owner
+        owner: displayOwner,
+        ownerCanonical: owner,
+        ownerDisplay: displayOwner,
+        ownerImported: importedOwner
       });
-      const key = keyForSpanComm(normalized.spanId, normalized.poleId, normalized.owner, normalized.wireId || "");
+      const key = keyForSpanComm(normalized.spanId, normalized.poleId, getOwnerCanonical(normalized), normalized.wireId || "");
       const previous = normalizedSpanComms[key];
       if (!previous) {
         normalizedSpanComms[key] = normalized;
@@ -1499,8 +1608,14 @@
     saveToLocal,
     loadFromLocal,
     createPole,
+    getPoleResolution,
     createComm,
+    getOwnerCanonical,
+    getOwnerImported,
+    getOwnerDisplay,
     createSpan,
+    getSpanRelation,
+    getImportedSpanRelation,
     createSpanSide,
     createSpanComm,
     createSpanPower,

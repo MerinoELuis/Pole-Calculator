@@ -1,8 +1,9 @@
 (function (global) {
   "use strict";
 
-  // Excel export serializes the current state into readable worksheets plus the
-  // hidden AppState payload needed for a later exact re-import.
+  // Compatibility adapter: Excel keeps the established legacy worksheet
+  // headers (`type`, `ownerBase`, `rawOwner`) while reading canonical values
+  // from AppStore so the internal model can evolve independently.
   const S = () => global.AppStore;
 
   function stateToSheets() {
@@ -39,7 +40,7 @@
       span.toPole,
       span.direction,
       span.bearingDegrees ?? "",
-      span.type || "",
+      S().getSpanRelation?.(span) || span.type || "",
       span.spanIndex || "",
       span.length || "",
       span.lengthDisplay || "",
@@ -48,7 +49,7 @@
       span.midspanLowPower || "",
       span.sourceMidspanLowPower || "",
       span.midspanMaxCommHeight || "",
-      span.rawType || "",
+      S().getImportedSpanRelation?.(span) || span.rawType || "",
       Array.isArray(span.rawSpanIds) ? span.rawSpanIds.join(" | ") : "",
       span.sourceCollectionId || "",
       span.linkedCollectionId || "",
@@ -79,12 +80,12 @@
     const comms = [["poleId", "owner", "ownerBase", "existingHOA", "existingHOAChange", "pofActive", "rawOwner", "unknownOwner", "size", "wireId", "notes"]];
     Object.values(state.poles).forEach(pole => pole.comms.forEach(comm => comms.push([
       pole.poleId,
-      comm.owner,
-      comm.ownerBase || comm.owner,
+      S().getOwnerDisplay?.(comm) || comm.owner,
+      S().getOwnerCanonical?.(comm) || comm.ownerBase || comm.owner,
       comm.existingHOA,
       comm.existingHOAChange || "",
       comm.pofActive ? "Yes" : "",
-      comm.rawOwner || "",
+      S().getOwnerImported?.(comm) || comm.rawOwner || "",
       comm.unknownOwner ? "Yes" : "No",
       comm.size || "",
       comm.wireId || "",
@@ -95,8 +96,8 @@
     Object.values(state.spanComms).forEach(sc => spanComms.push([
       sc.spanId,
       sc.poleId,
-      sc.owner,
-      sc.ownerBase || sc.owner,
+      S().getOwnerDisplay?.(sc) || sc.owner,
+      S().getOwnerCanonical?.(sc) || sc.ownerBase || sc.owner,
       sc.existingHOA,
       sc.existingHOAChange,
       sc.otherHOA || "",
@@ -114,7 +115,7 @@
       sc.calculatedMidspan,
       sc.mr,
       sc.notes,
-      sc.rawOwner || "",
+      S().getOwnerImported?.(sc) || sc.rawOwner || "",
       sc.unknownOwner ? "Yes" : "No",
       sc.size || "",
       sc.construction || "",

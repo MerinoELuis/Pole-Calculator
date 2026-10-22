@@ -19,8 +19,10 @@ const sandbox = {
   Boolean,
   RegExp
 };
-const modulePath = path.join(__dirname, "..", "js", "state.js");
-vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
+for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store.js"]) {
+  const modulePath = path.join(__dirname, "..", "js", file);
+  vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
+}
 
 const store = sandbox.window.AppStore;
 assert.equal(

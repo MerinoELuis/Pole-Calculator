@@ -210,6 +210,8 @@ Example:
 - `terminalHoa`: terminal standalone Proposed height in inches.
 - `spans`: outgoing geometry/proposal entries owned by that pole.
 - `moves`: local communication movements.
+- `anc`: enabled ANC placement instruction. `distance` is the effective reach in whole inches; `direction` is included when selected. A blank direction remains omitted instead of being guessed.
+- `dgHoa`: effective down-guy attachment HOA in whole inches. When the DG HOA field is blank, the export uses Proposed, matching Make Ready.
 - `riser`: actionable riser work found in the pole Make Ready. `action` is
   `place` or `raise`. A Proposed `place` carries `hoa` and `direction`; a
   Power Riser `raise` carries `fromHoa`, `hoa`, `owner`, and optional `angle`.
@@ -223,6 +225,7 @@ Example:
 - `bearing`: degrees in `[0, 360)` when known.
 - `length`: whole inches when known.
 - `hoa` and `fiber`: explicit aerial proposal.
+- `slack: true`: this physical span is marked Slack; the flag is exported from both endpoints so the AutoProposed plugin can apply the Slack instruction to the physical span.
 - `overlash: true`: the proposal is a fiber overlash and must reuse the
   existing messenger for the exported job owner instead of creating another
   messenger.

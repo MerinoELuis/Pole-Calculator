@@ -18,6 +18,12 @@
   const S = () => global.AppStore;
   const C = () => global.Calculations;
   const H = () => global.HeightUtils;
+  const poleResolutionOf = pole => pole?.poleResolution || S()?.getPoleResolution?.(pole)
+    || (pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : "AERIAL");
+  const ownerCanonicalOf = row => S()?.getOwnerCanonical?.(row)
+    || String(row?.ownerCanonical || row?.ownerBase || row?.owner || "").trim();
+  const spanRelationOf = span => S()?.getSpanRelation?.(span)
+    || String(span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "").trim();
   const clone = value => JSON.parse(JSON.stringify(value));
   const parse = value => H()?.parseHeight?.(value) ?? null;
   const format = value => H()?.formatHeight?.(Math.round(value)) || "";
@@ -172,7 +178,7 @@
   }
 
   function owner(row) {
-    return C()?.commOwnerLabel?.(row) || row?.ownerBase || row?.owner || "COMM";
+    return C()?.commOwnerLabel?.(row) || ownerCanonicalOf(row) || "COMM";
   }
 
   function commKey(row) {
@@ -328,7 +334,7 @@
     return (S()?.getConnectedSpans?.(poleId) || [])
       .filter(span => {
         const side = S()?.getSpanSide?.(span.spanId, poleId);
-        const type = String(span?.type || span?.rawType || "").toLowerCase();
+        const type = spanRelationOf(span).toLowerCase();
         const forward = C()?.isSpanEligibleForProposed
           ? C().isSpanEligibleForProposed(span, poleId)
           : /fore\s*span|forespan/.test(type) && span.fromPole === poleId;
@@ -923,17 +929,17 @@
     const mode = "TOP_COMM";
     const debugTrace = beginPoleTrace(poleId, mode, options.tracePass || 1);
     if (!pole) return { status: STATUS.SKIPPED, applied: false };
-    if (pole.ugActive || pole.pcoActive) {
+    if (["UG", "PCO"].includes(poleResolutionOf(pole))) {
       const result = {
         status: STATUS.SKIPPED,
         mode,
-        message: pole.ugActive ? "Pole is already marked UG." : "Pole is already marked PCO.",
+        message: poleResolutionOf(pole) === "UG" ? "Pole is already marked UG." : "Pole is already marked PCO.",
         recommendation: "",
         candidateCount: 0,
         updatedAt: new Date().toISOString()
       };
       setResult(poleId, result);
-      if (debugTrace) debugTrace.skipReason = pole.ugActive ? "POLE_ALREADY_UG" : "POLE_ALREADY_PCO";
+      if (debugTrace) debugTrace.skipReason = poleResolutionOf(pole) === "UG" ? "POLE_ALREADY_UG" : "POLE_ALREADY_PCO";
       finishPoleTrace(debugTrace, result, poleId);
       return { status: result.status, applied: false, result };
     }
@@ -1087,10 +1093,10 @@
     if (!pole) return { status: STATUS.SKIPPED, applied: false };
     if (mode === "TOP_COMM") return solveTopCommPoleOnly(poleId, options);
     const debugTrace = beginPoleTrace(poleId, mode, options.tracePass || 1);
-    if (pole.ugActive || pole.pcoActive) {
-      const result = { status: STATUS.SKIPPED, mode, message: pole.ugActive ? "Pole is already marked UG." : "Pole is already marked PCO.", recommendation: "", candidateCount: 0, updatedAt: new Date().toISOString() };
+    if (["UG", "PCO"].includes(poleResolutionOf(pole))) {
+      const result = { status: STATUS.SKIPPED, mode, message: poleResolutionOf(pole) === "UG" ? "Pole is already marked UG." : "Pole is already marked PCO.", recommendation: "", candidateCount: 0, updatedAt: new Date().toISOString() };
       setResult(poleId, result);
-      if (debugTrace) debugTrace.skipReason = pole.ugActive ? "POLE_ALREADY_UG" : "POLE_ALREADY_PCO";
+      if (debugTrace) debugTrace.skipReason = poleResolutionOf(pole) === "UG" ? "POLE_ALREADY_UG" : "POLE_ALREADY_PCO";
       finishPoleTrace(debugTrace, result, poleId);
       return { status: result.status, applied: false, result };
     }
@@ -1263,7 +1269,7 @@
 
   function needsSelectiveRetry(poleId, mode) {
     const pole = S()?.getPole?.(poleId);
-    if (!pole || pole.ugActive || pole.pcoActive) return false;
+    if (!pole || ["UG", "PCO"].includes(poleResolutionOf(pole))) return false;
     const previous = pole.metadata?.autoCalculateResult;
     if (!previous || [STATUS.SKIPPED, STATUS.MANUAL].includes(previous.status)) return false;
     const analysis = mode === "TOP_COMM"

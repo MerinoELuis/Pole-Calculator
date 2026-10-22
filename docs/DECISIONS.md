@@ -79,3 +79,7 @@ When the current TOP COMM arrangement has a Midspan violation, the first recover
 ## DEC-015 — Automatic retries rebuild from imported geometry
 
 A previous automatic arrangement is replaceable output, not the geometric baseline for the next retry. The solver clears local `AUTO` Proposed and HOA Change values before generating candidates, preserves manual values, and creates a propagated Midspan floor only when a real minimum or lock exists. This prevents automatic results from recursively lowering Top Comm toward zero.
+
+## DEC-016 — Export effective ANC, DG and physical-span Slack
+
+Compact AutoProposed exports enabled ANC distance/direction and the effective DG HOA as structured pole fields. The values match the effective Make Ready values, including defaults; an unselected ANC direction remains omitted. A Slack mark is a physical-span instruction, so `slack: true` is included on the matching exported span at either endpoint. UG and PCO pole-level action suppression still applies.

@@ -84,6 +84,10 @@ const window = {
   AppStore: {
     getState: () => state,
     getPole: poleId => state.poles[poleId] || null,
+    getPoleResolution: pole => pole?.poleResolution || (pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : "AERIAL"),
+    getOwnerCanonical: row => row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+    getOwnerImported: row => row?.ownerImported || row?.rawOwner || row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+    getSpanRelation: span => span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "",
     canonicalPoleIdentity,
     setState() {},
     updateSetting() {}
@@ -109,7 +113,7 @@ const window = {
   alert() {}
 };
 
-const sourcePath = path.join(__dirname, "..", "js", "compact-autoproposed.js");
+const sourcePath = path.join(__dirname, "..", "js", "export", "compact-autoproposed.js");
 vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window }, { filename: sourcePath });
 const api = window.CompactAutoProposed;
 const payload = api.buildCompactPayload(state);

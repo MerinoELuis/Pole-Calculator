@@ -8,6 +8,11 @@
   const H = () => global.HeightUtils;
   const I = () => global.ExcelImport;
 
+  const poleResolutionOf = pole => S().getPoleResolution(pole);
+  const ownerDisplayOf = row => S().getOwnerDisplay(row);
+  const ownerImportedOf = row => S().getOwnerImported(row);
+  const spanRelationOf = span => S().getSpanRelation(span);
+
   const ALLOWED_COMM_OWNERS = new Set([
     "communication",
     "3j communications",
@@ -523,7 +528,7 @@
   }
 
   function addSpanCountChecks(result, poleSpans) {
-    const foreSpans = poleSpans.filter(span => span.type === "FORE");
+    const foreSpans = poleSpans.filter(span => spanRelationOf(span) === "FORE");
     if (foreSpans.length !== 1) {
       const listed = foreSpans.map(span => span.spanIndex || span.spanId || `row ${span.sourceRow}`).join(", ");
       add(result, {
@@ -534,7 +539,7 @@
       });
     }
 
-    const backSpans = poleSpans.filter(span => span.type === "BACK");
+    const backSpans = poleSpans.filter(span => spanRelationOf(span) === "BACK");
     if (backSpans.length === 1) return;
     if (backSpans.length === 0) {
       add(result, {
@@ -559,7 +564,7 @@
   // directed span.
   function addIntecBackspanMidspanChecks(result, poleId, poleSpans) {
     if (text(S().getState().settings?.projectProfile).toUpperCase() !== "INTEC") return;
-    const backSpans = poleSpans.filter(span => span.type === "BACK" && span.spanId);
+    const backSpans = poleSpans.filter(span => spanRelationOf(span) === "BACK" && span.spanId);
     if (!backSpans.length) return;
     const wireRows = rowsForPole("spanWires", poleId);
 
@@ -599,7 +604,7 @@
   function addLinkedCollectionChecks(result, poleSpans, maps) {
     poleSpans.forEach(span => {
       if (!span.linkedTitle) {
-        if (span.type === "OTHER") return;
+        if (spanRelationOf(span) === "OTHER") return;
         add(result, {
           phase: "HOA", section: "Span", code: "MISSING_LINKED_COLLECTION_TITLE", status: "WARNING", level: "low",
           title: "Linked Collection", message: "Linked Collection.Title is empty. Review the span connection.",
@@ -613,23 +618,23 @@
   }
 
   function addReciprocalChecks(result, poleSpans, allSpans) {
-    poleSpans.filter(span => span.type === "FORE" || span.type === "BACK").forEach(span => {
+    poleSpans.filter(span => spanRelationOf(span) === "FORE" || spanRelationOf(span) === "BACK").forEach(span => {
       if (!span.hasConnectionData || !span.toPole) return;
-      const expectedType = span.type === "FORE" ? "BACK" : "FORE";
+      const expectedType = spanRelationOf(span) === "FORE" ? "BACK" : "FORE";
       const reverse = allSpans.filter(candidate => (
         normalizedText(candidate.fromPole) === normalizedText(span.toPole)
         && normalizedText(candidate.toPole) === normalizedText(span.fromPole)
-        && candidate.type === expectedType
+        && spanRelationOf(candidate) === expectedType
       ));
       if (reverse.length === 1) return;
       const wrongReverse = allSpans.filter(candidate => (
         normalizedText(candidate.fromPole) === normalizedText(span.toPole)
         && normalizedText(candidate.toPole) === normalizedText(span.fromPole)
-        && candidate.type !== expectedType
+        && spanRelationOf(candidate) !== expectedType
       ));
       const expectedLabel = expectedType === "BACK" ? "Back Span" : "Fore Span";
       const actual = wrongReverse.length
-        ? wrongReverse.map(candidate => candidate.typeRaw || candidate.type).join(", ")
+        ? wrongReverse.map(candidate => candidate.typeRaw || spanRelationOf(candidate)).join(", ")
         : "No reciprocal span";
       add(result, {
         phase: "HOA", section: "Span", code: "RECIPROCAL_SPAN_WARNING", status: "WARNING",
@@ -646,11 +651,11 @@
       const reverse = allSpans.filter(candidate => (
         normalizedText(candidate.fromPole) === normalizedText(span.toPole)
         && normalizedText(candidate.toPole) === normalizedText(span.fromPole)
-        && ((span.type === "FORE" && candidate.type === "BACK") || (span.type === "BACK" && candidate.type === "FORE") || (span.type === "OTHER" && candidate.type === "OTHER"))
+        && ((spanRelationOf(span) === "FORE" && spanRelationOf(candidate) === "BACK") || (spanRelationOf(span) === "BACK" && spanRelationOf(candidate) === "FORE") || (spanRelationOf(span) === "OTHER" && spanRelationOf(candidate) === "OTHER"))
       ));
       reverse.forEach(candidate => {
         if (!candidate.environment) return;
-        const pairKey = `${normalizedText(result.sourcePoleId)}|${[span.fromPole, span.toPole].map(normalizedText).sort().join("|")}|${span.type}|${candidate.type}`;
+        const pairKey = `${normalizedText(result.sourcePoleId)}|${[span.fromPole, span.toPole].map(normalizedText).sort().join("|")}|${spanRelationOf(span)}|${spanRelationOf(candidate)}`;
         if (environmentPairsSeen.has(pairKey)) return;
         environmentPairsSeen.add(pairKey);
         if (span.environment === candidate.environment) return;
@@ -966,7 +971,7 @@
     // Legacy or imported state can retain generated instructions without every
     // originating edit field. A non-empty generated MR is still final work.
     const generatedMR = text((state.mr || []).find(item => normalizedText(item.poleId) === normalizedText(poleId))?.text);
-    return Boolean(commWork || proposedWork || standalone || pole?.ugActive || generatedMR);
+    return Boolean(commWork || proposedWork || standalone || poleResolutionOf(pole) === "UG" || generatedMR);
   }
 
   function makeReadyRowHasFinalData(row) {
@@ -1222,7 +1227,7 @@
     const heightTokens = raw.match(/\d+(?:\.\d+)?\s*'\s*\d*(?:\.\d+)?\s*\"?|\d+\.\d+/g) || [];
     const heights = heightTokens.map(token => H().parseHeight(token)).filter(value => value !== null);
     const ownerCandidates = S().getSpanCommsForPole(poleId)
-      .flatMap(row => [row.rawOwner, row.ownerBase, row.owner])
+      .flatMap(row => [ownerImportedOf(row), row.ownerCanonical, ownerDisplayOf(row)])
       .concat([S().getState().settings?.proposedOwner, "CTL", "CATV", "TELCO", "FIBER"])
       .filter(Boolean);
     const ownerIsMentioned = owner => {
@@ -1347,13 +1352,13 @@
   function expectedTransfers(poleId) {
     const seen = new Set();
     return S().getSpanCommsForPole(poleId).filter(row => row.transferToNewPole && text(row.otherHOA || row.existingHOAChange || row.existingHOA)).reduce((items, row) => {
-      const owner = normalizedOwner(row.rawOwner || row.ownerBase || row.owner);
+      const owner = normalizedOwner(ownerImportedOf(row) || row.ownerCanonical || ownerDisplayOf(row));
       const heightDisplay = row.otherHOA || row.existingHOAChange || row.existingHOA;
       const height = H().parseHeight(heightDisplay);
       const key = `${owner}|${height}`;
       if (!owner || height === null || seen.has(key)) return items;
       seen.add(key);
-      items.push({ owner, ownerDisplay: text(row.rawOwner || row.ownerBase || row.owner), height, heightDisplay });
+      items.push({ owner, ownerDisplay: text(ownerDisplayOf(row) || ownerImportedOf(row)), height, heightDisplay });
       return items;
     }, []);
   }
@@ -1466,7 +1471,7 @@
     }
 
     const pole = poleById(entry.poleId);
-    const expectedConstruction = pole?.ugActive ? "underground" : calculatorHasFinal ? "aerial" : "";
+    const expectedConstruction = poleResolutionOf(pole) === "UG" ? "underground" : calculatorHasFinal ? "aerial" : "";
     if (expectedConstruction && normalizedConstruction && normalizedConstruction !== expectedConstruction) {
       add(result, {
         phase: "FINAL", section: "Collection", code: "MRE_CONSTRUCTION_MISMATCH", status: "ERROR",
@@ -1478,7 +1483,7 @@
 
     if (!calculatorHasFinal || !excelHasFinal) return;
     const makeReadyRows = excelFinalRowsForPole(entry.poleId);
-    if (pole?.ugActive) {
+    if (poleResolutionOf(pole) === "UG") {
       const notes = makeReadyRows.map(row => text(pick(row, ["Make Ready Notes", "MR Notes", "Notes"], { contains: true }))).join("\n");
       if (!validUndergroundMakeReady(notes)) {
         add(result, {

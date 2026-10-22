@@ -58,7 +58,7 @@ const window = {
   }
 };
 
-const sourcePath = path.join(__dirname, "..", "js", "auto-calculate-solver.js");
+const sourcePath = path.join(__dirname, "..", "js", "rules", "auto-calculate-solver.js");
 vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date, JSON, Math, Number, Object, Array, Set, Map, String, RegExp }, { filename: sourcePath });
 const solver = window.AutoCalculateSolver;
 

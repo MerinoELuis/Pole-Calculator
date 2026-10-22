@@ -58,12 +58,26 @@ const window = {
     setState: next => { state = next; },
     updateSetting: (field, value) => { state.settings[field] = value; },
     getPole: poleId => state.poles[poleId] || null,
+    getPoleResolution: pole => pole?.poleResolution || (pole?.ugActive ? "UG" : pole?.pcoActive ? "PCO" : "AERIAL"),
+    getOwnerCanonical: row => row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+    getOwnerImported: row => row?.ownerImported || row?.rawOwner || row?.ownerCanonical || row?.ownerBase || row?.owner || "",
+    getSpanRelation: span => span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "",
     canonicalPoleIdentity
   },
   HeightUtils: { parseHeight, formatHeight },
   Calculations: { recalculateAll() {} },
   ProjectExport: { downloadJson: (filename, payload) => { download = { filename, payload }; } },
   MRLogic: {
+    isANCEnabled(poleId) { return state.poles[poleId]?.ancActive === true; },
+    getEffectiveANCDistance(poleId) {
+      return state.poles[poleId]?.effectiveANCDistance || state.poles[poleId]?.ancDistance || "";
+    },
+    getEffectiveANCDirection(poleId) {
+      return state.poles[poleId]?.effectiveANCDirection ?? state.poles[poleId]?.ancDirection ?? "";
+    },
+    getEffectiveANCDGHOA(poleId) {
+      return state.poles[poleId]?.effectiveANCDGHOA ?? state.poles[poleId]?.dgHoa ?? "";
+    },
     generateMRForPole(poleId) {
       state.mr = state.mr.filter(item => item.poleId !== poleId);
       state.mr.push({ poleId, spanId: "", owner: "MR", text: "Relocate CTL drop at HOA 18'10\" to HOA 20'.", imported: false });
@@ -77,7 +91,7 @@ const window = {
   alert() {}
 };
 
-const sourcePath = path.join(__dirname, "..", "js", "compact-autoproposed.js");
+const sourcePath = path.join(__dirname, "..", "js", "export", "compact-autoproposed.js");
 vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window }, { filename: sourcePath });
 const api = window.CompactAutoProposed;
 
@@ -177,10 +191,36 @@ assert.ok(p1);
 assert.equal(p1.spans.length, 4, "duplicate physical spans must export once");
 const fore = p1.spans.find(span => span.to === "P2");
 assert.equal(JSON.stringify(fore), JSON.stringify({ to: "P2", kind: "F", bearing: 81.94, length: 620, hoa: 276, fiber: 144, endDrop: -4, nextHoa: 272 }));
+state.poles.P1.ancActive = true;
+state.poles.P1.ancDistance = "15'";
+state.poles.P1.effectiveANCDistance = "6'";
+state.poles.P1.ancDirection = "W";
+state.poles.P1.dgHoa = "";
+state.poles.P1.effectiveANCDGHOA = "17'8\"";
+const poleWithAnchor = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1");
+assert.deepEqual(JSON.parse(JSON.stringify(poleWithAnchor.anc)), { distance: 72, direction: "W" }, "ANC export must use the effective distance and chosen direction");
+assert.equal(poleWithAnchor.dgHoa, 212, "DG export must use the effective HOA, including the Proposed default");
+state.poles.P1.ancActive = false;
+delete state.poles.P1.effectiveANCDistance;
+delete state.poles.P1.effectiveANCDGHOA;
+state.poles.P25 = { poleId: "P25", ancActive: true, ancDistance: "6'", ancDirection: "E", dgHoa: "17'" };
+const anchorOnlyPole = api.buildCompactPayload(state).poles.find(pole => pole.id === "P25");
+assert.deepEqual(JSON.parse(JSON.stringify(anchorOnlyPole.anc)), { distance: 72, direction: "E" }, "anchor-only poles must remain in the export");
+assert.equal(anchorOnlyPole.dgHoa, 204);
+state.poles.P25.effectiveANCDirection = "";
+const anchorWithoutDirection = api.buildCompactPayload(state).poles.find(pole => pole.id === "P25");
+assert.deepEqual(JSON.parse(JSON.stringify(anchorWithoutDirection.anc)), { distance: 72 }, "an unselected ANC direction must stay blank rather than use stale input");
+delete state.poles.P25;
 state.spanSides.S1_P1.isSlack = true;
 const slackFore = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P2");
 assert.equal(slackFore.slack, true, "a Proposed Slack check must survive compact AutoProposed export");
 state.spanSides.S1_P1.isSlack = false;
+state.spans.S1_REVERSE = { spanId: "S1_REVERSE", fromPole: "P2", toPole: "P1", type: "Back Span", direction: "W", bearingDegrees: 261.94, lengthDisplay: "51'8\"" };
+state.spanSides.S1_P1.isSlack = true;
+const remoteSlackBack = api.buildCompactPayload(state).poles.find(pole => pole.id === "P2").spans.find(span => span.to === "P1");
+assert.equal(remoteSlackBack.slack, true, "Slack must follow the physical span to its reverse endpoint record");
+state.spanSides.S1_P1.isSlack = false;
+delete state.spans.S1_REVERSE;
 const backUg = p1.spans.find(span => span.to === "P3 UG");
 assert.equal(backUg.ug, true);
 assert.equal("fiber" in backUg, false);
