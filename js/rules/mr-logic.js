@@ -236,10 +236,10 @@
   function getEffectiveAnchorDirection(pole) {
     const manual = String(pole?.ancDirection || "").trim().toUpperCase();
     if (pole?.ancDirectionManual === true && manual) return manual;
-    // An ANC that the user enabled manually must wait for a direction choice.
-    // Only ANC inferred from an adjacent UG connection receives an automatic
-    // direction.
-    if (pole?.ancActive === true) return "";
+    // Explicitly active ANC uses the direction shown in its editable field if
+    // present, even when an older save failed to mark it as manual. With no
+    // saved direction, keep a newly enabled ANC blank until the user chooses.
+    if (pole?.ancActive === true) return manual;
     return automaticAnchorDirection(pole);
   }
 

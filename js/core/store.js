@@ -1460,6 +1460,9 @@
         ...createPole(id),
         ...pole,
         poleId: pole.poleId || id,
+        // Older saves can contain a selected direction but a false manual
+        // marker. The populated field is the user-visible ANC choice.
+        ancDirectionManual: pole.ancDirectionManual === true || Boolean(String(pole.ancDirection || "").trim()),
         comms: Array.isArray(pole.comms) ? pole.comms.map(c => createComm(c.owner, c.existingHOA, c.notes, c)) : []
       };
     });
