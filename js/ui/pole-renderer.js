@@ -4,6 +4,15 @@
   global.PoleWorkspaceRenderer = {
     create(context) {
       const { autoCalculateRunning, bindLocalActions, els, escapeHtml, H, markDirty, ownerCanonicalOf, ownerImportedOf, poleResolutionOf, recordUndoSnapshot, render, S, scrollToPole, selectPole, setPoleIndexOpen, SPAN_COLOR_CLASS_COUNT, spanRelationOf, toast, updatePoleIndexToggleVisibility, wireEditableEvents } = context;
+      const excelReviewRenderer = global.ExcelReviewRenderer.create({
+        els,
+        escapeHtml,
+        markDirty,
+        recordUndoSnapshot,
+        S,
+        selectPole,
+        toast
+      });
 
       function spanLabel(span) {
         if (!span) return "";
@@ -18,6 +27,10 @@
       function spanLengthDisplay(span) {
         if (!span) return "";
         return span.lengthDisplay || "";
+      }
+
+      function isBackspan(span) {
+        return /back\s*span|backspan/i.test(spanRelationOf(span));
       }
 
       function poleLink(poleId) {
@@ -182,6 +195,10 @@
             || (isBackspan && !calculatedBackspan)
             || isOtherReference;
           const midspan = displayMidspan(sc);
+          const originalMidspan = sc.midspan || sc.ocalcMS || "";
+          const originalMidspanTitle = originalMidspan
+            ? `Original Midspan before movements: ${originalMidspan}`
+            : "No original Midspan was imported";
           const hasMidspan = H.parseHeight(midspan || "") !== null;
           const hasStoredMidspan = H.parseHeight(sc.midspan || sc.ocalcMS || "") !== null;
           // Keep different wires on the same physical span as separate editable
@@ -257,8 +274,8 @@
                 ${canResagServiceDrop ? "" : "disabled"}>
             </div>`,
             midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}" data-span-id="${escapeHtml(sc.spanId)}">${canEditMidspan
-              ? `<input class="input height-input remote-height-input midspan-highlight-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="">`
-              : `<strong class="midspan-highlight-display">${escapeHtml(midspan)}</strong>`}
+              ? `<input class="input height-input remote-height-input midspan-highlight-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="" title="${escapeHtml(originalMidspanTitle)}">`
+              : `<strong class="midspan-highlight-display" title="${escapeHtml(originalMidspanTitle)}">${escapeHtml(midspan)}</strong>`}
               ${hasStoredMidspan ? `<button class="inline-icon-action danger-action" type="button"
                 data-clear-comm-midspan
                 data-pole="${escapeHtml(sc.poleId)}"
@@ -427,6 +444,7 @@
         });
 
         if (!replacedAny) renderAllPolesWorkspace();
+        updateAutoCalculateButtonState();
       }
 
       function noteList(lines) {
@@ -535,22 +553,31 @@
           `<option value="${escapeHtml(profile.id)}" ${selectedProfile === profile.id ? "selected" : ""}>${escapeHtml(profile.label)}</option>`
         ).join("");
         const isComedWI = String(settings.metronetWI || "").toUpperCase() === "COMED";
-        const clearanceRows = [
+        const poleClearanceRows = [
           ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
           ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
-          ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""],
+          ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""]
+        ];
+        const midspanClearanceRows = [
           ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
           ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
         ];
+        const streetlightClearanceRows = [];
         if (!isComedWI) {
-          clearanceRows.splice(1, 0, ["primaryPowerCommsClearance", "Pole · Primary-comm", settings.primaryPowerCommsClearance || "43\""]);
-          clearanceRows.splice(clearanceRows.length - 1, 0, ["midspanPrimaryPowerCommClearance", "Midspan · Primary-comm", settings.midspanPrimaryPowerCommClearance || "33\""]);
+          poleClearanceRows.splice(1, 0, ["primaryPowerCommsClearance", "Pole · Primary-comm", settings.primaryPowerCommsClearance || "43\""]);
+          midspanClearanceRows.splice(1, 0, ["midspanPrimaryPowerCommClearance", "Midspan · Primary-comm", settings.midspanPrimaryPowerCommClearance || "33\""]);
+        }
+        if (selectedProfile === "INTEC") {
+          streetlightClearanceRows.push(
+            ["streetlightBracketCommClearance", "Streetlight bracket-comm", settings.streetlightBracketCommClearance || "40\""],
+            ["streetlightGroundedBracketCommClearance", "Streetlight bracket-comm (Grounding)", settings.streetlightGroundedBracketCommClearance || "12\""]
+          );
         }
         if ((selectedProfile === "METRONET" && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM")
           || (selectedProfile === "METRONET" && isComedWI)) {
-          clearanceRows.push(
-            ["streetlightBracketCommClearance", "Pole · Streetlight bracket-comm", settings.streetlightBracketCommClearance || (isComedWI ? '4"' : '20"')],
-            ["streetlightDripLoopCommClearance", "Pole · Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""]
+          streetlightClearanceRows.push(
+            ["streetlightBracketCommClearance", "Streetlight bracket-comm", settings.streetlightBracketCommClearance || (isComedWI ? '4"' : '20"')],
+            ["streetlightDripLoopCommClearance", "Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""]
           );
         }
         const rawPosition = String(settings.position || "TOP_COMM").toUpperCase();
@@ -588,7 +615,11 @@
         els.clearanceSettings.innerHTML = `
           <div class="settings-section">
             <h3>Clearance</h3>
-            <div class="settings-grid clearance-grid">${clearanceRows.map(renderRow).join("")}</div>
+            <div class="clearance-settings-groups">
+              <div class="settings-grid clearance-grid">${poleClearanceRows.map(renderRow).join("")}</div>
+              <div class="settings-grid clearance-grid">${midspanClearanceRows.map(renderRow).join("")}</div>
+              ${streetlightClearanceRows.length ? `<div class="settings-grid clearance-grid">${streetlightClearanceRows.map(renderRow).join("")}</div>` : ""}
+            </div>
           </div>
           <div class="settings-section settings-section-adjustments">
             <h3>Adjustments</h3>
@@ -651,8 +682,11 @@
           updateFollowProposedButtonState();
           return;
         }
-        const hasPoleData = Object.keys(S.getState().poles || {}).length > 0;
-        const position = String(S.getState().settings?.position || "TOP_COMM").toUpperCase();
+        const state = S.getState();
+        const hasPoleData = Object.keys(state.poles || {}).length > 0;
+        const hasProposedFiber = global.CompactAutoProposed?.hasProposedFiber?.(state) === true;
+        const supportedExportProject = global.CompactAutoProposed?.isExportProjectSupported?.(state) === true;
+        const position = String(state.settings?.position || "TOP_COMM").toUpperCase();
         const isLowComm = position === "LOW_COMM";
         const isOverlash = position === "OVERLASH";
         const disableAuto = !hasPoleData || isLowComm || isOverlash || context.autoCalculateRunning;
@@ -670,9 +704,17 @@
             : "Auto Proposed";
 
         if (els.exportProposedJsonBtn) {
-          els.exportProposedJsonBtn.disabled = !hasPoleData;
-          els.exportProposedJsonBtn.classList.toggle("btn-disabled", !hasPoleData);
-          els.exportProposedJsonBtn.classList.toggle("btn-success", hasPoleData);
+          const canExportProposed = hasPoleData && hasProposedFiber && supportedExportProject;
+          els.exportProposedJsonBtn.disabled = !canExportProposed;
+          els.exportProposedJsonBtn.classList.toggle("btn-disabled", !canExportProposed);
+          els.exportProposedJsonBtn.classList.toggle("btn-success", canExportProposed);
+          els.exportProposedJsonBtn.title = !hasPoleData
+            ? "Import pole data first."
+            : !supportedExportProject
+              ? "AutoProposed export is currently available for INTEC only."
+            : !hasProposedFiber
+              ? "Add at least one proposed fiber before exporting."
+              : "Export the proposed fiber data.";
         }
         if (els.exportDebugJsonBtn) {
           const buildSource = String(global.AppDeploymentVersion?.source || "development").toLowerCase();
@@ -756,152 +798,6 @@
         if (status === "OK") return "ok";
         if (/Height mismatch|Missing Tip|No (?:ANSI|reference) height row/i.test(status)) return "critical";
         return "warning";
-      }
-
-      function reviewStatusBadge(status) {
-        const normalized = String(status || "PASS").toUpperCase();
-        const badgeClass = normalized === "ERROR" ? "danger"
-          : normalized === "WARNING" || normalized === "NOT_READY" ? "warning"
-            : normalized === "IGNORED" || normalized === "NOT_APPLICABLE" ? "ignored"
-            : "changed";
-        const label = normalized === "NOT_READY" ? "NOT READY"
-          : normalized === "NOT_APPLICABLE" ? "N/A"
-            : normalized;
-        return `<span class="badge ${badgeClass}">${label}</span>`;
-      }
-
-      function renderReviewCheck(item) {
-        const canIgnore = item.poleId && item.status !== "PASS";
-        return `<li class="excel-review-check ${String(item.status || "").toLowerCase()} ${item.level === "low" ? "low-level" : ""} ${item.ignored ? "ignored" : ""}">
-          <div class="excel-review-check-heading">
-            ${reviewStatusBadge(item.ignored ? "IGNORED" : item.status)}
-            <strong>${escapeHtml(item.section || "Review")} · ${escapeHtml(item.title || item.code || "Check")}</strong>
-            ${item.level === "low" ? `<span class="badge">Low</span>` : ""}
-          </div>
-          <p>${escapeHtml(item.message || "")}</p>
-          ${item.expected || item.actual ? `<dl class="review-values">
-            ${item.expected ? `<div><dt>Expected</dt><dd>${escapeHtml(item.expected)}</dd></div>` : ""}
-            ${item.actual ? `<div><dt>Found</dt><dd>${escapeHtml(item.actual)}</dd></div>` : ""}
-          </dl>` : ""}
-          ${item.details?.length ? `<div class="review-source-details">${item.details.map(detail => (
-            `<span>Span Index: ${escapeHtml(detail.spanIndex || "—")} · Span Id: ${escapeHtml(detail.spanId || "—")} · Type: ${escapeHtml(detail.type || "—")} · Linked: ${escapeHtml(detail.linkedCollectionTitle || "—")}</span>`
-          )).join("")}</div>` : ""}
-          ${canIgnore ? `<div class="review-check-actions"><button class="btn review-ignore-btn" type="button" data-review-ignore-key="${escapeHtml(item.ignoreKey)}" data-review-ignore-value="${item.ignored ? "false" : "true"}">${item.ignored ? "Restore" : "Ignore"}</button></div>` : ""}
-        </li>`;
-      }
-
-      function renderExcelReviewTabWarning(review) {
-        if (!els.excelReviewTabWarning || !els.excelReviewTabWarningCount) return;
-        const summary = review?.summary || {};
-        const activeCount = Number(summary.errors || 0) + Number(summary.warnings || 0);
-        els.excelReviewTabWarningCount.textContent = String(activeCount);
-        els.excelReviewTabWarning.classList.toggle("hidden", activeCount === 0);
-        els.excelReviewTabWarning.title = activeCount === 1
-          ? "1 pole has active Excel Review findings"
-          : `${activeCount} poles have active Excel Review findings`;
-      }
-
-      function updateExcelReviewWarningActions(review) {
-        const controls = [
-          { button: els.ignoreHoaWarningsBtn, phase: "HOA", label: "HOA" },
-          { button: els.ignoreFinalWarningsBtn, phase: "FINAL", label: "Final QC" }
-        ];
-        controls.forEach(({ button, phase, label }) => {
-          if (!button) return;
-          const state = global.ExcelReview?.warningControlState?.(phase) || { count: 0, allIgnored: false };
-          const enabled = Boolean(review?.reviewedAt && state.count);
-          button.disabled = !enabled;
-          button.classList.toggle("btn-disabled", !enabled);
-          button.textContent = state.allIgnored ? `Restore all ${label} warnings` : `Ignore all ${label} warnings`;
-          button.setAttribute("aria-label", button.textContent);
-          button.title = enabled
-            ? `${state.count} ${label} warning${state.count === 1 ? "" : "s"} in this review`
-            : `No ${label} warnings to ignore`;
-        });
-      }
-
-      function renderExcelReviewResults() {
-        if (!els.excelReviewResults || !global.ExcelReview) return;
-        const openPoleIds = new Set(Array.from(els.excelReviewResults.querySelectorAll("details[open][data-review-result-pole]"))
-          .map(details => details.dataset.reviewResultPole));
-        const review = global.ExcelReview.getReviewState();
-        const summary = review.summary || {};
-        renderExcelReviewTabWarning(review);
-        updateExcelReviewWarningActions(review);
-        if (els.excelReviewTimestamp) {
-          els.excelReviewTimestamp.textContent = review.reviewedAt
-            ? `Last reviewed ${new Date(review.reviewedAt).toLocaleString()}`
-            : "No review has been run.";
-        }
-        if (els.rerunExcelReviewBtn) {
-          const hasCollectionSource = Boolean(S.getState().excelReviewSource?.collection?.rows?.length);
-          els.rerunExcelReviewBtn.disabled = !hasCollectionSource;
-          els.rerunExcelReviewBtn.classList.toggle("btn-disabled", !hasCollectionSource);
-        }
-        if (!review.reviewedAt) {
-          els.excelReviewResults.innerHTML = `<div class="detail-placeholder">Import a raw Excel file to prepare HOA and Final PLA / MR review results.</div>`;
-          return;
-        }
-
-        const globalChecks = review.globalChecks || [];
-        els.excelReviewResults.innerHTML = `
-          <div class="excel-review-summary" aria-label="Excel Review summary">
-            <div class="review-summary-item error"><strong>${Number(summary.errors || 0)}</strong><span>Errors</span></div>
-            <div class="review-summary-item warning"><strong>${Number(summary.warnings || 0)}</strong><span>Warnings</span></div>
-            <div class="review-summary-item pass"><strong>${Number(summary.passed || 0)}</strong><span>Passed</span></div>
-          </div>
-          ${globalChecks.length ? `<section class="excel-review-global">
-            <h3>Workbook Issues</h3>
-            <ul class="excel-review-checks">${globalChecks.map(renderReviewCheck).join("")}</ul>
-          </section>` : ""}
-          <div class="excel-review-poles">${(review.results || []).map(result => {
-            const visibleChecks = result.checks.filter(item => item.status !== "PASS" || item.applicable === false || item.code === "ALL_APPLICABLE_CHECKS_PASSED");
-            return `<details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}" data-review-result-pole="${escapeHtml(result.poleId)}">
-              <summary>
-                <span class="review-pole-identity"><button class="review-pole-link" type="button" data-review-pole="${escapeHtml(result.poleId)}" title="Open this pole in Calculator"><strong>${escapeHtml(result.poleId)}</strong></button>${result.sequence ? `<small>Sequence ${escapeHtml(result.sequence)}</small>` : ""}</span>
-                <span class="review-phase-status"><small>HOA Review</small>${reviewStatusBadge(result.hoaStatus)}</span>
-                <span class="review-phase-status"><small>Final Review</small>${reviewStatusBadge(result.finalStatus)}</span>
-                <span class="review-phase-status overall"><small>Overall</small>${reviewStatusBadge(result.overallStatus)}</span>
-              </summary>
-              <ul class="excel-review-checks">${visibleChecks.map(renderReviewCheck).join("")}</ul>
-            </details>`;
-          }).join("") || `<div class="detail-placeholder">No Collection rows were available for review.</div>`}</div>`;
-        els.excelReviewResults.querySelectorAll("details[data-review-result-pole]").forEach(details => {
-          if (openPoleIds.has(details.dataset.reviewResultPole)) details.open = true;
-        });
-        els.excelReviewResults.querySelectorAll("[data-review-pole]").forEach(button => {
-          button.addEventListener("click", event => {
-            event.preventDefault();
-            event.stopPropagation();
-            const requested = button.dataset.reviewPole || "";
-            const poleId = Object.keys(S.getState().poles || {}).find(id =>
-              S.canonicalPoleIdentity(id) === S.canonicalPoleIdentity(requested)
-            ) || requested;
-            selectPole(poleId);
-          });
-        });
-        els.excelReviewResults.querySelectorAll("[data-review-ignore-key]").forEach(button => {
-          button.addEventListener("click", event => {
-            event.preventDefault();
-            event.stopPropagation();
-            recordUndoSnapshot();
-            global.ExcelReview.setCheckIgnored(button.dataset.reviewIgnoreKey, button.dataset.reviewIgnoreValue === "true");
-            renderExcelReviewResults();
-          });
-        });
-      }
-
-      function setAllExcelReviewWarningsIgnored(phase) {
-        if (!global.ExcelReview?.warningControlState || !global.ExcelReview?.setAllWarningsIgnored) return;
-        const control = global.ExcelReview.warningControlState(phase);
-        if (!control.count) return;
-        recordUndoSnapshot();
-        const ignored = !control.allIgnored;
-        global.ExcelReview.setAllWarningsIgnored(phase, ignored);
-        renderExcelReviewResults();
-        markDirty();
-        const label = phase === "FINAL" ? "Final QC" : "HOA";
-        toast(`${ignored ? "Ignored" : "Restored"} all ${label} warnings.`, "info");
       }
 
       // Height discrepancies are operationally more important than class-only
@@ -1324,8 +1220,8 @@
             <div class="pole-heading-row">
               <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
               <div class="pole-header-actions">
-                <button class="mini-btn" type="button" data-hide-pole data-pole="${escapeHtml(poleId)}" title="Hide this pole from the workspace" aria-label="Hide ${escapeHtml(poleId)}">Hide</button>
-                <button class="mini-btn danger-action" type="button" data-delete-pole data-pole="${escapeHtml(poleId)}" title="Delete this pole and its connected data" aria-label="Delete ${escapeHtml(poleId)}">Delete</button>
+                <button class="mini-btn pole-header-icon-btn" type="button" data-hide-pole data-pole="${escapeHtml(poleId)}" title="Hide this pole from the workspace" aria-label="Hide ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5.5 0 9 7 9 7a15 15 0 01-3.1 3.9M6.2 6.2C3.9 7.8 3 12 3 12s3.5 7 9 7a10.8 10.8 0 004.1-.8" /></svg></button>
+                <button class="mini-btn danger-action pole-header-icon-btn" type="button" data-delete-pole data-pole="${escapeHtml(poleId)}" title="Delete this pole and its connected data" aria-label="Delete ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3m-9 0l1 13h10l1-13M10 11v5m4-5v5" /></svg></button>
               </div>
             </div>
             <div class="pole-meta">
@@ -1357,15 +1253,18 @@
         const showEndDrop = !isSimplifiedMetronetProposed;
         const showNextPoleProposed = !isSimplifiedMetronetProposed;
         const showOcalcMS = !isSimplifiedMetronetProposed;
+        const compactBackspanTable = spans.length > 0
+          && !pole?.standaloneProposedHOA
+          && spans.every(span => isBackspan(span.sourceSpanId ? S.getSpan(span.sourceSpanId) || span : span));
         const showStandalone = !spans.length || Boolean(pole?.standaloneProposedHOA);
         const standaloneFlagging = global.Calculations.evaluateSpanSideFlagging({
           spanId: "",
           poleId,
           proposedHOA: pole?.standaloneProposedHOA || ""
         });
-        return `<div class="table-wrap"><table class="span-proposed-table wide-table">
+        return `<div class="table-wrap"><table class="span-proposed-table wide-table${compactBackspanTable ? " backspan-proposed-only-table" : ""}">
           <thead><tr>
-            <th>Span</th><th>Proposed</th>${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Slack</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th><th>Actions</th>
+            <th>Span</th><th>Proposed</th>${compactBackspanTable ? "" : `${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Slack</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th>`}<th>Actions</th>
           </tr></thead>
           <tbody>${spans.map(span => {
             const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -1387,7 +1286,7 @@
                 ${spanLengthDisplay(physicalSpan) ? `<span class="span-distance-line">${escapeHtml(spanLengthDisplay(physicalSpan))}</span>` : ""}
               </td>
               <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
-              ${showEndDrop ? `<td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>` : ""}
+              ${compactBackspanTable ? "" : `${showEndDrop ? `<td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>` : ""}
               ${showNextPoleProposed ? `<td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>` : ""}
               ${showOcalcMS ? `<td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}"></td>` : ""}
               <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
@@ -1396,17 +1295,17 @@
               <td><input type="checkbox" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="isSlack" ${side.isSlack ? "checked" : ""} aria-label="Proposed span is slack" title="Mark this Proposed span as Slack"></td>
               <td>${renderCombinedSpanFlagging(side)}</td>
               <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
-              <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>
+              <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>`}
               <td><button class="icon-action danger-action" type="button" data-delete-proposed-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" title="Delete proposed span" aria-label="Delete proposed span">&#10005;</button></td>
             </tr>`;
           }).join("")}${showStandalone ? `<tr class="standalone-proposed-row ${pole?.standaloneProposedHOA ? "changed-row" : ""} ${standaloneFlagging.status === "PROBLEM" ? "warning-row" : ""}">
               <td class="span-cell"></td>
               <td><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="standaloneProposedHOA" value="${escapeHtml(pole?.standaloneProposedHOA || "")}" aria-label="Proposed attachment on terminal pole"></td>
-              ${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}${showOcalcMS ? "<td></td>" : ""}<td></td><td></td><td></td><td></td>
+              ${compactBackspanTable ? "" : `${showEndDrop ? "<td></td>" : ""}${showNextPoleProposed ? "<td></td>" : ""}${showOcalcMS ? "<td></td>" : ""}<td></td><td></td><td></td><td></td>`}
               <td>${standaloneFlagging.status === "PROBLEM"
                 ? `<div class="flagging-cell"><span class="badge danger">Clearance Issue</span><div class="flagging-message">${escapeHtml(standaloneFlagging.message || "")}</div></div>`
                 : (pole?.standaloneProposedHOA ? `<span class="badge changed">OK</span>` : "")}</td>
-               <td></td><td></td><td></td>
+               ${compactBackspanTable ? "" : "<td></td><td></td><td></td>"}
             </tr>` : ""}</tbody>
         </table></div>`;
       }
@@ -1488,14 +1387,24 @@
         const rows = S.getSpanPowerForPole(poleId);
         if (!rows.length) return `<p class="muted">No power wires were imported for this pole.</p>`;
         return `<div class="table-wrap"><table class="power-table">
-          <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>Midspan</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>HOA Change</th><th>Midspan</th><th>Actions</th></tr></thead>
           <tbody>${rows.map(row => {
             const span = S.getSpan(row.spanId);
+            const originalMidspan = String(row.midspan || "");
+            const calculatedMidspan = String(row.calculatedMidspan || originalMidspan);
+            const originalInches = H.parseHeight(originalMidspan);
+            const calculatedInches = H.parseHeight(calculatedMidspan);
+            const hasAdjustedMidspan = calculatedMidspan && calculatedInches !== null
+              && (originalInches === null || calculatedInches !== originalInches);
+            const originalTitle = originalMidspan
+              ? `Original Midspan before movements: ${originalMidspan}`
+              : "No original Midspan was imported";
             return `<tr>
               <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
               <td><span class="badge warning">${escapeHtml(row.label)}</span></td>
-              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="attachmentHeight" value="${escapeHtml(row.attachmentHeight || "")}" aria-label="Power attachment height"></td>
-              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(row.midspan || "")}"></td>
+              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="attachmentHeight" value="${escapeHtml(row.attachmentHeight || "")}" aria-label="Power attachment height"></td>
+              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="attachmentHeightChange" value="${escapeHtml(row.attachmentHeightChange || "")}" aria-label="Power HOA Change" title="Target attachment height for this power wire"></td>
+              <td><div class="power-midspan-cell"><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(originalMidspan)}" title="${escapeHtml(originalTitle)}" aria-label="Original power Midspan">${hasAdjustedMidspan ? `<small class="power-midspan-adjusted" title="${escapeHtml(originalTitle)}. Calculated from the HOA Change at both ends of this span">Adjusted: ${escapeHtml(calculatedMidspan)}</small>` : ""}</div></td>
               <td><button class="icon-action danger-action" type="button" data-delete-span-power data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" title="Delete imported power" aria-label="Delete imported power">&#10005;</button></td>
             </tr>`;
           }).join("")}</tbody>
@@ -1655,7 +1564,7 @@
         bindLocalActions(els.polesOverview);
       }
 
-      return { spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, reviewStatusBadge, renderReviewCheck, renderExcelReviewTabWarning, updateExcelReviewWarningActions, renderExcelReviewResults, setAllExcelReviewWarningsIgnored, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace };
+      return { spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, ...excelReviewRenderer, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace };
     }
   };
 })(window);

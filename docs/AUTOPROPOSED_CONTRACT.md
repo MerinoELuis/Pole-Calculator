@@ -9,6 +9,12 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 - Bearings: decimal degrees from `0` inclusive to `360` exclusive.
 - Messenger and fiber sizes: positive decimal values.
 
+## Proposal context
+
+- `project` identifies the active project profile whose rules produced this proposal.
+- For `METRONET`, `workInstruction` identifies the selected WI: `MIDAM`, `CSU`, or `COMED`.
+- Top-level `owner` is the owner selected for the proposed fiber. Preserve it as the proposed owner; do not infer a different owner from pole communications.
+
 ## Processing safety
 
 1. Recalculate the complete calculator state before export.
@@ -34,6 +40,7 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 - `hoa` plus `fiber`: explicit aerial proposal.
 - Geometry without `ug`, `hoa` or `fiber`: reference only; create no proposed attachment.
 - `kind` is `F`, `B` or `O`.
+- Back Spans (`kind: "B"`) must not include `endDrop`, even if the calculator state contains one. `nextHoa` remains an independent optional field.
 
 ## Movement rules
 

@@ -320,6 +320,34 @@ html[data-theme="dark"] .pole-index-toggle:hover {
   gap: 12px;
 }
 .pole-index-drawer-header h2 { margin: 0; }
+#poleIndexClose,
+#closeCalculatorBtn {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0;
+  line-height: 1;
+}
+#poleIndexClose::before,
+#poleIndexClose::after,
+#closeCalculatorBtn::before,
+#closeCalculatorBtn::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  content: "";
+}
+#poleIndexClose::before,
+#closeCalculatorBtn::before { transform: translate(-50%, -50%) rotate(45deg); }
+#poleIndexClose::after,
+#closeCalculatorBtn::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .pole-index-toolbar { margin: 0; }
 .pole-index-drawer .pole-index-links {
   display: grid;
@@ -392,6 +420,12 @@ button:disabled { cursor: not-allowed; }
   padding: 9px 14px;
   font-weight: 900;
   white-space: nowrap;
+}
+.view-tabs > .view-tab:not(.theme-toggle) {
+  width: 180px;
+  height: 42px;
+  flex: 0 0 180px;
+  justify-content: center;
 }
 .view-tab.active {
   border-color: var(--primary);
@@ -553,6 +587,11 @@ button:disabled { cursor: not-allowed; }
   grid-auto-flow: row;
   grid-template-columns: repeat(4, minmax(170px, 1fr));
   grid-auto-columns: auto;
+}
+.clearance-settings-groups {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 .adjustments-grid { grid-auto-columns: minmax(210px, 1fr); }
 .fiber-grid { grid-auto-columns: minmax(190px, 1fr); }
@@ -817,7 +856,14 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
   gap: 12px;
 }
 .topbar-actions .btn {
+  display: inline-flex;
+  width: 146px;
+  height: 42px;
+  flex: 0 0 146px;
+  align-items: center;
+  justify-content: center;
   font-size: .88rem;
+  text-align: center;
 }
 .subsection-title-row h4 { margin-bottom: 0; }
 .mini-btn.danger-action {
@@ -950,14 +996,18 @@ td textarea.input { min-width: 160px; min-height: 42px; resize: vertical; }
 
 .floating-open-btn,
 .floating-top-btn { position: fixed; right: 18px; z-index: 41; width: 62px; height: 62px; border: none; border-radius: 999px; background: var(--primary); color: #fff; font-weight: 900; box-shadow: 0 18px 42px rgba(37,99,235,.35); }
-.floating-open-btn { bottom: 18px; }
+.floating-open-btn { bottom: 18px; display: flex; align-items: center; justify-content: center; padding: 0; }
+.floating-open-btn svg { display: block; width: 26px; height: 26px; }
 .floating-top-btn { bottom: 90px; font-size: 1.7rem; }
 .floating-calculator { position: fixed; right: 18px; bottom: 164px; z-index: 42; width: min(420px, calc(100vw - 36px)); background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 16px; box-shadow: var(--shadow); }
 .floating-calculator.hidden { display: none; }
-.floating-header { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+.floating-header { position: relative; display: flex; justify-content: center; gap: 10px; align-items: center; min-height: 38px; margin-bottom: 12px; }
+.floating-header > .eyebrow { margin: 0; text-align: center; }
+.floating-header #closeCalculatorBtn { position: absolute; top: 0; right: 0; }
 .floating-header h3 { margin: 0; }
 .calc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, .55fr); align-items: end; gap: 10px; }
 .calc-grid label { display: grid; gap: 6px; font-weight: 800; color: #475569; font-size: .86rem; }
+.calc-result-field { display: grid; gap: 6px; }
 .calc-result { border: 1px dashed var(--line); border-radius: 14px; padding: 12px; background: #f8fafc; font-weight: 900; min-height: 44px; }
 
 @media (max-width: 1100px) {
@@ -1353,7 +1403,39 @@ html[data-theme="dark"] .existing-violations-output {
 }
 
 .power-table {
-  min-width: 880px;
+  min-width: 980px;
+}
+
+.power-midspan-cell {
+  display: grid;
+  min-width: 112px;
+  gap: 4px;
+}
+
+.power-midspan-adjusted {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pole-header-icon-btn {
+  display: inline-flex;
+  width: 36px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.pole-header-icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .equipment-table {
@@ -1597,6 +1679,11 @@ tr.danger-row {
   min-width: 1780px;
 }
 
+.span-proposed-table.backspan-proposed-only-table {
+  min-width: 0;
+  width: 100%;
+}
+
 .comm-span-list,
 .comm-midspan-list {
   display: grid;
@@ -1728,6 +1815,7 @@ tr.danger-row {
 
 .excel-review-global h3 { margin: 0 0 10px; }
 .excel-review-poles { display: grid; gap: 8px; }
+.excel-review-pole-entry { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; }
 
 .excel-review-pole {
   overflow: hidden;
@@ -1753,8 +1841,8 @@ tr.danger-row {
 .excel-review-pole[open] > summary { border-bottom: 1px solid var(--line); }
 .review-pole-identity { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .review-pole-identity strong { overflow-wrap: anywhere; }
-.review-pole-link { justify-self: start; width: fit-content; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.review-pole-link:hover strong { color: var(--primary); text-decoration: underline; }
+.review-pole-link { width: 34px; min-height: 34px; align-self: start; margin-top: 8px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; font-size: .9rem; cursor: pointer; }
+.review-pole-link:hover { border-color: var(--primary); color: var(--primary); }
 .review-pole-identity small,
 .review-phase-status small { color: var(--muted); }
 .review-phase-status { display: flex; align-items: center; justify-content: center; gap: 7px; }
@@ -2056,13 +2144,19 @@ tr.span-color-row:not(.warning-row) td:first-child {
 
   .view-tab {
     min-width: 0;
-    min-height: 42px;
+    min-height: 48px;
     justify-content: center;
     padding: 8px 5px;
     font-size: .74rem;
     line-height: 1.15;
     text-align: center;
     white-space: normal;
+  }
+
+  .view-tabs > .view-tab:not(.theme-toggle) {
+    width: 100%;
+    height: 48px;
+    flex: none;
   }
 
   .view-tab.theme-toggle {
@@ -2252,7 +2346,7 @@ tr.span-color-row:not(.warning-row) td:first-child {
   }
 
   .power-table {
-    min-width: 720px;
+    min-width: 820px;
   }
 
   .equipment-table {

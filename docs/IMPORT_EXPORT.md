@@ -19,7 +19,9 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 | Low Power | `Low Power Attachment.display`, related display names, or any header containing `Low Power Attachment`, `Lowest Power`, or `Low Power` |
 | Owner | `Owner` |
 | Location reference | headers containing `Location.latitude` and `Location.longitude` |
-| Excel Review fields | exact `Year Installed`, `MRE Construction Type`, and `PLA STATUS` values are preserved in the raw review source |
+| Excel Review fields | exact `Year Installed`, `MRE Construction Type`, `PLA STATUS`, and `Drivable Access in Mid Span` values are preserved in the raw review source |
+
+Excel Review requires a non-empty `Drivable Access in Mid Span` value on every Collection row. A blank value or missing column creates a per-pole HOA error; both `yes` and `no` are valid filled values.
 
 Collection supplies the preferred visible Pole ID. During relationship matching, trailing `STEEL`, `UG`, and `PCO` tokens are ignored. This normalization applies to Collection aliases, Span endpoints, Span.Wire rows, Anchor.Guys, Make Ready references, and Update Data reconciliation.
 
@@ -62,7 +64,11 @@ Bearing is normalized to one of eight cardinal directions. A missing linked pole
 
 Power classification is evaluated before comm creation. Communication owners come from the `Owner` column; missing owners receive stable UNKNOWN labels instead of being discarded.
 
+The internal Excel state export's `SpanPower` sheet includes `attachmentHeightChange` and `calculatedMidspan` alongside the imported attachment and midspan. Reimporting an internal export therefore retains the user's Power movement and its derived result; external Span.Wire imports continue to supply only source values.
+
 `Size` values containing Communication Drop/Service Drop mark that span relationship as a Service Drop. In INTEC, Self-Supporting Fiber is eligible for manual POF activation from the comm table; the `POF` state is preserved in JSON and Excel exports.
+
+Excel Review checks communication drop sizes against their owner category. Century Link/CTL and MCI Metro accept only `0.25in Telco`, `0.5in Telco`, `0.75in Telco`, or `1in Telco`; Cable One, Prescott, Cable One, Show Low, and Cox Communications require the corresponding CATV sizes. Century Link and MCI Metro bundles must match one of these size/messenger pairs: `0.5"/0.242"`, `1"/0.242"`, `1.5"/0.242"`, `2"/0.306"`, `2.5"/0.306"`, `3"/0.386"`, or `3.5"/0.386"`. Mismatches are per-pole HOA errors.
 
 ## Anchor
 
@@ -156,6 +162,7 @@ Example:
 
 ```json
 {
+  "project": "INTEC",
   "sizes": {
     "messenger": 0.242,
     "fiber": {
@@ -204,6 +211,12 @@ Example:
 - `sizes.fiber`: map from fiber count to positive decimal diameter.
 - Only aerial spans that actually export a `fiber` count create a required size entry.
 
+### Proposal context
+
+- `project`: active calculator project profile, such as `INTEC`, `METRONET`, or `OLSSON_OPPD`.
+- `workInstruction`: included for MetroNet and identifies `MIDAM`, `CSU`, or `COMED`.
+- Top-level `owner`: the selected owner for the proposed fiber. It is not inferred from existing comm owners.
+
 ### Pole fields
 
 - `id`: calculator pole identity.
@@ -229,7 +242,7 @@ Example:
 - `overlash: true`: the proposal is a fiber overlash and must reuse the
   existing messenger for the exported job owner instead of creating another
   messenger.
-- `endDrop` and `nextHoa`: optional endpoint proposal values.
+- `endDrop` and `nextHoa`: optional endpoint proposal values. A Back Span must not export `endDrop`; `nextHoa` remains independent.
 - `ug: true`: geometry-only underground relation; it cannot include aerial proposal fields.
 - Geometry without `ug`, `hoa`, or `fiber` is a reference-only span and creates no proposed attachment.
 

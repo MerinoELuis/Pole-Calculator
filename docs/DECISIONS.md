@@ -83,3 +83,7 @@ A previous automatic arrangement is replaceable output, not the geometric baseli
 ## DEC-016 — Export effective ANC, DG and physical-span Slack
 
 Compact AutoProposed exports enabled ANC distance/direction and the effective DG HOA as structured pole fields. The values match the effective Make Ready values, including defaults; an unselected ANC direction remains omitted. A Slack mark is a physical-span instruction, so `slack: true` is included on the matching exported span at either endpoint. UG and PCO pole-level action suppression still applies.
+
+## DEC-017 — Preserve the Midspan compatibility alias
+
+`MidspanLogic` remains an alias of `MidspanEngine` because it is part of the documented browser-global compatibility surface. Internal helpers with matching names are not consolidated solely by name; extraction requires equivalent inputs, semantics, and regression coverage.

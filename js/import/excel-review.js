@@ -13,27 +13,6 @@
   const ownerImportedOf = row => S().getOwnerImported(row);
   const spanRelationOf = span => S().getSpanRelation(span);
 
-  const ALLOWED_COMM_OWNERS = new Set([
-    "communication",
-    "3j communications",
-    "cable one, prescott",
-    "cable one, show low",
-    "century link communications",
-    "commnet",
-    "cox communications",
-    "cablevision of flagstaff",
-    "eagle west llc",
-    "mci metro",
-    "wecom inc",
-    "catv",
-    "telco",
-    "fiber",
-    "cable one"
-  ]);
-  const COMM_INSULATORS = ["single bolt", "three bolt", "j-hook"];
-  const PRIMARY_INSULATORS = ["deadend aps", "horizontal line post", "post 15\""];
-  const SECONDARY_INSULATORS = ["pin 7.5in", "deadend aps", "spool 3in", "suspension aps"];
-  const NEUTRAL_INSULATORS = [...SECONDARY_INSULATORS, "pin 8.38"];
   const MIDAM_POWER_SIZES = {
     PRIMARY: ["primary > aac 477.0 kcm 19 strand cosmos > static"],
     SECONDARY: ["secondary > triplex 2 awg > static"],
@@ -457,6 +436,15 @@
       });
     }
 
+    const drivableAccess = pick(entry.row, ["Drivable Access in Mid Span"], { contains: false });
+    if (!text(drivableAccess)) {
+      add(result, {
+        phase: "HOA", section: "Collection", code: "MISSING_DRIVABLE_ACCESS_MID_SPAN", status: "ERROR",
+        title: "Drivable Access in Mid Span", message: "Drivable Access in Mid Span is empty.",
+        expected: "Non-empty value", actual: "Empty"
+      });
+    }
+
     const year = pick(entry.row, ["Year Installed"], { contains: false });
     if (isIntecProject() && !text(year)) {
       add(result, {
@@ -647,9 +635,18 @@
 
   function addEnvironmentChecks(result, poleSpans, allSpans, environmentPairsSeen) {
     poleSpans.forEach(span => {
-      if (!span.toPole || !span.environment) return;
+      const fromPole = normalizedText(span.fromPole);
+      const toPole = normalizedText(span.toPole);
+      // Environment consistency is meaningful only for a directed connection
+      // between two distinct poles. Unlinked spans (or self-references) on the
+      // same Collection must not be compared as reciprocal spans.
+      if (!span.hasConnectionData || !fromPole || !toPole || fromPole === toPole || !span.environment) return;
       const reverse = allSpans.filter(candidate => (
-        normalizedText(candidate.fromPole) === normalizedText(span.toPole)
+        candidate.hasConnectionData
+        && normalizedText(candidate.fromPole)
+        && normalizedText(candidate.toPole)
+        && normalizedText(candidate.fromPole) !== normalizedText(candidate.toPole)
+        && normalizedText(candidate.fromPole) === normalizedText(span.toPole)
         && normalizedText(candidate.toPole) === normalizedText(span.fromPole)
         && ((spanRelationOf(span) === "FORE" && spanRelationOf(candidate) === "BACK") || (spanRelationOf(span) === "BACK" && spanRelationOf(candidate) === "FORE") || (spanRelationOf(span) === "OTHER" && spanRelationOf(candidate) === "OTHER"))
       ));
@@ -673,10 +670,6 @@
     return normalizedText(value).replace(/\s+/g, " ").replace(/\.+$/g, "");
   }
 
-  function isSelfSupportingFiber(value) {
-    return /\bself[\s-]?supporting\s+fiber\b/i.test(text(value));
-  }
-
   function isProposedCommunicationOwner(value) {
     const normalized = normalizedText(value);
     if (!normalized.startsWith("communication >")) return false;
@@ -689,78 +682,6 @@
     // not an existing comm-owner attachment and is therefore not subject to
     // the imported 3/8-inch communication-guy audit.
     return owner === "proposed mnt";
-  }
-
-  function addIntecWireChecks(result, poleId) {
-    if (!isIntecProject()) return;
-    rowsForPole("spanWires", poleId).forEach((row, index) => {
-      const ownerRaw = text(pick(row, ["Owner", "owner"]));
-      const owner = normalizedText(ownerRaw).replace(/^communication\s*>\s*/i, "").trim();
-      const size = text(pick(row, ["Size", "Size.display", "Wire Size"]));
-      const construction = text(pick(row, ["Construction"]));
-      const insulator = normalizedInsulator(pick(row, ["Insulator"]));
-      const descriptor = `${ownerRaw || "No owner"} / ${size || `row ${index + 2}`}`;
-      const power = I().isPowerWire ? I().isPowerWire(row) : /^utility\s*>/i.test(ownerRaw);
-      const communication = I().isCommunicationWire ? I().isCommunicationWire(row) : !power;
-
-      if (normalizedText(construction).replace(/\s+/g, "") === "davit") {
-        add(result, {
-          phase: "HOA", section: "Span.Wire", code: "DAVIT_NOT_ALLOWED", status: "ERROR",
-          title: "Construction", message: "Construction DAVIT is not allowed for INTEC.", expected: "Not DAVIT", actual: construction
-        });
-      }
-
-      if (communication && !ALLOWED_COMM_OWNERS.has(owner)) {
-        add(result, {
-          phase: "HOA", section: "Span.Wire", code: "UNKNOWN_COMM_OWNER", status: "WARNING",
-          title: "Communication Owner", message: `Communication owner is not in the INTEC list: ${ownerRaw || "empty"}.`,
-          expected: "Allowed INTEC communication owner", actual: ownerRaw
-        });
-      }
-
-      const selfSupportingFiber = communication && isSelfSupportingFiber(size);
-      const validCommunicationInsulator = COMM_INSULATORS.includes(insulator)
-        || (selfSupportingFiber && insulator === "suspension aps");
-      if (communication && !validCommunicationInsulator) {
-        add(result, {
-          phase: "HOA", section: "Span.Wire", code: "INVALID_COMM_INSULATOR", status: "ERROR",
-          title: "Communication Insulator", message: `Invalid communication insulator for ${descriptor}.`,
-          expected: selfSupportingFiber
-            ? `${COMM_INSULATORS.join(", ")}, or suspension aps for Self-Supporting Fiber`
-            : COMM_INSULATORS.join(", "),
-          actual: text(pick(row, ["Insulator"])) || "Empty"
-        });
-      }
-
-      if (!power) return;
-      const powerType = /primary/i.test(size) ? "PRIMARY" : /secondary/i.test(size) ? "SECONDARY" : /neutral/i.test(size) ? "NEUTRAL" : "";
-      if (!powerType) return;
-      if (normalizedText(ownerRaw) !== "utility > aps (joint use)") {
-        add(result, {
-          phase: "HOA", section: "Span.Wire", code: "INVALID_POWER_OWNER", status: "ERROR",
-          title: `${powerType} Owner`, message: `${powerType} owner must be UTILITY > APS (Joint use).`,
-          expected: "UTILITY > APS (Joint use)", actual: ownerRaw || "Empty"
-        });
-      }
-      const validInsulator = powerType === "PRIMARY"
-        ? (insulator.includes("pin 8.38") || PRIMARY_INSULATORS.includes(insulator))
-        : powerType === "NEUTRAL"
-          ? (insulator.includes("pin 8.38") || NEUTRAL_INSULATORS.includes(insulator))
-          : SECONDARY_INSULATORS.includes(insulator);
-      if (!validInsulator) {
-        const expectedInsulators = powerType === "PRIMARY"
-          ? "Pin 8.38, Deadend APS, Horizontal Line Post, or Post 15\""
-          : powerType === "NEUTRAL"
-            ? `${SECONDARY_INSULATORS.join(", ")}, or Pin 8.38`
-            : SECONDARY_INSULATORS.join(", ");
-        add(result, {
-          phase: "HOA", section: "Span.Wire", code: `INVALID_${powerType}_INSULATOR`, status: "ERROR",
-          title: `${powerType} Insulator`, message: `Invalid ${powerType.toLowerCase()} insulator for ${descriptor}.`,
-          expected: expectedInsulators,
-          actual: text(pick(row, ["Insulator"])) || "Empty"
-        });
-      }
-    });
   }
 
   function olssonInsulatorKey(value) {
@@ -1549,6 +1470,17 @@
     };
   }
 
+  const projectWireChecks = global.ExcelReviewWireChecks.create({
+    add,
+    I,
+    isIntecProject,
+    normalizedInsulator,
+    normalizedText,
+    pick,
+    rowsForPole,
+    text
+  });
+
   function runReview() {
     current = emptyResults();
     const entries = collectionEntries();
@@ -1585,7 +1517,8 @@
       addLinkedCollectionChecks(result, poleSpans, maps);
       addReciprocalChecks(result, poleSpans, spans);
       addEnvironmentChecks(result, poleSpans, spans, environmentPairsSeen);
-      if (entry.poleId) addIntecWireChecks(result, entry.poleId);
+      if (entry.poleId) projectWireChecks.addCommunicationSizeChecks(result, entry.poleId);
+      if (entry.poleId) projectWireChecks.addIntecWireChecks(result, entry.poleId);
       if (entry.poleId) addOlssonWireChecks(result, entry.poleId);
       if (entry.poleId) addIntecEquipmentChecks(result, entry.poleId);
       if (entry.poleId) addMidAmChecks(result, entry.poleId);

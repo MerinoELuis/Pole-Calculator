@@ -106,6 +106,12 @@ state.makeReadyReferences = [{ attachmentSizeRaw: "6.6M 144CT Fiber (E/W)" }];
 api.applyAttachmentDefaults(state);
 assert.equal(state.settings.attachmentMessengerSize, "0.242");
 assert.equal(state.settings.fiberSizes["144CT Fiber"], "0.51");
+const metronetContext = api.buildCompactPayload(state);
+assert.equal(metronetContext.project, "METRONET");
+assert.equal(metronetContext.workInstruction, "MIDAM");
+assert.equal(metronetContext.owner, "Wecom");
+assert.equal(api.isExportProjectSupported(state), false, "MetroNet is not yet supported by the AutoProposed plugin");
+assert.equal(api.isExportProjectSupported(baseState("INTEC")), true, "INTEC remains supported by the AutoProposed plugin");
 
 state.settings.attachmentMessengerSize = "0.188";
 state.settings.fiberSizes["144CT Fiber"] = "0.44";
@@ -184,6 +190,8 @@ state.spanComms = {
 
 const payload = api.buildCompactPayload(state);
 assert.equal(JSON.stringify(payload.sizes), JSON.stringify({ messenger: 0.242, fiber: { 144: 0.51 } }));
+assert.equal(payload.project, "INTEC");
+assert.equal("workInstruction" in payload, false);
 assert.equal(payload.owner, "Wecom");
 
 const p1 = payload.poles.find(pole => pole.id === "P1");
@@ -191,6 +199,47 @@ assert.ok(p1);
 assert.equal(p1.spans.length, 4, "duplicate physical spans must export once");
 const fore = p1.spans.find(span => span.to === "P2");
 assert.equal(JSON.stringify(fore), JSON.stringify({ to: "P2", kind: "F", bearing: 81.94, length: 620, hoa: 276, fiber: 144, endDrop: -4, nextHoa: 272 }));
+
+const backspanWithEndDropState = structuredClone(state);
+backspanWithEndDropState.spans.BACKSPAN_END_DROP = {
+  spanId: "BACKSPAN_END_DROP",
+  fromPole: "P1",
+  toPole: "P20",
+  type: "Back Span",
+  direction: "W",
+  bearingDegrees: 270,
+  lengthDisplay: "100'"
+};
+backspanWithEndDropState.spanSides.BACKSPAN_END_DROP_P1 = {
+  spanId: "BACKSPAN_END_DROP",
+  poleId: "P1",
+  proposedHOA: "21'",
+  endDrop: "-8\"",
+  proposedHOAChange: "20'4\""
+};
+backspanWithEndDropState.spans.BACKSPAN_END_DROP_DUP = {
+  spanId: "BACKSPAN_END_DROP_DUP",
+  fromPole: "P1",
+  toPole: "P20",
+  type: "Other",
+  direction: "W",
+  bearingDegrees: 270,
+  lengthDisplay: "100'"
+};
+backspanWithEndDropState.spanSides.BACKSPAN_END_DROP_DUP_P1 = {
+  spanId: "BACKSPAN_END_DROP_DUP",
+  poleId: "P1",
+  proposedHOA: "21'",
+  endDrop: "-8\"",
+  proposedHOAChange: "20'4\""
+};
+const exportedBackspan = api.buildCompactPayload(backspanWithEndDropState)
+  .poles.find(pole => pole.id === "P1")
+  .spans.find(span => span.to === "P20");
+assert.equal(exportedBackspan.kind, "B");
+assert.equal("endDrop" in exportedBackspan, false, "Back Spans must never export End Drop");
+assert.equal(exportedBackspan.nextHoa, 244, "Back Span Next Pole Proposed remains available");
+
 state.poles.P1.ancActive = true;
 state.poles.P1.ancDistance = "15'";
 state.poles.P1.effectiveANCDistance = "6'";
@@ -376,6 +425,7 @@ directionalState.makeReadyReferences = [
   { poleId: "P18", attachmentSizeRaw: "6.6M 24CT Fiber (N) + 6.6M 72CT Fiber (S)", attachmentFiber: "24CT Fiber + 6.6M 72CT Fiber", attachmentDirectionTokens: ["N", "S"], attachmentType: "New" }
 ];
 const directionalPayload = api.buildCompactPayload(directionalState);
+assert.equal(api.hasProposedFiber(directionalState), true, "a real aerial fiber with a proposed HOA is exportable");
 const p3Payload = directionalPayload.poles.find(pole => pole.id === "P3");
 const p3Directional = p3Payload.spans.find(span => span.to === "P2");
 assert.equal(p3Directional.hoa, 160, "standalone Make Ready HOA must populate the outgoing fiber span");
@@ -400,7 +450,7 @@ assert.ok(p11.spans.every(span => !("fiber" in span) && !("hoa" in span)));
 assert.equal(JSON.stringify(api.validationErrors(payload)), JSON.stringify([]));
 assert.equal(
   JSON.stringify(api.validationErrors({ sizes: { messenger: null, fiber: {} }, owner: "Wecom", poles: [{ id: "P-RISER", riser: { action: "raise", hoa: 318, fromHoa: 294 } }] })),
-  JSON.stringify(["Missing Riser Owner on P-RISER"])
+  JSON.stringify(["No proposed fiber to export", "Missing Riser Owner on P-RISER"])
 );
 const missingMessenger = structuredClone(payload);
 missingMessenger.sizes.messenger = null;
@@ -409,7 +459,7 @@ const missingFiber = structuredClone(payload);
 missingFiber.sizes.fiber[144] = null;
 assert.equal(JSON.stringify(api.validationErrors(missingFiber)), JSON.stringify(["Missing 144CT Fiber Size"]));
 const onlyUg = { sizes: { messenger: null, fiber: {} }, owner: "Wecom", poles: [{ id: "P1", spans: [{ to: "P2 UG", kind: "F", ug: true }] }] };
-assert.equal(JSON.stringify(api.validationErrors(onlyUg)), JSON.stringify([]));
+assert.equal(JSON.stringify(api.validationErrors(onlyUg)), JSON.stringify(["No proposed fiber to export"]));
 
 state.mr = [];
 window.MRLogic.generateMRForPole("P1");
@@ -425,9 +475,22 @@ download = null;
 assert.equal(api.exportCompactProposedJson(), false);
 assert.equal(download, null, "invalid export must not download a file");
 state.settings.attachmentMessengerSize = "0.242";
+state.settings.projectProfile = "METRONET";
+download = null;
+assert.equal(api.exportCompactProposedJson(), false, "unsupported projects must not export AutoProposed JSON");
+assert.equal(download, null, "unsupported projects must not download an AutoProposed file");
+state.settings.projectProfile = "INTEC";
 assert.equal(api.exportCompactProposedJson(), true);
 assert.equal(download.filename, "pole_job_AutoProposed.json");
 assert.equal("app" in download.payload, false);
 assert.equal("commMakeReady" in download.payload, false);
+
+const fiberReferencesForExport = state.makeReadyReferences;
+state.makeReadyReferences = [];
+download = null;
+assert.equal(api.hasProposedFiber(state), false, "fiber references without a proposed fiber must not pass export gating");
+assert.equal(api.exportCompactProposedJson(), false, "export must require at least one proposed aerial fiber");
+assert.equal(download, null, "a non-fiber payload must not download as AutoProposed");
+state.makeReadyReferences = fiberReferencesForExport;
 
 console.log("compact-autoproposed tests passed");

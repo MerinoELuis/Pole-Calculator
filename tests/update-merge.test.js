@@ -52,7 +52,7 @@ const previous = {
     C2: { spanId: "S2", poleId: "P1", owner: "CTL", ownerBase: "CTL", wireId: "W2", existingHOA: "19'", midspan: "15'", size: "Telco" }
   },
   spanPower: {
-    PW1: { spanId: "S1", poleId: "P1", owner: "APS", wireId: "PW1", size: "Primary", attachmentHeight: "35'", midspan: "29'" },
+    PW1: { spanId: "S1", poleId: "P1", owner: "APS", wireId: "PW1", size: "Primary", attachmentHeight: "35'", attachmentHeightChange: "36'", midspan: "29'", calculatedMidspan: "29'6\"" },
     PW2: { spanId: "S2", poleId: "P1", owner: "APS", wireId: "PW2", size: "Secondary", attachmentHeight: "32'", midspan: "27'" }
   },
   makeReadyReferences: [],
@@ -109,6 +109,8 @@ assert.equal(
   "an omitted comm with baseline HOA must remain available for calculations"
 );
 assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must retain the prior value");
+assert.equal(result.spanPower.PW1.attachmentHeightChange, "36'", "Update Data must retain a saved Power HOA Change when the refreshed sheet is blank");
+assert.equal(result.spanPower.PW1.calculatedMidspan, "29'6\"", "Update Data must preserve the derived Power Midspan until recalculation");
 assert.equal(result.spanPower.PW2.midspan, "27'", "power rows omitted by a partial Update Data must remain");
 const importedWithoutEquipment = JSON.parse(JSON.stringify(imported));
 importedWithoutEquipment.poles.P1.metadata = { powerEquipment: [] };

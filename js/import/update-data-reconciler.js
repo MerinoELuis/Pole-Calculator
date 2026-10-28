@@ -689,7 +689,7 @@
       ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "isSlack", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
-      ["Power", "spanPower", ["attachmentHeight", "midspan", "owner", "size"]]
+      ["Power", "spanPower", ["attachmentHeight", "attachmentHeightChange", "midspan", "calculatedMidspan", "owner", "size"]]
     ];
     const changes = specs.flatMap(([entity, mapName, fields]) =>
       collectUpdateMapChanges(previous?.[mapName], finalState?.[mapName], entity, fields)

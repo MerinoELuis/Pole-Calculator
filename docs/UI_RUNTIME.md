@@ -1,6 +1,8 @@
 # UI runtime modules
 
-`app.js` remains the main renderer and edit controller. Small post-render responsibilities are isolated in `js/ui/` so table behavior no longer depends on independent patch scripts with separate observers.
+`app.js` remains the application coordinator and edit controller. Rendering responsibilities are isolated in `js/ui/` modules; post-render DOM normalization remains coordinated by `runtime.js` so UI modules do not create independent observers.
+
+Excel Review result markup and warning controls are owned by `ExcelReviewRenderer`. It is created by `PoleWorkspaceRenderer` with the state, selection, history, persistence, and escaping dependencies it needs. The renderer methods remain available through `PoleWorkspaceRenderer` so existing app wiring does not change.
 
 ## Refresh order
 

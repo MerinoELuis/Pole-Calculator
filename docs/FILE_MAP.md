@@ -13,6 +13,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/core/project-config.js` | `ProjectProfiles` | INTEC and Metronet/MidAm defaults and profile differences. |
 | `js/core/store.js` | `AppStore` | Normalized application state, constructors, identities, and graph accessors. |
 | `js/core/state-compat.js` | `StateCompatibility` | Compatibility adapters for older JSON/imported state. |
+| `js/core/store-identity.js` | `AppStoreIdentity` | Canonical pole identity and stable span-side/comm keys. |
 | `js/core/history.js` | `AppHistory` | Undo/redo and movement trace generation for Debug exports. |
 | `js/core/persistence.js` | `AppPersistence` | Save/load, file handles, dirty-state tracking, and safe filenames. |
 
@@ -23,6 +24,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/domain/height-math.js` | `HeightUtils` | Parse and format heights using integer inches. |
 | `js/domain/pole-resolution.js` | `PoleResolution` | Normalize AERIAL/UG/PCO mode and its priority rules. |
 | `js/domain/comm-movements.js` | `CalculationAutoMovementModule` | Plan and apply Auto Calculate communication movements through injected calculation helpers. |
+| `js/domain/pole-inset-calculation.js` | `PoleInsetCalculationModule` | Pole Inset span choices, selected-span power ceilings, and End Drop values. |
 | `js/domain/clearance-rules.js` | `Calculations` | Integrated calculation orchestrator: pole/span limits, Midspan, Proposed, End Drop, recalculation, and flagging. |
 | `js/domain/midspan-engine.js` | `MidspanEngine` (`MidspanLogic` alias) | Midspan baseline-plus-endpoint-movements calculation and span-oriented APIs. |
 | `js/domain/graph.js` | `PoleGraph` | Graph utilities; not currently loaded in the browser script sequence. |
@@ -37,6 +39,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/import/import-normalizers.js` | `ImportNormalizers` | Reusable worksheet/header/identifier/cell/height normalization. |
 | `js/import/excel-import.js` | `ExcelImport` | Convert Excel worksheets and saved JSON into normalized state. |
 | `js/import/excel-review.js` | `ExcelReview` | Read-only workbook audit against calculated state and Make Ready. |
+| `js/import/excel-review-wire-checks.js` | `ExcelReviewWireChecks` | Project-specific wire construction, insulator, and owner/size checks. |
 | `js/import/update-data-reconciler.js` | `UpdateDataReconciler` | Non-destructive merge of refreshed workbook data with operator work. |
 | `js/export/excel-export.js` | `ExcelExport` | Produce workbook downloads. |
 | `js/export/json-export.js` | `ProjectExport` | Produce regular project and diagnostic JSON. |
@@ -53,6 +56,8 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/ui/theme.js` | `ThemeControl` | Resolve and persist light/dark theme. |
 | `js/ui/mobile-keyboard.js` | `MobileKeyboardControl` | Mobile viewport and keyboard-related input behavior. |
 | `js/ui/floating-calculator.js` | `FloatingCalculator` | Feet/inches expression calculator and quote normalization. |
+| `js/ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Excel Review result rendering, warning controls, and per-pole actions. |
+| `js/ui/pole-navigation.js` | `PoleNavigation` | Pole-index drawer, selection, visibility, and scroll navigation. |
 | `js/ui/dom-contract.js` | `UiDomContract` | Add stable component, pole, span, and column identities after render. |
 | `js/ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA while preserving calculation data. |
 | `js/ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and pair each Midspan with its span. |

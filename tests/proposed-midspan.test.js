@@ -12,7 +12,7 @@ const window = {
 };
 const sandbox = { window, console, Date, Set, Map, Math, JSON, Object, Array, String, Number, Boolean, RegExp };
 
-for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/clearance-rules.js"]) {
+for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store-identity.js", "core/store.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/pole-inset-calculation.js", "domain/clearance-rules.js"]) {
   const modulePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 }
@@ -64,6 +64,37 @@ assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "", "INTEC must not deri
 S.upsertSpanSide({ ...S.getSpanSide("WITH-MS", "P1"), ocalcMS: "17.5" });
 C.calculateSpanSideMidspan("WITH-MS", "P1");
 assert.equal(S.getSpanSide("WITH-MS", "P1").msProposed, "17'6\"", "INTEC must convert a manually entered decimal O-CALC MS for display");
+
+seedSpan("INTEC", "SERVICE-DROP-PROPOSED-MS", "100'", "22'");
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "SERVICE-DROP-PROPOSED-MS",
+  poleId: "P1",
+  owner: "COMMUNICATION > CATV",
+  existingHOA: "18'",
+  midspan: "16'",
+  serviceDrop: true
+}));
+side = S.getSpanSide("SERVICE-DROP-PROPOSED-MS", "P1");
+S.upsertSpanSide({ ...side, ocalcMS: "15'10\"" });
+C.calculateSpanSideMidspan("SERVICE-DROP-PROPOSED-MS", "P1");
+assert.equal(
+  S.getSpanSide("SERVICE-DROP-PROPOSED-MS", "P1").finalMidspan,
+  "15'10\"",
+  "a Service Drop at 16' must not push Proposed Midspan from 15'10\" to 16'4\""
+);
+S.upsertSpanComm(S.createSpanComm({
+  spanId: "SERVICE-DROP-PROPOSED-MS",
+  poleId: "P1",
+  owner: "COMMUNICATION > CTL",
+  existingHOA: "19'",
+  midspan: "16'"
+}));
+C.calculateSpanSideMidspan("SERVICE-DROP-PROPOSED-MS", "P1");
+assert.equal(
+  S.getSpanSide("SERVICE-DROP-PROPOSED-MS", "P1").finalMidspan,
+  "16'4\"",
+  "a regular communication at 16' must still require 4 inches of Proposed Midspan clearance"
+);
 
 S.upsertPole(S.createPole({ poleId: "P3", lowPower: "35'" }));
 S.upsertPole(S.createPole({ poleId: "P4", lowPower: "35'" }));

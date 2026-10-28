@@ -96,6 +96,26 @@
     return text(state?.settings?.projectProfile || "INTEC").toUpperCase();
   }
 
+  function isExportProjectSupported(state = S()?.getState?.()) {
+    return profileName(state) === "INTEC";
+  }
+
+  function exportProjectContext(state) {
+    const profile = profileName(state);
+    if (!["METRONET", "CSU", "COMED"].includes(profile)) return { project: profile };
+
+    const configuredWI = text(state?.settings?.metronetWI).toUpperCase();
+    const owner = text(state?.settings?.proposedOwner).toUpperCase();
+    const fallbackWI = profile === "CSU" ? "CSU"
+      : profile === "COMED" ? "COMED"
+        : owner === "MNT" ? "CSU" : owner === "POWER" ? "COMED" : "MIDAM";
+    const workInstruction = ["MIDAM", "CSU", "COMED"].includes(configuredWI)
+      ? configuredWI
+      : fallbackWI;
+
+    return { project: "METRONET", workInstruction };
+  }
+
   function detectedReferenceFiberCounts(state) {
     const counts = new Set();
     (state?.makeReadyReferences || []).forEach(ref => {
@@ -584,7 +604,7 @@
     if (proposal === exactSide) {
       const endDrop = inches(exactSide?.endDrop);
       const nextHoa = inches(exactSide?.proposedHOAChange);
-      if (endDrop !== null) item.endDrop = endDrop;
+      if (endDrop !== null && item.kind !== "B") item.endDrop = endDrop;
       if (nextHoa !== null) item.nextHoa = nextHoa;
     }
     return item;
@@ -632,6 +652,7 @@
     });
     if (preferred.slack || secondary.slack) result.slack = true;
     if (result.kind === "O" && secondary.kind && secondary.kind !== "O") result.kind = secondary.kind;
+    if (result.kind === "B") delete result.endDrop;
     return result;
   }
 
@@ -782,6 +803,26 @@
     });
   }
 
+  function isProposedFiberSpan(span) {
+    return Boolean(span
+      && !span.ug
+      && Number.isFinite(Number(span.fiber))
+      && Number(span.fiber) > 0
+      && Number.isFinite(Number(span.hoa))
+      && Number(span.hoa) > 0);
+  }
+
+  function hasProposedFiber(state = S()?.getState?.()) {
+    if (!state) return false;
+    return Object.keys(state.poles || {}).some(poleId =>
+      compactSpansForPole(state, poleId).some(isProposedFiberSpan)
+    );
+  }
+
+  function payloadHasProposedFiber(payload) {
+    return (payload?.poles || []).some(pole => (pole.spans || []).some(isProposedFiberSpan));
+  }
+
   function compactAnchorForPole(state, poleId) {
     if (blocksLocalActions(state, poleId)) return null;
     const pole = findPole(state, poleId);
@@ -823,7 +864,7 @@
   }
 
   function buildCompactPayload(state = S()?.getState?.()) {
-    if (!state) return { sizes: { messenger: null, fiber: {} }, owner: "", poles: [] };
+    if (!state) return { project: "INTEC", sizes: { messenger: null, fiber: {} }, owner: "", poles: [] };
     applyAttachmentDefaults(state);
 
     const poles = [];
@@ -867,6 +908,7 @@
     });
 
     return sanitizeBlockedLocalPayload({
+      ...exportProjectContext(state),
       sizes: {
         messenger: numericSize(state.settings?.attachmentMessengerSize),
         fiber: fiberSizes
@@ -882,6 +924,7 @@
       if (!span.ug && Number.isFinite(Number(span.fiber))) usedFibers.add(String(Number(span.fiber)));
     }));
     const errors = [];
+    if (!payloadHasProposedFiber(payload)) errors.push("No proposed fiber to export");
     if (usedFibers.size) {
       if (numericSize(payload?.sizes?.messenger) === null) errors.push("Missing Messenger Size");
       Array.from(usedFibers).sort((a, b) => Number(a) - Number(b)).forEach(count => {
@@ -932,6 +975,11 @@
   }
 
   function exportCompactProposedJson() {
+    const currentState = S()?.getState?.();
+    if (!isExportProjectSupported(currentState)) {
+      notify("AutoProposed export is currently available for INTEC only.", "warning");
+      return false;
+    }
     global.Calculations?.recalculateAll?.();
     const state = S()?.getState?.();
     const payload = buildCompactPayload(state);
@@ -1188,6 +1236,9 @@
     detectedReferenceFiberCounts,
     fiberEntries,
     buildCompactPayload,
+    hasProposedFiber,
+    isExportProjectSupported,
+    payloadHasProposedFiber,
     validationErrors,
     compactMoves,
     compactSpansForPole,

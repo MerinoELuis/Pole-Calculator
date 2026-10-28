@@ -33,6 +33,8 @@ Node is optional development tooling only. It is not a runtime requirement and d
 6. Browser smoke tests: import, edit, Auto Calculate, Save/Load, Update Data, and export through the real UI.
 7. Excel fixture tests: import representative INTEC and Metronet workbooks when available.
 
+Recent UI/domain extractions retain their contracts through dedicated source-level tests: `ExcelReviewRenderer` preserves escaping and empty-review state, `PoleNavigation` preserves hidden/unknown-pole selection, `PoleInsetCalculationModule` retains selected physical-span behavior, and `AppStoreIdentity` retains canonical identity/key formats. Excel Review wire-policy checks are exercised independently and through the complete review regression suite.
+
 ## Automated Files
 
 The runner discovers every file ending in `.test.js`. Important groups include:
@@ -40,13 +42,18 @@ The runner discovers every file ending in `.test.js`. Important groups include:
 - `auto-calculate-solver.test.js`
 - `auto-calculate-solver-integration.test.js`
 - `excel-review.test.js`
+- `excel-review-renderer.test.js`
+- `excel-review-wire-checks.test.js`
 - `update-merge.test.js`
 - `pole-identity.test.js`
+- `pole-navigation.test.js`
 - `equipment-actions.test.js`
+- `power-wire-movement.test.js`
 - `compact-autoproposed.test.js`
 - `compact-autoproposed-blocked-poles.test.js`
 - `compact-autoproposed-golden.test.js`
 - `schema-contract.test.js`
+- `store-identity.test.js`
 - `floating-calculator-input.test.js`
 - `floating-calculator-ui.test.js`
 - `ui-dom-contract.test.js`
@@ -92,8 +99,8 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 7. New bolt too close to a previous Existing HOA point.
 8. Same-owner Service Drop at the exact same bolt is allowed.
 9. Two comms on the same span closer than Midspan Comm-comm.
-9. Similar comms on different spans are not compared for Comm-comm MS.
-10. Reversed pole/midspan order produces crossing flagging.
+10. Similar comms on different spans are not compared for Comm-comm MS.
+11. Reversed pole/midspan order produces crossing flagging.
 
 ### Proposed
 
@@ -105,8 +112,9 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 6. Proposed can reuse an exact HOA only after that comm moves away.
 7. Two Proposed attachments keep Bolt-bolt spacing.
 8. Proposed MS references only the same physical pole pair.
-9. INTEC low-power adjustment/reminder follows profile settings.
-10. Metronet leaves low-power violation visible without the INTEC reminder.
+9. A Service Drop at `16'` does not push a Proposed MS of `15'10"` to `16'4"`; a regular communication at `16'` still does.
+10. INTEC low-power adjustment/reminder follows profile settings.
+11. Metronet leaves low-power violation visible without the INTEC reminder.
 
 ### End Drop
 
@@ -212,6 +220,8 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 16. Fore/Back records keep their own imported midspans.
 17. Equipment imports supported Utility/Power rows and excludes communication risers.
 18. Supported Equipment can lower Max Height on Pole.
+19. INTEC Streetlight Ground selects the editable grounded bracket clearance (`12"` by default), while the ungrounded bracket uses its separate `40"` value and the drip loop keeps normal Power clearance.
+20. Power HOA Change preserves imported attachment and Midspan values, adjusts Midspan by half of each matching endpoint movement on the exact physical span, and recalculates maximum pole/Midspan clearances.
 
 ## Persistence Cases
 
@@ -228,7 +238,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 
 ## Excel Review Cases
 
-Excel Review coverage continues to require Collection identity, Fore/Back relationships, Environment, Anchor completeness, INTEC wire rules, HOA-only workbooks, Proposed/final Midspan comparison, UG resolution, structured transfers, ignored findings, natural order, supplemental model instructions, and tab badge counts.
+Excel Review coverage continues to require Collection identity and populated Drivable Access in Mid Span, owner-matched Telco/CATV drop sizes and Telco bundle combinations for Century Link and MCI Metro (including full hierarchical catalog paths), Fore/Back relationships, Environment, Anchor completeness, INTEC wire rules, HOA-only workbooks, Proposed/final Midspan comparison, UG resolution, structured transfers, ignored findings, natural order, supplemental model instructions, and tab badge counts. Blank values and a missing Drivable Access in Mid Span column must produce per-pole HOA errors.
 
 ## Browser Layout Smoke Tests
 

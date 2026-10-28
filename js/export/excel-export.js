@@ -124,13 +124,15 @@
       sc.wireIndex || ""
     ]));
 
-    const spanPower = [["spanId", "poleId", "label", "attachmentHeight", "midspan", "size", "owner", "wireId"]];
+    const spanPower = [["spanId", "poleId", "label", "attachmentHeight", "attachmentHeightChange", "midspan", "calculatedMidspan", "size", "owner", "wireId"]];
     Object.values(state.spanPower).forEach(row => spanPower.push([
       row.spanId,
       row.poleId,
       row.label,
       row.attachmentHeight,
+      row.attachmentHeightChange,
       row.midspan,
+      row.calculatedMidspan,
       row.size,
       row.owner,
       row.wireId

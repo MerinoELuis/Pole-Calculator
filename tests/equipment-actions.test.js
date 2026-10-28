@@ -11,7 +11,7 @@ const window = {
 };
 const sandbox = { window, console, Date, Set, Map, Math, JSON, Object, Array, String, Number, Boolean, RegExp };
 
-for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store.js", "rules/mr-logic.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/clearance-rules.js"]) {
+for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store-identity.js", "core/store.js", "rules/mr-logic.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/pole-inset-calculation.js", "domain/clearance-rules.js"]) {
   const modulePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 }
@@ -167,6 +167,20 @@ assert.equal(
   "20'10\"",
   "an INTEC ungrounded Streetlight bracket must keep 40 inches to comm"
 );
+S.updateSetting("streetlightBracketCommClearance", "42\"");
+S.updateSetting("streetlightGroundedBracketCommClearance", "14\"");
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", actionActive: false }),
+  "20'8\"",
+  "INTEC ungrounded bracket clearance must use its editable value"
+);
+assert.equal(
+  C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", actionActive: true }),
+  "23'",
+  "INTEC grounded bracket clearance must use its separate editable value"
+);
+S.updateSetting("streetlightBracketCommClearance", "40\"");
+S.updateSetting("streetlightGroundedBracketCommClearance", "12\"");
 assert.equal(
   C.getPowerEquipmentCeiling({ category: "STREETLIGHT", attachmentHeight: "24'2\"", dripLoopHeight: "22'", actionActive: true }),
   "18'8\"",

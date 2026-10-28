@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const sandbox = { window: {}, console };
-for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store.js"]) {
+for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store-identity.js", "core/store.js"]) {
   const statePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(statePath, "utf8"), sandbox, { filename: statePath });
 }

@@ -25,6 +25,8 @@ assert.equal(metronet.position, "TOP_COMM", "MidAm must default to Top Comm");
 assert.equal(metronet.calculateBackspanMidspan, true, "MidAm must calculate an imported Back Span midspan");
 assert.equal(intec.calculateBackspanMidspan, true, "INTEC must calculate a Back Span only when that row owns a midspan");
 assert.equal(intec.midspanPrimaryPowerCommClearance, "33\"", "INTEC must use 33 inches from Primary midspan to comm");
+assert.equal(intec.streetlightBracketCommClearance, "40\"", "INTEC ungrounded streetlight bracket clearance must default to 40 inches");
+assert.equal(intec.streetlightGroundedBracketCommClearance, "12\"", "INTEC grounded streetlight bracket clearance must default to 12 inches");
 assert.equal(metronet.midspanPrimaryPowerCommClearance, "30\"", "Metronet must retain its generic Primary midspan clearance");
 assert.equal(metronet.environmentClearances.RAILROAD, "23'6\"", "MidAm railroad crossing must use 23 feet 6 inches");
 assert.equal(metronet.environmentClearances.WATER_WITHOUT_SAILBOATS, "14'", "MidAm non-sailboat water crossing must use 14 feet");

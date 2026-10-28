@@ -35,9 +35,13 @@ The highest and lowest effective comm heights use per-span `Other HOA` when pres
 The calculator selects the lowest valid power midspan on a span.
 
 ```text
-Low Power at MS = minimum imported/edited power midspan on the span
+Low Power at MS = minimum effective power midspan on the span
 Max Height at MS = Low Power at MS - Midspan Power-comm clearance
 ```
+
+The imported power Midspan remains the baseline. A Power HOA Change moves that
+wire's calculated Midspan by half of the local attachment delta and half of a
+matching remote endpoint delta on the same physical span.
 
 For INTEC, a Primary power midspan uses the separate `33"` Primary-to-comm
 clearance. When a span has a Primary midspan, its resulting ceiling is also
@@ -141,12 +145,13 @@ One compact comm flagging field combines these checks:
 1. Midspan is not below Environment clearance.
 2. Midspan does not exceed Max Height at MS.
 3. Regular comms on the same `spanId` keep Midspan Comm-comm clearance, including separate wires from the same owner. Service Drops are excluded from this 4-inch spacing and crossing-order check; their Midspan still must satisfy Environment and Low Power limits.
-4. Comm order at the pole and midspan does not reverse, preventing cable crossings.
-5. Top Comm mode leaves room above the highest comm midspan for Proposed.
-6. Effective HOA does not exceed Max Height on Pole.
-7. Different owners keep Pole Comm-comm clearance.
-8. Same owners keep Pole Bolt-bolt clearance.
-9. New movement bolts keep Bolt-bolt clearance from previous Existing HOA points.
+4. When the Proposed Midspan is auto-adjusted to preserve 4 inches from a communication Midspan, Service Drops are not used as the reference. For example, a Service Drop at `16'` does not push a manually entered Proposed Midspan of `15'10"` up to `16'4"`.
+5. Comm order at the pole and midspan does not reverse, preventing cable crossings.
+6. Top Comm mode leaves room above the highest comm midspan for Proposed.
+7. Effective HOA does not exceed Max Height on Pole.
+8. Different owners keep Pole Comm-comm clearance.
+9. Same owners keep Pole Bolt-bolt clearance.
+10. New movement bolts keep Bolt-bolt clearance from previous Existing HOA points.
 
 MidAm environment defaults are profile-specific: railroad `23'6"`; truck traffic, parking lots, alleys, farms and along-road spans `15'6"`; pedestrian-only areas `9'6"`; and water without sailboats `14'`.
 
@@ -154,8 +159,8 @@ MidAm environment defaults are profile-specific: railroad `23'6"`; truck traffic
 
 The `Equipment` sheet contributes only rows owned by Utility/Power and categorized as Streetlight, Transformer, or Riser. Communication risers do not participate.
 
-1. INTEC keeps `40"` below Low Power, Transformer Bottom Height, Streetlight drip loops, and ungrounded Streetlight brackets.
-2. An INTEC grounded Streetlight bracket keeps `12"` to the top comm. Grounding changes only the bracket rule; its drip loop still keeps `40"`.
+1. INTEC keeps `40"` below Low Power, Transformer Bottom Height, Streetlight drip loops, and ungrounded Streetlight brackets. The configurable `Streetlight bracket-comm` value defaults to `40"`.
+2. An INTEC grounded Streetlight bracket uses the separate configurable `Streetlight bracket-comm (Grounding)` value, defaulting to `12"` to comm. The existing Ground checkbox selects this rule; grounding changes only the bracket rule, while its drip loop still keeps the normal `40"` Power clearance.
 3. MidAm Streetlights use only `Attachment Height - Streetlight bracket-comm`; Bottom Height and Drip Loop Height are invalid MidAm fields and are reported by Excel Review.
 4. MidAm Transformers and Power Risers subtract Pole Power-comms clearance from their lowest imported physical height.
 5. `Max Height on Pole` is the lowest result from Low Power and every applicable Power Equipment row.
@@ -172,7 +177,8 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 8. Metronet MidAm Streetlight `Raise` is also independent of mandatory `Ground`. New HOA may be up to `12"` above Attachment Height, and MR adds `AT HOA <old> RAISE STREETLIGHT TO HOA <new> DUE TO CLEARANCE VIOLATIONS.`
 9. A valid Transformer/Riser/Streetlight target replaces that equipment height in its pole-clearance calculation.
 10. When the moved equipment supplied the imported Low Power, the target becomes effective Low Power. If several equipment rows share that limiting height, all must be moved before a higher Low Power can replace it.
-11. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
+11. Power wire `Attachment Height` and imported `Midspan` remain source values. A per-wire `HOA Change` is a target height; the local and uniquely matching remote endpoint movements each adjust that exact wire's Midspan by half their height delta. `Max Height at MS` recalculates from the adjusted power Midspan, and Primary attachment changes also update the pole Primary ceiling. Unrelated spans never contribute movement.
+12. Disabling an optional action restores calculation from `metadata.lowPowerBaseline`. Updating Excel refreshes that baseline but preserves matching user actions.
 
 ## MidAm Collection Identity
 
@@ -274,6 +280,7 @@ Editing Next Pole Proposed locally does not change the Proposed value on the con
 The first proposal on an imported connection reuses the physical span. Additional proposals receive separate state while retaining `sourceSpanId` so geometry, Environment, and power limits come from the same physical span.
 
 Only the first non-additional Proposed at the next pole is used automatically for the preceding pole's End Drop.
+AutoProposed must not export `endDrop` on a Back Span, even if a stale or manual End Drop value remains in that span's calculator state. `nextHoa` remains independent and may still be exported.
 
 ## Auto Calculate
 

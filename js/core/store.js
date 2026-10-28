@@ -9,6 +9,7 @@
   const DEFAULT_CLEARANCE_TO_POWER = "40\"";
   const DEFAULT_COMM_CLEARANCE = "12\"";
   const DEFAULT_BOLT_CLEARANCE = "4\"";
+  const Identity = global.AppStoreIdentity;
 
   function normalizePoleInsetReason(value) {
     return String(value || "").trim().toUpperCase() === "OVERLOADED"
@@ -134,6 +135,7 @@
       hideProposedOwner: false,
       environmentClearances: {},
       streetlightBracketCommClearance: "",
+      streetlightGroundedBracketCommClearance: "",
       streetlightDripLoopCommClearance: "",
       powerGuyCommClearance: "",
       streetlightGroundingRequired: false,
@@ -332,18 +334,15 @@
   // of them changes the physical pole identity. Collection keeps the preferred
   // display name while import/update matching uses this stable comparison key.
   function canonicalPoleIdentity(value) {
-    const parts = trim(value).replace(/\s+/g, " ").split(" ").filter(Boolean);
-    while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
-    return parts.join(" ").toUpperCase();
+    return Identity.canonicalPoleIdentity(value);
   }
 
   function isUnknownPoleId(value) {
-    return /^unknown(?:-|\b)/i.test(trim(value));
+    return Identity.isUnknownPoleId(value);
   }
 
   function isAddressableUnknownPoleId(value) {
-    const id = trim(value);
-    return isUnknownPoleId(id) || /-unknown(?:-|\b)/i.test(id);
+    return Identity.isAddressableUnknownPoleId(value);
   }
 
   function defaultEnvironmentClearance(environment) {
@@ -355,11 +354,11 @@
   }
 
   function keyForSpanSide(spanId, poleId) {
-    return [spanId, poleId].map(v => trim(v)).join("__");
+    return Identity.keyForSpanSide(spanId, poleId);
   }
 
   function keyForSpanComm(spanId, poleId, owner, wireId) {
-    return [spanId, poleId, owner, wireId || ""].map(v => trim(v)).join("__");
+    return Identity.keyForSpanComm(spanId, poleId, owner, wireId);
   }
 
   /**
@@ -727,7 +726,9 @@
       poleId: trim(data.poleId || ""),
       label: trim(data.label || ""),
       attachmentHeight: trim(data.attachmentHeight || ""),
+      attachmentHeightChange: normalizedHeightOrEmpty(data.attachmentHeightChange),
       midspan: normalizedHeightOrEmpty(data.midspan),
+      calculatedMidspan: normalizedHeightOrEmpty(data.calculatedMidspan),
       size: trim(data.size || ""),
       owner: trim(data.owner || ""),
       wireId: trim(data.wireId || "")
@@ -1012,7 +1013,7 @@
   }
 
   function updateSpanPowerField(powerKey, field, value) {
-    if (!["attachmentHeight", "midspan", "size", "label"].includes(field)) return null;
+    if (!["attachmentHeight", "attachmentHeightChange", "midspan", "calculatedMidspan", "size", "label"].includes(field)) return null;
     const row = state.spanPower[trim(powerKey)];
     if (!row) return null;
     row[field] = trim(value);
@@ -1167,10 +1168,11 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.otherHOA || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
+    const powerChange = getSpanPowerForPole(poleId).some(row => Boolean(row.attachmentHeightChange));
     return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.poleInsetHeight || state.poles[poleId]?.poleInsetSpanId || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.secondaryDripLoopActive || state.poles[poleId]?.secondaryDripLoopHoa || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
       || state.poles[poleId]?.riserActive === true
       || state.poles[poleId]?.riserActive === false
-      || sideChange || commChange || equipmentChange;
+      || sideChange || commChange || equipmentChange || powerChange;
   }
 
   function ensureUnknownPoles() {

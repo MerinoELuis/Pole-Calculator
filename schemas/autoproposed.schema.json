@@ -5,15 +5,38 @@
   "description": "Structural contract shared by Pole-Calculator Web and the O-Calc AutoProposed plugin. Heights and span lengths are integer inches; bearings are decimal degrees.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["sizes", "owner", "poles"],
+  "required": ["project", "sizes", "owner", "poles"],
   "properties": {
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active project whose rules govern this proposal."
+    },
+    "workInstruction": {
+      "type": "string",
+      "enum": ["MIDAM", "CSU", "COMED"],
+      "description": "MetroNet work instruction when project is METRONET."
+    },
     "sizes": { "$ref": "#/$defs/sizes" },
-    "owner": { "type": "string", "minLength": 1 },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Owner selected for the proposed fiber."
+    },
     "poles": {
       "type": "array",
       "items": { "$ref": "#/$defs/pole" }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "project": { "const": "METRONET" } },
+        "required": ["project"]
+      },
+      "then": { "required": ["workInstruction"] }
+    }
+  ],
   "$defs": {
     "integerInches": {
       "type": "integer",

@@ -612,7 +612,9 @@
         poleId: String(pick(row, ["poleId", "Pole ID"])).trim(),
         label: pick(row, ["label", "Type", "Tipo"]),
         attachmentHeight: pick(row, ["attachmentHeight", "Attachment Height"]),
+        attachmentHeightChange: pick(row, ["attachmentHeightChange", "Attachment Height Change", "HOA Change"]),
         midspan: pick(row, ["midspan", "Midspan"]),
+        calculatedMidspan: pick(row, ["calculatedMidspan", "Calculated Midspan"]),
         size: pick(row, ["size", "Size"]),
         owner: pick(row, ["owner", "Owner"]),
         wireId: pick(row, ["wireId", "Wire ID"])

@@ -18,6 +18,7 @@
     midspanCommCommClearance: "4\"",
     transformerCommClearance: "42\"",
     streetlightBracketCommClearance: "",
+    streetlightGroundedBracketCommClearance: "",
     streetlightUngroundedBracketCommClearance: "",
     streetlightDripLoopCommClearance: "",
     powerGuyCommClearance: ""
@@ -46,7 +47,8 @@
         showResagServiceDrop: true,
         hideProposedOwner: false,
         environmentClearances: {},
-        streetlightBracketCommClearance: "",
+        streetlightBracketCommClearance: "40\"",
+        streetlightGroundedBracketCommClearance: "12\"",
         streetlightDripLoopCommClearance: "",
         powerGuyCommClearance: "",
         streetlightGroundingRequired: false,

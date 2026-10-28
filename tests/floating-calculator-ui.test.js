@@ -9,15 +9,13 @@ const html = fs.readFileSync(indexPath, "utf8");
 
 assert.match(
   html,
-  /id="openCalculatorBtn"[^>]*>ft'in(?:&quot;|")<\/button>/,
-  "The floating calculator button must display ft'in\"."
+  /<button id="openCalculatorBtn"(?=[^>]*aria-label="Open or close calculator")[^>]*>\s*<svg\b/,
+  "The floating calculator button must display an accessible calculator icon."
 );
 
-assert.match(
-  html,
-  /<h3>Feet' Inches(?:&quot;|")<\/h3>/,
-  "The floating calculator heading must display Feet' Inches\"."
-);
+assert.match(html, /<div class="floating-header">\s*<p class="eyebrow">Calculator<\/p>/, "The floating calculator header must center its Calculator label independently of the close button.");
+assert.match(html, /<label class="calc-result-field">Result<output class="calc-result" id="calcResult"/, "The calculator output must have an accessible English Result label.");
+assert.doesNotMatch(html, /Feet' Inches/, "The redundant Feet' Inches title must not be shown.");
 
 assert.match(
   html,

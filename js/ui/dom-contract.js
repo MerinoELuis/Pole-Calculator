@@ -18,6 +18,48 @@
     return normalizeLabel(value).replace(/\s+/g, "-") || "column";
   }
 
+  function controlIdPart(value) {
+    return normalizeLabel(value).replace(/\s+/g, "-").slice(0, 48);
+  }
+
+  function ensureFormControlIds(root) {
+    if (!root?.querySelectorAll) return 0;
+    const controls = Array.from(root.querySelectorAll("input, select, textarea"));
+    if (root.matches?.("input, select, textarea")) controls.unshift(root);
+    const document = global.document || root.ownerDocument;
+    const usedIds = new Set();
+    let generated = 0;
+
+    controls.forEach((control, index) => {
+      if (text(control.id) || text(control.getAttribute?.("name"))) return;
+      const data = control.dataset || {};
+      const identity = [
+        data.scope,
+        data.pole || data.poleId,
+        data.span || data.spanId,
+        data.owner,
+        data.wireId,
+        data.groupKey,
+        data.powerKey,
+        data.equipmentIndex ?? data.index,
+        data.field,
+        data.fiber,
+        data.manualProposedTarget
+      ].map(controlIdPart).filter(Boolean);
+      const base = `form-field-${identity.join("-") || `control-${index + 1}`}`;
+      let id = base;
+      let suffix = 2;
+      while (usedIds.has(id) || (document?.getElementById?.(id) && document.getElementById(id) !== control)) {
+        id = `${base}-${suffix++}`;
+      }
+      control.id = id;
+      usedIds.add(id);
+      generated += 1;
+    });
+
+    return generated;
+  }
+
   function spanIdFrom(element) {
     const own = text(element?.dataset?.spanId || element?.dataset?.span);
     if (own) return own;
@@ -127,6 +169,7 @@
 
   function apply(root = global.document) {
     if (!root?.querySelectorAll) return 0;
+    ensureFormControlIds(root);
     const cards = Array.from(root.querySelectorAll("[data-pole-card], [data-component='pole-card']"));
     cards.forEach(annotatePoleCard);
     return cards.length;
@@ -135,6 +178,7 @@
   global.UiDomContract = {
     normalizeLabel,
     columnKey,
+    ensureFormControlIds,
     spanIdFrom,
     pairCommRows,
     annotateTableColumns,

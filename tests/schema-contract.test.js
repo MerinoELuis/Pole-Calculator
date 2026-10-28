@@ -9,7 +9,7 @@ const schema = JSON.parse(fs.readFileSync(path.join(root, "schemas", "autopropos
 
 assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
 assert.equal(schema.additionalProperties, false);
-assert.deepEqual(schema.required, ["sizes", "owner", "poles"]);
+assert.deepEqual(schema.required, ["project", "sizes", "owner", "poles"]);
 assert.equal(schema.$defs.pole.additionalProperties, false);
 assert.equal(schema.$defs.span.additionalProperties, false);
 assert.equal(schema.$defs.move.additionalProperties, false);
@@ -21,7 +21,14 @@ function exactKeys(value, allowed, context) {
 }
 
 function validatePayload(payload, filename) {
-  exactKeys(payload, ["sizes", "owner", "poles"], filename);
+  exactKeys(payload, ["project", "workInstruction", "sizes", "owner", "poles"], filename);
+  assert.equal(typeof payload.project, "string");
+  assert.ok(payload.project.trim());
+  if (payload.project === "METRONET") {
+    assert.ok(["MIDAM", "CSU", "COMED"].includes(payload.workInstruction));
+  } else {
+    assert.equal("workInstruction" in payload, false);
+  }
   assert.equal(typeof payload.owner, "string");
   assert.ok(payload.owner.trim());
   assert.ok(Array.isArray(payload.poles));

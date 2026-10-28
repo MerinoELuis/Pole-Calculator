@@ -20,35 +20,40 @@ Every browser module is an IIFE that publishes a small API on `window`.
 4. `js/core/project-config.js`
 5. `js/domain/pole-resolution.js`
 6. `js/core/state-compat.js`
-7. `js/core/store.js`
-8. `js/domain/comm-movements.js`
-9. `js/domain/clearance-rules.js`
-10. `js/domain/midspan-engine.js`
-11. `js/rules/mr-logic.js`
-12. `js/rules/validations.js`
-13. `js/import/import-normalizers.js`
-14. `js/import/excel-import.js`
-15. `js/import/update-data-reconciler.js`
-16. `js/import/excel-review.js`
-17. `js/export/excel-export.js`
-18. `js/export/json-export.js`
-19. `js/export/compact-autoproposed.js`
-20. `js/rules/auto-calculate-solver.js`
-21. `js/ui/dialogs.js`
-22. `js/ui/theme.js`
-23. `js/ui/mobile-keyboard.js`
-24. `js/ui/floating-calculator.js`
-25. `js/ui/pole-renderer.js`
-26. `js/ui/controls.js`
-27. `js/core/persistence.js`
-28. `js/core/history.js`
-29. `js/ui/app.js`
-30. `js/ui/dom-contract.js`
-31. `js/ui/comm-table.js`
-32. `js/ui/span-colors.js`
-33. `js/ui/runtime.js`
+7. `js/core/store-identity.js`
+8. `js/core/store.js`
+9. `js/domain/comm-movements.js`
+10. `js/domain/pole-inset-calculation.js`
+11. `js/domain/clearance-rules.js`
+12. `js/domain/midspan-engine.js`
+13. `js/rules/mr-logic.js`
+14. `js/rules/validations.js`
+15. `js/import/import-normalizers.js`
+16. `js/import/excel-import.js`
+17. `js/import/update-data-reconciler.js`
+18. `js/import/excel-review-wire-checks.js`
+19. `js/import/excel-review.js`
+20. `js/export/excel-export.js`
+21. `js/export/json-export.js`
+22. `js/export/compact-autoproposed.js`
+23. `js/rules/auto-calculate-solver.js`
+24. `js/ui/dialogs.js`
+25. `js/ui/theme.js`
+26. `js/ui/mobile-keyboard.js`
+27. `js/ui/floating-calculator.js`
+28. `js/ui/excel-review-renderer.js`
+29. `js/ui/pole-renderer.js`
+30. `js/ui/controls.js`
+31. `js/core/persistence.js`
+32. `js/core/history.js`
+33. `js/ui/pole-navigation.js`
+34. `js/ui/app.js`
+35. `js/ui/dom-contract.js`
+36. `js/ui/comm-table.js`
+37. `js/ui/span-colors.js`
+38. `js/ui/runtime.js`
 
-Changing this order can break global dependencies. Pole resolution and state compatibility load before the store; movement routines register before clearance calculations inject their helpers; import normalizers load before ExcelImport; the solver and UI factories load before the app coordinator initializes them. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
+Changing this order can break global dependencies. Pole resolution, state compatibility, and identity helpers load before the store; movement and Pole Inset calculation modules register before clearance calculations inject their helpers; import normalizers load before ExcelImport; Excel Review wire rules load before the audit coordinator, and its result renderer loads before the app initializes it. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
 
 ## Module Responsibilities
 
@@ -56,6 +61,7 @@ Changing this order can break global dependencies. Pole resolution and state com
 | --- | --- | --- |
 | `core/store.js` | `AppStore` | Own normalized mutable application state and identity/relation accessors. |
 | `core/state-compat.js` | `StateCompatibility` | Normalize older saved/imported state shapes at explicit compatibility boundaries. |
+| `core/store-identity.js` | `AppStoreIdentity` | Canonical pole identities and stable span-side/communication keys. |
 | `core/history.js` | `AppHistory` | Own undo/redo snapshots and the movement trace written to Debug data. |
 | `core/persistence.js` | `AppPersistence` | Save/load JSON, file handles, dirty-state tracking, and safe job filenames. |
 | `core/project-config.js` | `ProjectProfiles` | Keep INTEC and Metronet defaults outside calculation code. |
@@ -63,6 +69,7 @@ Changing this order can break global dependencies. Pole resolution and state com
 | `domain/height-math.js` | `HeightUtils` | Parse and format height values using integer inches. |
 | `domain/pole-resolution.js` | `PoleResolution` | Normalize AERIAL, UG, and PCO state with UG priority. |
 | `domain/comm-movements.js` | `CalculationAutoMovementModule` | Encapsulate Auto Calculate movement planning and apply routines using helpers injected by clearance calculations. |
+| `domain/pole-inset-calculation.js` | `PoleInsetCalculationModule` | Calculate Pole Inset span options, selected-span power ceilings, and End Drops. |
 | `domain/clearance-rules.js` | `Calculations` | Derive clearances, pole limits, comm midspans, Proposed results, End Drop, recalculation, and flagging. This remains the integrated calculation orchestrator. |
 | `domain/midspan-engine.js` | `MidspanEngine` (`MidspanLogic` compatibility alias) | Calculate comm Midspan from the imported baseline plus half of each endpoint movement; also provide span-oriented Midspan read/recalculation APIs. |
 | `domain/graph.js` | `PoleGraph` | Graph utilities for pole/span topology; not loaded by the browser runtime unless explicitly needed. |
@@ -72,6 +79,7 @@ Changing this order can break global dependencies. Pole resolution and state com
 | `import/import-normalizers.js` | `ImportNormalizers` | Normalize worksheet rows, headers, heights, identifiers, and common cell values. |
 | `import/excel-import.js` | `ExcelImport` | Convert Excel worksheets or saved data into normalized AppStore entities. |
 | `import/excel-review.js` | `ExcelReview` | Audit preserved workbook rows against current calculated and MR state without rendering HTML. |
+| `import/excel-review-wire-checks.js` | `ExcelReviewWireChecks` | Isolated INTEC wire construction/insulator and Telco/CATV size checks. |
 | `import/update-data-reconciler.js` | `UpdateDataReconciler` | Merge refreshed workbook data into saved operator work and report differences. |
 | `export/excel-export.js` | `ExcelExport` | Produce workbook downloads. |
 | `export/json-export.js` | `ProjectExport` | Produce general project and diagnostic JSON downloads. |
@@ -83,6 +91,8 @@ Changing this order can break global dependencies. Pole resolution and state com
 | `ui/theme.js` | `ThemeControl` | Resolve and persist the active light/dark theme. |
 | `ui/mobile-keyboard.js` | `MobileKeyboardControl` | Manage mobile viewport and keyboard-specific input behavior. |
 | `ui/floating-calculator.js` | `FloatingCalculator` | Evaluate feet/inches expressions and normalize quotes. |
+| `ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Render Excel Review results, badges, warning controls, and actions. |
+| `ui/pole-navigation.js` | `PoleNavigation` | Own pole-index drawer visibility, pole selection, and scroll navigation. |
 | `ui/dom-contract.js` | `UiDomContract` | Annotate rendered cards and tables with stable component, pole, span, and column identities. |
 | `ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA without deleting calculation data. |
 | `ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and synchronize each Midspan row. |

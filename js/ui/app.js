@@ -18,6 +18,7 @@
   const spanRelationOf = span => S.getSpanRelation(span);
 
   const els = {};
+  let poleNavigation = null;
   let spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, reviewStatusBadge, renderReviewCheck, renderExcelReviewTabWarning, updateExcelReviewWarningActions, renderExcelReviewResults, setAllExcelReviewWarningsIgnored, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace;
   let delayedMidspanRenderTimer = null;
   const delayedMidspanRenderPoleIds = new Set();
@@ -112,19 +113,7 @@
   }
 
   function setPoleIndexOpen(open) {
-    const isOpen = Boolean(open);
-    if (isOpen) mobileKeyboard?.setOpen(false);
-    document.body.classList.toggle("pole-index-open", isOpen);
-    els.poleIndexDrawer?.classList.toggle("open", isOpen);
-    els.poleIndexDrawer?.setAttribute("aria-hidden", String(!isOpen));
-    if (els.poleIndexDrawer) els.poleIndexDrawer.inert = !isOpen;
-    els.poleIndexToggle?.setAttribute("aria-expanded", String(isOpen));
-    els.poleIndexBackdrop?.classList.toggle("hidden", !isOpen);
-    // Opening navigation must not focus the search field: on Samsung this
-    // would immediately raise the software keyboard over the pole list.
-    if (isOpen && document.activeElement && document.activeElement !== document.body) {
-      document.activeElement.blur?.();
-    }
+    poleNavigation?.setOpen(open);
   }
 
   function updateMobileKeyboardToggle() { mobileKeyboard?.updateToggle(); }
@@ -134,14 +123,7 @@
   function isMobileHeightKeyboardViewport() { return Boolean(mobileKeyboard?.isViewport()); }
 
   function updatePoleIndexToggleVisibility() {
-    if (!els.poleIndexToggle) return;
-    if ((S.getState().ui.activeView || "calculator") !== "calculator") {
-      els.poleIndexToggle.classList.remove("visible");
-      return;
-    }
-    // The page-level pole list is removed; keep the drawer tab available at
-    // every scroll position so navigation is always one tap away.
-    els.poleIndexToggle.classList.add("visible");
+    poleNavigation?.updateToggleVisibility();
   }
 
   const { openAppDialog, confirmInApp } = global.AppDialogs.create(escapeHtml);
@@ -177,7 +159,6 @@
         // keyboard instead of Samsung's numeric-only layout.
         input.setAttribute("inputmode", isMobileHeightKeyboardViewport() ? "none" : "text");
         input.setAttribute("enterkeyhint", "next");
-        input.setAttribute("pattern", decimal ? "[0-9.\\s-]*" : "[0-9.'\"´′″\\s-]*");
         input.addEventListener("focus", () => setMobileHeightKeyboardOpen(true, input));
         input.addEventListener("blur", () => {
           if (!mobileKeyboard?.ownsInput(input)) return;
@@ -230,6 +211,7 @@
       "existingHOAChange",
       "otherHOA",
       "midspan",
+      "attachmentHeightChange",
       "environmentClearance",
       "midspanCommCommClearance",
       "midspanPowerCommClearance",
@@ -673,7 +655,8 @@
 
     if (scope === "spanPower") {
       S.updateSpanPowerField(el.dataset.powerKey || "", field, value);
-      global.Calculations.recalculateSpan(el.dataset.span);
+      if (el.dataset.pole) global.Calculations.recalculateSpansForPole(el.dataset.pole);
+      else global.Calculations.recalculateSpan(el.dataset.span);
     }
 
     if (scope === "settings") {
@@ -721,30 +704,17 @@
     if (scope === "settings") render();
     else renderAffectedPoles(affectedPoleIds);
 
-    if (["lowPower", "standaloneProposedHOA", "poleInsetHeight", "ocalcMS", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "environmentClearance", "commClearance", "boltClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
+    if (["lowPower", "standaloneProposedHOA", "poleInsetHeight", "ocalcMS", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "attachmentHeightChange", "environmentClearance", "commClearance", "boltClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightGroundedBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
   }
 
   function scrollToPole(poleId) {
-    const card = document.querySelector(`[data-pole-card="${CSS.escape(poleId)}"]`);
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+    poleNavigation?.scrollToPole(poleId);
   }
 
   function selectPole(poleId) {
-    const state = S.getState();
-    if ((state.ui.hiddenPoleIds || []).includes(poleId)) {
-      recordUndoSnapshot();
-      state.ui.hiddenPoleIds = state.ui.hiddenPoleIds.filter(id => id !== poleId);
-      if (/(?:^unknown(?:-|\b)|-unknown(?:-|\b))/i.test(poleId)) {
-        state.ui.revealedUnknownPoleIds = Array.from(new Set([...(state.ui.revealedUnknownPoleIds || []), poleId]));
-      }
-    }
-    state.selectedPoleId = poleId;
-    state.selectedSpanId = "";
-    state.ui.activeView = "calculator";
-    render();
-    scrollToPole(poleId);
+    poleNavigation?.selectPole(poleId);
   }
 
   function render() {
@@ -1056,6 +1026,14 @@
         delayedMidspanRenderTimer = null;
         delayedMidspanRenderPoleIds.clear();
       }
+    });
+    poleNavigation = global.PoleNavigation.create({
+      document,
+      els,
+      mobileKeyboard,
+      recordUndoSnapshot,
+      render,
+      S
     });
 
     const rendererContext = {

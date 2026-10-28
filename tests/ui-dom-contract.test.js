@@ -14,6 +14,23 @@ assert.equal(api.normalizeLabel("  Other   Pole HOA "), "other pole hoa");
 assert.equal(api.columnKey("OWNER/COMM"), "owner-comm");
 assert.equal(api.columnKey("Environment Clearance"), "environment-clearance");
 
+const formControls = [
+  { tagName: "INPUT", id: "", dataset: { scope: "pole", pole: "P1", field: "ancDirection" }, getAttribute: () => null },
+  { tagName: "SELECT", id: "", dataset: { scope: "pole", pole: "P1", field: "ancDirection" }, getAttribute: () => null },
+  { tagName: "INPUT", id: "knownField", dataset: {}, getAttribute: () => null },
+  { tagName: "INPUT", id: "", dataset: {}, getAttribute: name => name === "name" ? "namedField" : null }
+];
+window.document = {
+  getElementById(id) {
+    return formControls.find(control => control.id === id) || null;
+  }
+};
+assert.equal(api.ensureFormControlIds({ querySelectorAll: () => formControls }), 2);
+assert.equal(formControls[0].id, "form-field-pole-p1-ancdirection");
+assert.equal(formControls[1].id, "form-field-pole-p1-ancdirection-2");
+assert.equal(formControls[2].id, "knownField");
+assert.equal(formControls[3].id, "");
+
 const spanRows = [
   { dataset: { spanId: "S1" } },
   { dataset: { span: "S2" } }

@@ -85,15 +85,17 @@ const sandbox = {
 };
 
 const modulePath = path.join(__dirname, "..", "js", "import", "excel-review.js");
+const wireChecksPath = path.join(__dirname, "..", "js", "import", "excel-review-wire-checks.js");
+vm.runInNewContext(fs.readFileSync(wireChecksPath, "utf8"), sandbox, { filename: wireChecksPath });
 vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 const review = sandbox.window.ExcelReview;
 
 state.excelReviewSource = {
   collection: {
-    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "Drivable Access in Mid Span", "MRE Construction Type", "PLA STATUS"],
     rows: [
-      { Id: "P1", Sequence: "P1", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
-      { Id: "P2", Sequence: "P2", "Year Installed": 2011, "Low Power Attachment.display": "", "Low Power": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }
+      { Id: "P1", Sequence: "P1", "Year Installed": 2010, "Low Power Attachment.display": "27'", "Drivable Access in Mid Span": "no", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
+      { Id: "P2", Sequence: "P2", "Year Installed": 2011, "Low Power Attachment.display": "", "Low Power": "27'", "Drivable Access in Mid Span": "yes", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }
     ]
   },
   spans: {
@@ -133,6 +135,71 @@ assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power 
 assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");
 assert.equal(output.summary.total, 2);
 assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
+
+assert.equal(p1.checks.some(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN"), false, "a populated Drivable Access in Mid Span value must pass");
+state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"] = "";
+review.runReview();
+let drivableAccessCheck = review.reviewPole("P1").checks.find(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN");
+assert.ok(drivableAccessCheck && drivableAccessCheck.status === "ERROR", "an empty Drivable Access in Mid Span value must error");
+state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"] = "no";
+
+const collectionHeaders = state.excelReviewSource.collection.headers;
+state.excelReviewSource.collection.headers = collectionHeaders.filter(header => header !== "Drivable Access in Mid Span");
+delete state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"];
+review.runReview();
+drivableAccessCheck = review.reviewPole("P1").checks.find(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN");
+assert.ok(drivableAccessCheck && drivableAccessCheck.status === "ERROR", "a missing Drivable Access in Mid Span column/value must error");
+state.excelReviewSource.collection.headers = collectionHeaders;
+state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"] = "no";
+output = review.runReview();
+
+const originalSizeRows = state.excelReviewSource.spanWires.rows;
+state.excelReviewSource.spanWires.rows = [
+  { Id: "P1", Owner: "COMMUNICATION > Century Link Communications", Size: "0.5in Telco" },
+  { Id: "P1", Owner: "COMMUNICATION > Century Link Communications", Size: '2" Communication Bundle Msgr:0.306"' },
+  { Id: "P1", Owner: "COMMUNICATION > Century Link Communications", Size: 'Telco Bundles > 1" Communication Bundle  Msgr:0.242" > Tension to Sag' },
+  { Id: "P1", Owner: "COMMUNICATION > MCI Metro", Size: "0.75in Telco" },
+  { Id: "P1", Owner: "COMMUNICATION > Cable One, Prescott", Size: "0.5in CATV" },
+  { Id: "P1", Owner: "COMMUNICATION > Cable One, Show Low", Size: "0.75in CATV" },
+  { Id: "P1", Owner: "COMMUNICATION > Cox Communications", Size: "1in CATV" }
+];
+review.runReview();
+assert.equal(
+  review.reviewPole("P1").checks.some(item => ["COMM_SIZE_OWNER_MISMATCH", "INVALID_TELCO_BUNDLE_SIZE"].includes(item.code)),
+  false,
+  "Telco and CATV owners must pass their matching drop sizes and approved Century Link bundles"
+);
+
+state.excelReviewSource.spanWires.rows.push(
+  { Id: "P1", Owner: "COMMUNICATION > Century Link Communications", Size: "0.5in CATV" },
+  { Id: "P1", Owner: "COMMUNICATION > MCI Metro", Size: "0.75in CATV" },
+  { Id: "P1", Owner: "COMMUNICATION > Cable One, Prescott", Size: "0.5in Telco" },
+  { Id: "P1", Owner: "COMMUNICATION > Cable One, Show Low", Size: "0.75in Telco" },
+  { Id: "P1", Owner: "COMMUNICATION > Cox Communications", Size: "1in Telco" },
+  { Id: "P1", Owner: "COMMUNICATION > Century Link Communications", Size: '3.5" Communication Bundle Msgr:0.242"' }
+);
+review.runReview();
+const sizeChecks = review.reviewPole("P1").checks;
+assert.equal(sizeChecks.filter(item => item.code === "COMM_SIZE_OWNER_MISMATCH" && item.status === "ERROR").length, 5, "wrong Telco/CATV drop size categories must error for the five configured owners");
+assert.ok(sizeChecks.some(item => item.code === "INVALID_TELCO_BUNDLE_SIZE" && item.status === "ERROR"), "an unsupported Century Link bundle and messenger combination must error");
+state.excelReviewSource.spanWires.rows = originalSizeRows;
+output = review.runReview();
+
+const originalSpanRows = state.excelReviewSource.spans.rows;
+originalSpanRows.push(
+  { Id: "P1", "Span Id": "UNLINKED-FORE", "Span Index": 8, Type: "Fore Span", Environment: "STREET" },
+  { Id: "P1", "Span Id": "UNLINKED-BACK", "Span Index": 9, Type: "Back Span", Environment: "RESIDENTIAL_DRIVEWAY" },
+  { Id: "P1", "Span Id": "SELF-FORE", "Span Index": 10, Type: "Fore Span", "Linked Collection.Title": "P1", Environment: "STREET" },
+  { Id: "P1", "Span Id": "SELF-BACK", "Span Index": 11, Type: "Back Span", "Linked Collection.Title": "P1", Environment: "RESIDENTIAL_DRIVEWAY" }
+);
+output = review.runReview();
+assert.equal(
+  review.reviewPole("P1").checks.some(item => item.code === "ENVIRONMENT_MISMATCH"),
+  false,
+  "unlinked or same-pole Fore/Back spans must not be compared for environment mismatch"
+);
+originalSpanRows.splice(-4);
+output = review.runReview();
 
 const initialHoaWarnings = output.results.flatMap(result => result.checks)
   .filter(item => item.phase === "HOA" && item.status === "WARNING");
@@ -376,8 +443,8 @@ state.excelReviewIgnoredChecks = {};
 state.mr = [{ poleId: "PMISMATCH", text: "Backspan to go UG S due to existing pole overloaded.\nPl riser S at HOA 18'." }];
 state.excelReviewSource = {
   collection: {
-    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
-    rows: [{ Id: "PMISMATCH", Sequence: "PMISMATCH", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }]
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "Drivable Access in Mid Span", "MRE Construction Type", "PLA STATUS"],
+    rows: [{ Id: "PMISMATCH", Sequence: "PMISMATCH", "Year Installed": 2010, "Low Power Attachment.display": "27'", "Drivable Access in Mid Span": "no", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }]
   },
   spans: {
     headers: ["Id", "Span Id", "Span Index", "Type", "Linked Collection.Title", "Environment"],

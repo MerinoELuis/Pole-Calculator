@@ -6,6 +6,7 @@
   const H = () => global.HeightUtils;
   const S = () => global.AppStore;
   let updatePoleCommNewHeight, cloneStateForAutoCalc, autoCalcGroupKey, autoCalcGroupsForPole, autoCalcMaxPole, autoCalcGapBetweenGroups, autoCalcPoleHasCommProblems, spanHasRealMidspan, isSpanEligibleForProposed, autoCalcProposedSpansForPole, autoCalcSetProposed, autoCalcBuildStackPlan, autoCalcPlanMovesComm, autoCalcGroupMidspanTarget, autoCalcFinalProposedForPlan, autoCalcProposedCandidates, autoCalcAffectedPoleIds, autoCalcClearExistingMarks, autoCalcBadCommKeys, autoCalcBadSpanSideKeys, autoCalcResultIsSafe, autoCalcApplyPlan, autoCalcTryCandidate, autoCalcMovementSignature, autoCalculateMovements;
+  let poleInsetCalculator;
   const CLEARANCE_FIX_DELAY_MS = 700;
   const OPPOSITE_DIRECTION = {
     N: "S", NE: "SW", E: "W", SE: "NW",
@@ -127,8 +128,53 @@
   function getPrimaryPowerHeightsForPole(poleId) {
     return S().getSpanPowerForPole(poleId)
       .filter(isPrimaryPowerRow)
-      .map(row => H().parseHeight(row.attachmentHeight || ""))
+      .map(effectivePowerAttachmentInches)
       .filter(value => value !== null);
+  }
+
+  function effectivePowerAttachmentInches(row) {
+    if (!row) return null;
+    const source = H().parseHeight(row.attachmentHeight || "");
+    const change = H().parseHeight(row.attachmentHeightChange || "");
+    return change !== null ? change : source;
+  }
+
+  function powerAttachmentMovementInches(row) {
+    const source = H().parseHeight(row?.attachmentHeight || "");
+    const effective = effectivePowerAttachmentInches(row);
+    return source !== null && effective !== null ? effective - source : 0;
+  }
+
+  function findRemotePowerRow(row) {
+    const span = S().getSpan(row?.spanId || "");
+    if (!span) return null;
+    const remotePoleId = S().getOtherPoleId(span, row.poleId);
+    if (!remotePoleId) return null;
+    const candidates = S().getSpanPowerForPole(remotePoleId).filter(candidate =>
+      samePhysicalSpan(S().getSpan(candidate.spanId), span)
+    );
+    if (row.wireId) {
+      const exact = candidates.filter(candidate => candidate.wireId && candidate.wireId === row.wireId);
+      return exact.length === 1 ? exact[0] : null;
+    }
+    // Older workbooks may omit Wire ID. Only use a uniquely matching row on
+    // the exact endpoint pair; never infer a remote movement from a neighboring
+    // span that happens to reuse the same conductor description.
+    const identity = candidate => [
+      String(candidate.label || "").trim().toLowerCase(),
+      String(candidate.size || "").trim().toLowerCase(),
+      String(candidate.owner || "").trim().toLowerCase()
+    ].join("|");
+    const matches = candidates.filter(candidate => identity(candidate) === identity(row));
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function effectivePowerMidspanInches(row) {
+    const baseline = H().parseHeight(row?.midspan || "");
+    if (baseline === null) return null;
+    const remote = findRemotePowerRow(row);
+    const movement = powerAttachmentMovementInches(row) + powerAttachmentMovementInches(remote);
+    return Math.round(baseline + movement / 2);
   }
 
   function countsAsTopCommReference(sc) {
@@ -319,7 +365,7 @@
       .filter(value => value !== null);
   }
 
-  function getReferenceMidspansForSpanSide(spanId, poleId) {
+  function getReferenceMidspansForSpanSide(spanId, poleId, { excludeServiceDrops = false } = {}) {
     const targetSpan = S().getSpan(spanId);
     // Proposed clearance belongs to one physical connection. A pole can have
     // several Fore/Other spans with valid midspans, but those unrelated spans
@@ -335,6 +381,7 @@
       : S().getSpanCommsForSpan(spanId);
     const values = rows
       .filter(countsAsTopCommReference)
+      .filter(row => !excludeServiceDrops || !row.serviceDrop)
       .map(getMidspanInchesForComm)
       .filter(value => value !== null);
     return Array.from(new Set(values));
@@ -636,9 +683,10 @@
     const references = isCsuProfile()
       ? S().getSpanCommsForSpan(span.spanId)
         .filter(countsAsTopCommReference)
+        .filter(row => !row.serviceDrop)
         .map(getMidspanInchesForComm)
         .filter(value => value !== null)
-      : getReferenceMidspansForSpanSide(span.spanId, poleId);
+      : getReferenceMidspansForSpanSide(span.spanId, poleId, { excludeServiceDrops: true });
     const maxMS = H().parseHeight(span.midspanMaxCommHeight || "");
     const csuHasImportedMidspan = isCsuProfile() && importedCsuMidspansForSpan(span.spanId).length > 0;
     const envMin = isCsuProfile() && !csuHasImportedMidspan
@@ -1167,8 +1215,14 @@
     const isOlsson = String(settings.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
     const clearance = H().parseHeight(settings.midspanPowerCommClearance || "30\"");
     const primaryClearance = getMidspanPrimaryPowerCommsClearance();
+    const powerRowKeys = new Map(Object.entries(S().getState().spanPower || {}).map(([key, row]) => [row, key]));
     const powerHeights = powerRows
-      .map(row => H().parseHeight(row.midspan))
+      .map(row => {
+        const calculated = effectivePowerMidspanInches(row);
+        const key = powerRowKeys.get(row);
+        if (key) S().updateSpanPowerField(key, "calculatedMidspan", calculated === null ? "" : format(calculated));
+        return calculated;
+      })
       .filter(value => value !== null);
     const importedLowPowerMidspan = isOlsson
       ? H().parseHeight(span.sourceMidspanLowPower || span.midspanLowPower || "")
@@ -1178,7 +1232,7 @@
       : [...powerHeights, importedLowPowerMidspan];
     const primaryHeights = powerRows
       .filter(isPrimaryPowerRow)
-      .map(row => H().parseHeight(row.midspan))
+      .map(row => H().parseHeight(row.calculatedMidspan || row.midspan || ""))
       .filter(value => value !== null);
     // Olsson's Span sheet provides an authoritative Low Power Midspan. Keep
     // the lower value when a power-wire midspan is also available so the
@@ -1204,135 +1258,11 @@
    * can show the two End Drops created by the manually selected inset HOA.
    */
   function getPoleInsetSpanOptions(poleId) {
-    const sideBySpanId = new Map(S().getSpanSidesForPole(poleId).map(side => [side.spanId, side]));
-    const selectedSpanId = String(S().getPole(poleId)?.poleInsetSpanId || "").trim();
-    const proposedSides = S().getConnectedSpans(poleId)
-      .map(span => ({ side: sideBySpanId.get(span.spanId) || { spanId: span.spanId, poleId }, span }))
-      .filter(item => item.span && !item.side.isProposedExcluded)
-      .sort((a, b) => {
-        const aSelected = a.span.spanId === selectedSpanId ? 0 : 1;
-        const bSelected = b.span.spanId === selectedSpanId ? 0 : 1;
-        if (aSelected !== bSelected) return aSelected - bSelected;
-        const aFore = isForeSpan(a.span) ? 0 : 1;
-        const bFore = isForeSpan(b.span) ? 0 : 1;
-        if (aFore !== bFore) return aFore - bFore;
-        const aAdditional = a.side.isAdditionalProposed ? 1 : 0;
-        const bAdditional = b.side.isAdditionalProposed ? 1 : 0;
-        if (aAdditional !== bAdditional) return aAdditional - bAdditional;
-        const aForward = a.span.fromPole === poleId ? 0 : 1;
-        const bForward = b.span.fromPole === poleId ? 0 : 1;
-        return aForward - bForward;
-      });
-
-    // Excel may contain reciprocal rows for one physical connection. Pole
-    // Inset is selected by connected pole, not by duplicate directed records,
-    // so expose only one option per physical endpoint pair.
-    const uniqueByConnection = new Map();
-    proposedSides.forEach(item => {
-      const otherPole = item.span.fromPole === poleId ? item.span.toPole : item.span.fromPole;
-      const connectionKey = [poleId, otherPole].filter(Boolean).sort().join("||");
-      if (!uniqueByConnection.has(connectionKey)) uniqueByConnection.set(connectionKey, item);
-    });
-
-    return Array.from(uniqueByConnection.values()).map(({ side, span }) => {
-      const direction = spanDirectionForPole(span, poleId);
-      const otherPole = span.fromPole === poleId ? span.toPole : span.fromPole;
-      const endpoints = [poleId, otherPole].filter(Boolean).join(" → ");
-      return {
-        spanId: span.spanId,
-        direction,
-        type: spanRelationOf(span),
-        label: [endpoints, direction || "No direction"].filter(Boolean).join(" · ")
-      };
-    });
+    return poleInsetCalculator.getPoleInsetSpanOptions(poleId);
   }
 
   function getPoleInsetDetails(poleId) {
-    const pole = S().getPole(poleId);
-    if (!pole) {
-      return {
-        maxHeightAtMidspan: "",
-        selectedHeight: "",
-        endDropToPole: "",
-        endDropToNextPole: "",
-        spanId: "",
-        direction: "",
-        spanOptions: []
-      };
-    }
-
-    const spanOptions = getPoleInsetSpanOptions(poleId);
-    const selectedSpanId = spanOptions.some(option => option.spanId === pole.poleInsetSpanId)
-      ? pole.poleInsetSpanId
-      : spanOptions[0]?.spanId || "";
-    const selectedSide = selectedSpanId ? S().getSpanSide(selectedSpanId, poleId) : null;
-    const selectedSpan = selectedSpanId ? S().getSpan(selectedSpanId) : null;
-    const settings = S().getState().settings || {};
-    const secondaryClearance = H().parseHeight(
-      settings.polePowerCommsClearance || settings.clearanceToPower || "40\""
-    ) ?? 40;
-    const primaryClearance = getPrimaryPowerCommsClearance();
-    const selectedSpanIds = new Set(
-      [selectedSpan?.spanId, selectedSpan?.sourceSpanId]
-        .map(value => String(value || "").trim())
-        .filter(Boolean)
-    );
-    // Excel can represent one physical connection with a Fore/Other row and
-    // a reciprocal Back Span row. Both rows describe the same wire path, so a
-    // Pole Inset selected on either endpoint must use the power data attached
-    // to either record of that physical span.
-    if (selectedSpan) {
-      S().getConnectedSpans(poleId)
-        .filter(span => samePhysicalSpan(span, selectedSpan))
-        .forEach(span => {
-          if (span?.spanId) selectedSpanIds.add(span.spanId);
-          if (span?.sourceSpanId) selectedSpanIds.add(span.sourceSpanId);
-        });
-    }
-    const selectedPowerRows = Array.from(selectedSpanIds)
-      .flatMap(spanId => S().getSpanPowerForSpan(spanId));
-    const selectedPowerCandidates = selectedPowerRows
-      .map(row => {
-        const midspan = H().parseHeight(row.midspan || "");
-        if (midspan === null) return null;
-        const clearance = isPrimaryPowerRow(row) ? primaryClearance : secondaryClearance;
-        return clearance === null ? null : midspan - clearance;
-      })
-      .filter(value => value !== null);
-    const selectedSpanRecords = Array.from(selectedSpanIds)
-      .map(spanId => S().getSpan(spanId))
-      .filter(Boolean);
-    if (!selectedPowerCandidates.length) {
-      selectedSpanRecords.forEach(span => {
-        const lowPowerMidspan = H().parseHeight(span.sourceMidspanLowPower || span.midspanLowPower || "");
-        if (lowPowerMidspan !== null) selectedPowerCandidates.push(lowPowerMidspan - secondaryClearance);
-        const storedMax = H().parseHeight(span.midspanMaxCommHeight || "");
-        if (storedMax !== null) selectedPowerCandidates.push(storedMax);
-      });
-    }
-
-    const selectedHeight = H().parseHeight(pole.poleInsetHeight || "");
-    const localProposed = H().parseHeight(selectedSide?.proposedHOA || "");
-    let nextPoleProposed = H().parseHeight(selectedSide?.proposedHOAChange || "");
-    if (nextPoleProposed === null && localProposed !== null) {
-      const existingEndDrop = H().parseHeight(selectedSide?.endDrop || "");
-      if (existingEndDrop !== null) nextPoleProposed = localProposed + existingEndDrop;
-    }
-
-    const insetCandidates = selectedPowerCandidates;
-    return {
-      maxHeightAtMidspan: insetCandidates.length ? format(Math.min(...insetCandidates)) : "",
-      selectedHeight: pole.poleInsetHeight || "",
-      endDropToPole: selectedHeight !== null && localProposed !== null
-        ? format(selectedHeight - localProposed)
-        : "",
-      endDropToNextPole: selectedHeight !== null && nextPoleProposed !== null
-        ? format(selectedHeight - nextPoleProposed)
-        : "",
-      spanId: selectedSpan?.spanId || "",
-      direction: selectedSpan ? spanDirectionForPole(selectedSpan, poleId) : "",
-      spanOptions
-    };
+    return poleInsetCalculator.getPoleInsetDetails(poleId);
   }
 
   function validEquipmentActionHeightInches(equipment) {
@@ -1406,7 +1336,9 @@
           ? H().parseHeight(equipment.actionActive
             ? (settings.streetlightBracketCommClearance || "16\"")
             : (settings.streetlightUngroundedBracketCommClearance || "52\""))
-          : H().parseHeight(equipment.actionActive ? "12\"" : (settings.polePowerCommsClearance || settings.clearanceToPower || "40\""));
+          : H().parseHeight(equipment.actionActive
+            ? (settings.streetlightGroundedBracketCommClearance || "12\"")
+            : (settings.streetlightBracketCommClearance || settings.polePowerCommsClearance || settings.clearanceToPower || "40\""));
       const dripLoopClearance = isMidAmProfile()
         ? H().parseHeight(settings.streetlightDripLoopCommClearance || "")
         : isComedProfile()
@@ -1477,18 +1409,33 @@
       source: equipmentLowPowerSourceInches(row),
       target: validEquipmentActionHeightInches(row)
     }));
+    const powerMovable = S().getSpanPowerForPole(pole?.poleId || "")
+      .filter(row => !isPrimaryPowerRow(row))
+      .map(row => ({
+        row,
+        source: H().parseHeight(row.attachmentHeight || ""),
+        target: H().parseHeight(row.attachmentHeightChange || "")
+      }));
     let effective = baseline;
 
     if (baseline !== null) {
-      const limitingRows = movable.filter(item => item.source === baseline);
-      if (limitingRows.length && limitingRows.every(item => item.target !== null)) {
-        effective = Math.min(...limitingRows.map(equipmentLowPowerTargetInches));
+      const limitingEquipment = movable.filter(item => item.source === baseline);
+      const limitingPower = powerMovable.filter(item => item.source === baseline);
+      const limitingTargets = [
+        ...limitingEquipment.map(equipmentLowPowerTargetInches),
+        ...limitingPower.map(item => item.target)
+      ];
+      if (limitingTargets.length && limitingTargets.every(value => value !== null)) {
+        effective = Math.min(...limitingTargets);
       }
     }
 
     movable.forEach(item => {
       const lowPowerTarget = equipmentLowPowerTargetInches(item);
       if (lowPowerTarget !== null && (effective === null || lowPowerTarget < effective)) effective = lowPowerTarget;
+    });
+    powerMovable.forEach(item => {
+      if (item.target !== null && (effective === null || item.target < effective)) effective = item.target;
     });
     return effective;
   }
@@ -1984,6 +1931,19 @@
     global.MRLogic.generateAllMR();
     global.Validations.validateAll();
   }
+
+  poleInsetCalculator = global.PoleInsetCalculationModule.create({
+    effectivePowerMidspanInches,
+    format,
+    getPrimaryPowerCommsClearance,
+    H,
+    isForeSpan,
+    isPrimaryPowerRow,
+    samePhysicalSpan,
+    S,
+    spanDirectionForPole,
+    spanRelationOf
+  });
 
   const autoMovementContext = {
     commOwnerLabel: commOwnerLabel,

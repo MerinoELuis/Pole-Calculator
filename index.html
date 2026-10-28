@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#eef4ff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Pole Span MR Calculator</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.224" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.244" />
 </head>
 <body>
   <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
@@ -39,7 +39,7 @@
     <header class="topbar">
       <div>
         <h1>Pole Span MR Calculator</h1>
-        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.224</p>
+        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.247</p>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
@@ -169,18 +169,29 @@
   </div>
 
   <button id="scrollTopBtn" class="floating-top-btn" type="button" title="Back to top" aria-label="Back to top">↑</button>
-  <button id="openCalculatorBtn" class="floating-open-btn" type="button" title="Open or close calculator">ft'in&quot;</button>
+  <button id="openCalculatorBtn" class="floating-open-btn" type="button" title="Open or close calculator" aria-label="Open or close calculator">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+      <rect x="8" y="5.5" width="8" height="3" rx=".7" fill="currentColor" />
+      <rect x="8" y="11" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="10.9" y="11" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="13.8" y="11" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="8" y="14.5" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="10.9" y="14.5" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="13.8" y="14.5" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="8" y="18" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="10.9" y="18" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+      <rect x="13.8" y="18" width="2.2" height="2.2" rx=".5" fill="currentColor" />
+    </svg>
+  </button>
   <section id="floatingCalculator" class="floating-calculator hidden" aria-label="Feet and inches calculator">
     <div class="floating-header">
-      <div>
-        <p class="eyebrow">Calculator</p>
-        <h3>Feet' Inches&quot;</h3>
-      </div>
+      <p class="eyebrow">Calculator</p>
       <button id="closeCalculatorBtn" class="icon-btn" type="button" aria-label="Close calculator">×</button>
     </div>
     <div class="calc-grid">
       <label>Expression<input id="calcExpression" class="input" inputmode="none" autocomplete="off" placeholder="12'6&quot; + 3'8&quot; - 1' + 2&quot;" /></label>
-      <div class="calc-result" id="calcResult"></div>
+      <label class="calc-result-field">Result<output class="calc-result" id="calcResult" aria-live="polite"></output></label>
     </div>
     <div id="mobileCalcKeyboard" class="mobile-height-keyboard mobile-calc-keyboard" aria-label="Calculator keypad">
       <button type="button" data-calc-key="1">1</button>
@@ -204,34 +215,39 @@
   </section>
 
   <script src="libs/xlsx.full.min.js"></script>
-  <script src="js/core/deployment-version.js?v=1.8.224"></script>
+  <script src="js/core/deployment-version.js?v=1.8.247"></script>
   <script src="js/domain/height-math.js"></script>
-  <script src="js/core/project-config.js"></script>
+  <script src="js/core/project-config.js?v=1.8.242"></script>
   <script src="js/domain/pole-resolution.js"></script>
   <script src="js/core/state-compat.js"></script>
-  <script src="js/core/store.js?v=1.8.224"></script>
-  <script src="js/domain/comm-movements.js?v=1.8.224"></script>
+  <script src="js/core/store-identity.js?v=1.8.248"></script>
+  <script src="js/core/store.js?v=1.8.242"></script>
+  <script src="js/domain/comm-movements.js?v=1.8.231"></script>
   <script src="js/domain/midspan-engine.js"></script>
-  <script src="js/domain/clearance-rules.js?v=1.8.224"></script>
+  <script src="js/domain/pole-inset-calculation.js?v=1.8.248"></script>
+  <script src="js/domain/clearance-rules.js?v=1.8.248"></script>
   <script src="js/rules/mr-logic.js"></script>
   <script src="js/rules/validations.js"></script>
   <script src="js/import/import-normalizers.js"></script>
-  <script src="js/import/excel-import.js?v=1.8.224"></script>
-  <script src="js/import/update-data-reconciler.js"></script>
-  <script src="js/import/excel-review.js"></script>
-  <script src="js/export/excel-export.js"></script>
+  <script src="js/import/excel-import.js?v=1.8.242"></script>
+  <script src="js/import/update-data-reconciler.js?v=1.8.242"></script>
+  <script src="js/import/excel-review-wire-checks.js?v=1.8.248"></script>
+  <script src="js/import/excel-review.js?v=1.8.239"></script>
+  <script src="js/export/excel-export.js?v=1.8.242"></script>
   <script src="js/export/json-export.js"></script>
-  <script src="js/export/compact-autoproposed.js"></script>
+  <script src="js/export/compact-autoproposed.js?v=1.8.247"></script>
   <script src="js/rules/auto-calculate-solver.js"></script>
   <script src="js/ui/dialogs.js"></script>
   <script src="js/ui/theme.js"></script>
   <script src="js/ui/mobile-keyboard.js"></script>
-  <script src="js/ui/floating-calculator.js?v=1.8.224"></script>
-  <script src="js/ui/pole-renderer.js?v=1.8.224"></script>
-  <script src="js/ui/controls.js?v=1.8.224"></script>
+  <script src="js/ui/floating-calculator.js?v=1.8.231"></script>
+  <script src="js/ui/excel-review-renderer.js?v=1.8.248"></script>
+  <script src="js/ui/pole-renderer.js?v=1.8.248"></script>
+  <script src="js/ui/controls.js?v=1.8.231"></script>
   <script src="js/core/persistence.js"></script>
   <script src="js/core/history.js"></script>
-  <script src="js/ui/app.js?v=1.8.224"></script>
+  <script src="js/ui/pole-navigation.js?v=1.8.248"></script>
+  <script src="js/ui/app.js?v=1.8.248"></script>
   <script src="js/ui/dom-contract.js"></script>
   <script src="js/ui/comm-table.js"></script>
   <script src="js/ui/span-colors.js"></script>

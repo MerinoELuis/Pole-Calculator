@@ -10,6 +10,7 @@ require("../js/domain/height-math.js");
 require("../js/core/project-config.js");
 require("../js/domain/pole-resolution.js");
 require("../js/core/state-compat.js");
+require("../js/core/store-identity.js");
 require("../js/core/store.js");
 require("../js/import/import-normalizers.js");
 require("../js/import/excel-import.js");

@@ -15,7 +15,7 @@
 | `spans` | object map | Span records keyed by `spanId`. |
 | `spanSides` | object map | Proposed data keyed by `spanId__poleId`. |
 | `spanComms` | object map | Physical comm rows keyed by span, pole, owner, and Wire ID. |
-| `spanPower` | object map | Imported power wires used to derive Low Power at MS. |
+| `spanPower` | object map | Imported power wires and user HOA changes used to derive Midspan and maximum comm heights. |
 | `makeReadyReferences` | array | Imported Make Ready attachment references. |
 | `excelReviewSource` | object | Original headers and rows from Collection, Span, Span.Wire, Equipment, Anchor, Anchor.Guys, Make Ready, and Make Ready.Comm Transfers. |
 | `excelReviewIgnoredChecks` | object map | Stable review finding keys explicitly ignored by the user for this job. |
@@ -59,6 +59,7 @@ Important settings and defaults:
 | `calculateBackspanMidspan` | `true` | Allows a Back Span row with its own measured midspan to participate in endpoint movement calculations. INTEC also raises an HOA Review warning for this unusual input. |
 | `environmentClearances` | `{}` | Optional project-specific environment-to-clearance map. |
 | `streetlightBracketCommClearance` | profile default | MidAm spacing below the streetlight bottom/bracket. |
+| `streetlightGroundedBracketCommClearance` | `12"` INTEC | Grounded INTEC Streetlight bracket-to-comm clearance, selected by the existing Ground checkbox. |
 | `streetlightDripLoopCommClearance` | profile default | MidAm spacing below an uncovered drip loop. |
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
@@ -102,6 +103,8 @@ Imported, editable, and derived values live together but have different ownershi
 | `metadata` | mixed | Source notes, project constraints, Power Equipment actions and the latest Auto Calculate result. |
 
 `metadata.lowPowerBaseline` preserves the latest imported or manually edited Low Power before equipment work is applied. Each `metadata.powerEquipment` item preserves `equipmentId`, `equipmentIndex`, `category`, raw `type`, owner, orientation, quantity, attachment height, bottom height, and drip-loop height. `actionActive` and `actionHeight` are user-owned fields for Streetlight Ground, Transformer Secure, and Power Riser Raise work. `secureActive` separately preserves the Power Riser Secure action; its drip-loop target is the effective riser HOA minus `8"`. `raiseActive` and `raiseHeight` separately preserve the optional INTEC or Metronet MidAm Streetlight Raise action.
+
+Each `spanPower` row keeps imported `attachmentHeight` and `midspan` separate from the user-entered `attachmentHeightChange` target and derived `calculatedMidspan`. The local and matching remote endpoint HOA deltas each contribute one-half to that exact physical span's Midspan. A remote row must match the same physical pole pair and wire identity (or a unique conductor identity when Wire ID is absent); nearby spans never lend movement data. Update Data preserves a nonblank HOA Change when the refreshed workbook leaves it empty.
 
 `metadata.autoCalculateResult` stores the latest per-pole solver explanation:
 
@@ -226,8 +229,10 @@ Power rows come from Span.Wire records classified as Primary, Secondary, Neutral
 | --- | --- |
 | `spanId`, `poleId`, `wireId` | Relationship identity. |
 | `label` | Simplified Primary/Secondary/Neutral/Power type. |
-| `attachmentHeight` | Power attachment height on the pole. |
-| `midspan` | Editable power midspan used in the lowest-power calculation. |
+| `attachmentHeight` | Imported power attachment height on the pole. |
+| `attachmentHeightChange` | Editable target HOA for moving this power wire at the current pole. |
+| `midspan` | Imported power Midspan baseline. |
+| `calculatedMidspan` | Derived Midspan after local and exact-span remote HOA changes. |
 | `owner`, `size` | Imported reference values. |
 
 ## Height Representation
