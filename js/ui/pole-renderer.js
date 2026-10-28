@@ -385,6 +385,16 @@
             if (span.toPole) ids.add(span.toPole);
           });
         }
+        if (scope === "spanPower" && el?.dataset?.pole && ["attachmentHeight", "attachmentHeightChange"].includes(el?.dataset?.field)) {
+          const selectedPower = S.getSpanPowerForPole(el.dataset.pole)
+            .find(row => row.key === el.dataset.powerKey);
+          const sourceHeight = H.parseHeight(selectedPower?.attachmentHeight || "");
+          if (sourceHeight !== null) {
+            S.getSpanPowerForPole(el.dataset.pole)
+              .filter(row => H.parseHeight(row.attachmentHeight || "") === sourceHeight)
+              .forEach(row => poleIdsForSpan(row.spanId).forEach(id => ids.add(id)));
+          }
+        }
         return Array.from(ids).filter(Boolean);
       }
 
@@ -406,6 +416,8 @@
           .map(wrapper => ({ left: wrapper.scrollLeft, top: wrapper.scrollTop }));
         const powerSection = oldCard.querySelector(".power-section");
         const powerSectionOpen = powerSection ? powerSection.open : false;
+        const equipmentSection = oldCard.querySelector(".equipment-section");
+        const equipmentSectionOpen = equipmentSection ? equipmentSection.open : false;
         const template = document.createElement("template");
         template.innerHTML = renderPoleWorkspace(poleId).trim();
         const nextCard = template.content.firstElementChild;
@@ -421,6 +433,8 @@
         });
         const nextPowerSection = nextCard.querySelector(".power-section");
         if (nextPowerSection) nextPowerSection.open = powerSectionOpen;
+        const nextEquipmentSection = nextCard.querySelector(".equipment-section");
+        if (nextEquipmentSection) nextEquipmentSection.open = equipmentSectionOpen;
         wireEditableEvents(nextCard);
         bindScrollLinks(nextCard);
         bindLocalActions(nextCard);
@@ -1218,7 +1232,7 @@
         return `<div class="pole-workspace-header">
           <div class="pole-heading-block">
             <div class="pole-heading-row">
-              <h3 id="pole-${escapeHtml(poleId)}">${escapeHtml(poleId)}</h3>
+              <h3 class="inline-pole-id" id="pole-${escapeHtml(poleId)}" data-inline-pole-edit data-pole="${escapeHtml(poleId)}" title="Double-click to edit pole ID">${escapeHtml(poleId)}</h3>
               <div class="pole-header-actions">
                 <button class="mini-btn pole-header-icon-btn" type="button" data-hide-pole data-pole="${escapeHtml(poleId)}" title="Hide this pole from the workspace" aria-label="Hide ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5.5 0 9 7 9 7a15 15 0 01-3.1 3.9M6.2 6.2C3.9 7.8 3 12 3 12s3.5 7 9 7a10.8 10.8 0 004.1-.8" /></svg></button>
                 <button class="mini-btn danger-action pole-header-icon-btn" type="button" data-delete-pole data-pole="${escapeHtml(poleId)}" title="Delete this pole and its connected data" aria-label="Delete ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3m-9 0l1 13h10l1-13M10 11v5m4-5v5" /></svg></button>
@@ -1264,7 +1278,7 @@
         });
         return `<div class="table-wrap"><table class="span-proposed-table wide-table${compactBackspanTable ? " backspan-proposed-only-table" : ""}">
           <thead><tr>
-            <th>Span</th><th>Proposed</th>${compactBackspanTable ? "" : `${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Slack</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th>`}<th>Actions</th>
+            <th>Span</th><th>Proposed</th>${compactBackspanTable ? "" : `${showEndDrop ? "<th>End Drop</th>" : ""}${showNextPoleProposed ? "<th>Next Pole Proposed</th>" : ""}<th>Slack</th>${showOcalcMS ? "<th>O-CALC MS</th>" : ""}<th>MS Proposed</th><th>Max Height at MS</th><th>Adjusted Final MS</th><th>Flagging</th><th>Environment</th><th>Environment Clearance</th>`}<th>Actions</th>
           </tr></thead>
           <tbody>${spans.map(span => {
             const side = S.getSpanSide(span.spanId, poleId) || S.upsertSpanSide({ spanId: span.spanId, poleId });
@@ -1288,11 +1302,11 @@
               <td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOA" value="${escapeHtml(side.proposedHOA || "")}"></td>
               ${compactBackspanTable ? "" : `${showEndDrop ? `<td><span class="calculated-value">${escapeHtml(side.endDrop || "")}</span></td>` : ""}
               ${showNextPoleProposed ? `<td><input class="input height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="proposedHOAChange" value="${escapeHtml(side.proposedHOAChange || "")}"></td>` : ""}
+              <td><input type="checkbox" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="isSlack" ${side.isSlack ? "checked" : ""} aria-label="Proposed span is slack" title="Mark this Proposed span as Slack"></td>
               ${showOcalcMS ? `<td><input class="input decimal-height-input" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="ocalcMS" value="${escapeHtml(displayDecimalFeetInput(side.ocalcMS, side.proposedMidspan))}"></td>` : ""}
               <td><span class="calculated-value">${escapeHtml(side.msProposed || "")}</span></td>
               <td>${escapeHtml(physicalSpan.midspanMaxCommHeight || "")}</td>
               <td><span class="calculated-value midspan-highlight-display ${spanColorClass(poleId, physicalSpan.spanId)}">${escapeHtml(side.finalMidspan || "")}</span></td>
-              <td><input type="checkbox" data-scope="spanSide" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(span.spanId)}" data-field="isSlack" ${side.isSlack ? "checked" : ""} aria-label="Proposed span is slack" title="Mark this Proposed span as Slack"></td>
               <td>${renderCombinedSpanFlagging(side)}</td>
               <td><select class="input environment-input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environment">${renderEnvironmentOptions(physicalSpan.environment)}</select></td>
               <td><input class="input" data-scope="span" data-span="${escapeHtml(physicalSpan.spanId)}" data-field="environmentClearance" value="${escapeHtml(physicalSpan.environmentClearance || "")}"></td>`}
@@ -1344,7 +1358,7 @@
         const showPof = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
         return `<div class="table-wrap"><table class="comm-movement-table">
           <thead><tr>
-            <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}<th>DG</th>${showTransferToNewPole ? "<th>Transfer to New Pole</th>" : ""}<th>Other HOA</th>${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
+            <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showTransferToNewPole ? "<th>Transfer to New Pole</th>" : ""}<th>DG</th><th>Other HOA</th>${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
           </tr></thead>
           <tbody>${groups.map(group => {
             const pole = S.getPole(poleId);
@@ -1369,10 +1383,10 @@
               <td>${renderCommMidspanValues(group, poleId)}</td>
               <td>${renderCommFlagging(group)}</td>
               ${showServiceDrop ? `<td>${renderCommServiceDropValues(group, poleId)}</td>` : ""}
-              <td>${renderCommDownGuyValues(group, poleId)}</td>
-              ${showTransferToNewPole ? `<td>${renderCommTransferValues(group, poleId)}</td>` : ""}
-              <td>${renderCommOtherHoaValues(group, poleId)}</td>
               ${showResagServiceDrop ? `<td>${renderCommResagValues(group, poleId)}</td>` : ""}
+              ${showTransferToNewPole ? `<td>${renderCommTransferValues(group, poleId)}</td>` : ""}
+              <td>${renderCommDownGuyValues(group, poleId)}</td>
+              <td>${renderCommOtherHoaValues(group, poleId)}</td>
               ${showPof ? `<td>${group.pofEligible ? `<label class="equipment-action-control" title="Activar POF manualmente después de Re-sag"><input type="checkbox" data-scope="commGroup" data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" data-field="pofActive" ${group.pofActive ? "checked" : ""}><span>POF</span></label>` : `<span class="muted">&mdash;</span>`}</td>` : ""}
               <td><div class="row-actions">
                 <button class="icon-action" type="button" data-edit-comm-spans data-pole="${escapeHtml(poleId)}" data-group-key="${escapeHtml(group.key)}" title="Edit comm spans" aria-label="Edit comm spans">&#8644;</button>
@@ -1384,31 +1398,77 @@
       }
 
       function renderPowerTable(poleId) {
-        const rows = S.getSpanPowerForPole(poleId);
-        if (!rows.length) return `<p class="muted">No power wires were imported for this pole.</p>`;
+        const powerGroups = [];
+        const heightGroups = new Map();
+        S.getSpanPowerForPole(poleId).forEach(row => {
+          const sourceHeight = H.parseHeight(row.attachmentHeight || "");
+          if (sourceHeight === null) {
+            powerGroups.push({ rows: [row] });
+            return;
+          }
+          const key = String(sourceHeight);
+          let group = heightGroups.get(key);
+          if (!group) {
+            group = { rows: [] };
+            heightGroups.set(key, group);
+            powerGroups.push(group);
+          }
+          group.rows.push(row);
+        });
+        powerGroups.sort((a, b) => {
+          const aHeight = H.parseHeight(a.rows[0]?.attachmentHeight || "");
+          const bHeight = H.parseHeight(b.rows[0]?.attachmentHeight || "");
+          if (aHeight === null && bHeight === null) return 0;
+          if (aHeight === null) return 1;
+          if (bHeight === null) return -1;
+          return bHeight - aHeight;
+        });
+        if (!powerGroups.length) return `<p class="muted">No power wires were imported for this pole.</p>`;
         return `<div class="table-wrap"><table class="power-table">
           <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>HOA Change</th><th>Midspan</th><th>Actions</th></tr></thead>
-          <tbody>${rows.map(row => {
-            const span = S.getSpan(row.spanId);
-            const originalMidspan = String(row.midspan || "");
-            const calculatedMidspan = String(row.calculatedMidspan || originalMidspan);
-            const originalInches = H.parseHeight(originalMidspan);
-            const calculatedInches = H.parseHeight(calculatedMidspan);
-            const hasAdjustedMidspan = calculatedMidspan && calculatedInches !== null
-              && (originalInches === null || calculatedInches !== originalInches);
-            const originalTitle = originalMidspan
-              ? `Original Midspan before movements: ${originalMidspan}`
-              : "No original Midspan was imported";
+          <tbody>${powerGroups.map(group => {
+            const groupRows = [...group.rows].sort((a, b) =>
+              String(a.spanId || "").localeCompare(String(b.spanId || ""), undefined, { numeric: true })
+            );
+            const representative = groupRows[0];
+            const sharedHoaChange = groupRows.find(row => row.attachmentHeightChange)?.attachmentHeightChange || "";
+            const spanEntries = groupRows.map(row => {
+              const span = S.getSpan(row.spanId);
+              return `<div class="power-group-entry">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</div>`;
+            }).join("");
+            const typeEntries = groupRows.map(row =>
+              `<div class="power-group-entry"><span class="badge warning">${escapeHtml(row.label || "Power")}</span></div>`
+            ).join("");
+            const midspanEntries = groupRows.map(row => {
+              const originalMidspan = String(row.midspan || "");
+              const calculatedMidspan = String(row.calculatedMidspan || originalMidspan);
+              const originalTitle = originalMidspan
+                ? `Original Midspan before movements: ${originalMidspan}`
+                : "No original Midspan was imported";
+              return `<div class="power-group-entry"><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(calculatedMidspan)}" title="${escapeHtml(originalTitle)}" aria-label="Power Midspan for ${escapeHtml(row.spanId)}"></div>`;
+            }).join("");
+            const actionEntries = groupRows.map(row => {
+              const span = S.getSpan(row.spanId);
+              const label = span ? `${span.fromPole} to ${span.toPole}` : "unlinked span";
+              return `<button class="icon-action danger-action" type="button" data-delete-span-power data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" title="Delete ${escapeHtml(row.label || "power wire")} on ${escapeHtml(label)}" aria-label="Delete ${escapeHtml(row.label || "power wire")} on ${escapeHtml(label)}">&#10005;</button>`;
+            }).join("");
             return `<tr>
-              <td class="span-cell">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</td>
-              <td><span class="badge warning">${escapeHtml(row.label)}</span></td>
-              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="attachmentHeight" value="${escapeHtml(row.attachmentHeight || "")}" aria-label="Power attachment height"></td>
-              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="attachmentHeightChange" value="${escapeHtml(row.attachmentHeightChange || "")}" aria-label="Power HOA Change" title="Target attachment height for this power wire"></td>
-              <td><div class="power-midspan-cell"><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(originalMidspan)}" title="${escapeHtml(originalTitle)}" aria-label="Original power Midspan">${hasAdjustedMidspan ? `<small class="power-midspan-adjusted" title="${escapeHtml(originalTitle)}. Calculated from the HOA Change at both ends of this span">Adjusted: ${escapeHtml(calculatedMidspan)}</small>` : ""}</div></td>
-              <td><button class="icon-action danger-action" type="button" data-delete-span-power data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" title="Delete imported power" aria-label="Delete imported power">&#10005;</button></td>
+              <td class="span-cell"><div class="power-group-stack">${spanEntries}</div></td>
+              <td><div class="power-group-stack">${typeEntries}</div></td>
+              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(representative.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(representative.spanId)}" data-field="attachmentHeight" value="${escapeHtml(representative.attachmentHeight || "")}" aria-label="Power attachment height shared by wires at this height"></td>
+              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(representative.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(representative.spanId)}" data-field="attachmentHeightChange" value="${escapeHtml(sharedHoaChange)}" aria-label="Power HOA Change" title="Target attachment height shared by power wires at this pole and height"></td>
+              <td><div class="power-group-stack">${midspanEntries}</div></td>
+              <td><div class="power-group-stack">${actionEntries}</div></td>
             </tr>`;
           }).join("")}</tbody>
         </table></div>`;
+      }
+
+      function renderCollapseEyeIcon() {
+        return `<span class="collapse-hint" aria-hidden="true">
+          <svg class="collapse-show-icon" viewBox="0 0 24 24" focusable="false"><path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="collapse-hide-icon" viewBox="0 0 24 24" focusable="false"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5.5 0 9 7 9 7a15 15 0 01-3.1 3.9M6.2 6.2C3.9 7.8 3 12 3 12s3.5 7 9 7a10.8 10.8 0 004.1-.8"/></svg>
+        </span>`;
       }
 
       function renderEquipmentTable(poleId) {
@@ -1514,14 +1574,17 @@
             <details class="subsection wide power-section">
               <summary class="subsection-collapse-summary">
                 <h4>Imported Power / Clearance</h4>
-                <span class="collapse-hint">Show</span>
+                ${renderCollapseEyeIcon()}
               </summary>
               ${renderPowerTable(poleId)}
             </details>
-            <section class="subsection wide">
-              <h4>Equipment</h4>
+            <details class="subsection wide equipment-section" open>
+              <summary class="subsection-collapse-summary">
+                <h4>Equipment</h4>
+                ${renderCollapseEyeIcon()}
+              </summary>
               ${renderEquipmentTable(poleId)}
-            </section>
+            </details>
             <section class="subsection make-ready-section" id="warnings-${escapeHtml(poleId)}">
               <div class="subsection-title-row">
                 <h4>Make Ready</h4>

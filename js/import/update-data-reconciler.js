@@ -253,6 +253,84 @@
     return mergedRows;
   }
 
+  function applyImportedPoleIdAliases(state, aliases) {
+    const importedPoles = state?.poles || {};
+    const importedIds = Object.keys(importedPoles);
+    const aliasByCanonical = new Map();
+    Object.entries(aliases || {}).forEach(([sourceId, targetId]) => {
+      const canonical = S.canonicalPoleIdentity(sourceId);
+      if (!canonical) return;
+      if (!aliasByCanonical.has(canonical)) aliasByCanonical.set(canonical, new Set());
+      aliasByCanonical.get(canonical).add(targetId);
+    });
+
+    const remappedIds = new Map();
+    importedIds.forEach(sourceId => {
+      let targetId = aliases?.[sourceId] || "";
+      if (!targetId) {
+        const targets = aliasByCanonical.get(S.canonicalPoleIdentity(sourceId));
+        if (targets?.size === 1) targetId = Array.from(targets)[0];
+      }
+      if (!targetId || targetId === sourceId || importedPoles[targetId]) return;
+      remappedIds.set(sourceId, targetId);
+    });
+    if (!remappedIds.size) return state;
+
+    const remap = value => remappedIds.get(value) || value;
+    const remapRow = source => {
+      const row = { ...source };
+      ["poleId", "remotePoleId", "fromPole", "toPole", "sourcePoleId", "targetPoleId"].forEach(field => {
+        if (typeof row[field] === "string") row[field] = remap(row[field]);
+      });
+      return row;
+    };
+
+    const poles = {};
+    Object.entries(importedPoles).forEach(([sourceId, source]) => {
+      const poleId = remap(sourceId);
+      const pole = remapRow({ ...source, poleId });
+      if (Array.isArray(pole.comms)) pole.comms = pole.comms.map(remapRow);
+      poles[poleId] = pole;
+    });
+    state.poles = poles;
+    Object.values(state.spans || {}).forEach(span => {
+      span.fromPole = remap(span.fromPole);
+      span.toPole = remap(span.toPole);
+    });
+
+    const spanSides = {};
+    Object.values(state.spanSides || {}).forEach(source => {
+      const row = remapRow(source);
+      spanSides[S.keyForSpanSide(row.spanId, row.poleId)] = row;
+    });
+    state.spanSides = spanSides;
+
+    const spanComms = {};
+    Object.values(state.spanComms || {}).forEach(source => {
+      const row = remapRow(source);
+      const key = S.keyForSpanComm(row.spanId, row.poleId, ownerCanonicalOf(row), row.wireId || "");
+      spanComms[key] = row;
+    });
+    state.spanComms = spanComms;
+
+    const spanPower = {};
+    Object.values(state.spanPower || {}).forEach((source, index) => {
+      const row = remapRow(source);
+      spanPower[[row.spanId, row.poleId, row.wireId || row.label || index].join("__")] = row;
+    });
+    state.spanPower = spanPower;
+
+    ["makeReadyReferences", "poleClassChecks", "movements", "mr", "warnings"].forEach(field => {
+      if (Array.isArray(state[field])) state[field] = state[field].map(remapRow);
+    });
+    if (state.selectedPoleId) state.selectedPoleId = remap(state.selectedPoleId);
+    if (state.ui) {
+      state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).map(remap);
+      state.ui.revealedUnknownPoleIds = (state.ui.revealedUnknownPoleIds || []).map(remap);
+    }
+    return state;
+  }
+
   function buildPoleAliasMap(previousPoles, importedPoles) {
     const importedByCanonical = new Map();
     Object.keys(importedPoles || {}).forEach(poleId => {
@@ -423,6 +501,8 @@
 
   function mergeImportedUpdate(previous, imported) {
     const merged = JSON.parse(JSON.stringify(imported));
+    merged.poleIdAliases = { ...(previous.poleIdAliases || {}) };
+    applyImportedPoleIdAliases(merged, merged.poleIdAliases);
     // Update Data refreshes workbook facts, but the operator-owned job label
     // remains stable for subsequent Save and export operations.
     merged.jobName = previous.jobName || merged.jobName

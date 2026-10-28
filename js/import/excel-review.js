@@ -204,6 +204,22 @@
     return text(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"]));
   }
 
+  function currentPoleIdForSource(value) {
+    const sourceId = text(value);
+    if (!sourceId) return "";
+    const state = S().getState();
+    const aliases = state.poleIdAliases || {};
+    if (aliases[sourceId] && state.poles?.[aliases[sourceId]]) return aliases[sourceId];
+
+    const canonical = S().canonicalPoleIdentity(sourceId);
+    const targets = new Set(Object.entries(aliases)
+      .filter(([alias]) => S().canonicalPoleIdentity(alias) === canonical)
+      .map(([, target]) => target)
+      .filter(target => state.poles?.[target]));
+    if (targets.size === 1) return Array.from(targets)[0];
+    return sourceId;
+  }
+
   function collectionSequence(row) {
     return text(pick(row, ["Sequence", "Seq"]));
   }
@@ -230,11 +246,13 @@
 
   function collectionEntries() {
     return rows("collection").map((row, index) => {
-      const poleId = collectionPoleId(row);
+      const sourcePoleId = collectionPoleId(row);
+      const poleId = currentPoleIdForSource(sourcePoleId);
       return {
         row,
         sourceRow: index + 2,
         poleId,
+        sourcePoleId,
         displayPoleId: poleId || `Collection row ${index + 2}`,
         sequence: collectionSequence(row),
         collectionId: text(pick(row, ["collectionId", "Collection ID"]))
@@ -249,8 +267,11 @@
     entries.forEach(entry => {
       if (entry.poleId) {
         byPole.set(normalizedText(entry.poleId), entry.poleId);
+        if (entry.sourcePoleId) byPole.set(normalizedText(entry.sourcePoleId), entry.poleId);
         const canonical = S().canonicalPoleIdentity(entry.poleId);
         if (canonical && !byCanonicalPole.has(canonical)) byCanonicalPole.set(canonical, entry.poleId);
+        const sourceCanonical = S().canonicalPoleIdentity(entry.sourcePoleId);
+        if (sourceCanonical && !byCanonicalPole.has(sourceCanonical)) byCanonicalPole.set(sourceCanonical, entry.poleId);
       }
       if (entry.collectionId && entry.poleId) byCollection.set(normalizedText(entry.collectionId), entry.poleId);
     });
@@ -308,7 +329,9 @@
 
   function rowsForPole(sheetName, poleId) {
     const wanted = normalizedText(poleId);
-    return rows(sheetName).filter(row => normalizedText(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])) === wanted);
+    return rows(sheetName).filter(row => normalizedText(currentPoleIdForSource(
+      pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])
+    )) === wanted);
   }
 
   function statusFromChecks(checks, phase) {
@@ -1500,7 +1523,7 @@
     current.results = entries.map(entry => {
       const result = {
         poleId: entry.displayPoleId,
-        sourcePoleId: entry.poleId,
+        sourcePoleId: entry.sourcePoleId || entry.poleId,
         sequence: entry.sequence,
         sourceRow: entry.sourceRow,
         hoaStatus: "PASS",
@@ -1535,7 +1558,9 @@
 
   function reviewPole(poleId) {
     const wanted = normalizedText(poleId);
-    return current.results.find(result => normalizedText(result.sourcePoleId || result.poleId) === wanted) || null;
+    return current.results.find(result => normalizedText(result.poleId) === wanted)
+      || current.results.find(result => normalizedText(result.sourcePoleId || result.poleId) === wanted)
+      || null;
   }
 
   function getResults() {

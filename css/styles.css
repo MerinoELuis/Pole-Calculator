@@ -1262,20 +1262,41 @@ html[data-theme="dark"] .existing-violations-output {
   margin: 0;
 }
 .collapse-hint {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
   color: var(--muted);
-  font-size: .72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .06em;
 }
-.power-section[open] .subsection-collapse-summary {
+.collapse-hint svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+.collapse-hint .collapse-hide-icon {
+  display: none;
+}
+.power-section[open] .subsection-collapse-summary,
+.equipment-section[open] .subsection-collapse-summary {
   margin-bottom: 8px;
 }
-.power-section[open] .subsection-collapse-summary::before { content: "▾"; }
-.power-section[open] .collapse-hint { font-size: 0; }
-.power-section[open] .collapse-hint::after {
-  content: "Hide";
-  font-size: .72rem;
+.power-section[open] .subsection-collapse-summary::before,
+.equipment-section[open] .subsection-collapse-summary::before { content: "▾"; }
+.power-section[open] .collapse-show-icon,
+.equipment-section[open] .collapse-show-icon {
+  display: none;
+}
+.power-section[open] .collapse-hint .collapse-hide-icon,
+.equipment-section[open] .collapse-hint .collapse-hide-icon {
+  display: block;
 }
 
 .manual-proposed-starter {
@@ -1406,17 +1427,15 @@ html[data-theme="dark"] .existing-violations-output {
   min-width: 980px;
 }
 
-.power-midspan-cell {
+.power-group-stack {
   display: grid;
-  min-width: 112px;
-  gap: 4px;
+  gap: 8px;
 }
 
-.power-midspan-adjusted {
-  color: var(--muted);
-  font-size: .72rem;
-  font-weight: 700;
-  white-space: nowrap;
+.power-group-entry {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
 }
 
 .pole-header-icon-btn {
@@ -1447,13 +1466,18 @@ html[data-theme="dark"] .existing-violations-output {
   min-width: 110px;
 }
 
+.inline-pole-id {
+  cursor: text;
+}
+
 .inline-edit-cell:hover {
   background: transparent;
   outline: none;
 }
 
 .inline-comm-input,
-.inline-equipment-input {
+.inline-equipment-input,
+.inline-pole-input {
   min-width: 120px;
   width: 100%;
 }

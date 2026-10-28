@@ -2007,6 +2007,7 @@
     getPowerEquipmentCeiling,
     commOwnerLabel,
     isPofComm,
+    isPrimaryPowerRow,
     displayMidspanForComm,
     isCalculatedBackspanComm,
     getConnectedSpans,

@@ -148,6 +148,30 @@ assert.deepEqual(Object.keys(aliasResult.poles).sort(), ["P01-LX339927", "P02-X3
 assert.equal(aliasResult.poles["P01-LX339927"].ugActive, true, "UG state must move to the Collection pole identity");
 assert.equal(aliasResult.spanSides["SA__P01-LX339927"].proposedHOA, "22'", "manual Proposed must follow the canonical pole identity");
 
+const renamedPrevious = JSON.parse(JSON.stringify(previous));
+renamedPrevious.poleIdAliases = { P1: "P1-RENAMED" };
+renamedPrevious.poles["P1-RENAMED"] = { ...renamedPrevious.poles.P1, poleId: "P1-RENAMED" };
+delete renamedPrevious.poles.P1;
+Object.values(renamedPrevious.spans).forEach(span => {
+  if (span.fromPole === "P1") span.fromPole = "P1-RENAMED";
+  if (span.toPole === "P1") span.toPole = "P1-RENAMED";
+});
+renamedPrevious.spanSides = Object.fromEntries(Object.values(renamedPrevious.spanSides).map(row => {
+  if (row.poleId === "P1") row.poleId = "P1-RENAMED";
+  return [`${row.spanId}__${row.poleId}`, row];
+}));
+["spanComms", "spanPower"].forEach(mapName => Object.values(renamedPrevious[mapName]).forEach(row => {
+  if (row.poleId === "P1") row.poleId = "P1-RENAMED";
+}));
+const renamedUpdate = merge(renamedPrevious, JSON.parse(JSON.stringify(imported)));
+assert.ok(renamedUpdate.poles["P1-RENAMED"], "Update Data must retain the operator's renamed pole ID");
+assert.equal(renamedUpdate.poles.P1, undefined, "Update Data must not recreate the old pole ID");
+assert.equal(renamedUpdate.spans.S1.fromPole, "P1-RENAMED", "Update Data must remap imported span endpoints to the renamed ID");
+assert.equal(renamedUpdate.spanSides["S1__P1-RENAMED"].proposedHOA, "22'", "saved span-side work must follow the renamed ID through Update Data");
+assert.equal(Object.values(renamedUpdate.spanComms).find(row => row.wireId === "W1").poleId, "P1-RENAMED", "imported communication rows must use the renamed ID");
+assert.equal(renamedUpdate.poleIdAliases.P1, "P1-RENAMED", "the original-to-current ID mapping must survive updates");
+assert.equal(renamedUpdate.excelReviewSource.collection.rows[0].Id, "P1", "the raw workbook audit snapshot must remain unchanged");
+
 const endpointPrevious = {
   poles: {
     P08: { poleId: "P08" },

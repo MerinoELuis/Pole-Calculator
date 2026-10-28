@@ -81,9 +81,22 @@ const mixedSpans = renderTable([
 ]);
 assert.doesNotMatch(mixedSpans, /backspan-proposed-only-table/);
 assert.match(mixedSpans, /<th>End Drop<\/th>/);
+const proposedHeader = mixedSpans.match(/<thead><tr>([\s\S]*?)<\/tr><\/thead>/)?.[1] || "";
+const headerOrder = [
+  proposedHeader.indexOf("Next Pole Proposed"),
+  proposedHeader.indexOf("<th>Slack</th>"),
+  proposedHeader.indexOf("O-CALC MS")
+];
+assert.ok(headerOrder.every(position => position >= 0), "Next Pole Proposed, Slack, and O-CALC MS columns should be present");
+assert.deepEqual(headerOrder, [...headerOrder].sort((a, b) => a - b), "Slack should appear between Next Pole Proposed and O-CALC MS");
 const backspanRow = mixedSpans.match(/<tr class="[^"]*">(?=[\s\S]*?data-span="BACK")[\s\S]*?<\/tr>/)?.[0] || "";
 assert.match(backspanRow, /data-field="proposedHOA"/);
 assert.match(backspanRow, /data-field="proposedHOAChange"/);
+assert.ok(
+  backspanRow.indexOf('data-field="proposedHOAChange"') < backspanRow.indexOf('data-field="isSlack"')
+    && backspanRow.indexOf('data-field="isSlack"') < backspanRow.indexOf('data-field="ocalcMS"'),
+  "Slack checkbox cell should align between Next Pole Proposed and O-CALC MS"
+);
 assert.match(backspanRow, /data-field="ocalcMS"/);
 assert.match(mixedSpans, /data-span="FORE" data-field="ocalcMS"/);
 

@@ -709,4 +709,18 @@ assert.equal(olssonCodes.has("INVALID_OLSSON_COMM_INSULATOR"), false, "J-Hook mu
 const olssonP2Codes = new Set(review.reviewPole("P2 (IPID 1035 / 1720 40)").checks.map(item => item.code));
 assert.equal(olssonP2Codes.has("SEQUENCE_ID_MISMATCH"), false, "Olsson must treat a P-prefixed sequence as its numeric sequence");
 
+const originalOlssonId = "P1 (IPID 1035 / 172NE 40)";
+state.poleIdAliases = { [originalOlssonId]: "P1-RENAMED" };
+state.poles["P1-RENAMED"] = { poleId: "P1-RENAMED" };
+delete state.poles[originalOlssonId];
+review.runReview();
+const renamedReview = review.reviewPole("P1-RENAMED");
+assert.equal(renamedReview.poleId, "P1-RENAMED", "Excel Review must resolve a renamed active pole ID");
+assert.equal(renamedReview.sourcePoleId, originalOlssonId, "Excel Review must retain the source workbook ID for traceability");
+assert.equal(
+  renamedReview.checks.some(item => item.code === "INVALID_OLSSON_COMM_INSULATOR"),
+  false,
+  "Excel Review must continue matching workbook wire rows to the renamed pole"
+);
+
 console.log("Excel Review tests passed.");

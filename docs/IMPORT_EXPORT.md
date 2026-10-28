@@ -231,6 +231,11 @@ Example:
   Secure-only drip-loop work is not exported because it does not change riser
   placement.
 
+When imported Make Ready Notes contain an explicit ANC placement, their distance
+and direction are exported (distance converted to integer inches) unless the
+operator has manually overridden either ANC field. DG HOA continues to come
+from the effective ANC/DG value.
+
 ### Span fields
 
 - `to`: linked pole identity.

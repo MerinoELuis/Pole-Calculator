@@ -11,6 +11,7 @@
     } = context;
   function bindLocalActions(root) {
     if (!root) return;
+    root.querySelectorAll("[data-inline-pole-edit]").forEach(heading => heading.addEventListener("dblclick", () => beginInlinePoleEdit(heading)));
     root.querySelectorAll("[data-inline-comm-edit]").forEach(cell => cell.addEventListener("dblclick", () => beginInlineCommEdit(cell)));
     root.querySelectorAll("[data-inline-equipment-edit]").forEach(cell => cell.addEventListener("dblclick", () => beginInlineEquipmentEdit(cell)));
     root.querySelectorAll("[data-add-comm]").forEach(btn => btn.addEventListener("click", () => addCommToPole(btn.dataset.pole)));
@@ -67,6 +68,61 @@
     }));
     root.querySelectorAll("[data-add-proposed-span]").forEach(btn => btn.addEventListener("click", () => addManualProposedSpan(btn.dataset.pole, root)));
     root.querySelectorAll("[data-delete-proposed-span]").forEach(btn => btn.addEventListener("click", () => deleteProposedSpan(btn.dataset.pole, btn.dataset.span)));
+  }
+
+  function beginInlinePoleEdit(heading) {
+    if (!heading || heading.querySelector("input")) return;
+    const poleId = heading.dataset.pole || "";
+    if (!poleId || !S.getPole(poleId)) return;
+    const input = document.createElement("input");
+    input.className = "input inline-pole-input";
+    input.value = poleId;
+    input.name = "poleId";
+    input.setAttribute("aria-label", "Pole ID");
+    input.title = "Enter a new pole ID";
+    heading.replaceChildren(input);
+    input.focus();
+    input.select();
+    let saved = false;
+    const restore = () => renderAffectedPoles([poleId]);
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const nextPoleId = input.value.trim();
+      const validation = S.validatePoleRename(poleId, nextPoleId);
+      if (!validation.ok) {
+        toast(validation.reason || "Pole ID could not be changed.", "warning");
+        restore();
+        return;
+      }
+      if (!validation.changed) {
+        restore();
+        return;
+      }
+      const affectedPoleIds = [poleId, ...S.getConnectedSpans(poleId)
+        .flatMap(span => [span.fromPole, span.toPole])
+        .filter(Boolean)];
+      recordUndoSnapshot();
+      const result = S.renamePole(poleId, nextPoleId);
+      if (!result.ok) {
+        toast(result.reason || "Pole ID could not be changed.", "warning");
+        restore();
+        return;
+      }
+      renderAffectedPoles([...affectedPoleIds, result.poleId]);
+      markDirty();
+    };
+    input.addEventListener("blur", save, { once: true });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      }
+      if (event.key === "Escape") {
+        saved = true;
+        restore();
+      }
+    });
   }
 
   function toggleUG(poleId) {

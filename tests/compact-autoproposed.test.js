@@ -260,6 +260,46 @@ state.poles.P25.effectiveANCDirection = "";
 const anchorWithoutDirection = api.buildCompactPayload(state).poles.find(pole => pole.id === "P25");
 assert.deepEqual(JSON.parse(JSON.stringify(anchorWithoutDirection.anc)), { distance: 72 }, "an unselected ANC direction must stay blank rather than use stale input");
 delete state.poles.P25;
+const stateBeforeAnchorNotes = state;
+state = JSON.parse(JSON.stringify(state));
+const anchorNoteCases = [
+  { poleId: "P1", note: "Pl new ANC 18' W and pl new DG at HOA 22'4\".", computedDistance: "8'", direction: "W", dgHoa: "22'4\"", distanceInches: 216, dgHoaInches: 268 },
+  { poleId: "P11", note: "Pl new ANC 8' E and pl new DG at HOA 19'6\".", computedDistance: "7'", direction: "E", dgHoa: "19'6\"", distanceInches: 96, dgHoaInches: 234 },
+  { poleId: "P12", note: "Pl new ANC 19' W and pl new DG at HOA 20'4\".", computedDistance: "7'", direction: "W", dgHoa: "20'4\"", distanceInches: 228, dgHoaInches: 244 }
+];
+anchorNoteCases.forEach(({ poleId, computedDistance, direction, dgHoa }) => {
+  state.poles[poleId] = {
+    ...state.poles[poleId],
+    poleId,
+    ugActive: false,
+    pcoActive: false,
+    ancActive: true,
+    ancDistance: computedDistance,
+    ancDistanceManual: false,
+    effectiveANCDistance: computedDistance,
+    ancDirection: "",
+    ancDirectionManual: false,
+    effectiveANCDirection: "",
+    dgHoa,
+    effectiveANCDGHOA: dgHoa
+  };
+});
+state.makeReadyReferences = anchorNoteCases.map(({ poleId, note }) => ({ poleId, makeReadyNotes: note }));
+const anchorsFromMakeReady = api.buildCompactPayload(state).poles;
+anchorNoteCases.forEach(({ poleId, direction, distanceInches, dgHoaInches }) => {
+  const exported = anchorsFromMakeReady.find(pole => pole.id === poleId);
+  assert.deepEqual(JSON.parse(JSON.stringify(exported.anc)), { distance: distanceInches, direction }, `${poleId} ANC must use Make Ready Notes distance in inches and direction`);
+  assert.equal(exported.dgHoa, dgHoaInches, `${poleId} DG HOA must remain unchanged`);
+});
+state.poles.P1.ancDistance = "12'";
+state.poles.P1.ancDistanceManual = true;
+state.poles.P1.effectiveANCDistance = "12'";
+state.poles.P1.ancDirection = "E";
+state.poles.P1.ancDirectionManual = true;
+state.poles.P1.effectiveANCDirection = "E";
+const manualAnchorOverride = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1");
+assert.deepEqual(JSON.parse(JSON.stringify(manualAnchorOverride.anc)), { distance: 144, direction: "E" }, "manually selected ANC values must take precedence over imported Make Ready Notes");
+state = stateBeforeAnchorNotes;
 state.spanSides.S1_P1.isSlack = true;
 const slackFore = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P2");
 assert.equal(slackFore.slack, true, "a Proposed Slack check must survive compact AutoProposed export");

@@ -165,6 +165,8 @@
     // accepted for this job. Results are still regenerated from the workbook.
     excelReviewIgnoredChecks: {},
     poleClassChecks: [],
+    // Operator-edited IDs are matched back to imported workbook IDs on Update Data.
+    poleIdAliases: {},
     movements: [],
     mr: [],
     warnings: [],
@@ -853,6 +855,88 @@
     return pole;
   }
 
+  function validatePoleRename(poleId, nextPoleId) {
+    const currentId = trim(poleId);
+    const nextId = trim(nextPoleId);
+    if (!currentId || !state.poles[currentId]) return { ok: false, reason: "Pole not found." };
+    if (!nextId) return { ok: false, reason: "Pole ID cannot be empty." };
+    if (currentId === nextId) return { ok: true, changed: false, previousPoleId: currentId, poleId: currentId };
+
+    const nextCanonical = canonicalPoleIdentity(nextId);
+    const duplicateId = Object.keys(state.poles).find(existingId =>
+      existingId !== currentId && canonicalPoleIdentity(existingId) === nextCanonical
+    );
+    if (duplicateId) return { ok: false, reason: `A pole with ID ${duplicateId} already exists.` };
+    const deletedId = (state.deletedPoleIds || []).find(id => canonicalPoleIdentity(id) === nextCanonical);
+    if (deletedId) return { ok: false, reason: `Pole ID ${nextId} was deleted from this job.` };
+    return { ok: true, changed: true, previousPoleId: currentId, poleId: nextId };
+  }
+
+  function renamePole(poleId, nextPoleId) {
+    const validation = validatePoleRename(poleId, nextPoleId);
+    if (!validation.ok || !validation.changed) return validation;
+    const currentId = validation.previousPoleId;
+    const nextId = validation.poleId;
+
+    const poleIdAliases = { ...(state.poleIdAliases || {}) };
+    Object.keys(poleIdAliases).forEach(sourceId => {
+      if (poleIdAliases[sourceId] === currentId) poleIdAliases[sourceId] = nextId;
+    });
+    poleIdAliases[currentId] = nextId;
+    state.poleIdAliases = poleIdAliases;
+
+    const remap = value => value === currentId ? nextId : value;
+    const remapRow = row => {
+      const next = { ...row };
+      ["poleId", "remotePoleId", "fromPole", "toPole", "sourcePoleId", "targetPoleId"].forEach(field => {
+        if (typeof next[field] === "string") next[field] = remap(next[field]);
+      });
+      return next;
+    };
+
+    const pole = { ...state.poles[currentId], poleId: nextId };
+    delete state.poles[currentId];
+    state.poles[nextId] = pole;
+    Object.values(state.poles).forEach(item => {
+      if (Array.isArray(item.comms)) item.comms = item.comms.map(remapRow);
+    });
+
+    Object.values(state.spans || {}).forEach(span => {
+      span.fromPole = remap(span.fromPole);
+      span.toPole = remap(span.toPole);
+    });
+
+    const nextSides = {};
+    Object.values(state.spanSides || {}).forEach(source => {
+      const row = remapRow(source);
+      nextSides[keyForSpanSide(row.spanId, row.poleId)] = row;
+    });
+    state.spanSides = nextSides;
+
+    const nextComms = {};
+    Object.values(state.spanComms || {}).forEach(source => {
+      const row = attachOwnerAliases(remapRow(source));
+      nextComms[keyForSpanComm(row.spanId, row.poleId, getOwnerCanonical(row), row.wireId || "")] = row;
+    });
+    state.spanComms = nextComms;
+
+    const nextPower = {};
+    Object.values(state.spanPower || {}).forEach((source, index) => {
+      const row = remapRow(source);
+      const key = [row.spanId, row.poleId, row.wireId || row.label || index].join("__");
+      nextPower[key] = row;
+    });
+    state.spanPower = nextPower;
+
+    ["makeReadyReferences", "poleClassChecks", "movements", "mr", "warnings"].forEach(field => {
+      if (Array.isArray(state[field])) state[field] = state[field].map(remapRow);
+    });
+    state.selectedPoleId = remap(state.selectedPoleId);
+    state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).map(remap);
+    state.ui.revealedUnknownPoleIds = (state.ui.revealedUnknownPoleIds || []).map(remap);
+    return validation;
+  }
+
   function updateSetting(field, value) {
     if (!state.settings || !Object.prototype.hasOwnProperty.call(emptyState().settings, field)) return null;
     if (field === "metronetWI" && global.ProjectProfiles) {
@@ -1012,11 +1096,29 @@
     return clean;
   }
 
+  function isPrimaryPowerRow(row) {
+    return /\bprimary\b/i.test(`${row?.label || ""} ${row?.size || ""} ${row?.type || ""}`);
+  }
+
   function updateSpanPowerField(powerKey, field, value) {
     if (!["attachmentHeight", "attachmentHeightChange", "midspan", "calculatedMidspan", "size", "label"].includes(field)) return null;
     const row = state.spanPower[trim(powerKey)];
     if (!row) return null;
+    const isSharedPoleHeightEdit = ["attachmentHeight", "attachmentHeightChange"].includes(field);
+    const sourceHeight = isSharedPoleHeightEdit
+      ? global.HeightUtils?.parseHeight(row.attachmentHeight || "")
+      : null;
     row[field] = trim(value);
+    if (isSharedPoleHeightEdit && Number.isFinite(sourceHeight)) {
+      // Power wires at the same pole and attachment height move as one stack,
+      // even when their types or connected spans differ. Each span still keeps
+      // its own Midspan and calculation.
+      Object.values(state.spanPower).forEach(candidate => {
+        if (candidate === row || candidate.poleId !== row.poleId) return;
+        const candidateSourceHeight = global.HeightUtils?.parseHeight(candidate.attachmentHeight || "");
+        if (candidateSourceHeight === sourceHeight) candidate[field] = trim(value);
+      });
+    }
     return row;
   }
 
@@ -1419,6 +1521,9 @@
       ? { ...next.excelReviewIgnoredChecks }
       : {};
     next.poleClassChecks = Array.isArray(next.poleClassChecks) ? next.poleClassChecks : [];
+    next.poleIdAliases = next.poleIdAliases && typeof next.poleIdAliases === "object"
+      ? { ...next.poleIdAliases }
+      : {};
     next.movements = Array.isArray(next.movements) ? next.movements : [];
     next.mr = Array.isArray(next.mr) ? next.mr : [];
     next.warnings = Array.isArray(next.warnings) ? next.warnings : [];
@@ -1635,6 +1740,8 @@
     getSpanComm,
     upsertPole,
     updatePoleField,
+    validatePoleRename,
+    renamePole,
     updateSetting,
     applyProjectProfile,
     updateSpanField,

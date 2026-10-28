@@ -823,6 +823,27 @@
     return (payload?.poles || []).some(pole => (pole.spans || []).some(isProposedFiberSpan));
   }
 
+  function makeReadyAnchorForPole(state, poleId, pole) {
+    const notes = [pole?.makeReadyNotes, ...(state?.makeReadyReferences || [])
+      .filter(reference => reference.poleId === poleId)
+      .map(reference => reference.makeReadyNotes)]
+      .map(text)
+      .filter(Boolean);
+    const anchorPattern = /\banc(?:hor)?\s+(?:\d+(?:\.\d+)?\s*["″]\s+)?(\d+(?:\.\d+)?\s*(?:'|ft\b)(?:\s*\d+(?:\.\d+)?\s*(?:"|in\b))?)(?:\s+(NE|NW|SE|SW|N|E|S|W)\b)?/i;
+    for (const note of notes) {
+      const normalizedNote = note.replace(/[’‘´′]/g, "'").replace(/[“”″]/g, '"');
+      const match = normalizedNote.match(anchorPattern);
+      if (!match) continue;
+      const distance = inches(match[1]);
+      if (distance === null || distance <= 0) continue;
+      return {
+        distance,
+        direction: String(match[2] || "").toUpperCase()
+      };
+    }
+    return null;
+  }
+
   function compactAnchorForPole(state, poleId) {
     if (blocksLocalActions(state, poleId)) return null;
     const pole = findPole(state, poleId);
@@ -837,16 +858,23 @@
     // Export the resolved values used by Make Ready (including defaults), not
     // merely the raw form fields. An intentionally blank manual direction is
     // kept blank so AutoProposed can distinguish it from a chosen direction.
-    const distanceValue = typeof mrLogic?.getEffectiveANCDistance === "function"
+    const effectiveDistance = typeof mrLogic?.getEffectiveANCDistance === "function"
       ? mrLogic.getEffectiveANCDistance(poleId)
       : pole.ancDistance;
-    const directionValue = typeof mrLogic?.getEffectiveANCDirection === "function"
+    const effectiveDirection = typeof mrLogic?.getEffectiveANCDirection === "function"
       ? mrLogic.getEffectiveANCDirection(poleId)
       : pole.ancDirection;
     const dgHoaValue = typeof mrLogic?.getEffectiveANCDGHOA === "function"
       ? mrLogic.getEffectiveANCDGHOA(poleId)
       : pole.dgHoa;
 
+    const noteAnchor = makeReadyAnchorForPole(state, poleId, pole);
+    const distanceValue = pole.ancDistanceManual === true
+      ? effectiveDistance
+      : noteAnchor?.distance ?? effectiveDistance;
+    const directionValue = pole.ancDirectionManual === true
+      ? effectiveDirection
+      : noteAnchor?.direction || effectiveDirection;
     const anc = {};
     const distance = inches(distanceValue);
     const direction = text(directionValue).toUpperCase();

@@ -75,7 +75,7 @@ Imported, editable, and derived values live together but have different ownershi
 
 | Field | Ownership | Meaning |
 | --- | --- | --- |
-| `poleId` | imported/key | Visible pole name and graph node ID. |
+| `poleId` | imported/editable/key | Visible pole name and graph node ID. Double-clicking the pole heading renames the ID throughout the normalized project graph. |
 | `collectionId` | imported | Collection identity used while linking Span rows. |
 | `poleHeight` | imported/editable | Pole height/type reference. |
 | `tipHeight` | imported | Above-ground tip measurement used by Pole Type Check. |
@@ -83,7 +83,14 @@ Imported, editable, and derived values live together but have different ownershi
 | `maxCommHeight` | derived | Lowest applicable Low Power and project-specific equipment ceiling. |
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |
 
-`canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The `poleId` stored from Collection remains unchanged for display and export.
+`canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The imported Collection ID remains in the preserved Excel source snapshot; the normalized `poleId` is editable and is used by the current graph and exports.
+
+An operator rename updates normalized pole, span endpoint, SpanSide, communication,
+Power, Make Ready, warning, movement, and pole-class references as one operation.
+The original `excelReviewSource` snapshot remains unchanged for auditability.
+The persistent `poleIdAliases` map keeps original and prior IDs linked to the
+latest name so Update Data and Excel Review continue matching workbook rows
+after a rename.
 
 | Field | Ownership | Meaning |
 | --- | --- | --- |
@@ -97,7 +104,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `poleInsetHeight` | editable | Manually selected Pole Inset HOA. The Pole Actions panel derives the local and next-pole End Drops from this value. |
 | `ugRiserDirection` | editable | Optional INTEC riser-direction override; otherwise imported Make Ready/IO wins, followed by the UG span direction for Fore or Back. |
 | `riserActive` | editable tri-state | `null` keeps automatic Fore/Back adjacent-UG behavior; `true` adds and `false` suppresses riser MR on a normal pole. UG/PCO disables the action. |
-| `ancActive`, `ancSize`, `ancDistance`, `ancDistanceManual`, `ancDirection`, `ancDirectionManual`, `dgHoa` | editable/derived | ANC action and its size, anchor distance, direction, and DG attachment HOA. When `ancDistanceManual` is false, distance defaults to one-third of Proposed rounded up to the next whole foot; when `ancDirectionManual` is false, direction follows the connected UG span; when `dgHoa` is blank, it defaults to Proposed. |
+| `ancActive`, `ancSize`, `ancDistance`, `ancDistanceManual`, `ancDirection`, `ancDirectionManual`, `dgHoa` | editable/derived | ANC action and its size, anchor distance, direction, and DG attachment HOA. When `ancDistanceManual` is false, distance defaults to one-third of Proposed rounded up to the next whole foot. An active ANC uses a populated direction field; if blank, it waits for selection. An automatically inferred ANC otherwise follows the connected UG span. When `dgHoa` is blank, it defaults to Proposed. |
 | `ohgActive`, `ohgHoa`, `ohgDirection` | editable | MidAm OHG action and its attachment HOA/direction. |
 | `notes` | editable | User-owned pole notes. |
 | `metadata` | mixed | Source notes, project constraints, Power Equipment actions and the latest Auto Calculate result. |
