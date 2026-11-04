@@ -21,7 +21,7 @@ Header matching is case-insensitive and punctuation-tolerant. Some fields also s
 | Location reference | headers containing `Location.latitude` and `Location.longitude` |
 | Excel Review fields | exact `Year Installed`, `MRE Construction Type`, `PLA STATUS`, and `Drivable Access in Mid Span` values are preserved in the raw review source |
 
-Excel Review requires a non-empty `Drivable Access in Mid Span` value on every Collection row. A blank value or missing column creates a per-pole HOA error; both `yes` and `no` are valid filled values.
+Excel Review requires a non-empty `Drivable Access in Mid Span` value on every INTEC Collection row. A blank value or missing column creates a per-pole HOA error; both `yes` and `no` are valid filled values. This is an INTEC-only requirement; it does not apply to Metronet/MidAm or Olsson OPPD.
 
 Collection supplies the preferred visible Pole ID. During relationship matching, trailing `STEEL`, `UG`, and `PCO` tokens are ignored. This normalization applies to Collection aliases, Span endpoints, Span.Wire rows, Anchor.Guys, Make Ready references, and Update Data reconciliation.
 
@@ -92,7 +92,7 @@ The importer reads attachment references, not final Make Ready:
 
 `Make Ready.Comm Transfers` is also preserved for Excel Review using `Id`, `Owner`, and `Height.display`.
 
-For Excel Review, original headers and row values from Collection, Span, Span.Wire, Make Ready, and Make Ready.Comm Transfers are retained alongside normalized entities. This is required to distinguish a missing column from an empty value and to review duplicate or otherwise non-graphable source rows.
+For Excel Review, original headers and row values from Collection, Span, Span.Wire, Make Ready, and Make Ready.Comm Transfers are retained alongside normalized entities. This is required to distinguish a missing column from an empty value and to review duplicate or otherwise non-graphable source rows. Review cards collapse Collection revisions by Collection ID and then by canonical pole identity (trailing `STEEL`, `UG`, and `PCO` do not create a second pole); the newest Collection revision supplies the displayed pole ID. Make Ready rows sharing the same Collection ID and Make Ready ID are treated as revisions of one record, preferring the row for the current Collection ID/name so stale revisions do not create duplicate attachment warnings.
 
 An attachment such as `6.6M 24CT Fiber (E/W)` is preserved raw and parsed into messenger, fiber, and direction tokens for AutoProposed export.
 
@@ -138,6 +138,7 @@ Preserved user work includes matching:
 
 - HOA changes
 - Proposed values and Next Pole Proposed overrides
+- Manually overridden ANC Distance values (the manual value wins over a refreshed automatic/default distance)
 - Notes
 - Service Drop and DG edits
 - Transfer to New Pole and INTEC Re-sag Service Drop edits

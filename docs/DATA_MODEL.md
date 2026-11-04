@@ -182,7 +182,7 @@ Two spans describe the same physical connection when their sorted endpoint pairs
 | `proposedFlaggingStatus`, `proposedFlaggingMessage` | derived | Pole-side Proposed Flagging status and explanation. |
 | `notes` | editable | User notes for this proposal. |
 
-An additional Proposed uses its own SpanSide and may point to a physical span through `sourceSpanId`.
+An imported or legacy additional Proposed uses its own SpanSide and may point to a physical span through `sourceSpanId`. The UI allows at most one new Proposed per pole-to-target pair.
 
 ## SpanComm
 

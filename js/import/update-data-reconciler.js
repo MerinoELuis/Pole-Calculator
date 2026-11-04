@@ -633,6 +633,8 @@
       }
       const importedPole = merged.poles[targetPoleId];
       const preservedPole = preserveValuesMissingFromUpdate(importedPole, mappedOldPole, reconciliation);
+      const preserveManualAncDistance = mappedOldPole.ancDistanceManual === true
+        && String(mappedOldPole.ancDistance || "").trim();
       const importedEquipment = importedPole.metadata?.powerEquipment || [];
       const oldEquipment = mappedOldPole.metadata?.powerEquipment || [];
       const powerEquipment = mergePowerEquipmentUserWork(importedEquipment, oldEquipment, reconciliation);
@@ -656,6 +658,8 @@
         riserActive: mappedOldPole.riserActive === true || mappedOldPole.riserActive === false
           ? mappedOldPole.riserActive
           : preservedPole.riserActive,
+        ancDistance: preserveManualAncDistance ? mappedOldPole.ancDistance : (preservedPole.ancDistance || ""),
+        ancDistanceManual: Boolean(preserveManualAncDistance || preservedPole.ancDistanceManual),
         secondaryDripLoopActive: Boolean(mappedOldPole.secondaryDripLoopActive || preservedPole.secondaryDripLoopActive),
         secondaryDripLoopHoa: mappedOldPole.secondaryDripLoopHoa || preservedPole.secondaryDripLoopHoa || "",
         standaloneProposedHOA: mappedOldPole.standaloneProposedHOA || preservedPole.standaloneProposedHOA || "",

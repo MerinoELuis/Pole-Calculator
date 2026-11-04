@@ -454,45 +454,38 @@
     const select = root.querySelector(`[data-manual-proposed-target="${CSS.escape(poleId)}"]`);
     const targetPoleId = select?.value || "";
     if (!targetPoleId) return toast("Choose which pole the proposed span goes to.", "warning");
+    if (String(targetPoleId).trim() === String(poleId).trim()) {
+      return toast("A Proposed Span cannot connect a pole to itself.", "warning");
+    }
+    if (S.hasProposedSpanForPolePair(poleId, targetPoleId)) {
+      return toast(`A Proposed Span from ${poleId} to ${targetPoleId} already exists. Edit its existing row instead.`, "warning");
+    }
     const matchingSpans = connectedSpansSorted(poleId).filter(span =>
-      span.fromPole === poleId && span.toPole === targetPoleId
+      S.getOtherPoleId(span, poleId) === targetPoleId
     );
     const existing = matchingSpans.find(span =>
       !span.sourceSpanId && !/^(manual|additional)-proposed-/i.test(span.spanId)
     ) || matchingSpans[0] || null;
     recordUndoSnapshot();
     const existingSide = existing ? S.getSpanSide(existing.spanId, poleId) : null;
-    const hasExistingProposal = Boolean(existingSide && (
-      existingSide.isManualProposed || existingSide.proposedHOA || existingSide.proposedHOAChange ||
-      existingSide.ocalcMS || existingSide.proposedMidspan || existingSide.notes || existingSide.isSlack
-    ));
-    const shouldCreateAdditional = Boolean(existing && hasExistingProposal);
-    const span = shouldCreateAdditional || !existing ? S.upsertSpan({
-      spanId: `${shouldCreateAdditional ? "additional" : "manual"}-proposed-${Date.now()}`,
+    const span = existing || S.upsertSpan({
+      spanId: `manual-proposed-${Date.now()}`,
       fromPole: poleId,
       toPole: targetPoleId,
-      sourceSpanId: shouldCreateAdditional ? (existing.sourceSpanId || existing.spanId) : "",
-      direction: existing?.direction || "",
-      bearingDegrees: existing?.bearingDegrees ?? "",
-      spanRelation: existing?.spanRelation || existing?.type || "Other",
-      importedRelation: existing?.importedRelation || existing?.rawType || "",
-      spanIndex: existing?.spanIndex || "",
-      length: existing?.length || "",
-      lengthDisplay: existing?.lengthDisplay || "",
-      environment: existing?.environment || "NONE",
-      environmentClearance: existing?.environmentClearance || "",
-      midspanLowPower: existing?.midspanLowPower || "",
-      midspanMaxCommHeight: existing?.midspanMaxCommHeight || "",
-      rawSpanIds: existing?.rawSpanIds || [],
+      direction: "",
+      spanRelation: "Other",
+      importedRelation: "",
+      environment: "NONE",
       isManualProposed: true
-    }) : existing;
+    });
+    const isAdditionalProposal = Boolean(span.sourceSpanId);
     S.upsertSpanSide({
       spanId: span.spanId,
       poleId,
       isManualProposed: true,
-      isAdditionalProposed: shouldCreateAdditional,
+      isAdditionalProposed: isAdditionalProposal,
       isProposedExcluded: false,
-      proposedHOA: shouldCreateAdditional ? "" : (existingSide?.proposedHOA || S.getPole(poleId)?.standaloneProposedHOA || "")
+      proposedHOA: isAdditionalProposal ? "" : (existingSide?.proposedHOA || S.getPole(poleId)?.standaloneProposedHOA || "")
     });
     if (S.getPole(poleId)?.standaloneProposedHOA) S.updatePoleField(poleId, "standaloneProposedHOA", "");
     global.Calculations.recalculateSpan(span.spanId);

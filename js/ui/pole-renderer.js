@@ -1325,12 +1325,16 @@
       }
 
       function renderManualProposedSpanStarter(poleId, optionsConfig = {}) {
-        const options = Object.keys(S.getState().poles || {})
+        const targets = Object.keys(S.getState().poles || {})
           .filter(id => id !== poleId)
           .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-          .map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`)
-          .join("");
-        if (!options) return `<p class="muted">No other pole is available for a proposed span.</p>`;
+          .map(id => ({ id, alreadyProposed: S.hasProposedSpanForPolePair(poleId, id) }));
+        if (!targets.length) return `<p class="muted">No other pole is available for a proposed span.</p>`;
+        const options = targets.map(({ id, alreadyProposed }) =>
+          `<option value="${escapeHtml(id)}" ${alreadyProposed ? "disabled" : ""}>${escapeHtml(id)}${alreadyProposed ? " (Proposed already added)" : ""}</option>`
+        ).join("");
+        const hasAvailableTarget = targets.some(target => !target.alreadyProposed);
+        if (!hasAvailableTarget) return `<p class="muted">A Proposed Span already exists from this pole to every other pole.</p>`;
         return `<div class="manual-proposed-starter ${optionsConfig.compact ? "compact-starter" : ""}">
           ${optionsConfig.compact ? "" : `<span class="muted">No spans with midspan are available to propose from this pole.</span>`}
           <label>

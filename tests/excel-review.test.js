@@ -133,10 +133,79 @@ assert.equal(
 );
 assert.ok(p2.checks.some(item => item.code === "MISSING_LOW_POWER"), "Low Power fallback columns must not satisfy the exact display check");
 assert.ok(p2.checks.some(item => item.code === "CALCULATOR_WORK_EXCEL_EMPTY"), "generated MR must count as Calculator final work");
+assert.equal(p1.checks.some(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN"), false,
+  "a missing Drivable Access field must not error for Metronet");
 assert.equal(output.summary.total, 2);
 assert.deepEqual(output.results.map(item => item.poleId), ["P1", "P2"], "review poles must stay in natural sequence order regardless of severity");
 
-assert.equal(p1.checks.some(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN"), false, "a populated Drivable Access in Mid Span value must pass");
+const duplicateReviewState = {
+  settings: state.settings,
+  poles: state.poles,
+  poleIdAliases: state.poleIdAliases,
+  spans: state.spans,
+  spanSides: state.spanSides,
+  spanComms: state.spanComms,
+  mr: state.mr,
+  excelReviewSource: state.excelReviewSource
+};
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom" };
+state.poles = {
+  "P8-313678 PCO": { poleId: "P8-313678 PCO", pcoActive: true },
+  "P9-313680": { poleId: "P9-313680" }
+};
+state.poleIdAliases = { "P9-NT 313680": "P9-313680" };
+state.spans = { P9S: { spanId: "P9S", fromPole: "P9-313680", toPole: "P10", direction: "S" } };
+state.spanSides = {
+  P9S__P9: { spanId: "P9S", poleId: "P9-313680", proposedHOA: "18'2\"", finalMidspan: "16'11\"" }
+};
+state.spanComms = {};
+state.mr = [{ poleId: "P9-313680", text: "Attach Wecom at HOA 18'2\".\nProposed slack span S." }];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "collectionId", "updatedAt", "Year Installed", "Low Power Attachment.display", "Drivable Access in Mid Span", "MRE Construction Type", "PLA STATUS"],
+    rows: [
+      { Id: "P8-313678 PCO", Sequence: "P8", collectionId: "COL-P8", updatedAt: "2026-10-29T10:00:00Z", "Year Installed": "2000", "Low Power Attachment.display": "25'", "Drivable Access in Mid Span": "yes", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
+      { Id: "P8-NT 313678", Sequence: "P8", collectionId: "COL-P8", updatedAt: "2026-10-28T10:00:00Z", "Year Installed": "2000", "Low Power Attachment.display": "25'", "Drivable Access in Mid Span": "yes", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
+      { Id: "P9-313680", Sequence: "P9", collectionId: "COL-P9", updatedAt: "2026-10-29T10:00:00Z", "Year Installed": "2000", "Low Power Attachment.display": "25'", "Drivable Access in Mid Span": "yes", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" },
+      { Id: "P9-NT 313680", Sequence: "P9", collectionId: "COL-P9", updatedAt: "2026-10-28T10:00:00Z", "Year Installed": "2000", "Low Power Attachment.display": "25'", "Drivable Access in Mid Span": "yes", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }
+    ]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: { headers: [], rows: [] },
+  equipment: { headers: [], rows: [] },
+  anchors: { headers: [], rows: [] },
+  anchorGuys: { headers: [], rows: [] },
+  makeReady: {
+    headers: ["Id", "collectionId", "Make Ready Id", "Make Ready Index", "Attachment Height.display", "Proposed Mid Span.display", "Make Ready Notes"],
+    rows: [
+      { Id: "P8-313678 PCO", collectionId: "COL-P8", "Make Ready Id": "MR-P8", "Make Ready Index": "7", "Attachment Height.display": "", "Proposed Mid Span.display": "", "Make Ready Notes": "Pole replacement." },
+      { Id: "P8-NT 313678", collectionId: "COL-P8", "Make Ready Id": "MR-P8", "Make Ready Index": "7", "Attachment Height.display": "21'", "Proposed Mid Span.display": "", "Make Ready Notes": "Attach Wecom at HOA 21'." },
+      { Id: "P9-313680", collectionId: "COL-P9", "Make Ready Id": "MR-P9", "Make Ready Index": "8", "Attachment Height.display": "18'2\"", "Proposed Mid Span.display": "16'11\"", "Make Ready Notes": "Attach Wecom at HOA 18'2\".\nProposed slack span S." },
+      { Id: "P9-NT 313680", collectionId: "COL-P9", "Make Ready Id": "MR-P9", "Make Ready Index": "8", "Attachment Height.display": "18'2\"", "Proposed Mid Span.display": "9'5\"", "Make Ready Notes": "Attach Wecom at HOA 18'2\"." }
+    ]
+  },
+  commTransfers: { headers: [], rows: [] }
+};
+const duplicateReviewResults = review.runReview().results;
+assert.equal(duplicateReviewResults.length, 2, "Collection revisions/ID suffixes for one Collection ID must yield one Excel Review card");
+assert.ok(duplicateReviewResults.some(item => item.poleId === "P8-313678 PCO"), "the latest Collection revision must supply the displayed pole ID");
+const duplicateP9Review = review.reviewPole("P9-313680");
+assert.equal(duplicateP9Review.checks.some(item => item.code === "UNMATCHED_EXCEL_ATTACHMENT" && item.actual.includes("9'5\"")), false,
+  "an older Make Ready revision of the same Collection/Make Ready ID must not create a stale unmatched attachment warning");
+state.settings = duplicateReviewState.settings;
+state.poles = duplicateReviewState.poles;
+state.poleIdAliases = duplicateReviewState.poleIdAliases;
+state.spans = duplicateReviewState.spans;
+state.spanSides = duplicateReviewState.spanSides;
+state.spanComms = duplicateReviewState.spanComms;
+state.mr = duplicateReviewState.mr;
+state.excelReviewSource = duplicateReviewState.excelReviewSource;
+output = review.runReview();
+
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom" };
+review.runReview();
+assert.equal(review.reviewPole("P1").checks.some(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN"), false,
+  "a populated Drivable Access in Mid Span value must pass for INTEC");
 state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"] = "";
 review.runReview();
 let drivableAccessCheck = review.reviewPole("P1").checks.find(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN");
@@ -149,8 +218,20 @@ delete state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"]
 review.runReview();
 drivableAccessCheck = review.reviewPole("P1").checks.find(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN");
 assert.ok(drivableAccessCheck && drivableAccessCheck.status === "ERROR", "a missing Drivable Access in Mid Span column/value must error");
+
+state.settings = { projectProfile: "METRONET", metronetWI: "MIDAM", proposedOwner: "MidAm" };
+review.runReview();
+drivableAccessCheck = review.reviewPole("P1").checks.find(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN");
+assert.equal(drivableAccessCheck, undefined, "a missing Drivable Access field must not error for Metronet MidAm");
+
+state.settings = { projectProfile: "OLSSON_OPPD", proposedOwner: "Cox" };
+review.runReview();
+drivableAccessCheck = review.reviewPole("P1").checks.find(item => item.code === "MISSING_DRIVABLE_ACCESS_MID_SPAN");
+assert.equal(drivableAccessCheck, undefined, "a missing Drivable Access field must not error for Olsson OPPD");
+
 state.excelReviewSource.collection.headers = collectionHeaders;
 state.excelReviewSource.collection.rows[0]["Drivable Access in Mid Span"] = "no";
+state.settings = duplicateReviewState.settings;
 output = review.runReview();
 
 const originalSizeRows = state.excelReviewSource.spanWires.rows;

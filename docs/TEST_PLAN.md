@@ -238,7 +238,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 
 ## Excel Review Cases
 
-Excel Review coverage continues to require Collection identity and populated Drivable Access in Mid Span, owner-matched Telco/CATV drop sizes and Telco bundle combinations for Century Link and MCI Metro (including full hierarchical catalog paths), Fore/Back relationships, Environment, Anchor completeness, INTEC wire rules, HOA-only workbooks, Proposed/final Midspan comparison, UG resolution, structured transfers, ignored findings, natural order, supplemental model instructions, and tab badge counts. Blank values and a missing Drivable Access in Mid Span column must produce per-pole HOA errors.
+Excel Review coverage continues to require Collection identity and populated Drivable Access in Mid Span for INTEC only, owner-matched Telco/CATV drop sizes and Telco bundle combinations for Century Link and MCI Metro (including full hierarchical catalog paths), Fore/Back relationships, Environment, Anchor completeness, INTEC wire rules, HOA-only workbooks, Proposed/final Midspan comparison, UG resolution, structured transfers, ignored findings, natural order, supplemental model instructions, and tab badge counts. Blank values and a missing Drivable Access in Mid Span column must produce per-pole HOA errors for INTEC; they must not create that error for Metronet/MidAm or Olsson OPPD.
 
 ## Browser Layout Smoke Tests
 

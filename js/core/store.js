@@ -1305,6 +1305,19 @@
     ));
   }
 
+  function hasProposedSpanForPolePair(poleId, targetPoleId) {
+    const source = trim(poleId);
+    const target = trim(targetPoleId);
+    if (!source || !target || source === target) return false;
+    return getConnectedSpans(source).some(span => {
+      if (getOtherPoleId(span, source) !== target) return false;
+      const side = getSpanSide(span.spanId, source);
+      // Next Pole Proposed is only the remote endpoint's height; by itself it
+      // does not mean this pole already has a Proposed attachment on the span.
+      return Boolean(side && !side.isProposedExcluded && (side.isManualProposed || side.proposedHOA));
+    });
+  }
+
   function physicalSpanCandidateFor(synthetic) {
     return Object.values(state.spans)
       .filter(candidate => candidate.spanId !== synthetic.spanId)
@@ -1759,6 +1772,7 @@
     addSpanPower,
     removeSpanPower,
     getConnectedSpans,
+    hasProposedSpanForPolePair,
     getOtherPoleId,
     getSpanSidesForPole,
     getSpanSidesForSpan,

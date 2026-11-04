@@ -47,6 +47,27 @@
         });
       }
 
+      function getAdditionalProposedSide(poleId, selectedSpanId, selectedSpanIds) {
+        return S().getConnectedSpans(poleId)
+          .filter(span => {
+            const sourceSpanId = String(span?.sourceSpanId || "").trim();
+            return sourceSpanId && selectedSpanIds.has(sourceSpanId);
+          })
+          .map(span => ({
+            span,
+            side: S().getSpanSide(span.spanId, poleId)
+          }))
+          .filter(({ side }) => side
+            && !side.isProposedExcluded
+            && H().parseHeight(side.proposedHOA || "") !== null)
+          .sort((a, b) => {
+            const aDirectSource = a.span.sourceSpanId === selectedSpanId ? 0 : 1;
+            const bDirectSource = b.span.sourceSpanId === selectedSpanId ? 0 : 1;
+            if (aDirectSource !== bDirectSource) return aDirectSource - bDirectSource;
+            return String(a.span.spanId || "").localeCompare(String(b.span.spanId || ""));
+          })[0]?.side || null;
+      }
+
       function getPoleInsetDetails(poleId) {
         const pole = S().getPole(poleId);
         if (!pole) {
@@ -109,10 +130,17 @@
         }
 
         const selectedHeight = H().parseHeight(pole.poleInsetHeight || "");
-        const localProposed = H().parseHeight(selectedSide?.proposedHOA || "");
-        let nextPoleProposed = H().parseHeight(selectedSide?.proposedHOAChange || "");
+        const selectedSideProposed = H().parseHeight(selectedSide?.proposedHOA || "");
+        const additionalProposedSide = selectedSideProposed === null
+          ? getAdditionalProposedSide(poleId, selectedSpanId, selectedSpanIds)
+          : null;
+        const localProposed = selectedSideProposed
+          ?? H().parseHeight(additionalProposedSide?.proposedHOA || "");
+        let nextPoleProposed = H().parseHeight(selectedSide?.proposedHOAChange || "")
+          ?? H().parseHeight(additionalProposedSide?.proposedHOAChange || "");
         if (nextPoleProposed === null && localProposed !== null) {
-          const existingEndDrop = H().parseHeight(selectedSide?.endDrop || "");
+          const existingEndDrop = H().parseHeight(selectedSide?.endDrop || "")
+            ?? H().parseHeight(additionalProposedSide?.endDrop || "");
           if (existingEndDrop !== null) nextPoleProposed = localProposed + existingEndDrop;
         }
 

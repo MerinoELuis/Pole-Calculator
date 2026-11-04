@@ -124,6 +124,25 @@ assert.ok(result.poleClassChecks.some(row => row.poleId === "P2"), "Pole Type Ch
 assert.equal(result.excelReviewIgnoredChecks["review-known-exception"], true, "Update Data must preserve ignored review findings");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
 
+const manualAncPrevious = JSON.parse(JSON.stringify(previous));
+manualAncPrevious.poles.P1.ancActive = true;
+manualAncPrevious.poles.P1.ancDistance = "8'";
+manualAncPrevious.poles.P1.ancDistanceManual = true;
+const refreshedAncImport = JSON.parse(JSON.stringify(imported));
+refreshedAncImport.poles.P1.ancActive = true;
+refreshedAncImport.poles.P1.ancDistance = "10'";
+refreshedAncImport.poles.P1.ancDistanceManual = false;
+const ancUpdateResult = merge(manualAncPrevious, refreshedAncImport);
+assert.equal(ancUpdateResult.poles.P1.ancDistance, "8'", "Update Data must preserve a manually entered ANC Distance over a newly imported/default distance");
+assert.equal(ancUpdateResult.poles.P1.ancDistanceManual, true, "Update Data must retain the manual ANC Distance marker");
+
+const automaticAncPrevious = JSON.parse(JSON.stringify(previous));
+automaticAncPrevious.poles.P1.ancActive = true;
+automaticAncPrevious.poles.P1.ancDistance = "9'";
+automaticAncPrevious.poles.P1.ancDistanceManual = false;
+const automaticAncUpdate = merge(automaticAncPrevious, refreshedAncImport);
+assert.equal(automaticAncUpdate.poles.P1.ancDistance, "10'", "a non-manual ANC Distance may update from refreshed/default data");
+
 const aliasPrevious = {
   poles: {
     "P01-LX339927 STEEL UG": { poleId: "P01-LX339927 STEEL UG", ugActive: true, pcoActive: false, notes: "UG work" }

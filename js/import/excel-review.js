@@ -209,13 +209,26 @@
     if (!sourceId) return "";
     const state = S().getState();
     const aliases = state.poleIdAliases || {};
-    if (aliases[sourceId] && state.poles?.[aliases[sourceId]]) return aliases[sourceId];
+    const poleForCanonicalIdentity = value => {
+      const id = text(value);
+      if (state.poles?.[id]) return id;
+      const canonicalId = S().canonicalPoleIdentity(id);
+      const matches = Object.keys(state.poles || {}).filter(poleId => S().canonicalPoleIdentity(poleId) === canonicalId);
+      return matches.length === 1 ? matches[0] : "";
+    };
+    const directAlias = poleForCanonicalIdentity(aliases[sourceId]);
+    if (directAlias) return directAlias;
+
+    const directCanonicalMatches = Object.keys(state.poles || {}).filter(poleId =>
+      S().canonicalPoleIdentity(poleId) === S().canonicalPoleIdentity(sourceId)
+    );
+    if (directCanonicalMatches.length === 1) return directCanonicalMatches[0];
 
     const canonical = S().canonicalPoleIdentity(sourceId);
     const targets = new Set(Object.entries(aliases)
       .filter(([alias]) => S().canonicalPoleIdentity(alias) === canonical)
-      .map(([, target]) => target)
-      .filter(target => state.poles?.[target]));
+      .map(([, target]) => poleForCanonicalIdentity(target))
+      .filter(Boolean));
     if (targets.size === 1) return Array.from(targets)[0];
     return sourceId;
   }
@@ -245,7 +258,7 @@
   }
 
   function collectionEntries() {
-    return rows("collection").map((row, index) => {
+    const entries = rows("collection").map((row, index) => {
       const sourcePoleId = collectionPoleId(row);
       const poleId = currentPoleIdForSource(sourcePoleId);
       return {
@@ -257,6 +270,37 @@
         sequence: collectionSequence(row),
         collectionId: text(pick(row, ["collectionId", "Collection ID"]))
       };
+    });
+    const timestamp = entry => {
+      const raw = pick(entry.row, ["updatedAt", "Updated At", "collectedAt", "Collected At"]);
+      const parsed = Date.parse(text(raw));
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const prefer = (candidate, previous) => {
+      if (!previous) return true;
+      if (timestamp(candidate) !== timestamp(previous)) return timestamp(candidate) > timestamp(previous);
+      const candidateIsCurrent = Boolean(S().getState().poles?.[candidate.poleId]);
+      const previousIsCurrent = Boolean(S().getState().poles?.[previous.poleId]);
+      if (candidateIsCurrent !== previousIsCurrent) return candidateIsCurrent;
+      return candidate.sourceRow > previous.sourceRow;
+    };
+    const deduplicate = (values, identityFor) => {
+      const unique = new Map();
+      values.forEach((entry, index) => {
+        const identity = identityFor(entry) || `row:${index}`;
+        if (prefer(entry, unique.get(identity))) unique.set(identity, entry);
+      });
+      const winners = new Set(unique.values());
+      return values.filter(entry => winners.has(entry));
+    };
+    // A Collection ID survives pole renames and new Steel/UG/PCO descriptors.
+    // Then collapse any remaining exact/canonical pole identity duplicates.
+    const byCollection = deduplicate(entries, entry => entry.collectionId
+      ? `collection:${normalizedText(entry.collectionId)}`
+      : `pole:${S().canonicalPoleIdentity(entry.poleId || entry.sourcePoleId) || normalizedText(entry.sourcePoleId)}`);
+    return deduplicate(byCollection, entry => {
+      const canonicalId = S().canonicalPoleIdentity(entry.poleId || entry.sourcePoleId) || normalizedText(entry.sourcePoleId);
+      return canonicalId ? `pole:${canonicalId}` : "";
     });
   }
 
@@ -329,9 +373,44 @@
 
   function rowsForPole(sheetName, poleId) {
     const wanted = normalizedText(poleId);
-    return rows(sheetName).filter(row => normalizedText(currentPoleIdForSource(
+    const matches = rows(sheetName).filter(row => normalizedText(currentPoleIdForSource(
       pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"])
     )) === wanted);
+    if (sheetName !== "makeReady") return matches;
+
+    const entries = collectionEntries().filter(entry => normalizedText(entry.poleId) === wanted);
+    const entriesByCollectionId = new Map(entries
+      .filter(entry => entry.collectionId)
+      .map(entry => [normalizedText(entry.collectionId), entry]));
+    const entriesByPoleId = new Map(entries.map(entry => [normalizedText(entry.poleId), entry]));
+    const unique = new Map();
+    matches.forEach((row, index) => {
+      const collectionId = text(pick(row, ["collectionId", "Collection ID"]));
+      const sourcePoleId = collectionPoleId(row);
+      const resolvedPoleId = currentPoleIdForSource(sourcePoleId);
+      const entry = (collectionId && entriesByCollectionId.get(normalizedText(collectionId)))
+        || entriesByPoleId.get(normalizedText(resolvedPoleId));
+      const recordId = text(pick(row, ["Make Ready Id", "Make Ready ID", "MR ID"]))
+        || text(pick(row, ["Make Ready Index", "MR Index"]));
+      // Without a stable Make Ready identity, keep every row; it may represent
+      // a separate attachment on the same pole.
+      if (!recordId) {
+        unique.set(`row:${index}`, { row, index });
+        return;
+      }
+      const groupId = collectionId
+        ? `collection:${normalizedText(collectionId)}`
+        : `pole:${normalizedText(resolvedPoleId || sourcePoleId || wanted)}`;
+      const key = `${groupId}::${normalizedText(recordId)}`;
+      const current = unique.get(key);
+      const currentSourceMatch = Boolean(entry && normalizedText(sourcePoleId) === normalizedText(entry.sourcePoleId));
+      const currentRecordSourceMatch = Boolean(current?.entry && normalizedText(current.sourcePoleId) === normalizedText(current.entry.sourcePoleId));
+      if (!current || (currentSourceMatch && !currentRecordSourceMatch)
+        || (currentSourceMatch === currentRecordSourceMatch && index > current.index)) {
+        unique.set(key, { row, index, entry, sourcePoleId });
+      }
+    });
+    return Array.from(unique.values()).sort((a, b) => a.index - b.index).map(item => item.row);
   }
 
   function statusFromChecks(checks, phase) {
@@ -460,7 +539,7 @@
     }
 
     const drivableAccess = pick(entry.row, ["Drivable Access in Mid Span"], { contains: false });
-    if (!text(drivableAccess)) {
+    if (isIntecProject() && !text(drivableAccess)) {
       add(result, {
         phase: "HOA", section: "Collection", code: "MISSING_DRIVABLE_ACCESS_MID_SPAN", status: "ERROR",
         title: "Drivable Access in Mid Span", message: "Drivable Access in Mid Span is empty.",

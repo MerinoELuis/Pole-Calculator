@@ -48,6 +48,30 @@ assert.equal(C.getPoleInsetDetails("P1").spanId, "S2", "Pole Inset must use the 
 assert.equal(C.getPoleInsetDetails("P1").direction, "W", "Pole Inset must expose the selected span direction for MR");
 assert.equal(C.getPoleInsetDetails("P1").maxHeightAtMidspan, "20'8\"", "Pole Inset max height must come from the selected span power midspan");
 
+S.upsertPole(S.createPole({ poleId: "P5" }));
+S.upsertSpan(S.createSpan("S5", "P1", "P5", "E", "", { type: "Other" }));
+S.upsertSpanSide(S.createSpanSide({ spanId: "S5", poleId: "P1", proposedHOAChange: "21'2\"" }));
+S.upsertSpan(S.createSpan("additional-proposed-S5", "P1", "P5", "E", "", {
+  type: "Other",
+  sourceSpanId: "S5",
+  isManualProposed: true
+}));
+S.upsertSpanSide(S.createSpanSide({
+  spanId: "additional-proposed-S5",
+  poleId: "P1",
+  isManualProposed: true,
+  isAdditionalProposed: true,
+  proposedHOA: "20'2\"",
+  proposedHOAChange: "21'2\"",
+  endDrop: "1'"
+}));
+S.upsertPole({ ...S.getPole("P1"), poleInsetHeight: "20'8\"", poleInsetSpanId: "S5" });
+const additionalProposedDetails = C.getPoleInsetDetails("P1");
+assert.equal(additionalProposedDetails.endDropToPole, "6\"",
+  "Pole Inset must find the local HOA on an additional Proposed linked to the selected physical span");
+assert.equal(additionalProposedDetails.endDropToNextPole, "-6\"",
+  "Pole Inset must retain the selected span's next-pole Proposed when an additional local Proposed is matched");
+
 S.upsertPole(S.createPole({ poleId: "P0" }));
 S.upsertSpan(S.createSpan("S3", "P0", "P1", "E", "", { type: "Other", lengthDisplay: "120'" }));
 S.upsertSpanSide(S.createSpanSide({ spanId: "S3", poleId: "P1", proposedHOA: "18'" }));
