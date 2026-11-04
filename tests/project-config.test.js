@@ -73,7 +73,7 @@ assert.equal(oppd.primaryPowerCommsClearance, "72\"", "Olsson OPPD should use 72
 assert.equal(oppd.midspanPrimaryPowerCommClearance, "60\"", "Olsson OPPD should use 60 inches from primary midspan to top comm midspan");
 assert.equal(oppd.environmentClearances.HIGHWAY, "18'", "Olsson OPPD highway clearance should use 18 feet");
 assert.equal(oppd.showServiceDrop, true, "Olsson OPPD must expose imported Service Drop rows and their relocation MR");
-assert.equal(oppd.showResagServiceDrop, false, "Olsson OPPD should not inherit INTEC's optional Re-sag Service Drop action");
+assert.equal(oppd.showResagServiceDrop, true, "Olsson OPPD must expose the optional Re-sag Service Drop action");
 assert.equal(profiles.detectProfile({ fileName: "job.xlsx", owners: ["UTILITY > OPPD"] }), "OLSSON_OPPD", "OPPD ownership must select the Olsson OPPD profile automatically");
 
 console.log("Project profile tests passed.");

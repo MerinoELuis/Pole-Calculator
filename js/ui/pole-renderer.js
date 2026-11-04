@@ -1357,8 +1357,7 @@
             || String(settings.proposedOwner || "").toUpperCase() === "MNT");
         const showServiceDrop = settings.showServiceDrop !== false;
         const showTransferToNewPole = !isCsuMetronet;
-        const showResagServiceDrop = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC"
-          && settings.showResagServiceDrop !== false;
+        const showResagServiceDrop = settings.showResagServiceDrop !== false;
         const showPof = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
         return `<div class="table-wrap"><table class="comm-movement-table">
           <thead><tr>

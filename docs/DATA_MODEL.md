@@ -63,7 +63,7 @@ Important settings and defaults:
 | `streetlightDripLoopCommClearance` | profile default | MidAm spacing below an uncovered drip loop. |
 | `allowLowPowerMidspanAdjustment` | `true` | Whether Proposed MS may be capped at Max Height at MS. |
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
-| `showResagServiceDrop` | `true` | Whether INTEC exposes the Re-sag Service Drop control. |
+| `showResagServiceDrop` | profile default | Whether the active profile exposes the Re-sag Service Drop control; enabled for INTEC and Olsson OPPD. |
 | `attachmentMessengerSize` | blank | Messenger diameter exported to AutoProposed. Defaults to `0.25` for Cox 96CT and `0.242` for detected 144CT when empty. |
 | `fiberSizes` | `{}` | Fiber diameter by detected count. Cox 96CT defaults to `0.53`; detected 144CT defaults to `0.51`. User-entered values are preserved. |
 
@@ -207,7 +207,7 @@ An imported or legacy additional Proposed uses its own SpanSide and may point to
 | `flaggingStatus`, `flaggingMessage` | derived | Combined pole and midspan issues. |
 | `serviceDrop`, `downGuy` | imported/editable | Make Ready modifiers. |
 | `transferToNewPole` | editable | Comm-level transfer flag synchronized across the comm's `SpanComm` rows; generates one transfer instruction. |
-| `resagServiceDrop` | editable | INTEC-only resolution that treats a low service-drop midspan as 15'6". |
+| `resagServiceDrop` | editable | For INTEC and Olsson OPPD, treats an opted-in low service-drop midspan as 15'6". |
 | `pofActive` | editable | INTEC-only manual POF classification; Self-Supporting Fiber is eligible but is not activated automatically. |
 | `size`, `construction`, `insulator` | imported reference | Source wire details. |
 | `isEndpointPlaceholder` | normalized | Marks an owner-only helper copied to an otherwise empty endpoint; it is not a Span.Wire measurement. |

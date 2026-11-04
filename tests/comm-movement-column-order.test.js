@@ -12,6 +12,8 @@ assert.notEqual(functionStart, -1, "communication movement table renderer should
 assert.notEqual(nextFunction, -1, "communication movement table renderer should end before the next function");
 
 const renderer = source.slice(functionStart, nextFunction);
+assert.match(renderer, /const showResagServiceDrop = settings\.showResagServiceDrop !== false;/,
+  "Re-sag column visibility should follow the active profile capability, including Olsson OPPD");
 const header = renderer.slice(renderer.indexOf("<thead><tr>"), renderer.indexOf("</tr></thead>"));
 const body = renderer.slice(renderer.indexOf("<tbody>"), renderer.indexOf("</tbody>"));
 

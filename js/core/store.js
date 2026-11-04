@@ -1512,6 +1512,11 @@
     if (Object.prototype.hasOwnProperty.call(profileDefaults, "calculateBackspanMidspan")) {
       next.settings.calculateBackspanMidspan = profileDefaults.calculateBackspanMidspan === true;
     }
+    // Re-sag visibility is a project capability, not a user preference.
+    // Migrate saved Olsson jobs that persisted the previous disabled value.
+    if (Object.prototype.hasOwnProperty.call(profileDefaults, "showResagServiceDrop")) {
+      next.settings.showResagServiceDrop = profileDefaults.showResagServiceDrop === true;
+    }
     // Migrate Metronet saves created before the WI selector existed.
     if (String(next.settings.projectProfile || "").toUpperCase() === "METRONET"
       && String(next.settings.metronetWI || "").toUpperCase() !== "COMED"

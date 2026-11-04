@@ -141,7 +141,7 @@ Preserved user work includes matching:
 - Manually overridden ANC Distance values (the manual value wins over a refreshed automatic/default distance)
 - Notes
 - Service Drop and DG edits
-- Transfer to New Pole and INTEC Re-sag Service Drop edits
+- Transfer to New Pole and INTEC/Olsson OPPD Re-sag Service Drop edits
 - Manual/additional Proposed rows
 - UG/PCO pole state
 - attachment diameter settings

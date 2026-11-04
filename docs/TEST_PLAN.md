@@ -159,7 +159,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 ### Make Ready Controls
 
 1. Transfer to New Pole appears once per grouped comm and includes `with DG` when appropriate.
-2. INTEC Re-sag Service Drop raises the effective low drop midspan to `15'6"` without overwriting the imported baseline.
+2. INTEC and Olsson OPPD Re-sag Service Drop raise the effective low drop midspan to `15'6"` without overwriting the imported baseline; Metronet-family profiles keep the action unavailable.
 3. Service Drop relocation text and compact movement payloads never include `with DG`/`DG`.
 4. Transfer without HOA Change uses Existing HOA; multiple heights are ordered and joined correctly.
 5. Adjacent UG relation reason/direction and riser precedence remain correct.

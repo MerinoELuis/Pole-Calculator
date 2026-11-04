@@ -748,4 +748,25 @@ assert.equal(
   "Overlash at a different HOA must require a matching existing communication"
 );
 
+seedSpan("OLSSON_OPPD", "OLSSON-RESAG", "100'", "22'");
+const olssonResagComm = S.createSpanComm({
+  spanId: "OLSSON-RESAG",
+  poleId: "P1",
+  owner: "Cox",
+  midspan: "14'10\"",
+  serviceDrop: true,
+  resagServiceDrop: true
+});
+S.upsertSpanComm(olssonResagComm);
+assert.equal(
+  C.displayMidspanForComm(olssonResagComm),
+  "15'6\"",
+  "Olsson Re-sag must raise an opted-in Service Drop's effective midspan to 15 feet 6 inches"
+);
+assert.equal(
+  S.getSpanComm("OLSSON-RESAG", "P1", "Cox").midspan,
+  "14'10\"",
+  "Olsson Re-sag must preserve the imported midspan baseline"
+);
+
 console.log("Proposed midspan fallback tests passed.");

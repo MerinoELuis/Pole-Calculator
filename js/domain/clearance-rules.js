@@ -285,15 +285,14 @@
 
   const RESAG_SERVICE_DROP_HEIGHT_INCHES = 15 * 12 + 6;
 
-  // INTEC can resolve a low service-drop midspan by explicitly re-sagging it
-  // to 15'6". Keep the imported/calculated value untouched; this helper only
-  // changes the effective value used by display, clearances and ordering.
+  // Profiles that expose Re-sag can resolve a low service-drop midspan by
+  // explicitly re-sagging it to 15'6". Keep the imported/calculated value
+  // untouched; this helper only changes the effective value used by display,
+  // clearances and ordering.
   function applyResagServiceDropHeight(sc, parsedMidspan) {
     if (parsedMidspan === null || !sc?.serviceDrop || !sc?.resagServiceDrop) return parsedMidspan;
     const settings = S().getState().settings || {};
-    if (settings.showResagServiceDrop === false || String(settings.projectProfile || "INTEC").toUpperCase() !== "INTEC") {
-      return parsedMidspan;
-    }
+    if (settings.showResagServiceDrop === false) return parsedMidspan;
     return parsedMidspan < RESAG_SERVICE_DROP_HEIGHT_INCHES
       ? RESAG_SERVICE_DROP_HEIGHT_INCHES
       : parsedMidspan;

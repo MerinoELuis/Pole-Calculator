@@ -112,4 +112,14 @@ assert.equal(S.getSpanRelation(restoredSpan), "Back Span", "span relation should
 assert.equal(S.getOwnerCanonical(restoredComm), "CTL", "canonical owner should survive Save/Load");
 assert.equal(S.getOwnerImported(restoredComm), "COMMUNICATION > Century Link", "imported owner should survive Save/Load");
 
+const legacyOlssonState = JSON.parse(JSON.stringify(S.getState()));
+legacyOlssonState.settings = {
+  ...legacyOlssonState.settings,
+  projectProfile: "OLSSON_OPPD",
+  showResagServiceDrop: false
+};
+S.setState(legacyOlssonState);
+assert.equal(S.getState().settings.showResagServiceDrop, true,
+  "loading an older Olsson save should migrate Re-sag to the current project capability");
+
 console.log("pole-controls.test.js passed");

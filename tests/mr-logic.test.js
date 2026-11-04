@@ -546,7 +546,7 @@ sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /PROPOSED SLACK SPAN E\./, "Olsson OPPD Slack must generate the uppercase MR instruction");
 state.spanSides.SLACK__P1.isSlack = false;
 state.settings.showServiceDrop = true;
-state.settings.showResagServiceDrop = false;
+state.settings.showResagServiceDrop = true;
 state.spanComms.OLSSON_DROP = {
   spanId: "PROP",
   poleId: "P1",
@@ -554,6 +554,7 @@ state.spanComms.OLSSON_DROP = {
   ownerBase: "Cox",
   existingHOA: "18'",
   existingHOAChange: "17'",
+  midspan: "15'2\"",
   serviceDrop: true,
   resagServiceDrop: true,
   transferToNewPole: false
@@ -589,7 +590,7 @@ assert.match(olssonText, /SECURE RISER DRIP LOOP TO HOA 25'10"\./i, "Olsson must
 assert.match(olssonText, /LESS THAN 12" COMM CLEARANCE REQUESTED\./i, "Olsson must generate the optional less-than-12-inch clearance note");
 assert.match(olssonText, /AT HOA 18' LOWER COX TO HOA 17'\./i, "Olsson Service Drop must use the normal raise/lower MR wording");
 assert.doesNotMatch(olssonText, /Relocate Cox drop/i, "Olsson must not use the dedicated Relocate drop wording");
-assert.doesNotMatch(olssonText, /Re-sag Cox/i, "Olsson must not inherit INTEC Re-sag Service Drop MR");
+assert.match(olssonText, /RE-SAG COX COMM DROP N, ENSURE 15'6\" AT MIDSPAN\./, "Olsson Service Drop Re-sag must generate the 15-foot-6 midspan MR");
 assert.match(olssonText, /^RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT - MIN 45'-4 DUE TO CLEARANCE VIOLATIONS\./, "Olsson Red Tag must be a separate first MR line");
 assert.match(olssonText, /PL NEW OHG W AT HOA 24' AND PL DG ON W POLE\./, "Olsson should reuse the configured OHG action");
 assert.doesNotMatch(olssonText, /POLE INSET/i, "Olsson must not generate Pole Inset MR");

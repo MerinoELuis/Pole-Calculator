@@ -201,7 +201,7 @@ When `Transfer to New Pole` is active, the old `Existing HOA` bolt belongs to th
 Transfer <owner> to new pole at HOA <HOA Change> [with DG].
 ```
 
-`Re-sag Service Drop` is available only for INTEC and only applies to a row marked `Service Drop`. If its original calculated midspan is below `15'6"`, the effective midspan used by display and validation becomes `15'6"` without overwriting the imported baseline. Other Power, Comm-comm, and crossing checks still apply at the adjusted height. The generated Make Ready line is:
+`Re-sag Service Drop` is available for INTEC and Olsson OPPD and only applies to a row marked `Service Drop`. If its original calculated midspan is below `15'6"`, the effective midspan used by display and validation becomes `15'6"` without overwriting the imported baseline. Other Power, Comm-comm, and crossing checks still apply at the adjusted height. The generated Make Ready line is:
 
 ```text
 Re-sag <owner> comm drop <direction>, ensure 15'6" at midspan.

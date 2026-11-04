@@ -152,7 +152,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | Method | Purpose |
 | --- | --- |
 | `generateMRForComm(spanComm)` | Generate one movement line. |
-| `generateResagServiceDropMR(spanComm)` | Generate the INTEC re-sag instruction when its conditions apply. |
+| `generateResagServiceDropMR(spanComm)` | Generate the Re-sag instruction for profiles that enable it when its conditions apply. |
 | `generatePowerEquipmentMRForPole(poleId)` | Generate Ground, Transformer Secure, and independent Power Riser Raise/Secure instructions. |
 | `generateMRForSpanSide(spanSide)` | Generate Proposed/anchor/riser/slack lines. |
 | `generateMRForSpan(spanId)` | Generate all lines related to one span. |
