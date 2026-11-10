@@ -414,6 +414,7 @@
         lastExcelUpdate: state.updateDiagnostics || null
       },
       autoCalculateTrace: global.AutoCalculateSolver?.getDebugTrace?.() || null,
+      performanceTrace: global.PoleCalcPerformance?.snapshot?.() || null,
       undoTrace: global.AppUndoTrace?.getTrace?.() || [],
       movementTrace: spanComms
         .filter(row => row.existingHOAChange || row.otherHOA || row.autoCalcStatus)

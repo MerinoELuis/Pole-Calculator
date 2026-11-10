@@ -170,7 +170,7 @@ The `Equipment` sheet contributes only rows owned by Utility/Power and categoriz
 1. Every MidAm Streetlight has mandatory `Ground`: import and recalculation activate it automatically, the UI cannot disable it, and MR adds `MNT GROUND STREETLIGHT`.
 2. Grounding does not invent a vertical height or remove physical clearances. MidAm applies the Attachment Height clearance; Bottom Height and Drip Loop Height are not used.
 3. Transformer `Secure` requires a manually entered New HOA. INTEC adds `Secure transformer drip loop to HOA <height>.`; Metronet adds `POWER REDRESS TRANSFORMER DRIP LOOP TO HOA <height>.`
-4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC and `MNT GROUND STREETLIGHT` for Metronet.
+4. Streetlight `Ground` adds `Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.` for INTEC, `MNT GROUND STREETLIGHT` for Metronet, and `OPPD GROUND STREETLIGHT` for Olsson OPPD.
 5. ComEd Streetlight `Ground` is optional and does not generate an MR until the operator activates it manually.
 6. Power Riser has independent `Raise` and `Secure` actions. `Raise` requires a New HOA above the imported attachment and adds the riser movement (`Raise APS riser from HOA <old> to HOA <new>.` for INTEC, or `AT HOA <old> RAISE POWER RISER TO HOA <new> DUE TO CLEARANCES.` for Metronet). `Secure` adds `Secure riser drip loop to HOA <effective riser HOA - 8\">.`; when Raise is inactive or invalid, the imported attachment HOA is used. Transformer uses a `Secure` action with a manually entered New HOA.
 7. INTEC Streetlight `Raise` is independent of `Ground`. New HOA must be above Attachment Height and no more than `12"` higher. The bracket, bottom, and drip-loop references move by the same delta, and MR adds `Raise streetlight from HOA <old> to <new>.`
@@ -206,6 +206,8 @@ Transfer <owner> to new pole at HOA <HOA Change> [with DG].
 ```text
 Re-sag <owner> comm drop <direction>, ensure 15'6" at midspan.
 ```
+
+Automatic `Overlash <owner> at HOA ...` Make Ready lines are temporarily suppressed while pole/span matching and target-height resolution are corrected. Imported Overlash references and proposal calculations remain available.
 
 Service Drop relocations never include `with DG`, and compact AutoProposed movement payloads never set `DG` for a service drop, even if imported data has a down-guy flag on that row.
 

@@ -16,42 +16,43 @@ Every browser module is an IIFE that publishes a small API on `window`.
 
 1. `libs/xlsx.full.min.js`
 2. `js/core/deployment-version.js`
-3. `js/domain/height-math.js`
-4. `js/core/project-config.js`
-5. `js/domain/pole-resolution.js`
-6. `js/core/state-compat.js`
-7. `js/core/store-identity.js`
-8. `js/core/store.js`
-9. `js/domain/comm-movements.js`
-10. `js/domain/pole-inset-calculation.js`
-11. `js/domain/clearance-rules.js`
-12. `js/domain/midspan-engine.js`
-13. `js/rules/mr-logic.js`
-14. `js/rules/validations.js`
-15. `js/import/import-normalizers.js`
-16. `js/import/excel-import.js`
-17. `js/import/update-data-reconciler.js`
-18. `js/import/excel-review-wire-checks.js`
-19. `js/import/excel-review.js`
-20. `js/export/excel-export.js`
-21. `js/export/json-export.js`
-22. `js/export/compact-autoproposed.js`
-23. `js/rules/auto-calculate-solver.js`
-24. `js/ui/dialogs.js`
-25. `js/ui/theme.js`
-26. `js/ui/mobile-keyboard.js`
-27. `js/ui/floating-calculator.js`
-28. `js/ui/excel-review-renderer.js`
-29. `js/ui/pole-renderer.js`
-30. `js/ui/controls.js`
-31. `js/core/persistence.js`
-32. `js/core/history.js`
-33. `js/ui/pole-navigation.js`
-34. `js/ui/app.js`
-35. `js/ui/dom-contract.js`
-36. `js/ui/comm-table.js`
-37. `js/ui/span-colors.js`
-38. `js/ui/runtime.js`
+3. `js/core/performance-debug.js`
+4. `js/domain/height-math.js`
+5. `js/core/project-config.js`
+6. `js/domain/pole-resolution.js`
+7. `js/core/state-compat.js`
+8. `js/core/store-identity.js`
+9. `js/core/store.js`
+10. `js/domain/comm-movements.js`
+11. `js/domain/pole-inset-calculation.js`
+12. `js/domain/clearance-rules.js`
+13. `js/domain/midspan-engine.js`
+14. `js/rules/mr-logic.js`
+15. `js/rules/validations.js`
+16. `js/import/import-normalizers.js`
+17. `js/import/excel-import.js`
+18. `js/import/update-data-reconciler.js`
+19. `js/import/excel-review-wire-checks.js`
+20. `js/import/excel-review.js`
+21. `js/export/excel-export.js`
+22. `js/export/json-export.js`
+23. `js/export/compact-autoproposed.js`
+24. `js/rules/auto-calculate-solver.js`
+25. `js/ui/dialogs.js`
+26. `js/ui/theme.js`
+27. `js/ui/mobile-keyboard.js`
+28. `js/ui/floating-calculator.js`
+29. `js/ui/excel-review-renderer.js`
+30. `js/ui/pole-renderer.js`
+31. `js/ui/controls.js`
+32. `js/core/persistence.js`
+33. `js/core/history.js`
+34. `js/ui/pole-navigation.js`
+35. `js/ui/app.js`
+36. `js/ui/dom-contract.js`
+37. `js/ui/comm-table.js`
+38. `js/ui/span-colors.js`
+39. `js/ui/runtime.js`
 
 Changing this order can break global dependencies. Pole resolution, state compatibility, and identity helpers load before the store; movement and Pole Inset calculation modules register before clearance calculations inject their helpers; import normalizers load before ExcelImport; Excel Review wire rules load before the audit coordinator, and its result renderer loads before the app initializes it. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
 
@@ -66,6 +67,7 @@ Changing this order can break global dependencies. Pole resolution, state compat
 | `core/persistence.js` | `AppPersistence` | Save/load JSON, file handles, dirty-state tracking, and safe job filenames. |
 | `core/project-config.js` | `ProjectProfiles` | Keep INTEC and Metronet defaults outside calculation code. |
 | `core/deployment-version.js` | `DeploymentVersion` | Expose app version and deployment metadata. |
+| `core/performance-debug.js` | `PoleCalcPerformance` | Collect opt-in timing samples for calculation and UI rendering. |
 | `domain/height-math.js` | `HeightUtils` | Parse and format height values using integer inches. |
 | `domain/pole-resolution.js` | `PoleResolution` | Normalize AERIAL, UG, and PCO state with UG priority. |
 | `domain/comm-movements.js` | `CalculationAutoMovementModule` | Encapsulate Auto Calculate movement planning and apply routines using helpers injected by clearance calculations. |

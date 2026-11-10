@@ -490,14 +490,24 @@ state.makeReadyReferences.push({
 });
 sandbox.window.MRLogic.generateMRForPole("P1");
 const mixedNewOverlashMR = state.mr.find(item => item.poleId === "P1").text;
-assert.match(mixedNewOverlashMR, /Overlash Wecom at HOA 22'6"\./, "Overlash must generate its own MR instruction");
-assert.doesNotMatch(mixedNewOverlashMR, /Overlash Wecom .*24'8"/, "a reciprocal Back Span must not add an Overlash height to this pole's MR");
+assert.doesNotMatch(mixedNewOverlashMR, /Overlash Wecom/i, "automatic Overlash MR must stay suppressed at every pole for now");
 assert.match(mixedNewOverlashMR, /Attach Wecom at HOA 19'\./, "a New proposal must still generate its Attach MR on the same pole");
 assert.doesNotMatch(mixedNewOverlashMR, /^Attach Wecom at HOA .*22'6"/m, "Overlash must not be merged into the New Attach instruction");
+assert.deepEqual(
+  Array.from(sandbox.window.MRLogic.generateOverlashMRForPole("P1")),
+  [],
+  "the Overlash MR helper must remain disabled while its matching logic is being fixed"
+);
+assert.deepEqual(
+  Array.from(sandbox.window.MRLogic.generateOverlashMRForPole("P2")),
+  [],
+  "the Overlash MR helper must stay disabled for all poles"
+);
 delete state.spanComms.OVERLASH_MESSENGER;
 delete state.spanComms.OVERLASH_BACK_MESSENGER;
 delete state.spanSides.OTHER__P1;
 delete state.spanSides.BACK__P1;
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom", mrCase: "LOWER" };
 
 sandbox.window.MRLogic.generateMRForPole("P2");
 assert.equal(state.mr.find(item => item.poleId === "P2").text, [

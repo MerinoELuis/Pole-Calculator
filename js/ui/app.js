@@ -718,17 +718,29 @@
   }
 
   function render() {
-    // One top-level render always recalculates first so every table displays the
-    // newest derived values after imports, edits, undo, or local restore.
-    global.Calculations.recalculateAll();
-    renderSummary();
-    renderClearanceSettings();
-    renderPoleClassResults();
-    renderExcelReviewResults();
-    renderPoleLists();
-    renderAllPolesWorkspace();
-    renderActiveView();
-    updateAutoCalculateButtonState();
+    const run = () => {
+      // One top-level render always recalculates first so every table displays
+      // the newest derived values after imports, edits, undo, or local restore.
+      global.Calculations.recalculateAll();
+      renderSummary();
+      renderClearanceSettings();
+      renderPoleClassResults();
+      renderExcelReviewResults();
+      renderPoleLists();
+      renderAllPolesWorkspace();
+      renderActiveView();
+      updateAutoCalculateButtonState();
+    };
+    const performance = global.PoleCalcPerformance;
+    if (!performance) return run();
+    return performance.measure("ui.render", run, () => {
+      const state = S.getState();
+      return {
+        poles: Object.keys(state.poles || {}).length,
+        spans: Object.keys(state.spans || {}).length,
+        activeView: state.ui?.activeView || ""
+      };
+    });
   }
 
   async function handleExcelImport(file) {

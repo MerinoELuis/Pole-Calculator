@@ -10,6 +10,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `css/styles.css` | — | Application layout, tables, status and span colors. |
 | `libs/xlsx.full.min.js` | `MiniXLSX` | Third-party browser Excel parser; do not edit for application behavior. |
 | `js/core/deployment-version.js` | `DeploymentVersion` | Build and deployment metadata shown in the page header. |
+| `js/core/performance-debug.js` | `PoleCalcPerformance` | Opt-in timing samples for calculation and UI render performance. |
 | `js/core/project-config.js` | `ProjectProfiles` | INTEC and Metronet/MidAm defaults and profile differences. |
 | `js/core/store.js` | `AppStore` | Normalized application state, constructors, identities, and graph accessors. |
 | `js/core/state-compat.js` | `StateCompatibility` | Compatibility adapters for older JSON/imported state. |

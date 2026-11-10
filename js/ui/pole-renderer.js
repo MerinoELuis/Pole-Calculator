@@ -700,6 +700,7 @@
         const hasPoleData = Object.keys(state.poles || {}).length > 0;
         const hasProposedFiber = global.CompactAutoProposed?.hasProposedFiber?.(state) === true;
         const supportedExportProject = global.CompactAutoProposed?.isExportProjectSupported?.(state) === true;
+          const allowsOverlashWithoutFiber = global.CompactAutoProposed?.allowsOverlashExportWithoutProposedFiber?.(state) === true;
         const position = String(state.settings?.position || "TOP_COMM").toUpperCase();
         const isLowComm = position === "LOW_COMM";
         const isOverlash = position === "OVERLASH";
@@ -718,16 +719,18 @@
             : "Auto Proposed";
 
         if (els.exportProposedJsonBtn) {
-          const canExportProposed = hasPoleData && hasProposedFiber && supportedExportProject;
+            const canExportProposed = hasPoleData && (hasProposedFiber || allowsOverlashWithoutFiber) && supportedExportProject;
           els.exportProposedJsonBtn.disabled = !canExportProposed;
           els.exportProposedJsonBtn.classList.toggle("btn-disabled", !canExportProposed);
           els.exportProposedJsonBtn.classList.toggle("btn-success", canExportProposed);
           els.exportProposedJsonBtn.title = !hasPoleData
             ? "Import pole data first."
             : !supportedExportProject
-              ? "AutoProposed export is currently available for INTEC only."
+              ? "AutoProposed export is currently available for INTEC and Olsson OPPD only."
             : !hasProposedFiber
-              ? "Add at least one proposed fiber before exporting."
+              ? allowsOverlashWithoutFiber
+                ? "Export Olsson OPPD overlash data without a newly proposed fiber."
+                : "Add at least one proposed fiber before exporting."
               : "Export the proposed fiber data.";
         }
         if (els.exportDebugJsonBtn) {
@@ -1548,11 +1551,12 @@
       }
 
       function renderPoleWorkspace(poleId) {
-        const pole = S.getPole(poleId);
-        const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange || row.otherHOA));
-        const commMovementsActive = hasCommMovements && pole?.commMovementsActive !== false;
-        const resolution = poleResolutionOf(pole);
-        return `<article class="pole-workspace-card ${resolution === "UG" ? "ug-active" : ""} ${resolution === "PCO" ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
+        const run = () => {
+          const pole = S.getPole(poleId);
+          const hasCommMovements = S.getSpanCommsForPole(poleId).some(row => Boolean(row.existingHOAChange || row.otherHOA));
+          const commMovementsActive = hasCommMovements && pole?.commMovementsActive !== false;
+          const resolution = poleResolutionOf(pole);
+          return `<article class="pole-workspace-card ${resolution === "UG" ? "ug-active" : ""} ${resolution === "PCO" ? "pco-active" : ""}" data-pole-card="${escapeHtml(poleId)}">
           ${renderPoleEditableHeader(poleId)}
           <div class="workspace-grid">
             <section class="subsection wide" id="spans-${escapeHtml(poleId)}">
@@ -1601,18 +1605,23 @@
             </section>
             ${renderMidamPreMoveViolations(poleId)}
           </div>
-        </article>`;
+          </article>`;
+        };
+        const performance = global.PoleCalcPerformance;
+        if (!performance) return run();
+        return performance.measure("ui.renderPoleWorkspace", run, { poleId });
       }
 
       function renderAllPolesWorkspace() {
-        const poleIds = filteredPoles({ includeHidden: false });
-        const hiddenCount = (S.getState().ui.hiddenPoleIds || []).filter(id => S.getPole(id)).length;
-        els.polesOverview.innerHTML = poleIds.map(id => {
-          try {
-            return renderPoleWorkspace(id);
-          } catch (error) {
-            console.error(`Error rendering pole ${id}`, error);
-            return `<article class="pole-workspace-card warning-row" data-pole-card="${escapeHtml(id)}">
+        const run = () => {
+          const poleIds = filteredPoles({ includeHidden: false });
+          const hiddenCount = (S.getState().ui.hiddenPoleIds || []).filter(id => S.getPole(id)).length;
+          els.polesOverview.innerHTML = poleIds.map(id => {
+            try {
+              return renderPoleWorkspace(id);
+            } catch (error) {
+              console.error(`Error rendering pole ${id}`, error);
+              return `<article class="pole-workspace-card warning-row" data-pole-card="${escapeHtml(id)}">
               <div class="pole-workspace-header">
                 <div>
                   <h3>${escapeHtml(id)}</h3>
@@ -1620,14 +1629,21 @@
                 </div>
               </div>
               <p class="muted">This pole was imported, but it has incomplete or unexpected data. Review the Excel file or import again.</p>
-            </article>`;
-          }
-        }).join("") || `<div class="detail-placeholder">${hiddenCount
-          ? `${hiddenCount} pole${hiddenCount === 1 ? " is" : "s are"} hidden. Select a Hidden pole in the index to show it again.`
-          : "No poles to show."}</div>`;
-        wireEditableEvents(els.polesOverview);
-        bindScrollLinks(els.polesOverview);
-        bindLocalActions(els.polesOverview);
+              </article>`;
+            }
+          }).join("") || `<div class="detail-placeholder">${hiddenCount
+            ? `${hiddenCount} pole${hiddenCount === 1 ? " is" : "s are"} hidden. Select a Hidden pole in the index to show it again.`
+            : "No poles to show."}</div>`;
+          wireEditableEvents(els.polesOverview);
+          bindScrollLinks(els.polesOverview);
+          bindLocalActions(els.polesOverview);
+          return { polesRendered: poleIds.length };
+        };
+        const performance = global.PoleCalcPerformance;
+        if (!performance) return run();
+        return performance.measure("ui.renderAllPolesWorkspace", run, () => ({
+          poles: filteredPoles({ includeHidden: false }).length
+        }));
       }
 
       return { spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, ...excelReviewRenderer, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace };

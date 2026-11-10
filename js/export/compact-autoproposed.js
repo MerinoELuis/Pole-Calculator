@@ -6,6 +6,7 @@
   const DEFAULT_COX_MESSENGER_96 = "0.25";
   const DEFAULT_COX_FIBER_96 = "0.53";
   const SUPPORTED_PROFILES = new Set(["INTEC", "METRONET", "CSU", "OLSSON_OPPD"]);
+  const SUPPORTED_EXPORT_PROFILES = new Set(["INTEC", "OLSSON_OPPD"]);
   const OPPOSITE_DIRECTION = {
     N: "S",
     NE: "SW",
@@ -97,11 +98,17 @@
   }
 
   function isExportProjectSupported(state = S()?.getState?.()) {
-    return profileName(state) === "INTEC";
+    return SUPPORTED_EXPORT_PROFILES.has(profileName(state));
+  }
+
+  function allowsOverlashExportWithoutProposedFiber(state = S()?.getState?.()) {
+    return profileName(state) === "OLSSON_OPPD"
+      && text(state?.settings?.position).toUpperCase() === "OVERLASH";
   }
 
   function exportProjectContext(state) {
     const profile = profileName(state);
+    if (profile === "OLSSON_OPPD") return { project: "OLSSON OPPD" };
     if (!["METRONET", "CSU", "COMED"].includes(profile)) return { project: profile };
 
     const configuredWI = text(state?.settings?.metronetWI).toUpperCase();
@@ -946,13 +953,18 @@
     }, state);
   }
 
-  function validationErrors(payload) {
+  function validationErrors(payload, state = null) {
     const usedFibers = new Set();
     (payload?.poles || []).forEach(pole => (pole.spans || []).forEach(span => {
       if (!span.ug && Number.isFinite(Number(span.fiber))) usedFibers.add(String(Number(span.fiber)));
     }));
     const errors = [];
-    if (!payloadHasProposedFiber(payload)) errors.push("No proposed fiber to export");
+    const payloadProject = text(payload?.project).toUpperCase().replace(/\s+/g, "_");
+    const allowFiberlessOverlash = payloadProject === "OLSSON_OPPD"
+      && allowsOverlashExportWithoutProposedFiber(state);
+    if (!payloadHasProposedFiber(payload) && !allowFiberlessOverlash) {
+      errors.push("No proposed fiber to export");
+    }
     if (usedFibers.size) {
       if (numericSize(payload?.sizes?.messenger) === null) errors.push("Missing Messenger Size");
       Array.from(usedFibers).sort((a, b) => Number(a) - Number(b)).forEach(count => {
@@ -1005,13 +1017,13 @@
   function exportCompactProposedJson() {
     const currentState = S()?.getState?.();
     if (!isExportProjectSupported(currentState)) {
-      notify("AutoProposed export is currently available for INTEC only.", "warning");
+      notify("AutoProposed export is currently available for INTEC and Olsson OPPD only.", "warning");
       return false;
     }
     global.Calculations?.recalculateAll?.();
     const state = S()?.getState?.();
     const payload = buildCompactPayload(state);
-    const errors = validationErrors(payload);
+    const errors = validationErrors(payload, state);
     if (errors.length) {
       errors.forEach(error => notify(error, "warning"));
       return false;
@@ -1266,6 +1278,7 @@
     buildCompactPayload,
     hasProposedFiber,
     isExportProjectSupported,
+    allowsOverlashExportWithoutProposedFiber,
     payloadHasProposedFiber,
     validationErrors,
     compactMoves,

@@ -484,53 +484,11 @@
     return Boolean(spanSide && overlashReferencesForSpan(S().getSpan(spanSide.spanId || "")).length);
   }
 
-  function normalizedOwnerToken(value) {
-    const normalized = String(value || "")
-      .replace(/^COMMUNICATION\s*>\s*/i, "")
-      .replace(/\b(?:inc|llc|communications?)\b/gi, "")
-      .replace(/[^a-z0-9]+/gi, "")
-      .toLowerCase();
-    if (/wecom/.test(normalized)) return "wecom";
-    return normalized;
-  }
-
-  function samePhysicalSpan(first, second) {
-    if (!first || !second) return false;
-    const left = [first.fromPole, first.toPole].filter(Boolean).sort().join("|");
-    const right = [second.fromPole, second.toPole].filter(Boolean).sort().join("|");
-    return Boolean(left && right && left === right);
-  }
-
-  function existingJobMessengerForSpan(span) {
-    const owner = normalizedOwnerToken(proposedOwnerForMR());
-    if (!owner || !span) return null;
-    return Object.values(S().getState().spanComms || {}).find(row => {
-      const rowSpan = S().getSpan(row.spanId || "");
-      if (!samePhysicalSpan(rowSpan, span)) return false;
-      return normalizedOwnerToken(ownerImportedOf(row) || ownerCanonicalOf(row) || "") === owner
-        && /\bmsgr\b|messenger/i.test(`${row.size || ""} ${row.construction || ""}`);
-    }) || null;
-  }
-
-  function generateOverlashMRForPole(poleId) {
-    const heights = new Set();
-    S().getConnectedSpans(poleId)
-      // Overlash is installed on the proposed/forward span owned by this
-      // pole. A reciprocal Back Span is only a reference to the adjacent
-      // pole and must not add a second Overlash height to this pole's MR.
-      .filter(span => span.fromPole === poleId && !isBackSpan(span))
-      .forEach(span => {
-        if (!overlashReferencesForSpan(span).length) return;
-        const messenger = existingJobMessengerForSpan(span);
-        if (!messenger) return;
-        const side = S().getSpanSide(span.spanId, poleId);
-        const proposed = H().parseHeight(side?.proposedHOA || "");
-        const height = proposed !== null ? proposed : H().parseHeight(getEffectiveCommHOAForMR(messenger));
-        if (height !== null) heights.add(height);
-      });
-    if (!heights.size) return [];
-    const values = Array.from(heights).sort((a, b) => a - b).map(value => H().formatHeight(value));
-    return [`Overlash ${proposedOwnerForMR()} at HOA ${joinMRList(values)}.`];
+  function generateOverlashMRForPole() {
+    // Temporarily suppress automatic Overlash lines until pole/span matching
+    // and the target HOA are corrected. Keep imported references and proposal
+    // calculations intact; only the generated Make Ready instruction is off.
+    return [];
   }
 
   function generateAttachMRForPole(poleId) {
@@ -1001,9 +959,11 @@
       if (category.includes("STREETLIGHT")) {
         const lines = [];
         if (row.actionActive) {
-          lines.push(isMetronetMR()
-            ? "MNT GROUND STREETLIGHT"
-            : "Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.");
+          lines.push(isOlssonMR()
+            ? "OPPD GROUND STREETLIGHT"
+            : isMetronetMR()
+              ? "MNT GROUND STREETLIGHT"
+              : "Install flex conduit to STLT circuit. bond STLT housing to pole GRND/NEUT.");
         }
         if (row.raiseActive) {
           const source = H().parseHeight(row.attachmentHeight || "");

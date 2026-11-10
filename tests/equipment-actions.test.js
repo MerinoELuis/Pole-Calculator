@@ -202,4 +202,19 @@ assert.equal(
   "an INTEC Transformer must keep 40 inches below its Bottom Height"
 );
 
+S.resetState();
+S.applyProjectProfile("OLSSON_OPPD");
+S.upsertPole(S.createPole({
+  poleId: "OPPD-STREETLIGHT",
+  metadata: {
+    powerEquipment: [{ category: "STREETLIGHT", owner: "UTILITY > OPPD", actionActive: true }]
+  }
+}));
+C.recalculateAll();
+const oppdStreetlightMR = mrText("OPPD-STREETLIGHT");
+assert.match(oppdStreetlightMR, /OPPD GROUND STREETLIGHT/,
+  "Olsson OPPD Streetlight Ground must use its dedicated MR wording");
+assert.doesNotMatch(oppdStreetlightMR, /Install flex conduit to STLT circuit/,
+  "Olsson OPPD grounding must not use the INTEC streetlight instruction");
+
 console.log("Power Equipment action tests passed.");

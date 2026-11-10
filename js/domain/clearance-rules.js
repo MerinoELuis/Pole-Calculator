@@ -1919,16 +1919,29 @@
 
   /** Rebuilds all derived pole, span, comm, Proposed, MR, and warning values. */
   function recalculateAll() {
-    const state = S().getState();
-    Object.keys(state.spans).forEach(calculateSpanPowerDerived);
-    Object.keys(state.poles).forEach(calculatePoleDerived);
-    Object.values(state.spanComms).forEach(sc => calculateMidspanForComm(sc));
-    Object.values(state.spanSides).forEach(side => {
-      calculateEndDropForSpanSide(side.spanId, side.poleId);
-      calculateSpanSideMidspan(side.spanId, side.poleId);
+    const run = () => {
+      const state = S().getState();
+      Object.keys(state.spans).forEach(calculateSpanPowerDerived);
+      Object.keys(state.poles).forEach(calculatePoleDerived);
+      Object.values(state.spanComms).forEach(sc => calculateMidspanForComm(sc));
+      Object.values(state.spanSides).forEach(side => {
+        calculateEndDropForSpanSide(side.spanId, side.poleId);
+        calculateSpanSideMidspan(side.spanId, side.poleId);
+      });
+      global.MRLogic.generateAllMR();
+      global.Validations.validateAll();
+    };
+    const performance = global.PoleCalcPerformance;
+    if (!performance) return run();
+    return performance.measure("calc.recalculateAll", run, () => {
+      const state = S().getState();
+      return {
+        poles: Object.keys(state.poles || {}).length,
+        spans: Object.keys(state.spans || {}).length,
+        spanComms: Object.keys(state.spanComms || {}).length,
+        spanSides: Object.keys(state.spanSides || {}).length
+      };
     });
-    global.MRLogic.generateAllMR();
-    global.Validations.validateAll();
   }
 
   poleInsetCalculator = global.PoleInsetCalculationModule.create({

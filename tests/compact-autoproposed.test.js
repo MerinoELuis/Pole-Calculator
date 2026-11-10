@@ -112,6 +112,7 @@ assert.equal(metronetContext.workInstruction, "MIDAM");
 assert.equal(metronetContext.owner, "Wecom");
 assert.equal(api.isExportProjectSupported(state), false, "MetroNet is not yet supported by the AutoProposed plugin");
 assert.equal(api.isExportProjectSupported(baseState("INTEC")), true, "INTEC remains supported by the AutoProposed plugin");
+assert.equal(api.isExportProjectSupported(baseState("OLSSON_OPPD")), true, "Olsson OPPD is supported by the AutoProposed plugin");
 
 state.settings.attachmentMessengerSize = "0.188";
 state.settings.fiberSizes["144CT Fiber"] = "0.44";
@@ -525,12 +526,30 @@ assert.equal(download.filename, "pole_job_AutoProposed.json");
 assert.equal("app" in download.payload, false);
 assert.equal("commMakeReady" in download.payload, false);
 
+state.settings.projectProfile = "OLSSON_OPPD";
+state.settings.proposedOwner = "Cox";
+download = null;
+assert.equal(api.exportCompactProposedJson(), true, "Olsson OPPD with proposed fiber may export AutoProposed JSON");
+assert.equal(download.payload.project, "OLSSON OPPD", "Olsson OPPD export uses the plugin-facing project name");
+assert.equal(download.payload.owner, "Cox", "Olsson OPPD exports the selected proposal owner");
+
 const fiberReferencesForExport = state.makeReadyReferences;
 state.makeReadyReferences = [];
 download = null;
 assert.equal(api.hasProposedFiber(state), false, "fiber references without a proposed fiber must not pass export gating");
 assert.equal(api.exportCompactProposedJson(), false, "export must require at least one proposed aerial fiber");
 assert.equal(download, null, "a non-fiber payload must not download as AutoProposed");
+state.settings.projectProfile = "OLSSON_OPPD";
+state.settings.position = "OVERLASH";
+assert.equal(api.allowsOverlashExportWithoutProposedFiber(state), true, "Olsson OPPD overlash mode may export without a new fiber proposal");
+download = null;
+assert.equal(api.exportCompactProposedJson(), true, "Olsson OPPD overlash export must not require a new proposed fiber");
+assert.equal(download.payload.project, "OLSSON OPPD");
+assert.equal(api.payloadHasProposedFiber(download.payload), false, "the overlash exception must not invent a new fiber attachment");
+assert.equal(JSON.stringify(api.validationErrors(download.payload, state)), JSON.stringify([]));
+state.settings.position = "TOP_COMM";
+assert.equal(api.exportCompactProposedJson(), false, "Olsson OPPD still requires a proposed fiber outside overlash mode");
+assert.equal(download.payload.project, "OLSSON OPPD", "a regular OPPD export without proposed fiber must not replace the last valid export");
 state.makeReadyReferences = fiberReferencesForExport;
 
 console.log("compact-autoproposed tests passed");

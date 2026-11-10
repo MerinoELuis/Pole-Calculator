@@ -157,6 +157,8 @@ Every update writes a collapsed `[PoleCalc Update Data]` group to the browser co
 
 `Export Proposed` recalculates first and downloads the compact Web-to-plugin contract defined by `schemas/autoproposed.schema.json` and `AUTOPROPOSED_CONTRACT.md`.
 
+AutoProposed export is enabled for INTEC and Olsson OPPD. MetroNet-family profiles remain disabled until their plugin support is available. Export requires at least one proposed aerial fiber, except in Olsson OPPD `OVERLASH` mode, which can export without adding a new fiber attachment.
+
 All height and span-length values are whole inches. Bearings are decimal degrees.
 
 Example:
@@ -214,7 +216,7 @@ Example:
 
 ### Proposal context
 
-- `project`: active calculator project profile, such as `INTEC`, `METRONET`, or `OLSSON_OPPD`.
+- `project`: active calculator project name, such as `INTEC`, `METRONET`, or `OLSSON OPPD`.
 - `workInstruction`: included for MetroNet and identifies `MIDAM`, `CSU`, or `COMED`.
 - Top-level `owner`: the selected owner for the proposed fiber. It is not inferred from existing comm owners.
 
