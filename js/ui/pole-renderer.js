@@ -188,6 +188,7 @@
           const isOtherReference = /other/.test(spanType) && !ownMidspan;
           const calculatedBackspan = Boolean(global.Calculations.isCalculatedBackspanComm?.(sc));
           const isDerivedPhysicalMidspan = Boolean(global.Calculations.isDerivedPhysicalMidspanComm?.(sc));
+          const matchRequired = sc.midspanMatchStatus === "AMBIGUOUS";
           // A Back Span is REF only while it lacks its own measured midspan. When
           // INTEC/MidAm imports one on this exact row, it participates in endpoint
           // movement calculations and should no longer look like a passive REF.
@@ -273,7 +274,7 @@
                 ${sc.resagServiceDrop ? "checked" : ""}
                 ${canResagServiceDrop ? "" : "disabled"}>
             </div>`,
-            midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}" data-span-id="${escapeHtml(sc.spanId)}">${canEditMidspan
+            midspanHtml: `<div class="comm-midspan-value colored-midspan ${span ? spanColorClass(poleId, span.spanId) : ""}" data-span-id="${escapeHtml(sc.spanId)}">${matchRequired ? '<span class="badge warning" title="Match the remote cable before calculating Midspan.">Match required</span>' : canEditMidspan
               ? `<input class="input height-input remote-height-input midspan-highlight-input" data-scope="spanComm" data-pole="${escapeHtml(sc.poleId)}" data-span="${escapeHtml(sc.spanId)}" data-owner="${escapeHtml(sc.owner)}" data-wire-id="${escapeHtml(sc.wireId || "")}" data-field="midspan" value="${escapeHtml(midspan)}" placeholder="" title="${escapeHtml(originalMidspanTitle)}">`
               : `<strong class="midspan-highlight-display" title="${escapeHtml(originalMidspanTitle)}">${escapeHtml(midspan)}</strong>`}
               ${hasStoredMidspan ? `<button class="inline-icon-action danger-action" type="button"
@@ -353,6 +354,9 @@
           .filter(message => message && message !== "OK")));
         const hasProblem = group.rows.some(row => row.flaggingStatus === "PROBLEM");
         const hasMissing = group.rows.some(row => row.flaggingStatus === "MISSING" || row.flaggingStatus === "MISSING_POWER");
+        if (group.rows.some(row => row.midspanMatchStatus === "AMBIGUOUS")) {
+          return "<div class=\"flagging-cell\"><span class=\"badge warning\">Match Required</span><div class=\"flagging-message\">Confirm the cable pair before Midspan clearances can be evaluated.</div></div>";
+        }
         if (!messages.length && !hasProblem && !hasMissing) return `<span class="badge changed">OK</span>`;
         const badgeClass = hasProblem ? "danger" : "warning";
         const label = hasProblem ? "Clearance Issue" : "Missing Data";
@@ -1362,6 +1366,15 @@
         const showTransferToNewPole = !isCsuMetronet;
         const showResagServiceDrop = settings.showResagServiceDrop !== false;
         const showPof = String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
+        const pairingWarnings = global.Calculations.getCommPairingWarnings(poleId);
+        const pairingWarningMarkup = pairingWarnings.map((warning, index) =>
+          "<div class=\"comm-pairing-warning\" role=\"alert\">"
+          + "<div><strong>Midspan cable match required</strong><span>"
+          + escapeHtml(warning.poleId) + " ↔ " + escapeHtml(warning.otherPoleId) + " · "
+          + escapeHtml(warning.owner) + ". " + escapeHtml(warning.reason)
+          + "</span></div><button class=\"mini-btn\" type=\"button\" data-match-comms data-pole=\""
+          + escapeHtml(poleId) + "\" data-match-index=\"" + index + "\">Match Cables</button></div>"
+        ).join("");
         return `<div class="table-wrap"><table class="comm-movement-table">
           <thead><tr>
             <th>Owner/Comm</th><th>Existing HOA</th><th>HOA Change</th><th>Other Pole HOA</th><th>Span</th><th>Max Height at MS</th><th>Midspan</th><th>Flagging</th>${showServiceDrop ? "<th>Service Drop</th>" : ""}${showResagServiceDrop ? "<th>Re-sag Service Drop</th>" : ""}${showTransferToNewPole ? "<th>Transfer to New Pole</th>" : ""}<th>DG</th><th>Other HOA</th>${showPof ? "<th>POF</th>" : ""}<th>Actions</th>
@@ -1400,7 +1413,7 @@
               </div></td>
             </tr>`;
           }).join("")}</tbody>
-        </table></div>`;
+        </table></div>${pairingWarningMarkup}`;
       }
 
       function renderPowerTable(poleId) {

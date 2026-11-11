@@ -20,6 +20,7 @@
       row?.downGuy ||
       row?.transferToNewPole ||
       row?.resagServiceDrop ||
+      row?.manualRemoteMatch ||
       String(row?.wireId || "").startsWith("manual-")
     );
   }
@@ -94,6 +95,7 @@
       downGuy: Boolean(oldRow.downGuy || importedRow.downGuy),
       transferToNewPole: Boolean(oldRow.transferToNewPole),
       resagServiceDrop: Boolean(oldRow.resagServiceDrop),
+      manualRemoteMatch: oldRow.manualRemoteMatch || importedRow.manualRemoteMatch || null,
       notes: oldRow.notes || importedRow.notes || "",
       mr: oldRow.mr || importedRow.mr || "",
       // These fields are calculated again from the newly imported base data.
@@ -565,11 +567,27 @@
     });
 
     const claimedImportedCommKeys = new Set();
+    const reconciledCommIdentities = new Map();
+    const commIdentity = row => ({
+      spanId: String(row?.spanId || ""),
+      poleId: String(row?.poleId || ""),
+      ownerCanonical: String(S.getOwnerCanonical(row) || row?.ownerCanonical || row?.ownerBase || row?.owner || ""),
+      wireId: String(row?.wireId || "")
+    });
+    const commIdentityKey = identity => [
+      String(identity.spanId || ""),
+      String(identity.poleId || ""),
+      normalizedCommOwner(identity.ownerCanonical),
+      String(identity.wireId || "")
+    ].join("__");
     Object.values(previous.spanComms || {}).forEach(oldRowSource => {
       const oldRow = {
         ...oldRowSource,
         poleId: remapPoleId(oldRowSource.poleId, poleAliases),
-        remotePoleId: remapPoleId(oldRowSource.remotePoleId, poleAliases)
+        remotePoleId: remapPoleId(oldRowSource.remotePoleId, poleAliases),
+        manualRemoteMatch: oldRowSource.manualRemoteMatch
+          ? { ...oldRowSource.manualRemoteMatch, poleId: remapPoleId(oldRowSource.manualRemoteMatch.poleId, poleAliases) }
+          : null
       };
       const key = S.keyForSpanComm(oldRow.spanId, oldRow.poleId, oldRow.owner, oldRow.wireId || "");
       const match = findImportedCommMatch(merged.spanComms || {}, key, oldRow, claimedImportedCommKeys);
@@ -581,6 +599,7 @@
         merged.spanComms[match.key] = spanCommHasUserWork(oldRow)
           ? mergeCommUserWork(preservedRow, oldRow)
           : preservedRow;
+        reconciledCommIdentities.set(commIdentityKey(commIdentity(oldRow)), commIdentity(merged.spanComms[match.key]));
         return;
       }
       // A second old row with the same logical identity is stale data, not a
@@ -596,10 +615,21 @@
       if (hasUserWork) reconciliation.unmatchedUserCommsPreserved += 1;
       else reconciliation.baselineCommRowsPreserved += 1;
       merged.spanComms[key] = oldRow;
+      reconciledCommIdentities.set(commIdentityKey(commIdentity(oldRow)), commIdentity(oldRow));
       reconciliation.missingRowsPreserved += 1;
       if (!merged.spans[oldRow.spanId] && previous.spans?.[oldRow.spanId]) {
         merged.spans[oldRow.spanId] = remapSpanEndpoints(previous.spans[oldRow.spanId], poleAliases);
       }
+    });
+
+    Object.values(merged.spanComms || {}).forEach(row => {
+      const target = row.manualRemoteMatch;
+      if (!target) return;
+      const oldTargetKey = commIdentityKey({
+        ...target,
+        poleId: remapPoleId(target.poleId, poleAliases)
+      });
+      row.manualRemoteMatch = reconciledCommIdentities.get(oldTargetKey) || null;
     });
 
     const claimedImportedPowerKeys = new Set();

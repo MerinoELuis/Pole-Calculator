@@ -5,7 +5,7 @@
     const {
       S, H, addCommToPole, clearCommMidspan, confirmInApp, connectedSpansSorted,
       deleteCommGroup, deleteCommSpan, deletePole, deletePowerEquipment, deleteSpanPower,
-      editCommSpans, formatExistingViolationsText, groupedCommsForPole, hidePole, markDirty,
+      editCommPairing, editCommSpans, formatExistingViolationsText, groupedCommsForPole, hidePole, markDirty,
       poleIdsForSpan, poleResolutionOf, recordUndoSnapshot, renderAffectedPoles,
       shortSpanLabel, toast, updateCommGroupField
     } = context;
@@ -18,6 +18,7 @@
     root.querySelectorAll("[data-hide-pole]").forEach(btn => btn.addEventListener("click", () => hidePole(btn.dataset.pole)));
     root.querySelectorAll("[data-delete-pole]").forEach(btn => btn.addEventListener("click", () => deletePole(btn.dataset.pole)));
     root.querySelectorAll("[data-edit-comm-spans]").forEach(btn => btn.addEventListener("click", () => editCommSpans(btn.dataset.pole, btn.dataset.groupKey)));
+    root.querySelectorAll("[data-match-comms]").forEach(btn => btn.addEventListener("click", () => editCommPairing(btn.dataset.pole, btn.dataset.matchIndex)));
     root.querySelectorAll("[data-delete-comm-span]").forEach(btn => btn.addEventListener("click", () => deleteCommSpan(
       btn.dataset.span,
       btn.dataset.pole,

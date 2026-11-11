@@ -33,6 +33,14 @@
                   </label>`).join("")}
                 </fieldset>`;
               }
+              if (field.type === "select") {
+                return `<label class="dialog-field">
+                  <span>${escapeHtml(field.label)}</span>
+                  <select class="input" name="${escapeHtml(field.name)}" ${field.exclusiveGroup ? `data-exclusive-group="${escapeHtml(field.exclusiveGroup)}"` : ""}>
+                    ${field.options.map(option => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(field.value ?? "") ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                  </select>
+                </label>`;
+              }
               return `<label class="dialog-field">
                 <span>${escapeHtml(field.label)}</span>
                 <input class="input" name="${escapeHtml(field.name)}" value="${escapeHtml(field.value || "")}" placeholder="${escapeHtml(field.placeholder || "")}">
@@ -46,6 +54,16 @@
         </section>`;
         global.document.body.appendChild(dialog);
         const form = dialog.querySelector("form");
+        form.querySelectorAll("select[data-exclusive-group]").forEach(select => {
+          select.addEventListener("change", () => {
+            const group = select.dataset.exclusiveGroup;
+            const selects = Array.from(form.querySelectorAll("select[data-exclusive-group]")).filter(item => item.dataset.exclusiveGroup === group);
+            const claimed = new Set(selects.filter(item => item !== select).map(item => item.value).filter(Boolean));
+            selects.forEach(item => Array.from(item.options).forEach(option => {
+              option.disabled = Boolean(option.value && claimed.has(option.value) && option.value !== item.value);
+            }));
+          });
+        });
         dialog.querySelector("[data-dialog-cancel]").addEventListener("click", () => closeAppDialog(null));
         dialog.addEventListener("click", event => {
           if (event.target === dialog) closeAppDialog(null);
@@ -65,7 +83,7 @@
           });
           closeAppDialog(result);
         });
-        const firstInput = dialog.querySelector("input");
+        const firstInput = dialog.querySelector("input, select");
         if (firstInput) firstInput.focus();
       });
     }

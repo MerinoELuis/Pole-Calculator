@@ -377,6 +377,79 @@
     renderAffectedPoles([poleId]);
   }
 
+  function commPairingRowLabel(row) {
+    const owner = S.getOwnerDisplay(row) || row.owner || "Comm";
+    const parts = [owner];
+    if (row.size) parts.push(row.size);
+    if (row.construction) parts.push(row.construction);
+    if (row.insulator) parts.push(row.insulator);
+    if (row.existingHOA) {
+      const current = global.Calculations.getEffectiveCommHOA(row);
+      parts.push(current && current !== row.existingHOA ? row.existingHOA + " → " + current : "HOA " + row.existingHOA);
+    }
+    if (row.wireIndex) parts.push("Wire #" + row.wireIndex);
+    if (row.wireId) parts.push("ID " + row.wireId);
+    return parts.join(" · ");
+  }
+
+  function commMatchIdentityForUI(row) {
+    return {
+      spanId: row.spanId,
+      poleId: row.poleId,
+      ownerCanonical: ownerCanonicalOf(row),
+      wireId: row.wireId || ""
+    };
+  }
+
+  async function editCommPairing(poleId, warningIndex) {
+    const warning = global.Calculations.getCommPairingWarnings(poleId)[Number(warningIndex)];
+    if (!warning) return;
+    const localRows = warning.localRows || [];
+    const remoteRows = warning.remoteRows || [];
+    const fields = localRows.map((local, index) => {
+      const match = global.Calculations.getRemoteCommMatchResult(
+        local.spanId, local.poleId, ownerCanonicalOf(local), local.wireId || ""
+      );
+      const selected = match.row ? remoteRows.findIndex(row =>
+        S.keyForSpanComm(row.spanId, row.poleId, ownerCanonicalOf(row), row.wireId || "")
+          === S.keyForSpanComm(match.row.spanId, match.row.poleId, ownerCanonicalOf(match.row), match.row.wireId || "")
+      ) : -1;
+      return {
+        name: "pair_" + index,
+        label: commPairingRowLabel(local),
+        type: "select",
+        exclusiveGroup: "comm-remote-pairs",
+        value: selected >= 0 && match.status !== "AMBIGUOUS" ? String(selected) : "",
+        options: [
+          { value: "", label: "Do not pair" },
+          ...remoteRows.map((remote, remoteIndex) => ({ value: String(remoteIndex), label: commPairingRowLabel(remote) }))
+        ]
+      };
+    });
+    const values = await openAppDialog({
+      title: "Match Cables",
+      description: poleId + " ↔ " + warning.otherPoleId + " · " + warning.owner + ". " + warning.reason,
+      fields,
+      confirmLabel: "Save Matches"
+    });
+    if (!values) return;
+    const pairs = localRows.map((local, index) => {
+      const selected = values["pair_" + index];
+      const remote = selected === undefined || selected === "" ? null : remoteRows[Number(selected)];
+      return { local: commMatchIdentityForUI(local), remote: remote ? commMatchIdentityForUI(remote) : null };
+    });
+    recordUndoSnapshot();
+    const result = global.Calculations.setCommRemoteMatchPairs(
+      poleId, warning.otherPoleId, warning.ownerToken, pairs
+    );
+    if (!result.ok) return toast(result.reason || "Cable matches could not be saved.", "warning");
+    global.Calculations.recalculateSpansForPole(poleId);
+    global.Calculations.recalculateSpansForPole(warning.otherPoleId);
+    renderAffectedPoles([poleId, warning.otherPoleId]);
+    markDirty();
+    toast("Cable matches saved. Midspans recalculated.", "success");
+  }
+
   async function deleteCommGroup(poleId, groupKey) {
     const group = groupedCommsForPole(poleId).find(item => item.key === groupKey);
     if (!group || !(await confirmInApp("Delete Comm", `Delete ${group.owner}?`))) return;
@@ -1083,6 +1156,7 @@
       deletePole,
       deletePowerEquipment,
       deleteSpanPower,
+      editCommPairing,
       editCommSpans,
       formatExistingViolationsText,
       groupedCommsForPole,

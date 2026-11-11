@@ -20,7 +20,13 @@ const comedToIntec = profiles.applyProfileSettings(comed, "INTEC");
 
 assert.equal(metronet.projectProfile, "METRONET");
 assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm");
-assert.ok(intec.proposedOwners.includes("Zayo Group.2"), "INTEC must offer Zayo Group.2 as a proposed owner");
+assert.equal(intec.proposedOwner, "Wecom", "INTEC must default to Wecom as the proposed owner");
+assert.deepEqual(
+  Array.from(intec.proposedOwners),
+  ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro", "Zayo"],
+  "INTEC must offer all supported proposed owners, including Zayo"
+);
+assert.equal(profiles.applyProfileSettings({ proposedOwner: "Cable One" }, "INTEC").proposedOwner, "Wecom", "switching to INTEC must use Wecom as the default proposed owner");
 assert.equal(metronet.position, "TOP_COMM", "MidAm must default to Top Comm");
 assert.equal(metronet.calculateBackspanMidspan, true, "MidAm must calculate an imported Back Span midspan");
 assert.equal(intec.calculateBackspanMidspan, true, "INTEC must calculate a Back Span only when that row owns a midspan");

@@ -717,6 +717,15 @@
       insulator: trim(data.insulator || ""),
       wireId: trim(data.wireId || ""),
       wireIndex: trim(data.wireIndex || ""),
+      manualRemoteMatch: data.manualRemoteMatch && typeof data.manualRemoteMatch === "object"
+        ? {
+            spanId: trim(data.manualRemoteMatch.spanId || ""),
+            poleId: trim(data.manualRemoteMatch.poleId || ""),
+            ownerCanonical: trim(data.manualRemoteMatch.ownerCanonical || ""),
+            wireId: trim(data.manualRemoteMatch.wireId || "")
+          }
+        : null,
+      midspanMatchStatus: trim(data.midspanMatchStatus || ""),
       isEndpointPlaceholder: Boolean(data.isEndpointPlaceholder),
       updatedAt: data.updatedAt || ""
     });
@@ -891,6 +900,12 @@
       ["poleId", "remotePoleId", "fromPole", "toPole", "sourcePoleId", "targetPoleId"].forEach(field => {
         if (typeof next[field] === "string") next[field] = remap(next[field]);
       });
+      if (next.manualRemoteMatch && typeof next.manualRemoteMatch === "object") {
+        next.manualRemoteMatch = {
+          ...next.manualRemoteMatch,
+          poleId: remap(next.manualRemoteMatch.poleId)
+        };
+      }
       return next;
     };
 
@@ -1660,6 +1675,7 @@
         finalMidspan: normalized.finalMidspan || previous.finalMidspan,
         mr: normalized.mr || previous.mr,
         notes: normalized.notes || previous.notes,
+        manualRemoteMatch: normalized.manualRemoteMatch || previous.manualRemoteMatch || null,
         serviceDrop: normalized.serviceDrop || previous.serviceDrop,
         downGuy: normalized.downGuy || previous.downGuy,
         transferToNewPole: normalized.transferToNewPole || previous.transferToNewPole,

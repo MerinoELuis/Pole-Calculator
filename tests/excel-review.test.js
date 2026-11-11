@@ -366,6 +366,7 @@ state.excelReviewSource = {
       { Id: "P3", Owner: "COMMUNICATION > Unknown Network", Size: "Fiber", Construction: " DAVIT ", Insulator: "Hook" },
       { Id: "P3", Owner: "COMMUNICATION > Eagle West LLC", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
       { Id: "P3", Owner: "COMMUNICATION > Cablevision of Flagstaff", Size: "Fiber / Self-Supporting Fiber > ADSS 2-60 FIBERS (0.47)", Construction: "ON_POLE", Insulator: "Suspension APS" },
+      { Id: "P3", Owner: "COMMUNICATION > Zayo Group.2", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
       { Id: "P3", Owner: "UTILITY > Other", Size: "Primary", Construction: "ON_POLE", Insulator: "Spool 3in" }
     ]
   },
@@ -410,20 +411,33 @@ assert.ok(codes.has("INTEC_BACKSPAN_MIDSPAN"), "an INTEC Back Span with its own 
 const backspanMidspanCheck = review.reviewPole("P3").checks.find(item => item.code === "INTEC_BACKSPAN_MIDSPAN");
 assert.match(backspanMidspanCheck.actual, /CATV: 18'10\"/);
 assert.match(backspanMidspanCheck.actual, /UTILITY > APS: 24'/);
-assert.ok(codes.has("INTEC_POLE_AFTER_2018"), "INTEC must warn when Year Installed is after 2018");
+assert.ok(codes.has("INTEC_POLE_AFTER_2018"), "INTEC must warn when Year Installed is 2018 or later");
 assert.ok(codes.has("MISSING_RISER_TYPE"), "INTEC must error when a Riser Type is empty");
 const post2018Check = review.reviewPole("P3").checks.find(item => item.code === "INTEC_POLE_AFTER_2018");
-assert.equal(post2018Check.status, "WARNING", "post-2018 Load Case check must remain a warning");
-assert.match(post2018Check.message, /all 3 Load Cases/i, "post-2018 warning must request all three Load Cases");
+assert.equal(post2018Check.status, "WARNING", "2018-and-later Load Case check must remain a warning");
+assert.match(post2018Check.message, /all 3 Load Cases/i, "2018-and-later warning must request all three Load Cases");
+state.excelReviewSource.collection.rows[0]["Year Installed"] = 2018;
+review.runReview();
+assert.ok(review.reviewPole("P3").checks.some(item => item.code === "INTEC_POLE_AFTER_2018"), "INTEC must warn for a pole installed in 2018");
+state.excelReviewSource.collection.rows[0]["Year Installed"] = 2017;
+review.runReview();
+assert.equal(review.reviewPole("P3").checks.some(item => item.code === "INTEC_POLE_AFTER_2018"), false, "INTEC must not warn for a pole installed before 2018");
+state.excelReviewSource.collection.rows[0]["Year Installed"] = 2020;
+review.runReview();
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Eagle West LLC/i.test(item.actual)),
-  false,
-  "Eagle West LLC must be accepted as an INTEC communication owner"
+  true,
+  "Eagle West LLC must no longer be accepted as an INTEC communication owner"
 );
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Cablevision of Flagstaff/i.test(item.actual)),
+  true,
+  "Cablevision of Flagstaff must no longer be accepted as an INTEC communication owner"
+);
+assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Zayo Group\.2/i.test(item.actual)),
   false,
-  "Cablevision of Flagstaff must be accepted as an INTEC communication owner"
+  "Zayo Group.2 must be accepted as an INTEC communication owner"
 );
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "INVALID_COMM_INSULATOR" && /Suspension APS/i.test(item.actual)),
@@ -433,7 +447,7 @@ assert.equal(
 
 state.settings.projectProfile = "METRONET";
 output = review.runReview();
-assert.equal(review.reviewPole("P3").checks.some(item => item.code === "INTEC_POLE_AFTER_2018"), false, "post-2018 pole warning must be INTEC-only");
+assert.equal(review.reviewPole("P3").checks.some(item => item.code === "INTEC_POLE_AFTER_2018"), false, "2018-and-later pole warning must be INTEC-only");
 assert.equal(review.reviewPole("P3").checks.some(item => item.code === "MISSING_RISER_TYPE"), false, "Riser Type requirement must be INTEC-only");
 state.settings.projectProfile = "INTEC";
 

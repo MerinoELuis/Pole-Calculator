@@ -5,21 +5,8 @@
     create(context) {
       const { add, I, isIntecProject, normalizedInsulator, normalizedText, pick, rowsForPole, text } = context;
       const ALLOWED_COMM_OWNERS = new Set([
-        "communication",
-        "3j communications",
-        "cable one, prescott",
-        "cable one, show low",
-        "century link communications",
-        "commnet",
-        "cox communications",
-        "cablevision of flagstaff",
-        "eagle west llc",
-        "mci metro",
-        "wecom inc",
-        "catv",
-        "telco",
-        "fiber",
-        "cable one"
+        "zayo",
+        "zayo group.2"
       ]);
       const COMM_INSULATORS = ["single bolt", "three bolt", "j-hook"];
       const TELCO_DROP_SIZES = ["0.25in Telco", "0.5in Telco", "0.75in Telco", "1in Telco"];

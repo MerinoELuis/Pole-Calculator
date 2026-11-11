@@ -55,7 +55,7 @@ Important settings and defaults:
 | `midspanPowerCommClearance` | `30"` | Low-power-to-comm spacing at midspan. |
 | `midspanPrimaryPowerCommClearance` | `33"` INTEC, `30"` other profiles | Primary-to-comm spacing at midspan where the project requires it. |
 | `midspanCommCommClearance` | `4"` | Comm-to-comm spacing at midspan. |
-| `proposedOwner` | `Wecom` | Proposed owner; INTEC exposes the normal owner selector and Metronet exposes it as WI with `MidAm`. |
+| `proposedOwner` | `Wecom` | Proposed owner; INTEC exposes its supported owner selector, while Metronet exposes it through WI with `MidAM`. |
 | `calculateBackspanMidspan` | `true` | Allows a Back Span row with its own measured midspan to participate in endpoint movement calculations. INTEC also raises an HOA Review warning for this unusual input. |
 | `environmentClearances` | `{}` | Optional project-specific environment-to-clearance map. |
 | `streetlightBracketCommClearance` | profile default | MidAm spacing below the streetlight bottom/bracket. |
@@ -204,6 +204,8 @@ An imported or legacy additional Proposed uses its own SpanSide and may point to
 | `calculatedMidspan` | derived | Baseline plus half-movements at both endpoints. |
 | `msProposed`, `finalMidspan` | derived | Current display and clearance result for the comm. |
 | `remotePoleId`, `remoteHOA` | derived | Selected opposite endpoint and effective height. |
+| `manualRemoteMatch` | editable | Reciprocal, one-to-one link to the manually confirmed opposite-end cable when Wire IDs do not identify the physical cable. |
+| `midspanMatchStatus` | derived | `AMBIGUOUS` blocks calculated Midspan and clearance use until the cable pair is confirmed. |
 | `flaggingStatus`, `flaggingMessage` | derived | Combined pole and midspan issues. |
 | `serviceDrop`, `downGuy` | imported/editable | Make Ready modifiers. |
 | `transferToNewPole` | editable | Comm-level transfer flag synchronized across the comm's `SpanComm` rows; generates one transfer instruction. |
@@ -211,6 +213,8 @@ An imported or legacy additional Proposed uses its own SpanSide and may point to
 | `pofActive` | editable | INTEC-only manual POF classification; Self-Supporting Fiber is eligible but is not activated automatically. |
 | `size`, `construction`, `insulator` | imported reference | Source wire details. |
 | `isEndpointPlaceholder` | normalized | Marks an owner-only helper copied to an otherwise empty endpoint; it is not a Span.Wire measurement. |
+
+When several same-owner rows on the same physical span have no unique cable identity and their remote HOA movements would produce different Midspans, the calculator displays a Match Cables warning. Manual links are stored on both endpoint rows, must be one-to-one, and are retained by Save/Load and Update Data reconciliation. Until confirmed, the affected Midspan and its clearances are omitted rather than calculated from an arbitrary row.
 
 ## REF Semantics
 

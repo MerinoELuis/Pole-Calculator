@@ -72,6 +72,14 @@ calculated midspan = imported midspan
                    + remote movement / 2
 ```
 
+Wire IDs are preferred when they uniquely identify opposite ends. If an owner
+has multiple cables on the same physical span and possible remote rows have
+different HOA movements (or different measured baselines for a REF row), the
+calculator must not choose by row order. It shows a Match Cables warning and
+blocks the affected Midspan/clearance until the operator confirms reciprocal,
+one-to-one pairs. The confirmed relationship is saved with the job and reused
+after Update Data when its cable rows are reconciled.
+
 For CSU, when an imported communication Midspan exists on the Fore Span, that
 calculation remains active after either endpoint is raised or lowered. The
 Proposed Midspan is placed 12 inches below the lowest resulting communication
