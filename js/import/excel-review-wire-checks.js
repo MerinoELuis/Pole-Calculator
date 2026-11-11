@@ -5,6 +5,21 @@
     create(context) {
       const { add, I, isIntecProject, normalizedInsulator, normalizedText, pick, rowsForPole, text } = context;
       const ALLOWED_COMM_OWNERS = new Set([
+        "communication",
+        "3j communications",
+        "cable one, prescott",
+        "cable one, show low",
+        "century link communications",
+        "commnet",
+        "cox communications",
+        "cablevision of flagstaff",
+        "eagle west llc",
+        "mci metro",
+        "wecom inc",
+        "catv",
+        "telco",
+        "fiber",
+        "cable one",
         "zayo",
         "zayo group.2"
       ]);

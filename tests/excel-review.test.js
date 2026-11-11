@@ -364,6 +364,7 @@ state.excelReviewSource = {
     headers: ["Id", "Owner", "Size", "Construction", "Insulator"],
     rows: [
       { Id: "P3", Owner: "COMMUNICATION > Unknown Network", Size: "Fiber", Construction: " DAVIT ", Insulator: "Hook" },
+      { Id: "P3", Owner: "COMMUNICATION > Century Link Communications", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
       { Id: "P3", Owner: "COMMUNICATION > Eagle West LLC", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
       { Id: "P3", Owner: "COMMUNICATION > Cablevision of Flagstaff", Size: "Fiber / Self-Supporting Fiber > ADSS 2-60 FIBERS (0.47)", Construction: "ON_POLE", Insulator: "Suspension APS" },
       { Id: "P3", Owner: "COMMUNICATION > Zayo Group.2", Size: "Fiber", Construction: "ON_POLE", Insulator: "Single Bolt" },
@@ -425,19 +426,29 @@ assert.equal(review.reviewPole("P3").checks.some(item => item.code === "INTEC_PO
 state.excelReviewSource.collection.rows[0]["Year Installed"] = 2020;
 review.runReview();
 assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Century Link Communications/i.test(item.actual)),
+  false,
+  "Century Link Communications must remain an accepted INTEC communication owner"
+);
+assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Eagle West LLC/i.test(item.actual)),
-  true,
-  "Eagle West LLC must no longer be accepted as an INTEC communication owner"
+  false,
+  "Eagle West LLC must remain an accepted INTEC communication owner"
 );
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Cablevision of Flagstaff/i.test(item.actual)),
-  true,
-  "Cablevision of Flagstaff must no longer be accepted as an INTEC communication owner"
+  false,
+  "Cablevision of Flagstaff must remain an accepted INTEC communication owner"
 );
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Zayo Group\.2/i.test(item.actual)),
   false,
   "Zayo Group.2 must be accepted as an INTEC communication owner"
+);
+assert.equal(
+  review.reviewPole("P3").checks.some(item => item.code === "UNKNOWN_COMM_OWNER" && /Unknown Network/i.test(item.actual)),
+  true,
+  "INTEC must continue warning on communication owners outside the registered list"
 );
 assert.equal(
   review.reviewPole("P3").checks.some(item => item.code === "INVALID_COMM_INSULATOR" && /Suspension APS/i.test(item.actual)),

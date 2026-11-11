@@ -23,8 +23,8 @@ assert.equal(metronet.proposedOwner, "MidAm", "Metronet WI must default to MidAm
 assert.equal(intec.proposedOwner, "Wecom", "INTEC must default to Wecom as the proposed owner");
 assert.deepEqual(
   Array.from(intec.proposedOwners),
-  ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro", "Zayo"],
-  "INTEC must offer all supported proposed owners, including Zayo"
+  ["Wecom", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro", "Zayo"],
+  "INTEC must offer all supported proposed owners except MidAm"
 );
 assert.equal(profiles.applyProfileSettings({ proposedOwner: "Cable One" }, "INTEC").proposedOwner, "Wecom", "switching to INTEC must use Wecom as the default proposed owner");
 assert.equal(metronet.position, "TOP_COMM", "MidAm must default to Top Comm");
