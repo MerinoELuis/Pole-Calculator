@@ -93,6 +93,35 @@ const comedMismatch = ExcelImport.recalculatePoleClassCheck({
   metronetWI: "COMED",
   birthmark: "1"
 });
-assert.match(comedMismatch.status, /Class mismatch/);
+assert.equal(comedMismatch.status, "OK", "an active Birthmark must authorize class review for ComEd");
+
+const profileCases = [
+  { projectProfile: "INTEC" },
+  { projectProfile: "METRONET", metronetWI: "MIDAM" },
+  { projectProfile: "METRONET", metronetWI: "CSU" },
+  { projectProfile: "METRONET", metronetWI: "COMED" },
+  { projectProfile: "OLSSON_OPPD" }
+];
+profileCases.forEach(profile => {
+  const manuallyMarked = ExcelImport.recalculatePoleClassCheck({
+    ...profile,
+    tip: "32'",
+    importedType: "Southern Pine > 1 > 35",
+    circumference: "",
+    birthmarkExists: false,
+    birthmarkActive: true
+  });
+  assert.equal(manuallyMarked.status, "OK", `${profile.projectProfile}/${profile.metronetWI || ""} must accept active Birthmark with a valid Tip, even without Circumference`);
+
+  const missingTip = ExcelImport.recalculatePoleClassCheck({
+    ...profile,
+    tip: "",
+    importedType: "Southern Pine > 1 > 35",
+    circumference: "",
+    birthmarkExists: false,
+    birthmarkActive: true
+  });
+  assert.match(missingTip.status, /Missing Tip/, `${profile.projectProfile}/${profile.metronetWI || ""} must still require Tip when Birthmark is active`);
+});
 
 console.log("Birthmark Pole Type Check tests passed.");

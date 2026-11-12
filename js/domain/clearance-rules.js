@@ -585,6 +585,155 @@
       && String(row.wireId || "") === String(identity.wireId || ""));
   }
 
+  function normalizeCableMatchText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/(\d+(?:\.\d+)?)\s*(?:inches|inch|in)\b/g, "$1")
+      .replace(/\b(inches|inch|in)\b/g, " ")
+      .replace(/[^a-z0-9.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function commCableMatchDescriptor(row) {
+    if (!row) return "";
+    const typeText = row.size || row.cableType || row.wireType || row.type || row.attachmentSizeRaw || "";
+    const cableType = normalizeCableMatchText(typeText);
+    const fallback = cableType ? "" : [row.construction, row.insulator]
+      .map(normalizeCableMatchText).filter(Boolean).join("|");
+    return cableType || fallback;
+  }
+
+  function commCableMatchToken(row) {
+    if (!row) return "";
+    const owner = normalizeCommOwnerIdentity(ownerCanonicalOf(row) || row.owner || "");
+    return JSON.stringify([owner, Boolean(row.serviceDrop), commCableMatchDescriptor(row) || "unknown"]);
+  }
+
+  function sameCommCableType(a, b) {
+    if (!a || !b) return false;
+    const ownerA = normalizeCommOwnerIdentity(ownerCanonicalOf(a) || a.owner || "");
+    const ownerB = normalizeCommOwnerIdentity(ownerCanonicalOf(b) || b.owner || "");
+    return ownerA === ownerB
+      && Boolean(a.serviceDrop) === Boolean(b.serviceDrop)
+      && commCableMatchDescriptor(a) === commCableMatchDescriptor(b);
+  }
+
+  function canPairCommCableRows(a, b) {
+    if (!a || !b) return false;
+    const ownerA = normalizeCommOwnerIdentity(ownerCanonicalOf(a) || a.owner || "");
+    const ownerB = normalizeCommOwnerIdentity(ownerCanonicalOf(b) || b.owner || "");
+    if (ownerA !== ownerB || Boolean(a.serviceDrop) !== Boolean(b.serviceDrop)) return false;
+    const typeA = commCableMatchDescriptor(a);
+    const typeB = commCableMatchDescriptor(b);
+    // Some imports omit cable size/type on one endpoint. Treat that as
+    // unknown—not as a different cable—but only auto-pair it when the
+    // physical span has one unambiguous candidate at each end.
+    return !typeA || !typeB || typeA === typeB;
+  }
+
+  function commOnPoleInches(row) {
+    return parseMidspanValue(row?.existingHOA || "");
+  }
+
+  function commImportedMatchMidspan(row) {
+    if (!row || isReferenceSpanComm(row)) return null;
+    return parseMidspanValue(ownMidspanValue(row));
+  }
+
+  function stableCommRowKey(row) {
+    return [row?.wireId || "", row?.spanId || "", row?.owner || "", row?.size || ""]
+      .map(value => String(value).toLowerCase()).join("|");
+  }
+
+  function compareCommMatchRows(a, b, valueForRow) {
+    const left = valueForRow(a);
+    const right = valueForRow(b);
+    if (left !== null && right !== null && left !== right) return right - left;
+    if (left !== null && right === null) return -1;
+    if (left === null && right !== null) return 1;
+    return stableCommRowKey(a).localeCompare(stableCommRowKey(b));
+  }
+
+  function uniqueExactWireRemote(local, localRows, remoteRows) {
+    if (!local?.wireId) return null;
+    const sameWireLocals = localRows.filter(row => row.wireId === local.wireId && canPairCommCableRows(row, local));
+    const matches = remoteRows.filter(row => row.wireId === local.wireId && canPairCommCableRows(row, local));
+    return sameWireLocals.length === 1 && matches.length === 1 ? matches[0] : null;
+  }
+
+  function rankedCommMatchRows(local, localRows, remoteRows) {
+    const usableLocal = localRows.filter(row => !findManualRemoteComm(row)
+      && !uniqueExactWireRemote(row, localRows, remoteRows));
+    const usableRemote = remoteRows.filter(row => {
+      const linked = findManualRemoteComm(row);
+      if (linked) return false;
+      return !uniqueExactWireRemote(row, remoteRows, localRows);
+    });
+    const hasLocalMidspan = usableLocal.some(row => commImportedMatchMidspan(row) !== null);
+    const hasRemoteMidspan = usableRemote.some(row => commImportedMatchMidspan(row) !== null);
+    let localValue;
+    let remoteValue;
+    if (hasLocalMidspan && !hasRemoteMidspan) {
+      localValue = commImportedMatchMidspan;
+      remoteValue = commOnPoleInches;
+    } else if (hasRemoteMidspan && !hasLocalMidspan) {
+      localValue = commOnPoleInches;
+      remoteValue = commImportedMatchMidspan;
+    } else {
+      // If both ends contain a Midspan, it is duplicate information for this
+      // physical wire, not a second ranking signal. If neither does, the
+      // pairing cannot affect a Midspan calculation, so use a stable order.
+      localValue = commOnPoleInches;
+      remoteValue = commOnPoleInches;
+    }
+    return {
+      localRows: usableLocal.slice().sort((a, b) => compareCommMatchRows(a, b, localValue)),
+      remoteRows: usableRemote.slice().sort((a, b) => compareCommMatchRows(a, b, remoteValue)),
+      hasAnyMidspan: hasLocalMidspan || hasRemoteMidspan,
+      hasLocalMidspan,
+      hasRemoteMidspan,
+      localValue,
+      remoteValue
+    };
+  }
+
+  function commMatchOutcomeInches(local, remote) {
+    const remoteDelta = remoteMovementDelta(remote);
+    const localBaseline = commImportedMatchMidspan(local);
+    if (localBaseline === null) {
+      // When only the opposite endpoint has the measured Midspan, that value
+      // is used as the source baseline. Same-height attachments with the same
+      // movement are interchangeable, even if those source Midspans differ.
+      return commImportedMatchMidspan(remote) === null ? null : remoteDelta;
+    }
+    const localDelta = remoteMovementDelta(local);
+    if (localDelta === null || remoteDelta === null) return null;
+    return localBaseline + Math.round((localDelta + remoteDelta) / 2);
+  }
+
+  function getCommMatchRankCandidates(local, ranked) {
+    const { localRows, remoteRows, localValue, remoteValue } = ranked;
+    const index = localRows.indexOf(local);
+    if (index < 0 || !remoteRows.length) return [];
+    const indices = new Set([index]);
+    const expandTie = (rows, valueForRow, row, includeIndices) => {
+      const value = valueForRow(row);
+      rows.forEach((candidate, candidateIndex) => {
+        const candidateValue = valueForRow(candidate);
+        if (candidateValue === value) includeIndices.add(candidateIndex);
+      });
+    };
+    expandTie(localRows, localValue, local, indices);
+    const assignedRemote = remoteRows[index];
+    if (assignedRemote) expandTie(remoteRows, remoteValue, assignedRemote, indices);
+    return Array.from(indices)
+      .filter(candidateIndex => candidateIndex < remoteRows.length)
+      .map(candidateIndex => remoteRows[candidateIndex]);
+  }
+
   function findManualRemoteComm(spanComm) {
     const identity = spanComm?.manualRemoteMatch;
     if (!identity) return null;
@@ -593,7 +742,7 @@
     if (!expectedPole) return null;
     const rows = Object.values(S().getState().spanComms || {});
     const target = rows.find(row => sameCommMatchIdentity(row, identity));
-    if (!target || target.poleId !== expectedPole || !ownersMatch(target, spanComm)
+    if (!target || target.poleId !== expectedPole || !canPairCommCableRows(target, spanComm)
       || !samePhysicalSpan(S().getSpan(target.spanId), span)) return null;
     // A valid manual match is a reciprocal, one-to-one relationship. Ignore
     // stale or half-written references rather than allowing a reused cable.
@@ -606,96 +755,61 @@
     return existing === null || current === null ? null : current - existing;
   }
 
-  function getRemoteCommMatchResult(spanId, poleId, ownerBase = "", preferredWireId = "") {
+  function getRemoteCommMatchResult(spanId, poleId, ownerBase = "", preferredWireId = "", referenceComm = null) {
     const span = S().getSpan(spanId);
     if (!span) return { row: null, status: "MISSING", candidates: [] };
     const otherPole = S().getOtherPoleId(span, poleId);
     if (!otherPole) return { row: null, status: "MISSING", candidates: [] };
-    const local = getLocalCommCandidate(spanId, poleId, ownerBase, preferredWireId) || {
+    const local = referenceComm?.spanId === spanId && referenceComm?.poleId === poleId
+      ? referenceComm
+      : getLocalCommCandidate(spanId, poleId, ownerBase, preferredWireId) || {
       spanId,
       poleId,
       owner: ownerBase,
       ownerBase,
       wireId: preferredWireId
-    };
+      };
     if (preferredWireId && !local.wireId) local.wireId = preferredWireId;
     const manuallyMatched = findManualRemoteComm(local);
     if (manuallyMatched) return { row: manuallyMatched, status: "MANUAL", candidates: [manuallyMatched] };
 
-    const physicalCandidates = S().getSpanCommsForPole(otherPole).filter(row => {
-      if (!samePhysicalSpan(S().getSpan(row.spanId), span)
-        || !(ownersMatch(row, local) || (preferredWireId && row.wireId === preferredWireId))) return false;
-      const existingPair = findManualRemoteComm(row);
-      return !existingPair || sameCommMatchIdentity(existingPair, commMatchIdentity(local));
-    });
-    const strictOwnerMatches = physicalCandidates.filter(row =>
-      normalizeCommOwnerIdentity(row) === normalizeCommOwnerIdentity(local)
-    );
-    const physicalMatches = strictOwnerMatches.length ? strictOwnerMatches : physicalCandidates;
-    const exactWireMatches = preferredWireId
-      ? physicalMatches.filter(row => row.wireId && row.wireId === preferredWireId)
-      : [];
-    const sameWireLocals = preferredWireId
-      ? S().getSpanCommsForPole(poleId).filter(row =>
-          row.wireId === preferredWireId
-          && ownersMatch(row, local)
-          && samePhysicalSpan(S().getSpan(row.spanId), span)
-        )
-      : [];
-    if (exactWireMatches.length === 1 && sameWireLocals.length === 1) {
-      return { row: exactWireMatches[0], status: "EXACT", candidates: exactWireMatches };
+    const { localRows: spanLocalRows, remoteRows: spanRemoteRows } = commRowsForPhysicalMatch(spanId, poleId);
+    const localRows = spanLocalRows.filter(row => canPairCommCableRows(row, local));
+    const remoteRows = spanRemoteRows.filter(row => canPairCommCableRows(row, local));
+    const exact = uniqueExactWireRemote(local, localRows, remoteRows);
+    if (exact) return { row: exact, status: "EXACT", candidates: [exact] };
+    const ranked = rankedCommMatchRows(local, localRows, remoteRows);
+    const hasUnknownCableType = [...ranked.localRows, ...ranked.remoteRows]
+      .some(row => !commCableMatchDescriptor(row));
+    if (hasUnknownCableType && ranked.localRows.length && ranked.remoteRows.length
+      && (ranked.localRows.length !== 1 || ranked.remoteRows.length !== 1)) {
+      return { row: null, status: "AMBIGUOUS", candidates: ranked.remoteRows };
     }
-
-    const candidates = physicalMatches.filter(row => candidateRank(row, {
-      spanId, poleId, ownerCanonical: ownerBase, span, local
-    }) > 0);
+    const localRank = ranked.localRows.indexOf(local);
+    const candidates = ranked.remoteRows;
     if (!candidates.length) return { row: null, status: "MISSING", candidates: [] };
+    if (localRank < 0) return { row: null, status: "MISSING", candidates };
 
-    const sameOwnerLocals = S().getSpanCommsForPole(poleId).filter(row =>
-      row.spanId === spanId && ownersMatch(row, local)
-    );
-    const movementEffects = new Set(candidates.map(row => {
-      const delta = remoteMovementDelta(row);
-      return delta === null ? "unknown" : String(delta);
+    const row = candidates[localRank] || null;
+    const equivalentRows = getCommMatchRankCandidates(local, ranked);
+    const outcomes = new Set(equivalentRows.map(candidate => {
+      const outcome = commMatchOutcomeInches(local, candidate);
+      return outcome === null ? "unknown" : String(outcome);
     }));
-    const oneRemoteForSeveralLocals = candidates.length === 1
-      && sameOwnerLocals.length > 1
-      && remoteMovementDelta(candidates[0]) !== 0;
-    if (oneRemoteForSeveralLocals || (candidates.length > 1 && movementEffects.size > 1)) {
-      return { row: null, status: "AMBIGUOUS", candidates };
+    const unmatchedRows = ranked.localRows.length !== ranked.remoteRows.length;
+    if (ranked.hasAnyMidspan && (outcomes.size > 1
+      || (unmatchedRows && candidates.some(candidate => remoteMovementDelta(candidate) !== 0)))) {
+      return { row: null, status: "AMBIGUOUS", candidates: equivalentRows.length ? equivalentRows : candidates };
     }
-
-    const ranked = candidates
-      .map(row => ({ row, score: candidateRank(row, { spanId, poleId, ownerCanonical: ownerBase, span, local }) }))
-      .sort((a, b) => b.score - a.score);
     return {
-      row: ranked[0]?.row || null,
-      status: candidates.length > 1 ? "EQUIVALENT" : "UNIQUE",
-      candidates
+      row,
+      status: candidates.length > 1 || equivalentRows.length > 1 ? "EQUIVALENT" : "UNIQUE",
+      candidates: equivalentRows.length ? equivalentRows : [row].filter(Boolean)
     };
   }
 
-  function candidateRank(candidate, context) {
-    const candidateSpan = S().getSpan(candidate.spanId);
-    const exactWire = Boolean(context.local?.wireId && candidate.wireId && candidate.wireId === context.local.wireId);
-    const sameOwner = ownersMatch(candidate, context.local || context.ownerCanonical);
-    if (!exactWire && !sameOwner) return 0;
-    let score = 0;
-
-    if (exactWire) score += 100;
-    if (candidate.spanId === context.spanId) score += 45;
-    if (samePhysicalSpan(candidateSpan, context.span)) score += 35;
-    if (sameOwner) score += 20;
-    // Use only the raw imported value here. Calling the calculated/reference
-    // helpers while ranking candidates can recurse when a Back Span is being
-    // resolved from its reciprocal measured row.
-    if (parseMidspanValue(ownMidspanValue(candidate)) !== null) score += 5;
-
-    return score;
-  }
-
-  function findRemoteComm(spanId, poleId, ownerBase = "", preferredWireId = "") {
-    return getRemoteCommMatchResult(spanId, poleId, ownerBase, preferredWireId).row;
+  function findRemoteComm(spanId, poleId, ownerBase = "", preferredWireId = "", referenceComm = null) {
+    return getRemoteCommMatchResult(spanId, poleId, ownerBase, preferredWireId, referenceComm).row;
   }
 
   function reciprocalMidspanSourceResult(spanComm) {
@@ -712,7 +826,7 @@
         const candidateSpan = S().getSpan(candidate.spanId || "");
         return samePhysicalSpan(candidateSpan, span);
       })
-      .filter(candidate => ownersMatch(candidate, spanComm))
+      .filter(candidate => sameCommCableType(candidate, spanComm))
       .filter(candidate => parseMidspanValue(ownMidspanValue(candidate)) !== null);
     if (!candidates.length) return { row: null, status: "MISSING", candidates: [] };
     const exactWireMatches = spanComm.wireId
@@ -759,7 +873,8 @@
       spanComm.spanId,
       spanComm.poleId,
       ownerCanonicalOf(spanComm),
-      spanComm.wireId || ""
+      spanComm.wireId || "",
+      spanComm
     );
     if (remoteResult.status === "AMBIGUOUS") return "AMBIGUOUS_REMOTE";
     if (getImportedMidspanInchesForComm(spanComm) === null
@@ -767,23 +882,39 @@
     return "";
   }
 
-  function pairingGroupRows(poleId, otherPoleId, ownerToken = "") {
-    const localRows = S().getSpanCommsForPole(poleId).filter(row => {
-      const span = S().getSpan(row.spanId);
-      const token = normalizeCommOwnerIdentity(ownerCanonicalOf(row));
-      return span && S().getOtherPoleId(span, poleId) === otherPoleId
-        && (!ownerToken || token === ownerToken);
-    });
-    const localSpanRows = localRows.map(row => S().getSpan(row.spanId)).filter(Boolean);
-    const remoteCandidates = S().getSpanCommsForPole(otherPoleId).filter(row => {
-      const span = S().getSpan(row.spanId);
-      return span && localSpanRows.some(localSpan => samePhysicalSpan(span, localSpan))
-        && localRows.some(local => ownersMatch(local, row));
-    });
-    const strictOwnerRows = remoteCandidates.filter(row =>
-      normalizeCommOwnerIdentity(row) === ownerToken
+  function commRowsForPhysicalMatch(spanId, poleId) {
+    const span = S().getSpan(spanId);
+    if (!span) return { localRows: [], remoteRows: [] };
+    const otherPoleId = S().getOtherPoleId(span, poleId);
+    if (!otherPoleId) return { localRows: [], remoteRows: [] };
+    const localRows = S().getSpanCommsForPole(poleId).filter(row => row.spanId === spanId);
+    const physicalRemoteRows = S().getSpanCommsForPole(otherPoleId).filter(row =>
+      samePhysicalSpan(S().getSpan(row.spanId), span)
     );
-    const remoteRows = strictOwnerRows.length ? strictOwnerRows : remoteCandidates;
+    const relation = spanRelationOf(span).toLowerCase();
+    const preferredRelation = /fore\s*span|forespan/.test(relation)
+      ? /back\s*span|backspan/
+      : /back\s*span|backspan/.test(relation) ? /fore\s*span|forespan/ : null;
+    const preferredRemoteRows = preferredRelation
+      ? physicalRemoteRows.filter(row => preferredRelation.test(spanRelationOf(S().getSpan(row.spanId)).toLowerCase()))
+      : [];
+    const sameIdRemoteRows = physicalRemoteRows.filter(row => row.spanId === spanId);
+    const remoteRows = preferredRemoteRows.length
+      ? preferredRemoteRows
+      : sameIdRemoteRows.length ? sameIdRemoteRows : physicalRemoteRows;
+    return { localRows, remoteRows };
+  }
+
+  function pairingGroupRows(poleId, otherPoleId, ownerToken = "", cableToken = "", spanId = "") {
+    const sourceSpanId = spanId || S().getConnectedSpans(poleId)
+      .find(span => S().getOtherPoleId(span, poleId) === otherPoleId)?.spanId || "";
+    const { localRows: allLocalRows, remoteRows: allRemoteRows } = commRowsForPhysicalMatch(sourceSpanId, poleId);
+    const localRows = allLocalRows.filter(row => {
+      const token = normalizeCommOwnerIdentity(ownerCanonicalOf(row));
+      return (!ownerToken || token === ownerToken)
+        && (!cableToken || commCableMatchToken(row) === cableToken);
+    });
+    const remoteRows = allRemoteRows.filter(row => localRows.some(local => canPairCommCableRows(local, row)));
     return { localRows, remoteRows };
   }
 
@@ -791,26 +922,32 @@
     const groups = new Map();
     S().getSpanCommsForPole(poleId).forEach(row => {
       const span = S().getSpan(row.spanId);
+      if (!span || span.fromPole !== poleId || /back\s*span|backspan/i.test(spanRelationOf(span))) return;
       const otherPoleId = span ? S().getOtherPoleId(span, poleId) : "";
       const ownerToken = normalizeCommOwnerIdentity(ownerCanonicalOf(row));
       if (!otherPoleId || !ownerToken) return;
-      const key = JSON.stringify([poleId, otherPoleId, ownerToken]);
-      if (!groups.has(key)) groups.set(key, { key, poleId, otherPoleId, ownerToken, owner: row.owner || ownerCanonicalOf(row) });
+      const cableToken = commCableMatchToken(row);
+      const key = JSON.stringify([poleId, otherPoleId, row.spanId, cableToken]);
+      if (!groups.has(key)) groups.set(key, {
+        key, poleId, otherPoleId, ownerToken, cableToken,
+        owner: ownerDisplayOf(row) || row.owner || ownerCanonicalOf(row),
+        cableLabel: [ownerDisplayOf(row) || row.owner || "Comm", row.size || row.cableType || row.type || "Cable"]
+          .filter(Boolean).join(" · "),
+        spanId: row.spanId
+      });
     });
 
     return Array.from(groups.values()).filter(group => {
-      const { localRows, remoteRows } = pairingGroupRows(group.poleId, group.otherPoleId, group.ownerToken);
-      if (!localRows.length || !remoteRows.length || (localRows.length < 2 && remoteRows.length < 2)) return false;
-      const uniqueExactRemote = local => {
-        if (!local.wireId) return null;
-        const sameWireLocals = localRows.filter(row => row.wireId && row.wireId === local.wireId);
-        if (sameWireLocals.length !== 1) return null;
-        const matches = remoteRows.filter(remote => remote.wireId && remote.wireId === local.wireId);
-        return matches.length === 1 ? matches[0] : null;
-      };
+      const { localRows, remoteRows } = pairingGroupRows(
+        group.poleId, group.otherPoleId, group.ownerToken, group.cableToken, group.spanId
+      );
+      if (!localRows.length || !remoteRows.length) return false;
+      const hasAnyMidspan = [...localRows, ...remoteRows]
+        .some(row => commImportedMatchMidspan(row) !== null);
+      if (!hasAnyMidspan) return false;
       const unmatched = localRows.filter(local => {
         if (findManualRemoteComm(local)) return false;
-        return !uniqueExactRemote(local);
+        return !uniqueExactWireRemote(local, localRows, remoteRows);
       });
       if (!unmatched.length) return false;
       const reserved = new Set();
@@ -819,41 +956,30 @@
         if (linked && linked.poleId === group.poleId) reserved.add(JSON.stringify(commMatchIdentity(linked)));
       });
       localRows.forEach(local => {
-        const exact = uniqueExactRemote(local);
+        const exact = uniqueExactWireRemote(local, localRows, remoteRows);
         if (exact) reserved.add(JSON.stringify(commMatchIdentity(exact)));
       });
       const candidates = remoteRows.filter(remote => !reserved.has(JSON.stringify(commMatchIdentity(remote))));
-      const effectValues = new Set(candidates.map(remote => {
-        const delta = remoteMovementDelta(remote);
-        return delta === null ? "unknown" : String(delta);
-      }));
-      const ambiguousCardinality = localRows.some(local => {
-        const sameSpanLocals = localRows.filter(row => row.spanId === local.spanId);
-        return sameSpanLocals.length > candidates.length
-          && candidates.some(remote => remoteMovementDelta(remote) !== 0);
-      });
-      const baselineValues = new Set(candidates
-        .map(remote => parseMidspanValue(ownMidspanValue(remote)))
-        .filter(value => value !== null));
-      const ambiguousMovement = effectValues.size > 1 || ambiguousCardinality;
-      const ambiguousBaseline = unmatched.some(local =>
-        getImportedMidspanInchesForComm(local) === null && baselineValues.size > 1
-      );
-      if (!ambiguousMovement && !ambiguousBaseline) return false;
+      if (!candidates.length) return false;
+      const ambiguousRows = unmatched.filter(local => getRemoteCommMatchResult(
+        local.spanId, local.poleId, ownerCanonicalOf(local), local.wireId || "", local
+      ).status === "AMBIGUOUS");
+      const countMismatch = unmatched.length !== candidates.length;
+      const movedEndpoint = [...localRows, ...remoteRows].some(row => remoteMovementDelta(row) !== 0);
+      if (!ambiguousRows.length && !(countMismatch && movedEndpoint)) return false;
       group.localRows = localRows;
       group.remoteRows = remoteRows;
       group.unmatchedRows = unmatched;
       group.candidateRows = candidates;
       group.affectedRows = [...unmatched, ...candidates].map(commMatchIdentity);
-      group.reason = ambiguousMovement
-        ? "Several same-owner cables can match this physical span, and their endpoint movements differ. Confirm the cable matches before Midspan is calculated."
-        : "Several measured midspans could be the source for this physical span. Confirm the cable matches before Midspan is calculated.";
+      group.spanId = localRows[0]?.spanId || group.spanId;
+      group.reason = "Cable matches need review before Midspan can be calculated.";
       return true;
     });
   }
 
-  function setCommRemoteMatchPairs(poleId, otherPoleId, ownerToken, pairs = []) {
-    const { localRows, remoteRows } = pairingGroupRows(poleId, otherPoleId, ownerToken);
+  function setCommRemoteMatchPairs(poleId, otherPoleId, ownerToken, pairs = [], cableToken = "", spanId = "") {
+    const { localRows, remoteRows } = pairingGroupRows(poleId, otherPoleId, ownerToken, cableToken, spanId);
     if (!localRows.length || !remoteRows.length) return { ok: false, reason: "The cable rows for this span are no longer available." };
     const resolvedPairs = [];
     const claimedRemote = new Set();
@@ -864,7 +990,7 @@
       if (remote) {
         const remoteKey = JSON.stringify(commMatchIdentity(remote));
         if (claimedRemote.has(remoteKey)) return { ok: false, reason: "Each cable at the other pole can be matched only once." };
-        if (!ownersMatch(local, remote)) return { ok: false, reason: "Only cables for the same communication owner can be paired." };
+        if (!canPairCommCableRows(local, remote)) return { ok: false, reason: "Only cables with the same owner and compatible cable type can be paired." };
         const localSpan = S().getSpan(local.spanId);
         if (!samePhysicalSpan(localSpan, S().getSpan(remote.spanId))
           || S().getOtherPoleId(localSpan, local.poleId) !== remote.poleId) {
@@ -2330,6 +2456,14 @@
     getRemoteCommMatchResult,
     getCommPairingWarnings,
     setCommRemoteMatchPairs,
+    canMatchCommRows: canPairCommCableRows,
+    getCommPairingRows(spanId, poleId) {
+      return commRowsForPhysicalMatch(spanId, poleId);
+    },
+    getCommMatchMidspanDisplay(row) {
+      if (!row || isReferenceSpanComm(row)) return "";
+      return ownMidspanValue(row) || "";
+    },
     getReferenceMidspansForSpanSide,
     autoCalculateMovements
   };

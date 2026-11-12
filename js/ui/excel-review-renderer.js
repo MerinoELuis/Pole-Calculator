@@ -67,14 +67,67 @@
         });
       }
 
+      function reviewResultHasActiveProblem(result) {
+        return (result?.checks || []).some(item => item.applicable !== false
+          && !item.ignored
+          && ["ERROR", "WARNING", "NOT_READY"].includes(String(item.status || "").toUpperCase()));
+      }
+
+      function updateExcelReviewExpandAction(review, openPoleIds = new Set(S.getState().ui?.excelReviewExpandedPoleIds || [])) {
+        const button = els.expandExcelReviewIssuesBtn;
+        if (!button) return;
+        const problemResults = (review?.results || []).filter(reviewResultHasActiveProblem);
+        const count = problemResults.length;
+        const enabled = Boolean(review?.reviewedAt && count);
+        const allExpanded = Boolean(count && problemResults.every(result => openPoleIds.has(String(result.poleId || ""))));
+        const action = allExpanded ? "Collapse" : "Expand";
+        const label = enabled
+          ? `${action} and save ${count} pole${count === 1 ? "" : "s"} with active Excel Review findings`
+          : "No poles with active Excel Review findings";
+        button.disabled = !enabled;
+        button.classList?.toggle("btn-disabled", !enabled);
+        if (button.dataset) button.dataset.expanded = String(allExpanded);
+        button.title = label;
+        button.setAttribute?.("aria-label", label);
+        button.setAttribute?.("aria-expanded", String(allExpanded));
+      }
+
+      function saveExpandedReviewPoleIds(ids) {
+        const state = S.getState();
+        state.ui = state.ui && typeof state.ui === "object" ? state.ui : {};
+        const next = Array.from(new Set(Array.from(ids || []).map(id => String(id || "").trim()).filter(Boolean)));
+        const current = Array.isArray(state.ui.excelReviewExpandedPoleIds)
+          ? state.ui.excelReviewExpandedPoleIds
+          : [];
+        if (current.length === next.length && current.every((id, index) => id === next[index])) return false;
+        state.ui.excelReviewExpandedPoleIds = next;
+        markDirty();
+        return true;
+      }
+
+      function syncExpandedReviewPole(details) {
+        const ids = new Set(S.getState().ui?.excelReviewExpandedPoleIds || []);
+        const poleId = details?.dataset?.reviewResultPole || "";
+        if (!poleId) return;
+        if (details.open) ids.add(poleId);
+        else ids.delete(poleId);
+        saveExpandedReviewPoleIds(ids);
+        updateExcelReviewExpandAction(global.ExcelReview?.getReviewState?.(), ids);
+      }
+
       function renderExcelReviewResults() {
         if (!els.excelReviewResults || !global.ExcelReview) return;
-        const openPoleIds = new Set(Array.from(els.excelReviewResults.querySelectorAll("details[open][data-review-result-pole]"))
-          .map(details => details.dataset.reviewResultPole));
+        const currentOpenPoleIds = Array.from(els.excelReviewResults.querySelectorAll("details[open][data-review-result-pole]"))
+          .map(details => details.dataset.reviewResultPole);
         const review = global.ExcelReview.getReviewState();
+        const openPoleIds = new Set([
+          ...(S.getState().ui?.excelReviewExpandedPoleIds || []),
+          ...currentOpenPoleIds
+        ]);
         const summary = review.summary || {};
         renderExcelReviewTabWarning(review);
         updateExcelReviewWarningActions(review);
+        updateExcelReviewExpandAction(review, openPoleIds);
         if (els.excelReviewTimestamp) {
           els.excelReviewTimestamp.textContent = review.reviewedAt
             ? `Last reviewed ${new Date(review.reviewedAt).toLocaleString()}`
@@ -84,6 +137,8 @@
           const hasCollectionSource = Boolean(S.getState().excelReviewSource?.collection?.rows?.length);
           els.rerunExcelReviewBtn.disabled = !hasCollectionSource;
           els.rerunExcelReviewBtn.classList.toggle("btn-disabled", !hasCollectionSource);
+          els.rerunExcelReviewBtn.title = hasCollectionSource ? "Re-run Excel Review" : "Import a raw Excel file to re-run review";
+          els.rerunExcelReviewBtn.setAttribute?.("aria-label", "Re-run Excel Review");
         }
         if (!review.reviewedAt) {
           els.excelReviewResults.innerHTML = `<div class="detail-placeholder">Import a raw Excel file to prepare HOA and Final PLA / MR review results.</div>`;
@@ -103,9 +158,10 @@
           </section>` : ""}
           <div class="excel-review-poles">${(review.results || []).map(result => {
             const visibleChecks = result.checks.filter(item => item.status !== "PASS" || item.applicable === false || item.code === "ALL_APPLICABLE_CHECKS_PASSED");
+            const hasActiveProblem = reviewResultHasActiveProblem(result);
             return `<div class="excel-review-pole-entry">
               <button class="review-pole-link" type="button" data-review-pole="${escapeHtml(result.poleId)}" title="Open this pole in Calculator" aria-label="Open pole ${escapeHtml(result.poleId)} in Calculator">↗</button>
-              <details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}" data-review-result-pole="${escapeHtml(result.poleId)}">
+              <details class="excel-review-pole review-${String(result.overallStatus || "pass").toLowerCase()}" data-review-result-pole="${escapeHtml(result.poleId)}" data-review-has-problem="${hasActiveProblem ? "true" : "false"}">
               <summary>
                 <span class="review-pole-identity"><strong>${escapeHtml(result.poleId)}</strong>${result.sequence ? `<small>Sequence ${escapeHtml(result.sequence)}</small>` : ""}</span>
                 <span class="review-phase-status"><small>HOA Review</small>${reviewStatusBadge(result.hoaStatus)}</span>
@@ -117,6 +173,7 @@
             </div>`;
           }).join("") || `<div class="detail-placeholder">No Collection rows were available for review.</div>`}</div>`;
         els.excelReviewResults.querySelectorAll("details[data-review-result-pole]").forEach(details => {
+          details.addEventListener("toggle", () => syncExpandedReviewPole(details));
           if (openPoleIds.has(details.dataset.reviewResultPole)) details.open = true;
         });
         els.excelReviewResults.querySelectorAll("[data-review-pole]").forEach(button => {
@@ -154,13 +211,43 @@
         toast(`${ignored ? "Ignored" : "Restored"} all ${label} warnings.`, "info");
       }
 
+      function toggleExcelReviewProblemPoles() {
+        const poles = Array.from(els.excelReviewResults?.querySelectorAll(
+          'details[data-review-result-pole][data-review-has-problem="true"]'
+        ) || []);
+        if (!poles.length) return { count: 0, expanded: false };
+        const expanded = !poles.every(details => details.open);
+        const ids = new Set(S.getState().ui?.excelReviewExpandedPoleIds || []);
+        poles.forEach(details => {
+          details.open = expanded;
+          const poleId = details.dataset.reviewResultPole || "";
+          if (!poleId) return;
+          if (expanded) ids.add(poleId);
+          else ids.delete(poleId);
+        });
+        saveExpandedReviewPoleIds(ids);
+        updateExcelReviewExpandAction(global.ExcelReview?.getReviewState?.(), ids);
+        return { count: poles.length, expanded };
+      }
+
+      if (typeof els?.expandExcelReviewIssuesBtn?.addEventListener === "function") {
+        els.expandExcelReviewIssuesBtn.addEventListener("click", () => {
+          const result = toggleExcelReviewProblemPoles();
+          if (result.count) {
+            const action = result.expanded ? "Expanded" : "Collapsed";
+            toast(`${action} and saved ${result.count} pole${result.count === 1 ? "" : "s"} with active findings.`, "success");
+          }
+        });
+      }
+
       return {
         reviewStatusBadge,
         renderReviewCheck,
         renderExcelReviewTabWarning,
         updateExcelReviewWarningActions,
         renderExcelReviewResults,
-        setAllExcelReviewWarningsIgnored
+        setAllExcelReviewWarningsIgnored,
+        toggleExcelReviewProblemPoles
       };
     }
   };

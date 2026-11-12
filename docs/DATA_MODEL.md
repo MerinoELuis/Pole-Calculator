@@ -214,7 +214,18 @@ An imported or legacy additional Proposed uses its own SpanSide and may point to
 | `size`, `construction`, `insulator` | imported reference | Source wire details. |
 | `isEndpointPlaceholder` | normalized | Marks an owner-only helper copied to an otherwise empty endpoint; it is not a Span.Wire measurement. |
 
-When several same-owner rows on the same physical span have no unique cable identity and their remote HOA movements would produce different Midspans, the calculator displays a Match Cables warning. Manual links are stored on both endpoint rows, must be one-to-one, and are retained by Save/Load and Update Data reconciliation. Until confirmed, the affected Midspan and its clearances are omitted rather than calculated from an arbitrary row.
+Cable matching is limited to the same physical pole pair, normalized owner,
+and exact cable type/size. A unique shared Wire ID takes priority. If only one
+endpoint has measured Midspans, those values rank against the other endpoint's
+original Existing HOA; equal-height targets with equal movement are
+interchangeable. When both endpoints have Midspans, the duplicate values are
+not used as a second ranking signal. If neither endpoint has a Midspan source,
+matching uses a stable one-to-one order and does not block calculation. A Match
+Cables warning is shown only when an unresolved choice could change a Midspan.
+Manual links are stored reciprocally, are one-to-one and type-safe, and survive
+Save/Load and Update Data reconciliation. The pole-header Match icon opens the
+same span-switchable dialog at any time; an endpoint without a Midspan source
+has no Midspan column in that dialog.
 
 ## REF Semantics
 

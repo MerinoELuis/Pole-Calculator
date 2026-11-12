@@ -161,7 +161,7 @@
           const localExisting = H().parseHeight(row.existingHOA);
           const midspanSource = findMidspanSourceComm(row) || row;
           const importedMidspan = getImportedMidspanInchesForComm(midspanSource);
-          const remote = findRemoteComm(row.spanId, row.poleId, ownerCanonicalOf(row), row.wireId || "");
+          const remote = findRemoteComm(row.spanId, row.poleId, ownerCanonicalOf(row), row.wireId || "", row);
           const remoteExisting = H().parseHeight(remote?.existingHOA || "");
           const remoteCurrent = H().parseHeight(remote ? getEffectiveCommHOA(remote) : "");
           const maxMS = H().parseHeight(span?.midspanMaxCommHeight || "");

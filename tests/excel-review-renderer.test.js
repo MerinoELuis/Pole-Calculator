@@ -33,6 +33,7 @@ const renderer = window.ExcelReviewRenderer.create({
     excelReviewTabWarningCount: { textContent: "" },
     excelReviewResults: reviewResults,
     excelReviewTimestamp: { textContent: "" },
+    expandExcelReviewIssuesBtn: { classList: classList(), dataset: {}, setAttribute() {} },
     ignoreHoaWarningsBtn: { classList: classList(), setAttribute() {} },
     ignoreFinalWarningsBtn: { classList: classList(), setAttribute() {} },
     rerunExcelReviewBtn: { classList: classList() }
@@ -55,5 +56,74 @@ assert.doesNotMatch(renderer.renderReviewCheck({ status: "ERROR", title: "<scrip
 
 renderer.renderExcelReviewResults();
 assert.match(reviewResults.innerHTML, /Import a raw Excel file/);
+
+const activeProblemDetail = {
+  dataset: { reviewResultPole: "P1" },
+  open: false,
+  addEventListener(name, handler) { if (name === "toggle") this.onToggle = handler; }
+};
+const passingDetail = {
+  dataset: { reviewResultPole: "P2" },
+  open: false,
+  addEventListener() {}
+};
+const reviewState = {
+  reviewedAt: "2026-11-11T12:00:00.000Z",
+  summary: { errors: 1, warnings: 0, passed: 1 },
+  globalChecks: [],
+  results: [
+    { poleId: "P1", sequence: "1", overallStatus: "ERROR", hoaStatus: "ERROR", finalStatus: "PASS", checks: [{ status: "ERROR", phase: "HOA", title: "Test" }] },
+    { poleId: "P2", sequence: "2", overallStatus: "PASS", hoaStatus: "PASS", finalStatus: "PASS", checks: [{ status: "PASS", phase: "HOA", title: "Test" }] }
+  ]
+};
+window.ExcelReview.getReviewState = () => reviewState;
+const reviewUiState = { ui: { excelReviewExpandedPoleIds: [] }, excelReviewSource: { collection: { rows: [{}] } }, poles: {} };
+const reviewDetails = [activeProblemDetail, passingDetail];
+const populatedReviewResults = {
+  innerHTML: "",
+  querySelectorAll(selector) {
+    if (selector.startsWith("details[open]")) return reviewDetails.filter(detail => detail.open);
+    if (selector === "details[data-review-result-pole]") return reviewDetails;
+    if (selector.includes("data-review-has-problem=\"true\"")) return [activeProblemDetail];
+    return [];
+  }
+};
+let dirtyCount = 0;
+const interactiveRenderer = window.ExcelReviewRenderer.create({
+  els: {
+    excelReviewTabWarning: { classList: classList() },
+    excelReviewTabWarningCount: { textContent: "" },
+    excelReviewResults: populatedReviewResults,
+    excelReviewTimestamp: { textContent: "" },
+    expandExcelReviewIssuesBtn: { classList: classList(), dataset: {}, setAttribute() {} },
+    ignoreHoaWarningsBtn: { classList: classList(), setAttribute() {} },
+    ignoreFinalWarningsBtn: { classList: classList(), setAttribute() {} },
+    rerunExcelReviewBtn: { classList: classList(), setAttribute() {} }
+  },
+  escapeHtml: value => String(value),
+  markDirty() { dirtyCount += 1; },
+  recordUndoSnapshot() {},
+  S: { getState: () => reviewUiState, canonicalPoleIdentity: value => String(value).toUpperCase() },
+  selectPole() {},
+  toast() {}
+});
+interactiveRenderer.renderExcelReviewResults();
+assert.match(populatedReviewResults.innerHTML, /data-review-has-problem="true"/);
+assert.match(populatedReviewResults.innerHTML, /data-review-has-problem="false"/);
+const expandResult = interactiveRenderer.toggleExcelReviewProblemPoles();
+assert.equal(expandResult.count, 1, "the action affects only poles with active findings");
+assert.equal(expandResult.expanded, true, "the first click expands the problem poles");
+assert.equal(activeProblemDetail.open, true);
+assert.equal(passingDetail.open, false, "passing poles remain collapsed");
+assert.equal(Array.from(reviewUiState.ui.excelReviewExpandedPoleIds).join(","), "P1", "expanded pole IDs are saved with UI state");
+assert.equal(dirtyCount, 1, "saving the expanded view marks the job dirty");
+const collapseResult = interactiveRenderer.toggleExcelReviewProblemPoles();
+assert.equal(collapseResult.expanded, false, "the same action collapses poles once all problem poles are open");
+assert.equal(activeProblemDetail.open, false);
+assert.equal(Array.from(reviewUiState.ui.excelReviewExpandedPoleIds).join(","), "", "collapsed problem poles are removed from saved open state");
+assert.equal(dirtyCount, 2);
+activeProblemDetail.open = false;
+activeProblemDetail.onToggle();
+assert.equal(Array.from(reviewUiState.ui.excelReviewExpandedPoleIds).join(","), "", "manually collapsing a pole updates the saved view state");
 
 console.log("Excel Review renderer tests passed");

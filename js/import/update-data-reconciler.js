@@ -329,6 +329,7 @@
     if (state.ui) {
       state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).map(remap);
       state.ui.revealedUnknownPoleIds = (state.ui.revealedUnknownPoleIds || []).map(remap);
+      state.ui.excelReviewExpandedPoleIds = (state.ui.excelReviewExpandedPoleIds || []).map(remap);
     }
     return state;
   }

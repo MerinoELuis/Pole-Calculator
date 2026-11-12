@@ -688,6 +688,115 @@ button:disabled { cursor: not-allowed; }
   padding: 18px;
 }
 
+.comm-match-dialog-wide {
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  place-self: center;
+  margin: auto;
+}
+
+.comm-match-dialog-wide .app-dialog-form {
+  min-height: 0;
+  overflow: auto;
+}
+
+.comm-match-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comm-match-controls label {
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.comm-match-controls select {
+  min-width: min(420px, 70vw);
+}
+
+.comm-match-table-wrap {
+  max-height: min(62vh, 650px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.comm-match-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.comm-match-table th,
+.comm-match-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.comm-match-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel, #111);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.comm-match-table thead tr:first-child th {
+  text-align: center;
+}
+
+.comm-match-table thead tr:first-child th + th {
+  border-left: 1px solid var(--line);
+}
+
+.comm-match-table.has-local-midspan thead tr:nth-child(2) th:nth-child(4),
+.comm-match-table.has-local-midspan tbody td:nth-child(4),
+.comm-match-table:not(.has-local-midspan) thead tr:nth-child(2) th:nth-child(3),
+.comm-match-table:not(.has-local-midspan) tbody td:nth-child(3) {
+  border-left: 1px solid var(--line);
+}
+
+.comm-match-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.comm-match-cable-label {
+  min-width: 0;
+  font-weight: 750;
+}
+
+.comm-match-select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  text-align: center;
+  text-align-last: center;
+}
+
+.comm-match-note,
+.comm-match-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.comm-match-empty {
+  padding: 20px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  text-align: center;
+}
+
 .dialog-field {
   display: grid;
   gap: 6px;
@@ -1452,6 +1561,18 @@ html[data-theme="dark"] .existing-violations-output {
   padding: 0;
 }
 
+.mini-btn.pole-header-match-btn {
+  background: #15803d;
+  border-color: #22c55e;
+  color: #ffffff;
+}
+
+.mini-btn.pole-header-match-btn:hover {
+  background: #166534;
+  border-color: #4ade80;
+  color: #ffffff;
+}
+
 .pole-header-icon-btn svg {
   width: 16px;
   height: 16px;
@@ -1841,6 +1962,41 @@ tr.danger-row {
 .excel-review-actions .btn {
   white-space: nowrap;
 }
+
+.excel-review-actions .excel-review-icon-btn {
+  display: inline-grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.excel-review-icon-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.excel-review-icon-btn .excel-review-rerun-icon {
+  width: 27px;
+  height: 27px;
+  stroke-width: 2.7;
+}
+
+.excel-review-rerun-icon .excel-review-rerun-arrowhead {
+  fill: currentColor;
+  stroke: none;
+}
+
+.excel-review-icon-btn .excel-review-collapse-icon { display: none; }
+.excel-review-icon-btn[data-expanded="true"] .excel-review-expand-icon { display: none; }
+.excel-review-icon-btn[data-expanded="true"] .excel-review-collapse-icon { display: block; }
 
 .excel-review-global h3 { margin: 0 0 10px; }
 .excel-review-poles { display: grid; gap: 8px; }
@@ -2697,6 +2853,15 @@ html[data-theme="dark"] .mini-btn[data-hide-pole] {
   background: #d97706;
   border-color: #fbbf24;
   color: #ffffff;
+}
+html[data-theme="dark"] .mini-btn.pole-header-match-btn {
+  background: #16a34a;
+  border-color: #4ade80;
+  color: #ffffff;
+}
+html[data-theme="dark"] .mini-btn.pole-header-match-btn:hover {
+  background: #15803d;
+  border-color: #86efac;
 }
 html[data-theme="dark"] .review-ignore-btn[data-review-ignore-value="true"] {
   background: #dc2626;

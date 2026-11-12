@@ -83,7 +83,8 @@
       row.spanId,
       row.poleId,
       S().getOwnerCanonical?.(row) || row.ownerBase || row.owner,
-      row.wireId || ""
+      row.wireId || "",
+      row
     );
     const localExisting = H().parseHeight(row.existingHOA || "");
     const localEffectiveText = global.Calculations.getEffectiveCommHOA(row);

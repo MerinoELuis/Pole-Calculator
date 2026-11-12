@@ -18,7 +18,7 @@
 
     const localExisting = heightUtils.parseHeight(spanComm.existingHOA);
     const localCurrent = heightUtils.parseHeight(getEffectiveCommHOA(spanComm));
-    const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, ownerCanonicalOf(spanComm), spanComm.wireId || "");
+    const remote = findRemoteComm(spanComm.spanId, spanComm.poleId, ownerCanonicalOf(spanComm), spanComm.wireId || "", spanComm);
     const remoteHOA = remote ? getEffectiveCommHOA(remote) : "";
     const remoteExisting = heightUtils.parseHeight(remote?.existingHOA || "");
     const remoteCurrent = heightUtils.parseHeight(remoteHOA);

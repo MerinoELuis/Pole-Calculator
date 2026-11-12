@@ -208,7 +208,7 @@
           const key = `${sc.spanId}|${sc.wireId || ""}|${midspan || ""}|${hasMidspan ? "ms" : "ref"}`;
           if (seen.has(key)) return;
           seen.add(key);
-          const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, ownerCanonicalOf(sc), sc.wireId || "");
+          const remote = global.Calculations.findRemoteComm(sc.spanId, sc.poleId, ownerCanonicalOf(sc), sc.wireId || "", sc);
           const midspanLocked = Boolean(sc.otherHOA || sc.existingHOAChange || remote?.otherHOA || remote?.existingHOAChange);
           // Backspans are reference-only here, but Fore/Other rows without an
           // imported midspan must stay editable so the user can create the MS.
@@ -1242,6 +1242,7 @@
               <h3 class="inline-pole-id" id="pole-${escapeHtml(poleId)}" data-inline-pole-edit data-pole="${escapeHtml(poleId)}" title="Double-click to edit pole ID">${escapeHtml(poleId)}</h3>
               <div class="pole-header-actions">
                 <button class="mini-btn pole-header-icon-btn" type="button" data-hide-pole data-pole="${escapeHtml(poleId)}" title="Hide this pole from the workspace" aria-label="Hide ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5.5 0 9 7 9 7a15 15 0 01-3.1 3.9M6.2 6.2C3.9 7.8 3 12 3 12s3.5 7 9 7a10.8 10.8 0 004.1-.8" /></svg></button>
+                <button class="mini-btn pole-header-icon-btn pole-header-match-btn" type="button" data-match-pole data-pole="${escapeHtml(poleId)}" title="Match or review cables" aria-label="Match cables for ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.72 1.72M14 11a5 5 0 00-7.07 0l-3 3A5 5 0 0011 21.07l1.72-1.72" /></svg></button>
                 <button class="mini-btn danger-action pole-header-icon-btn" type="button" data-delete-pole data-pole="${escapeHtml(poleId)}" title="Delete this pole and its connected data" aria-label="Delete ${escapeHtml(poleId)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3m-9 0l1 13h10l1-13M10 11v5m4-5v5" /></svg></button>
               </div>
             </div>
@@ -1371,7 +1372,7 @@
           "<div class=\"comm-pairing-warning\" role=\"alert\">"
           + "<div><strong>Midspan cable match required</strong><span>"
           + escapeHtml(warning.poleId) + " ↔ " + escapeHtml(warning.otherPoleId) + " · "
-          + escapeHtml(warning.owner) + ". " + escapeHtml(warning.reason)
+          + escapeHtml(warning.cableLabel || warning.owner)
           + "</span></div><button class=\"mini-btn\" type=\"button\" data-match-comms data-pole=\""
           + escapeHtml(poleId) + "\" data-match-index=\"" + index + "\">Match Cables</button></div>"
         ).join("");

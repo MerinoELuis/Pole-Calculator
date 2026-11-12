@@ -178,6 +178,7 @@
       search: "",
       filter: "all",
       hiddenPoleIds: [],
+      excelReviewExpandedPoleIds: [],
       // Unknown poles begin hidden, but selecting one from the index records a
       // user exception so Save/Load does not hide it again unexpectedly.
       revealedUnknownPoleIds: []
@@ -949,6 +950,7 @@
     state.selectedPoleId = remap(state.selectedPoleId);
     state.ui.hiddenPoleIds = (state.ui.hiddenPoleIds || []).map(remap);
     state.ui.revealedUnknownPoleIds = (state.ui.revealedUnknownPoleIds || []).map(remap);
+    state.ui.excelReviewExpandedPoleIds = (state.ui.excelReviewExpandedPoleIds || []).map(remap);
     return validation;
   }
 
@@ -1563,7 +1565,7 @@
     next.deletedPoleIds = Array.isArray(next.deletedPoleIds)
       ? Array.from(new Set(next.deletedPoleIds.map(canonicalPoleIdentity).filter(Boolean)))
       : [];
-    next.ui = { search: "", filter: "all", hiddenPoleIds: [], revealedUnknownPoleIds: [], ...(next.ui || {}) };
+    next.ui = { search: "", filter: "all", hiddenPoleIds: [], revealedUnknownPoleIds: [], excelReviewExpandedPoleIds: [], ...(next.ui || {}) };
     // Remove presentation keys from saves created while per-section comm
     // visibility existed. Comm tables are now always visible.
     delete next.ui.hiddenCommPoleIds;
@@ -1572,6 +1574,9 @@
       : [];
     next.ui.revealedUnknownPoleIds = Array.isArray(next.ui.revealedUnknownPoleIds)
       ? Array.from(new Set(next.ui.revealedUnknownPoleIds.map(trim).filter(id => Boolean(id && next.poles[id]))))
+      : [];
+    next.ui.excelReviewExpandedPoleIds = Array.isArray(next.ui.excelReviewExpandedPoleIds)
+      ? Array.from(new Set(next.ui.excelReviewExpandedPoleIds.map(trim).filter(Boolean)))
       : [];
 
     // A physical span cannot terminate at the same pole where it starts. Old

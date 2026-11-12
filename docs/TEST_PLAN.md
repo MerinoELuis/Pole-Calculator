@@ -87,7 +87,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 7. REF row without a measured value on either direction: calculated midspan and Other Pole HOA remain blank.
 8. MidAm reciprocal REF row uses the measured midspan from the same physical pole pair and its own cable movements; a neighboring span never supplies the baseline.
 9. Other with its own midspan calculates normally.
-10. Multiple same-owner rows with different remote movement effects show Match Cables and block Midspan/clearance instead of selecting by row order.
+10. Match Cables pairs only exact-compatible cable types; one-sided Midspans rank against opposite-end Existing HOA, equal-height/equal-movement ties are interchangeable, and only outcome-changing ambiguity blocks Midspan/clearance.
 11. Manually paired rows apply only their confirmed opposite-end HOA movement; a remote cable cannot be assigned twice.
 12. Manual cable matches survive Save/Load and Update Data reconciliation when the rows are matched again.
 

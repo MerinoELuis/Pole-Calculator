@@ -51,7 +51,7 @@ If no power midspan exists, `Max Height at MS` remains blank and the status repo
 
 ## Pole Type Check Severity
 
-Pole height issues are critical when the imported row has a missing Tip, a calculated height without a reference-table row, or a calculated height that differs from the imported pole type. Class-only differences remain review warnings. Critical height issues appear on the `Pole Type Check` tab and beside the affected pole in the calculator index; they are also included by the `Flagged only` filter.
+An active Birthmark is authoritative for Pole Type Check in every project when the row has a valid Tip. It makes the row `OK` despite missing Circumference or a mismatching/missing imported type, class, or height. A missing or invalid Tip remains an issue even when Birthmark is active. Without an active Birthmark, pole height issues are critical when the imported row has a missing Tip, a calculated height without a reference-table row, or a calculated height that differs from the imported pole type. Class-only differences remain review warnings. Critical height issues appear on the `Pole Type Check` tab and beside the affected pole in the calculator index; they are also included by the `Flagged only` filter.
 
 ## Existing Comm Midspan
 
@@ -72,13 +72,14 @@ calculated midspan = imported midspan
                    + remote movement / 2
 ```
 
-Wire IDs are preferred when they uniquely identify opposite ends. If an owner
-has multiple cables on the same physical span and possible remote rows have
-different HOA movements (or different measured baselines for a REF row), the
-calculator must not choose by row order. It shows a Match Cables warning and
-blocks the affected Midspan/clearance until the operator confirms reciprocal,
-one-to-one pairs. The confirmed relationship is saved with the job and reused
-after Update Data when its cable rows are reconciled.
+Wire IDs are preferred when they uniquely identify opposite ends. Otherwise,
+only exact-compatible cable types may match. A measured Midspan on one endpoint
+ranks against original Existing HOA at the other; tied rows with equal movement
+are interchangeable. The calculator shows Match Cables only when an unresolved
+tie or count mismatch could change a Midspan, and blocks that result until the
+operator confirms reciprocal, one-to-one pairs. With no Midspan source on
+either endpoint, it uses a stable order and does not block. Confirmed links are
+saved with the job and reused after Update Data when their rows are reconciled.
 
 For CSU, when an imported communication Midspan exists on the Fore Span, that
 calculation remains active after either endpoint is raised or lowered. The
@@ -97,15 +98,29 @@ Example:
 
 ## Remote Comm Selection
 
-The opposite endpoint is found from the current span. Candidates at that pole are ranked using:
+The opposite endpoint is resolved only on the same physical pole pair and the
+opposite Fore/Back representation when one exists. A cable can match only the
+same normalized owner and exact cable type/size; Telco, CATV, service drops,
+bundles, and fiber are never interchangeable. A unique shared `wireId` is the
+strongest identity. If IDs are unavailable or differ, the remaining compatible
+cables are ranked one-to-one:
 
-1. Exact `wireId` match.
-2. Exact `spanId` match.
-3. Same physical unordered pole pair.
-4. Normalized owner match.
-5. Presence of an imported midspan as a small tie breaker.
+1. If exactly one endpoint has imported Midspans, sort that endpoint's
+   measured Midspans highest-to-lowest and the other endpoint's original
+   `Existing HOA` highest-to-lowest.
+2. If both endpoints have Midspan values, do not use the duplicate Midspans as
+   a second ranking signal; pair by original `Existing HOA` instead.
+3. If neither endpoint has a Midspan baseline, use a stable one-to-one order
+   by original `Existing HOA` and row identity; there is no Midspan calculation
+   to block.
 
-Owner normalization recognizes common equivalents such as CenturyLink/CTL/Telco and CATV/Cable One/Cox. Exact Wire ID has the highest priority because one owner can have several cables.
+Equal-height attachments are interchangeable when their movement effect is
+also equal. A Match Cables warning is reserved for a tie or count mismatch that
+could change a calculated Midspan. The matching dialog can also be opened at
+any time from the pole header; it defaults to the Fore Span, allows span
+switching, and omits a Midspan column for an endpoint with no source value.
+Manual links remain reciprocal, one-to-one, type-safe, and preserved by
+Save/Load and Update Data reconciliation.
 
 ## Midspan Display and Validation Source
 

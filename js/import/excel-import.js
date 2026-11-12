@@ -118,15 +118,6 @@
     return String(state?.settings?.projectProfile || "").toUpperCase() === "OLSSON_OPPD";
   }
 
-  function isMidamPoleClassProfile(data = {}) {
-    const state = S()?.getState?.();
-    const projectProfile = String(data.projectProfile || state?.settings?.projectProfile || "").toUpperCase();
-    if (projectProfile !== "METRONET") return false;
-    const wi = String(data.metronetWI || state?.settings?.metronetWI || "").toUpperCase();
-    if (wi) return wi === "MIDAM";
-    return String(data.proposedOwner || state?.settings?.proposedOwner || "").toUpperCase() === "MIDAM";
-  }
-
   function parseNumber(value) {
     if (isBlank(value)) return null;
     const match = String(value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
@@ -202,6 +193,7 @@
         : "");
     const importedClass = String(parsedType.classValue || "").toUpperCase();
     const expectedClass = String((useOppdRule ? recommendedClass : calculatedClass) || "").toUpperCase();
+    const tipIsValid = H().parseHeight(data.tip) !== null;
     const birthmarkExists = data.birthmarkExists === undefined
       ? hasBirthmarkValue(data.birthmark)
       : Boolean(data.birthmarkExists);
@@ -211,18 +203,19 @@
     const birthmarkActive = data.birthmarkActive === undefined
       ? birthmarkExists
       : Boolean(data.birthmarkActive);
-    const birthmarkClassOverride = birthmarkActive
-      && isMidamPoleClassProfile(data)
+    // An active Birthmark is authoritative for type/class checks in every
+    // project, but a valid Tip measurement is still required for Pole Type.
+    const birthmarkClassAuthority = birthmarkActive && tipIsValid;
+    const birthmarkClassOverride = birthmarkClassAuthority
       && Boolean(tableMatch)
       && Boolean(importedClass)
       && importedClass !== expectedClass;
-    const birthmarkClassAuthority = birthmarkActive && isMidamPoleClassProfile(data);
     const issues = [];
 
-    if (!data.tip) issues.push("Missing Tip");
+    if (!tipIsValid) issues.push("Missing Tip");
     if (circumference === null && !useOppdRule && !birthmarkClassAuthority) issues.push("Missing Circumference");
     if (!importedType && !birthmarkClassAuthority) issues.push("Missing Type");
-    if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight]) issues.push("No reference height row");
+    if (calculatedHeight && !ANSI_CLASS_TABLE[calculatedHeight] && !birthmarkClassAuthority) issues.push("No reference height row");
     if (useOppdRule && !hasCircumference) {
       // No circumference means there is no class check for Olsson.  Keep the
       // normal missing-type and height checks below, but do not reject a row
@@ -231,7 +224,9 @@
       if (data.tip && circumference !== null && !tableMatch && !birthmarkClassAuthority) issues.push("No table match");
       if (tableMatch && importedClass && importedClass !== expectedClass && !birthmarkClassOverride) issues.push("Class mismatch");
     }
-    if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight)) issues.push("Height mismatch");
+    if (calculatedHeight && parsedType.height && Number(parsedType.height) !== Number(calculatedHeight) && !birthmarkClassAuthority) {
+      issues.push("Height mismatch");
+    }
 
     return {
       ...data,

@@ -10,20 +10,30 @@
       if (resolve) resolve(result);
     }
 
-    function openAppDialog({ title, description = "", fields = [], confirmLabel = "Accept", danger = false }) {
+    function openAppDialog({
+      title,
+      description = "",
+      fields = [],
+      contentHtml = "",
+      onOpen = null,
+      getResult = null,
+      dialogClass = "",
+      confirmLabel = "Accept",
+      danger = false
+    }) {
       closeAppDialog(null);
       return new Promise(resolve => {
         const dialog = global.document.createElement("div");
         dialog.className = "app-dialog-backdrop";
         dialog.dataset.appDialog = "true";
         dialog._resolveDialog = resolve;
-        dialog.innerHTML = `<section class="app-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+        dialog.innerHTML = `<section class="app-dialog ${escapeHtml(dialogClass)}" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
           <div class="app-dialog-header">
             <h3>${escapeHtml(title)}</h3>
             ${description ? `<p>${escapeHtml(description)}</p>` : ""}
           </div>
           <form class="app-dialog-form">
-            ${fields.map(field => {
+            ${contentHtml || fields.map(field => {
               if (field.type === "checkbox-list") {
                 return `<fieldset class="dialog-checkbox-list">
                   <legend>${escapeHtml(field.label)}</legend>
@@ -54,6 +64,7 @@
         </section>`;
         global.document.body.appendChild(dialog);
         const form = dialog.querySelector("form");
+        if (typeof onOpen === "function") onOpen({ dialog, form, close: closeAppDialog });
         form.querySelectorAll("select[data-exclusive-group]").forEach(select => {
           select.addEventListener("change", () => {
             const group = select.dataset.exclusiveGroup;
@@ -73,6 +84,10 @@
         });
         form.addEventListener("submit", event => {
           event.preventDefault();
+          if (typeof getResult === "function") {
+            closeAppDialog(getResult(form));
+            return;
+          }
           const result = {};
           fields.forEach(field => {
             if (field.type === "checkbox-list") {
