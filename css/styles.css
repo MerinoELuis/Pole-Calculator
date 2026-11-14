@@ -1744,6 +1744,33 @@ html[data-theme="dark"] .pole-inset-details .pole-action-readout strong {
   text-align: center;
 }
 
+.pole-class-year-value {
+  position: relative;
+  display: block;
+  min-height: 1.2em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pole-class-year-warning {
+  position: absolute;
+  top: 50%;
+  right: calc(50% + 21px);
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--warning);
+}
+
+.pole-class-year-warning-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .pole-class-diameter-input {
   min-width: 72px;
   max-width: 92px;
@@ -1984,14 +2011,9 @@ tr.danger-row {
 }
 
 .excel-review-icon-btn .excel-review-rerun-icon {
-  width: 27px;
-  height: 27px;
-  stroke-width: 2.7;
-}
-
-.excel-review-rerun-icon .excel-review-rerun-arrowhead {
-  fill: currentColor;
-  stroke: none;
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.2;
 }
 
 .excel-review-icon-btn .excel-review-collapse-icon { display: none; }

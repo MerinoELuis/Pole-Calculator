@@ -13,6 +13,15 @@
         selectPole,
         toast
       });
+      const powerEquipmentRenderer = global.PowerEquipmentRenderer.create({
+        S,
+        H,
+        escapeHtml,
+        poleLink,
+        getCalculations: () => global.Calculations
+      });
+      const { renderPowerTable, renderCollapseEyeIcon, renderEquipmentTable } = powerEquipmentRenderer;
+      const { renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState } = global.PoleSettingsRenderer.create(context);
 
       function spanLabel(span) {
         if (!span) return "";
@@ -559,216 +568,33 @@
         return `<span class="badge changed">OK</span>`;
       }
 
-      function renderClearanceSettings() {
-        if (!els.clearanceSettings) return;
-        const settings = S.getState().settings || {};
-        const profiles = global.ProjectProfiles?.PROFILES || {};
-        const selectedProfile = settings.projectProfile || "INTEC";
-        const projectOptions = Object.values(profiles)
-          .filter(profile => profile.visible !== false)
-          .filter((profile, index, all) => all.findIndex(item => item.id === profile.id) === index)
-          .map(profile =>
-          `<option value="${escapeHtml(profile.id)}" ${selectedProfile === profile.id ? "selected" : ""}>${escapeHtml(profile.label)}</option>`
-        ).join("");
-        const isComedWI = String(settings.metronetWI || "").toUpperCase() === "COMED";
-        const poleClearanceRows = [
-          ["polePowerCommsClearance", "Pole · Power-comms", settings.polePowerCommsClearance || settings.clearanceToPower || "40\""],
-          ["commClearance", "Pole · Comm-comm", settings.commClearance || "12\""],
-          ["boltClearance", "Pole · Bolt-bolt", settings.boltClearance || "4\""]
-        ];
-        const midspanClearanceRows = [
-          ["midspanPowerCommClearance", "Midspan · Power-comm", settings.midspanPowerCommClearance || "30\""],
-          ["midspanCommCommClearance", "Midspan · Comm-comm", settings.midspanCommCommClearance || "4\""]
-        ];
-        const streetlightClearanceRows = [];
-        if (!isComedWI) {
-          poleClearanceRows.splice(1, 0, ["primaryPowerCommsClearance", "Pole · Primary-comm", settings.primaryPowerCommsClearance || "43\""]);
-          midspanClearanceRows.splice(1, 0, ["midspanPrimaryPowerCommClearance", "Midspan · Primary-comm", settings.midspanPrimaryPowerCommClearance || "33\""]);
-        }
-        if (selectedProfile === "INTEC") {
-          streetlightClearanceRows.push(
-            ["streetlightBracketCommClearance", "Streetlight bracket-comm", settings.streetlightBracketCommClearance || "40\""],
-            ["streetlightGroundedBracketCommClearance", "Streetlight bracket-comm (Grounding)", settings.streetlightGroundedBracketCommClearance || "12\""]
-          );
-        }
-        if ((selectedProfile === "METRONET" && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM")
-          || (selectedProfile === "METRONET" && isComedWI)) {
-          streetlightClearanceRows.push(
-            ["streetlightBracketCommClearance", "Streetlight bracket-comm", settings.streetlightBracketCommClearance || (isComedWI ? '4"' : '20"')],
-            ["streetlightDripLoopCommClearance", "Streetlight drip loop-comm", settings.streetlightDripLoopCommClearance || "12\""]
-          );
-        }
-        const rawPosition = String(settings.position || "TOP_COMM").toUpperCase();
-        const position = rawPosition === "LOW_COMM" ? "LOW_COMM"
-          : rawPosition === "OVERLASH" ? "OVERLASH" : "TOP_COMM";
-        const proposedOwner = settings.proposedOwner || "Wecom";
-        const metronetWI = String(settings.metronetWI || (String(proposedOwner).toUpperCase() === "MNT" ? "CSU" : String(proposedOwner).toUpperCase() === "POWER" ? "COMED" : "MIDAM")).toUpperCase();
-        const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
-        const detectedFibers = new Set(Object.keys(fiberSizes));
-        (S.getState().makeReadyReferences || []).forEach(ref => {
-          const source = `${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`;
-          const match = source.match(/\b(\d+)\s*CT\b/i);
-          if (match) detectedFibers.add(`${match[1]}CT Fiber`);
+      function poleClassSourceYears(state) {
+        const sourceRows = state.excelReviewSource?.collection?.rows || [];
+        const pick = global.ExcelImport?.pick;
+        if (typeof pick !== "function") return new Map();
+        const aliases = state.poleIdAliases || {};
+        const canonical = value => S.canonicalPoleIdentity?.(value)
+          || String(value || "").trim().toUpperCase().replace(/\s+(STEEL|UG|PCO)$/i, "");
+        const years = new Map();
+        sourceRows.forEach(sourceRow => {
+          const sourcePoleId = String(pick(sourceRow, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"], { contains: false }) || "").trim();
+          const year = String(pick(sourceRow, ["Year Installed"], { contains: false }) ?? "").trim();
+          const resolvedPoleId = aliases[sourcePoleId] || sourcePoleId;
+          if (resolvedPoleId && year && !years.has(canonical(resolvedPoleId))) {
+            years.set(canonical(resolvedPoleId), year);
+          }
         });
-        const fiberTypes = Array.from(detectedFibers).sort((a, b) => {
-          const aCount = Number((a.match(/\d+/) || [0])[0]);
-          const bCount = Number((b.match(/\d+/) || [0])[0]);
-          return aCount - bCount || a.localeCompare(b);
-        });
-        const profileSettings = global.ProjectProfiles?.getProfileSettings?.(selectedProfile) || {};
-        const proposedOwners = selectedProfile === "OLSSON_OPPD"
-          ? ["Cox", "Verizon", "Uniti"]
-          : (Array.isArray(profileSettings.proposedOwners) && profileSettings.proposedOwners.length
-            ? profileSettings.proposedOwners
-            : ["Wecom", "MidAm", "CenturyLink", "Cable One", "Cox", "Fatbeam", "Vexus", "MCI Metro"]);
-        const ownerOptions = proposedOwners.map(owner =>
-          `<option value="${escapeHtml(owner)}" ${proposedOwner === owner ? "selected" : ""}>${escapeHtml(owner)}</option>`
-        ).join("");
-        const renderRow = ([field, label, value]) => `
-            <label class="clearance-row">
-              <span>${escapeHtml(label)}</span>
-              <input class="input height-input" data-scope="settings" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
-            </label>
-          `;
-        els.clearanceSettings.innerHTML = `
-          <div class="settings-section">
-            <h3>Clearance</h3>
-            <div class="clearance-settings-groups">
-              <div class="settings-grid clearance-grid">${poleClearanceRows.map(renderRow).join("")}</div>
-              <div class="settings-grid clearance-grid">${midspanClearanceRows.map(renderRow).join("")}</div>
-              ${streetlightClearanceRows.length ? `<div class="settings-grid clearance-grid">${streetlightClearanceRows.map(renderRow).join("")}</div>` : ""}
-            </div>
-          </div>
-          <div class="settings-section settings-section-adjustments">
-            <h3>Adjustments</h3>
-            <div class="settings-grid adjustments-grid">
-              <label class="clearance-row position-row">
-                <span>Project</span>
-                <select class="input position-select" data-scope="settings" data-field="projectProfile">
-                  ${projectOptions}
-                </select>
-              </label>
-              <label class="clearance-row position-row">
-                <span class="position-label">Position</span>
-                <select class="input position-select" data-scope="settings" data-field="position">
-                  <option value="TOP_COMM" ${position === "TOP_COMM" ? "selected" : ""}>Top Comm</option>
-                  <option value="LOW_COMM" ${position === "LOW_COMM" ? "selected" : ""}>Low Comm</option>
-                  <option value="OVERLASH" ${position === "OVERLASH" ? "selected" : ""}>Overlash</option>
-                </select>
-              </label>
-              <label class="clearance-row position-row">
-                <span>Make Ready</span>
-                <select class="input position-select" data-scope="settings" data-field="mrCase">
-                  <option value="LOWER" ${(settings.mrCase || "LOWER") === "LOWER" ? "selected" : ""}>Lowercase</option>
-                  <option value="UPPER" ${settings.mrCase === "UPPER" ? "selected" : ""}>Uppercase</option>
-                </select>
-              </label>
-              ${selectedProfile === "METRONET" ? `<label class="clearance-row position-row">
-                <span>WI</span>
-                <select class="input position-select" data-scope="settings" data-field="metronetWI">
-                  <option value="MIDAM" ${metronetWI === "MIDAM" ? "selected" : ""}>MidAm</option>
-                  <option value="CSU" ${metronetWI === "CSU" ? "selected" : ""}>CSU</option>
-                  <option value="COMED" ${metronetWI === "COMED" ? "selected" : ""}>ComEd</option>
-                </select>
-              </label>` : settings.hideProposedOwner ? "" : `<label class="clearance-row position-row">
-                <span>Proposed Owner</span>
-                <select class="input position-select" data-scope="settings" data-field="proposedOwner">
-                  ${ownerOptions}
-                </select>
-              </label>`}
-            </div>
-          </div>
-          ${selectedProfile === "INTEC" && fiberTypes.length ? `<div class="settings-section settings-section-fiber">
-            <h3>Fiber</h3>
-            <div class="settings-grid fiber-grid">
-              <label class="clearance-row">
-                <span>Messenger Size</span>
-                <input class="input" data-scope="attachmentSettings" data-field="attachmentMessengerSize" value="${escapeHtml(settings.attachmentMessengerSize || "")}" />
-              </label>
-              ${fiberTypes.map(fiber => `<label class="clearance-row">
-                <span>${escapeHtml(fiber)} Size</span>
-                <input class="input" data-scope="attachmentSettings" data-field="fiberSize" data-fiber="${escapeHtml(fiber)}" value="${escapeHtml(fiberSizes[fiber] || "")}" />
-              </label>`).join("")}
-            </div>
-          </div>` : ""}
-        `;
-        wireEditableEvents(els.clearanceSettings);
-      }
-
-      function updateAutoCalculateButtonState() {
-        if (!els.autoCalculateBtn) {
-          updateFollowProposedButtonState();
-          return;
-        }
-        const state = S.getState();
-        const hasPoleData = Object.keys(state.poles || {}).length > 0;
-        const hasProposedFiber = global.CompactAutoProposed?.hasProposedFiber?.(state) === true;
-        const supportedExportProject = global.CompactAutoProposed?.isExportProjectSupported?.(state) === true;
-          const allowsOverlashWithoutFiber = global.CompactAutoProposed?.allowsOverlashExportWithoutProposedFiber?.(state) === true;
-        const position = String(state.settings?.position || "TOP_COMM").toUpperCase();
-        const isLowComm = position === "LOW_COMM";
-        const isOverlash = position === "OVERLASH";
-        const disableAuto = !hasPoleData || isLowComm || isOverlash || context.autoCalculateRunning;
-        els.autoCalculateBtn.disabled = disableAuto;
-        els.autoCalculateBtn.classList.toggle("btn-disabled", disableAuto);
-        els.autoCalculateBtn.classList.toggle("btn-primary", !disableAuto);
-        els.autoCalculateBtn.textContent = context.autoCalculateRunning
-          ? "Auto Proposed · Processing"
-          : !hasPoleData
-          ? "Auto Proposed · Import Data First"
-          : isLowComm
-            ? "Auto Proposed · Top Comm Required"
-            : isOverlash
-              ? "Auto Proposed · Manual Overlash"
-            : "Auto Proposed";
-
-        if (els.exportProposedJsonBtn) {
-            const canExportProposed = hasPoleData && (hasProposedFiber || allowsOverlashWithoutFiber) && supportedExportProject;
-          els.exportProposedJsonBtn.disabled = !canExportProposed;
-          els.exportProposedJsonBtn.classList.toggle("btn-disabled", !canExportProposed);
-          els.exportProposedJsonBtn.classList.toggle("btn-success", canExportProposed);
-          els.exportProposedJsonBtn.title = !hasPoleData
-            ? "Import pole data first."
-            : !supportedExportProject
-              ? "AutoProposed export is currently available for INTEC and Olsson OPPD only."
-            : !hasProposedFiber
-              ? allowsOverlashWithoutFiber
-                ? "Export Olsson OPPD overlash data without a newly proposed fiber."
-                : "Add at least one proposed fiber before exporting."
-              : "Export the proposed fiber data.";
-        }
-        if (els.exportDebugJsonBtn) {
-          const buildSource = String(global.AppDeploymentVersion?.source || "development").toLowerCase();
-          const localOnly = buildSource !== "github-pages";
-          els.exportDebugJsonBtn.disabled = !hasPoleData || !localOnly;
-          els.exportDebugJsonBtn.classList.toggle("btn-disabled", !hasPoleData || !localOnly);
-          els.exportDebugJsonBtn.classList.toggle("hidden", !localOnly);
-        }
-        updateFollowProposedButtonState();
-      }
-
-      function updateFollowProposedButtonState() {
-        const button = els.followProposedBtn;
-        if (!button) return;
-        const state = S.getState();
-        const hasPoleData = Object.keys(state.poles || {}).length > 0;
-        const position = String(state.settings?.position || "TOP_COMM").toUpperCase();
-        const active = state.settings?.autoMoveCommsToProposed === true
-          || String(state.settings?.autoMoveCommsToProposed).toLowerCase() === "true";
-        const disabled = !hasPoleData || position !== "TOP_COMM" || context.autoCalculateRunning;
-        button.disabled = disabled;
-        button.setAttribute("aria-pressed", String(active));
-        button.classList.toggle("btn-disabled", disabled);
-        button.classList.toggle("btn-primary", active && !disabled);
-        button.textContent = active ? "Follow Proposed: ON" : "Follow Proposed: OFF";
-        button.title = position !== "TOP_COMM"
-          ? "Follow Proposed is available only in Top Comm mode."
-          : "When enabled, changing Proposed recalculates existing comm movements.";
+        return years;
       }
 
       function renderPoleClassResults() {
         if (!els.poleClassResults) return;
-        const rows = S.getState().poleClassChecks || [];
+        const state = S.getState();
+        const rows = state.poleClassChecks || [];
+        const showYearInstalled = String(state.settings?.projectProfile || "").toUpperCase() === "INTEC";
+        const sourceYears = showYearInstalled ? poleClassSourceYears(state) : new Map();
+        const canonicalPoleId = value => S.canonicalPoleIdentity?.(value)
+          || String(value || "").trim().toUpperCase().replace(/\s+(STEEL|UG|PCO)$/i, "");
         renderPoleClassTabWarning();
         if (!rows.length) {
           els.poleClassResults.innerHTML = `<div class="detail-placeholder">Import an Excel file with Collection data to review Height / Class.</div>`;
@@ -785,7 +611,7 @@
           </div>
           <div class="table-wrap"><table class="pole-class-table">
             <thead><tr>
-              <th>Pole ID</th><th>Birthmark</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th><th>Status</th>
+              <th>Pole ID</th><th>Birthmark</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th>${showYearInstalled ? "<th>Year Installed</th>" : ""}<th>Status</th>
             </tr></thead>
             <tbody>${rows.map((row, index) => {
               const severity = poleClassSeverity(row);
@@ -793,6 +619,9 @@
                 ? Boolean(row.birthmarkExists)
                 : Boolean(row.birthmarkActive);
               const birthmarkLabel = birthmarkActive ? "active" : "inactive";
+              const yearInstalled = String(row.yearInstalled || sourceYears.get(canonicalPoleId(row.poleId)) || "").trim();
+              const installedYear = Number(yearInstalled.match(/\b(\d{4})\b/)?.[1] || "");
+              const showLoadCaseWarning = showYearInstalled && Number.isFinite(installedYear) && installedYear >= 2018;
               return `
               <tr class="${poleClassRowClass(severity)}">
                 <td><strong>${poleLink(row.poleId)}</strong></td>
@@ -805,6 +634,7 @@
                 <td>${escapeHtml(row.calculatedHeight || "")}</td>
                 <td>${escapeHtml(row.calculatedClass || "")}</td>
                 <td>${escapeHtml(row.expectedType || "")}</td>
+                ${showYearInstalled ? `<td><span class="pole-class-year-value">${showLoadCaseWarning ? `<span class="pole-class-year-warning" role="img" aria-label="Warning: verify all 3 Load Cases for this INTEC pole" title="Verify all 3 Load Cases for INTEC poles installed in 2018 or later."><svg class="pole-class-year-warning-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4"/><path d="M12 16.5h.01"/></svg></span>` : ""}<span class="pole-class-year-text">${escapeHtml(yearInstalled || "—")}</span></span></td>` : ""}
                 <td>${renderPoleClassStatus(row, severity)}</td>
               </tr>
             `; }).join("")}</tbody>
@@ -1415,153 +1245,6 @@
             </tr>`;
           }).join("")}</tbody>
         </table></div>${pairingWarningMarkup}`;
-      }
-
-      function renderPowerTable(poleId) {
-        const powerGroups = [];
-        const heightGroups = new Map();
-        S.getSpanPowerForPole(poleId).forEach(row => {
-          const sourceHeight = H.parseHeight(row.attachmentHeight || "");
-          if (sourceHeight === null) {
-            powerGroups.push({ rows: [row] });
-            return;
-          }
-          const key = String(sourceHeight);
-          let group = heightGroups.get(key);
-          if (!group) {
-            group = { rows: [] };
-            heightGroups.set(key, group);
-            powerGroups.push(group);
-          }
-          group.rows.push(row);
-        });
-        powerGroups.sort((a, b) => {
-          const aHeight = H.parseHeight(a.rows[0]?.attachmentHeight || "");
-          const bHeight = H.parseHeight(b.rows[0]?.attachmentHeight || "");
-          if (aHeight === null && bHeight === null) return 0;
-          if (aHeight === null) return 1;
-          if (bHeight === null) return -1;
-          return bHeight - aHeight;
-        });
-        if (!powerGroups.length) return `<p class="muted">No power wires were imported for this pole.</p>`;
-        return `<div class="table-wrap"><table class="power-table">
-          <thead><tr><th>Span</th><th>Type</th><th>Attachment Height</th><th>HOA Change</th><th>Midspan</th><th>Actions</th></tr></thead>
-          <tbody>${powerGroups.map(group => {
-            const groupRows = [...group.rows].sort((a, b) =>
-              String(a.spanId || "").localeCompare(String(b.spanId || ""), undefined, { numeric: true })
-            );
-            const representative = groupRows[0];
-            const sharedHoaChange = groupRows.find(row => row.attachmentHeightChange)?.attachmentHeightChange || "";
-            const spanEntries = groupRows.map(row => {
-              const span = S.getSpan(row.spanId);
-              return `<div class="power-group-entry">${span ? `${poleLink(span.fromPole)} → ${poleLink(span.toPole)}` : ""}</div>`;
-            }).join("");
-            const typeEntries = groupRows.map(row =>
-              `<div class="power-group-entry"><span class="badge warning">${escapeHtml(row.label || "Power")}</span></div>`
-            ).join("");
-            const midspanEntries = groupRows.map(row => {
-              const originalMidspan = String(row.midspan || "");
-              const calculatedMidspan = String(row.calculatedMidspan || originalMidspan);
-              const originalTitle = originalMidspan
-                ? `Original Midspan before movements: ${originalMidspan}`
-                : "No original Midspan was imported";
-              return `<div class="power-group-entry"><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" data-field="midspan" value="${escapeHtml(calculatedMidspan)}" title="${escapeHtml(originalTitle)}" aria-label="Power Midspan for ${escapeHtml(row.spanId)}"></div>`;
-            }).join("");
-            const actionEntries = groupRows.map(row => {
-              const span = S.getSpan(row.spanId);
-              const label = span ? `${span.fromPole} to ${span.toPole}` : "unlinked span";
-              return `<button class="icon-action danger-action" type="button" data-delete-span-power data-power-key="${escapeHtml(row.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(row.spanId)}" title="Delete ${escapeHtml(row.label || "power wire")} on ${escapeHtml(label)}" aria-label="Delete ${escapeHtml(row.label || "power wire")} on ${escapeHtml(label)}">&#10005;</button>`;
-            }).join("");
-            return `<tr>
-              <td class="span-cell"><div class="power-group-stack">${spanEntries}</div></td>
-              <td><div class="power-group-stack">${typeEntries}</div></td>
-              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(representative.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(representative.spanId)}" data-field="attachmentHeight" value="${escapeHtml(representative.attachmentHeight || "")}" aria-label="Power attachment height shared by wires at this height"></td>
-              <td><input class="input height-input" data-scope="spanPower" data-power-key="${escapeHtml(representative.key || "")}" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(representative.spanId)}" data-field="attachmentHeightChange" value="${escapeHtml(sharedHoaChange)}" aria-label="Power HOA Change" title="Target attachment height shared by power wires at this pole and height"></td>
-              <td><div class="power-group-stack">${midspanEntries}</div></td>
-              <td><div class="power-group-stack">${actionEntries}</div></td>
-            </tr>`;
-          }).join("")}</tbody>
-        </table></div>`;
-      }
-
-      function renderCollapseEyeIcon() {
-        return `<span class="collapse-hint" aria-hidden="true">
-          <svg class="collapse-show-icon" viewBox="0 0 24 24" focusable="false"><path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-          <svg class="collapse-hide-icon" viewBox="0 0 24 24" focusable="false"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5.5 0 9 7 9 7a15 15 0 01-3.1 3.9M6.2 6.2C3.9 7.8 3 12 3 12s3.5 7 9 7a10.8 10.8 0 004.1-.8"/></svg>
-        </span>`;
-      }
-
-      function renderEquipmentTable(poleId) {
-        const pole = S.getPole(poleId);
-        const rows = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
-        if (!rows.length) return `<p class="muted">No Power Equipment was imported for this pole.</p>`;
-        const labels = {
-          STREETLIGHT: "Streetlight",
-          TRANSFORMER: "Transformer",
-          RISER: "Power Riser"
-        };
-        const actionLabels = {
-          STREETLIGHT: "Ground",
-          TRANSFORMER: "Redress",
-          RISER: "Raise"
-        };
-        return `<div class="table-wrap"><table class="power-table equipment-table">
-          <thead><tr><th>Equipment</th><th>Owner</th><th>Attachment Height</th><th>Bottom Height</th><th>Drip Loop Height</th><th>Orientation</th><th>Action</th><th>New HOA</th><th>Max Comm Height</th><th>Actions</th></tr></thead>
-          <tbody>${rows.map((row, index) => {
-            const category = String(row.category || "").toUpperCase();
-            const needsHeight = category === "TRANSFORMER" || category === "RISER";
-            const settings = S.getState().settings || {};
-            const requiredMidAmGround = category === "STREETLIGHT"
-              && String(settings.projectProfile || "").toUpperCase() === "METRONET"
-              && String(settings.proposedOwner || "MidAm").toUpperCase() === "MIDAM";
-            const isIntecStreetlight = category === "STREETLIGHT"
-              && String(settings.projectProfile || "INTEC").toUpperCase() === "INTEC";
-            const isMidAmStreetlight = requiredMidAmGround;
-            const isRaiseableStreetlight = isIntecStreetlight || isMidAmStreetlight;
-            const isRiser = category === "RISER";
-            const isTransformer = category === "TRANSFORMER";
-            const actionControls = isRaiseableStreetlight
-              ? `<div class="equipment-action-stack">
-                  <label class="equipment-action-control">
-                    <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
-                    <span>Ground</span>
-                  </label>
-                  <label class="equipment-action-control">
-                    <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="raiseActive" ${row.raiseActive ? "checked" : ""}>
-                    <span>Raise</span>
-                  </label>
-                </div>`
-              : isRiser
-                ? `<div class="equipment-action-stack">
-                    <label class="equipment-action-control">
-                      <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive ? "checked" : ""}>
-                      <span>Raise</span>
-                    </label>
-                    <label class="equipment-action-control">
-                      <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="secureActive" ${row.secureActive ? "checked" : ""}>
-                      <span>Secure</span>
-                    </label>
-                  </div>`
-                : `<label class="equipment-action-control">
-                  <input type="checkbox" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="actionActive" ${row.actionActive || requiredMidAmGround ? "checked" : ""} ${requiredMidAmGround ? "disabled title=\"Required by MidAm\"" : ""}>
-                  <span>${escapeHtml(isTransformer ? "Secure" : (actionLabels[category] || "Apply"))}</span>
-                </label>`;
-            const heightField = isRaiseableStreetlight ? "raiseHeight" : "actionHeight";
-            const heightEnabled = isRaiseableStreetlight ? row.raiseActive : row.actionActive;
-            return `<tr>
-            <td><span class="badge warning" title="${escapeHtml(row.type || "")}">${escapeHtml(labels[row.category] || row.category || "Equipment")}</span></td>
-            <td class="inline-edit-cell" data-inline-equipment-edit="owner" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Double-click to edit equipment owner">${escapeHtml(row.owner || "")}</td>
-            <td class="inline-edit-cell" data-inline-equipment-edit="attachmentHeight" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Double-click to edit attachment height">${escapeHtml(row.attachmentHeight || "")}</td>
-            <td>${escapeHtml(row.bottomHeight || "")}</td>
-            <td>${escapeHtml(row.dripLoopHeight || "")}</td>
-            <td>${escapeHtml(row.orientation || "")}</td>
-            <td>${actionControls}</td>
-            <td>${needsHeight || isRaiseableStreetlight ? `<input class="input height-input equipment-action-height" data-scope="equipment" data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" data-field="${heightField}" value="${escapeHtml(row[heightField] || "")}" ${heightEnabled ? "" : "disabled"} ${isRaiseableStreetlight ? `title="Maximum raise: 1 foot above ${escapeHtml(row.attachmentHeight || "the imported HOA")}"` : ""}>` : `<span class="muted">&mdash;</span>`}</td>
-            <td><strong>${escapeHtml(global.Calculations.getPowerEquipmentCeiling(row) || "")}</strong></td>
-            <td><button class="icon-action danger-action" type="button" data-delete-equipment data-pole="${escapeHtml(poleId)}" data-equipment-index="${index}" title="Delete equipment" aria-label="Delete equipment">&#10005;</button></td>
-          </tr>`;
-          }).join("")}</tbody>
-        </table></div>`;
       }
 
       function renderPoleWorkspace(poleId) {

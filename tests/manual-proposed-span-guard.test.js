@@ -34,6 +34,8 @@ for (const file of [
   "core/state-compat.js",
   "core/store-identity.js",
   "core/store.js",
+  "ui/poles/power-equipment-renderer.js",
+  "ui/settings-renderer.js",
   "ui/pole-renderer.js",
   "ui/controls.js"
 ]) {

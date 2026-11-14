@@ -53,6 +53,8 @@ If no power midspan exists, `Max Height at MS` remains blank and the status repo
 
 An active Birthmark is authoritative for Pole Type Check in every project when the row has a valid Tip. It makes the row `OK` despite missing Circumference or a mismatching/missing imported type, class, or height. A missing or invalid Tip remains an issue even when Birthmark is active. Without an active Birthmark, pole height issues are critical when the imported row has a missing Tip, a calculated height without a reference-table row, or a calculated height that differs from the imported pole type. Class-only differences remain review warnings. Critical height issues appear on the `Pole Type Check` tab and beside the affected pole in the calculator index; they are also included by the `Flagged only` filter.
 
+INTEC Pole Type Check displays `Year Installed` between `Expected Type` and `Status`. For a year of 2018 or later, it shows a separate warning icon to remind the reviewer to verify all three Load Cases. This visual reminder does not affect Height/Class calculations, row status, severity, or their counts. Other projects do not display this column or warning.
+
 ## Existing Comm Midspan
 
 The baseline belongs to the current SpanComm row:

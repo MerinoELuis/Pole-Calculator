@@ -27,10 +27,13 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/domain/comm-movements.js` | `CalculationAutoMovementModule` | Plan and apply Auto Calculate communication movements through injected calculation helpers. |
 | `js/domain/pole-inset-calculation.js` | `PoleInsetCalculationModule` | Pole Inset span choices, selected-span power ceilings, and End Drop values. |
 | `js/domain/clearance-rules.js` | `Calculations` | Integrated calculation orchestrator: pole/span limits, Midspan, Proposed, End Drop, recalculation, and flagging. |
+| `js/domain/clearance/power-clearance.js` | `PowerClearanceModule` | Equipment clearance ceilings, valid equipment actions, and effective Low Power calculations. |
 | `js/domain/midspan-engine.js` | `MidspanEngine` (`MidspanLogic` alias) | Midspan baseline-plus-endpoint-movements calculation and span-oriented APIs. |
 | `js/domain/graph.js` | `PoleGraph` | Graph utilities; not currently loaded in the browser script sequence. |
 | `js/rules/mr-logic.js` | `MRLogic` | Ordered Make Ready generation. |
 | `js/rules/auto-calculate-solver.js` | `AutoCalculateSolver` | TOP/LOW COMM candidate search and result ranking. |
+| `js/rules/auto-calculate/candidate-analysis.js` | `AutoCalculateCandidateAnalysis` | Candidate violation/movement evaluation and deterministic result ranking. |
+| `js/rules/auto-calculate/candidate-generation.js` | `AutoCalculateCandidateGeneration` | Proposed candidate-height generation and communication stack planning. |
 | `js/rules/validations.js` | `Validations` | Broad data-integrity warnings outside table-level calculation flagging. |
 
 ## Import and export
@@ -52,6 +55,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | --- | --- | --- |
 | `js/ui/app.js` | browser coordinator | Initialize modules and coordinate events, history, persistence, dialogs, and refreshes. |
 | `js/ui/pole-renderer.js` | `PoleWorkspaceRenderer` | Render pole cards, communications, Proposed tables, review panels, and targeted refreshes. |
+| `js/ui/settings-renderer.js` | `PoleSettingsRenderer` | Render clearance/project settings and update Auto Proposed/export button state. |
 | `js/ui/controls.js` | `PoleActions` | Handle action buttons, comm edits, and Proposed span controls. |
 | `js/ui/dialogs.js` | `AppDialogs` | Shared confirmation, prompt, and message dialogs. |
 | `js/ui/theme.js` | `ThemeControl` | Resolve and persist light/dark theme. |
@@ -59,6 +63,8 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/ui/floating-calculator.js` | `FloatingCalculator` | Feet/inches expression calculator and quote normalization. |
 | `js/ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Excel Review result rendering, warning controls, and per-pole actions. |
 | `js/ui/pole-navigation.js` | `PoleNavigation` | Pole-index drawer, selection, visibility, and scroll navigation. |
+| `js/ui/comm-pairing-dialog.js` | `CommPairingDialogModule` | Cable matching dialog, selectable span/table rendering, and temporary match selections. |
+| `js/ui/poles/power-equipment-renderer.js` | `PowerEquipmentRenderer` | Render power wires, power equipment actions, and disclosure icon markup. |
 | `js/ui/dom-contract.js` | `UiDomContract` | Add stable component, pole, span, and column identities after render. |
 | `js/ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA while preserving calculation data. |
 | `js/ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and pair each Midspan with its span. |

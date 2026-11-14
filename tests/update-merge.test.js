@@ -8,9 +8,11 @@ const vm = require("node:vm");
 const appPath = path.join(__dirname, "..", "js", "ui", "app.js");
 const reconcilerPath = path.join(__dirname, "..", "js", "import", "update-data-reconciler.js");
 const dialogsPath = path.join(__dirname, "..", "js", "ui", "dialogs.js");
+const commPairingDialogPath = path.join(__dirname, "..", "js", "ui", "comm-pairing-dialog.js");
 const persistencePath = path.join(__dirname, "..", "js", "core", "persistence.js");
 const reconcilerSource = fs.readFileSync(reconcilerPath, "utf8");
 const dialogsSource = fs.readFileSync(dialogsPath, "utf8");
+const commPairingDialogSource = fs.readFileSync(commPairingDialogPath, "utf8");
 const persistenceSource = fs.readFileSync(persistencePath, "utf8");
 const appSource = fs.readFileSync(appPath, "utf8").replace(
   'document.addEventListener("DOMContentLoaded", init);',
@@ -37,7 +39,7 @@ const sandbox = {
   Set,
   JSON
 };
-vm.runInNewContext(`${reconcilerSource}\n${dialogsSource}\n${persistenceSource}\n${appSource}`, sandbox, { filename: appPath });
+vm.runInNewContext(`${reconcilerSource}\n${dialogsSource}\n${commPairingDialogSource}\n${persistenceSource}\n${appSource}`, sandbox, { filename: appPath });
 const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {

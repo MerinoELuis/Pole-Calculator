@@ -27,8 +27,10 @@ const importedRow = ExcelImport.buildPoleClassChecks([{
   "Tip.display": "28'",
   Circumference: "35",
   Type: "Southern Pine > 4 > 35",
+  "Year Installed": 2018,
   "Birthmark Photos": 1
 }])[0];
+assert.equal(importedRow.yearInstalled, "2018", "Pole Type Check should preserve Year Installed for display");
 assert.equal(importedRow.birthmarkExists, true, "Birthmark Photos should activate the Pole Type Check toggle");
 assert.equal(importedRow.birthmarkActive, true, "an imported Birthmark should start active");
 assert.equal(importedRow.birthmarkClassOverride, true, "MidAm birthmark should override a class mismatch");

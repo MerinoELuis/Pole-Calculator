@@ -28,6 +28,39 @@
   const parse = value => H()?.parseHeight?.(value) ?? null;
   const format = value => H()?.formatHeight?.(Math.round(value)) || "";
   const text = value => String(value ?? "").trim();
+  const candidateAnalysis = global.AutoCalculateCandidateAnalysis.create({
+    STATUS,
+    S,
+    parse,
+    format,
+    text,
+    groupsForPole,
+    idealProposedHeight
+  });
+  const {
+    splitIssueMessage,
+    isMidspanIssue,
+    issueSeverity,
+    physicalSpanPair,
+    collectIssues,
+    categoryForAnalysis,
+    rankAnalysis,
+    compareAnalyses,
+    compareTopRecoveryAnalyses,
+    statusForAnalysis,
+    resultMessage,
+    analyzeCurrentState
+  } = candidateAnalysis;
+  const candidateGeneration = global.AutoCalculateCandidateGeneration.create({
+    MAX_CANDIDATES,
+    S,
+    idealProposedHeight,
+    gap,
+    stackGap,
+    commClearance,
+    boltClearance
+  });
+  const { candidateHeights, buildStackPlan } = candidateGeneration;
 
   function planSnapshot(poleId) {
     return {
@@ -370,214 +403,6 @@
   // A lower comm's Midspan correction can force every comm above it upward.
   // Propagate those minimums before selecting Proposed so the candidate list
   // reserves enough vertical room for the complete comm stack.
-  function minimumTopCommHeight(groups, state = S()?.getState?.()) {
-    const ordered = [...groups].sort((a, b) => b.existingInches - a.existingInches);
-    if (!ordered.length) return null;
-    const hasRequiredFloor = ordered.some(group =>
-      (group.locked && group.lockedInches !== null)
-      || Number.isFinite(group.minimumInches)
-    );
-    if (!hasRequiredFloor) return null;
-    const floors = ordered.map(group => {
-      if (group.locked && group.lockedInches !== null) return group.lockedInches;
-      return Number.isFinite(group.minimumInches) ? group.minimumInches : 0;
-    });
-    for (let index = floors.length - 2; index >= 0; index -= 1) {
-      floors[index] = Math.max(
-        floors[index],
-        floors[index + 1] + gap(ordered[index], ordered[index + 1], state)
-      );
-    }
-    return floors[0];
-  }
-
-  function addCandidate(set, value, maxPole) {
-    if (!Number.isFinite(value)) return;
-    const rounded = Math.round(value);
-    if (rounded >= 0 && rounded <= maxPole) set.add(rounded);
-  }
-
-  function candidateHeights({ groups, maxPole, mode, currentProposed = [], manualReference = null, preferMaximum = false, state = S()?.getState?.() }) {
-    if (!Number.isFinite(maxPole) || maxPole < 0) return [];
-    if (manualReference !== null) return [Math.round(manualReference)];
-    const values = new Set();
-    const requiredValues = new Set();
-    const progressive = [];
-    const progressiveSeen = new Set();
-    const ideal = idealProposedHeight(groups, mode, state);
-    const comm = commClearance(state);
-    const bolt = boltClearance(state);
-    const anchors = [ideal, maxPole, maxPole - bolt, ...currentProposed];
-    const addProgressive = value => {
-      if (!Number.isFinite(value)) return;
-      const rounded = Math.round(value);
-      if (rounded < 0 || rounded > maxPole || progressiveSeen.has(rounded)) return;
-      progressiveSeen.add(rounded);
-      progressive.push(rounded);
-    };
-    const minimumTop = mode === "TOP_COMM" ? minimumTopCommHeight(groups, state) : null;
-    const highestLegalProposed = mode === "TOP_COMM"
-      ? highestLegalTarget(
-        maxPole,
-        0,
-        groups
-          .filter(group => Number.isFinite(group.existingInches))
-          .map(group => ({ height: group.existingInches, serviceDrop: Boolean(group.serviceDrop) })),
-        state
-      )
-      : null;
-    if (minimumTop !== null) {
-      const requiredProposed = Math.round(minimumTop + comm);
-      anchors.push(requiredProposed);
-      if (requiredProposed >= 0 && requiredProposed <= maxPole) requiredValues.add(requiredProposed);
-    }
-    groups.forEach(group => {
-      const existing = group.existingInches;
-      const current = group.effectiveInches ?? existing;
-      anchors.push(
-        existing,
-        current,
-        existing + comm,
-        existing - comm,
-        existing + bolt,
-        existing - bolt,
-        group.minimumInches,
-        group.maximumInches,
-        group.minimumInches === null ? null : group.minimumInches + comm,
-        group.maximumInches === null ? null : group.maximumInches + comm
-      );
-    });
-    anchors
-      .filter(Number.isFinite)
-      .forEach(value => [-1, 0, 1].forEach(offset => addCandidate(values, value + offset, maxPole)));
-    if (ideal !== null) {
-      for (let offset = -18; offset <= 18; offset += 1) addCandidate(values, ideal + offset, maxPole);
-      const start = mode === "LOW_COMM" ? ideal - 48 : Math.min(ideal, maxPole) - 60;
-      const end = mode === "LOW_COMM" ? ideal + 48 : maxPole;
-      for (let value = start; value <= end; value += 6) addCandidate(values, value, maxPole);
-    }
-    for (let offset = 0; offset <= 12; offset += 1) addCandidate(values, maxPole - offset, maxPole);
-    const preferred = ideal ?? maxPole;
-    if (mode === "TOP_COMM") {
-      if (preferMaximum) {
-        addProgressive(maxPole);
-        addProgressive(highestLegalProposed);
-      }
-      addProgressive(ideal);
-      if (!preferMaximum && (ideal === null || ideal > maxPole)) {
-        addProgressive(maxPole);
-        addProgressive(highestLegalProposed);
-      }
-      Array.from(requiredValues).forEach(addProgressive);
-      addProgressive(maxPole);
-      addProgressive(highestLegalProposed);
-    }
-    const orderedCandidates = [
-      ...progressive,
-      ...Array.from(values)
-        .filter(value => !progressiveSeen.has(value))
-        .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || (mode === "LOW_COMM" ? a - b : b - a))
-    ]
-      .slice(0, MAX_CANDIDATES);
-    Object.defineProperty(orderedCandidates, "progressiveCount", {
-      value: Math.min(progressive.length, orderedCandidates.length),
-      enumerable: false
-    });
-    return orderedCandidates;
-  }
-
-  function isLegalExistingBoltTarget(target, existingBoltPoints, state, movingServiceDrop = false) {
-    if (movingServiceDrop) return true;
-    const requiredClearance = boltClearance(state);
-    return existingBoltPoints.every(point => {
-      const existing = typeof point === "number" ? point : point?.height;
-      if (!Number.isFinite(existing) || point?.serviceDrop) return true;
-      const difference = Math.abs(target - existing);
-      return difference === 0 || difference >= requiredClearance;
-    });
-  }
-
-  function highestLegalTarget(ceiling, floor, existingBoltPoints, state, movingServiceDrop = false) {
-    const roundedCeiling = Math.max(0, Math.floor(ceiling));
-    const roundedFloor = Math.max(0, Math.ceil(floor));
-    for (let target = roundedCeiling; target >= roundedFloor; target -= 1) {
-      if (isLegalExistingBoltTarget(target, existingBoltPoints, state, movingServiceDrop)) return target;
-    }
-    for (let target = Math.min(roundedCeiling, roundedFloor - 1); target >= 0; target -= 1) {
-      if (isLegalExistingBoltTarget(target, existingBoltPoints, state, movingServiceDrop)) return target;
-    }
-    return roundedCeiling;
-  }
-
-  function buildStackPlan(groups, proposedInches, mode, maxPole, state = S()?.getState?.(), options = {}) {
-    const ordered = mode === "LOW_COMM"
-      ? [...groups].sort((a, b) => a.existingInches - b.existingInches)
-      : [...groups].sort((a, b) => b.existingInches - a.existingInches);
-    const existingBoltPoints = ordered
-      .filter(group => Number.isFinite(group.existingInches))
-      .map(group => ({ height: group.existingInches, serviceDrop: Boolean(group.serviceDrop) }));
-    const topCommFloors = mode === "TOP_COMM"
-      ? ordered.map(group => {
-        if (group.locked && group.lockedInches !== null) return group.lockedInches;
-        return Number.isFinite(group.minimumInches) ? group.minimumInches : 0;
-      })
-      : [];
-    for (let index = topCommFloors.length - 2; index >= 0; index -= 1) {
-      topCommFloors[index] = Math.max(
-        topCommFloors[index],
-        topCommFloors[index + 1] + (options.preserveExistingGaps
-          ? Math.max(stackGap(ordered[index], ordered[index + 1], state, options), Math.abs(ordered[index].existingInches - ordered[index + 1].existingInches))
-          : stackGap(ordered[index], ordered[index + 1], state, options))
-      );
-    }
-    const plan = [];
-    ordered.forEach((group, index) => {
-      const previous = plan[index - 1];
-      let target;
-      if (group.locked && group.lockedInches !== null) {
-        target = group.lockedInches;
-      } else if (mode === "LOW_COMM") {
-        const minimum = previous
-          ? previous.targetInches + stackGap(previous.group, group, state, options)
-          : proposedInches + commClearance(state);
-        let preferred = group.existingInches;
-        if (Number.isFinite(group.minimumInches)) preferred = Math.max(preferred, group.minimumInches);
-        if (Number.isFinite(group.maximumInches)) preferred = Math.min(preferred, group.maximumInches);
-        target = Math.min(maxPole, Math.max(preferred, minimum));
-      } else {
-        const requiredGap = previous
-          ? (options.preserveExistingGaps
-            ? Math.max(stackGap(previous.group, group, state, options), Math.abs(previous.group.existingInches - group.existingInches))
-            : stackGap(previous.group, group, state, options))
-          : 0;
-        const maximum = previous
-          ? previous.targetInches - requiredGap
-          : proposedInches - commClearance(state);
-        const ceiling = Number.isFinite(group.maximumInches)
-          ? Math.min(maximum, group.maximumInches, maxPole)
-          : Math.min(maximum, maxPole);
-        const floor = topCommFloors[index] || 0;
-        let preferred = group.existingInches;
-        if (options.followProposed || options.preferHighest) {
-          target = highestLegalTarget(ceiling, floor, existingBoltPoints, state, group.serviceDrop);
-        } else if (ceiling >= floor) {
-          target = Math.max(floor, Math.min(preferred, ceiling));
-        } else {
-          // This Proposed candidate cannot fit the required stack. Keep the
-          // candidate inside its upper envelope and let validation reject it.
-          target = Math.max(0, ceiling);
-        }
-      }
-      if (options.onlyLower && !group.locked && target > group.existingInches) {
-        // TOP COMM pole-first recovery may lower automatic communications,
-        // but it must never raise one merely to satisfy a stack floor.
-        target = group.existingInches;
-      }
-      plan.push({ group, targetInches: Math.round(target) });
-    });
-    return plan;
-  }
-
   function manualProposedReference(spans, poleId, mode) {
     const values = spans
       .map(span => S()?.getSpanSide?.(span.spanId, poleId))
@@ -682,160 +507,6 @@
         clearanceMSIssue: false
       });
     });
-  }
-
-  function splitIssueMessage(message) {
-    const source = text(message);
-    if (!source || source === "OK") return [];
-    return source.split(/\.\s+/).map(value => value.trim()).filter(Boolean).map(value => value.endsWith(".") ? value : `${value}.`);
-  }
-
-  function isMidspanIssue(message) {
-    return /^(Environment:|Power MS:|Comm-comm MS|Midspan order|No room for proposed above top comm)/i.test(text(message));
-  }
-
-  function issueSeverity(message) {
-    const values = (text(message).match(/[-−]?\d+\s*'(?:\s*\d+\s*")?|[-−]?\d+\s*"/g) || [])
-      .map(value => parse(value.replace("−", "-")))
-      .filter(value => value !== null);
-    if (!values.length) return 1;
-    if (/does not respect/i.test(message) && values.length >= 3) return Math.max(1, values[1] - Math.abs(values[0] - values[2]));
-    if (/separation/i.test(message) && /minimum/i.test(message) && values.length >= 2) return Math.max(1, values.at(-1) - values.at(-2));
-    if (/(exceeds|<|>)/.test(message) && values.length >= 2) return Math.max(1, Math.abs(values[0] - values[1]));
-    return 1;
-  }
-
-  function physicalSpanPair(span) {
-    return [span?.fromPole, span?.toPole].filter(Boolean).sort().join("|");
-  }
-
-  function collectIssues(poleId) {
-    const state = S()?.getState?.() || {};
-    const poleIssues = new Map();
-    const midspanIssues = new Map();
-    const add = (target, message) => {
-      const clean = text(message);
-      if (clean && clean !== "OK") target.set(clean.toLowerCase().replace(/\s+/g, " "), clean);
-    };
-    const pairs = new Set((S()?.getConnectedSpans?.(poleId) || []).map(physicalSpanPair).filter(Boolean));
-    const spanIds = new Set(Object.values(state.spans || {}).filter(span => pairs.has(physicalSpanPair(span))).map(span => span.spanId));
-    const rows = Object.values(state.spanComms || {}).filter(row => row.poleId === poleId || spanIds.has(row.spanId));
-    rows.forEach(row => {
-      if (row.flaggingStatus === "PROBLEM") {
-        splitIssueMessage(row.flaggingMessage).forEach(message => {
-          if (isMidspanIssue(message)) add(midspanIssues, message);
-          else if (row.poleId === poleId) add(poleIssues, message);
-        });
-      }
-      if (row.clearanceMSStatus === "PROBLEM" && !/Power MS:/i.test(row.flaggingMessage || "")) {
-        add(midspanIssues, row.clearanceMSMessage || "Midspan clearance issue.");
-      }
-    });
-    (S()?.getSpanSidesForPole?.(poleId) || []).forEach(side => {
-      if (!side.proposedHOA) return;
-      if (side.proposedFlaggingStatus === "PROBLEM") splitIssueMessage(side.proposedFlaggingMessage).forEach(message => add(poleIssues, message));
-      if (side.clearanceMSStatus === "PROBLEM") add(midspanIssues, side.clearanceMSMessage || "Proposed midspan clearance issue.");
-    });
-    const poleMessages = Array.from(poleIssues.values());
-    const midspanMessages = Array.from(midspanIssues.values());
-    return {
-      poleMessages,
-      midspanMessages,
-      poleViolationCount: poleMessages.length,
-      poleViolationInches: poleMessages.reduce((sum, message) => sum + issueSeverity(message), 0),
-      midspanViolationCount: midspanMessages.length,
-      midspanViolationInches: midspanMessages.reduce((sum, message) => sum + issueSeverity(message), 0)
-    };
-  }
-
-  function movementMetrics(poleId, mode) {
-    const groups = groupsForPole(poleId);
-    let movedCommCount = 0;
-    let totalMovementInches = 0;
-    groups.forEach(group => {
-      const movement = Math.abs((group.effectiveInches ?? group.existingInches) - group.existingInches);
-      if (movement) {
-        movedCommCount += 1;
-        totalMovementInches += movement;
-      }
-    });
-    const ideal = idealProposedHeight(groups, mode);
-    const proposals = (S()?.getSpanSidesForPole?.(poleId) || []).map(side => parse(side.proposedHOA || "")).filter(value => value !== null);
-    return {
-      movedCommCount,
-      totalMovementInches,
-      idealProposedInches: ideal,
-      selectedProposedInches: proposals.length
-        ? (mode === "LOW_COMM" ? Math.min(...proposals) : Math.max(...proposals))
-        : null,
-      proposedDistanceFromIdeal: ideal === null || !proposals.length
-        ? Number.MAX_SAFE_INTEGER
-        : proposals.reduce((sum, value) => sum + Math.abs(value - ideal), 0)
-    };
-  }
-
-  function categoryForAnalysis(value) {
-    if (!value.poleViolationCount && !value.midspanViolationCount) return 0;
-    if (!value.poleViolationCount) return 1;
-    return 2;
-  }
-
-  function rankAnalysis(value) {
-    return [
-      categoryForAnalysis(value),
-      value.poleViolationCount,
-      value.poleViolationInches,
-      value.midspanViolationCount,
-      value.midspanViolationInches,
-      value.movedCommCount,
-      value.totalMovementInches,
-      value.proposedDistanceFromIdeal
-    ];
-  }
-
-  function compareAnalyses(left, right) {
-    if (!left) return 1;
-    if (!right) return -1;
-    const a = rankAnalysis(left);
-    const b = rankAnalysis(right);
-    for (let index = 0; index < a.length; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
-    return 0;
-  }
-
-  function compareTopRecoveryAnalyses(left, right) {
-    if (!left) return 1;
-    if (!right) return -1;
-    const a = rankAnalysis(left);
-    const b = rankAnalysis(right);
-    for (let index = 0; index <= 4; index += 1) {
-      if (a[index] !== b[index]) return a[index] - b[index];
-    }
-    const leftProposed = Number.isFinite(left.selectedProposedInches) ? left.selectedProposedInches : -1;
-    const rightProposed = Number.isFinite(right.selectedProposedInches) ? right.selectedProposedInches : -1;
-    if (leftProposed !== rightProposed) return rightProposed - leftProposed;
-    for (let index = 5; index < a.length; index += 1) {
-      if (a[index] !== b[index]) return a[index] - b[index];
-    }
-    return 0;
-  }
-
-  function statusForAnalysis(value) {
-    return [STATUS.SAFE, STATUS.BEST_AVAILABLE, STATUS.CRITICAL][categoryForAnalysis(value)];
-  }
-
-  function resultMessage(value, status) {
-    if (status === STATUS.SAFE) return "Pole and Midspan clearances satisfied.";
-    if (status === STATUS.BEST_AVAILABLE) {
-      return `Pole clearances satisfied. Midspan keeps ${value.midspanViolationCount} issue${value.midspanViolationCount === 1 ? "" : "s"} (${format(value.midspanViolationInches)} total shortfall).`;
-    }
-    if (status === STATUS.CRITICAL) {
-      return `No pole-compliant aerial arrangement was found. Best candidate keeps ${value.poleViolationCount} pole issue${value.poleViolationCount === 1 ? "" : "s"} (${format(value.poleViolationInches)} total) and ${value.midspanViolationCount} Midspan issue${value.midspanViolationCount === 1 ? "" : "s"}.`;
-    }
-    return "Manual review required.";
-  }
-
-  function analyzeCurrentState(poleId, mode) {
-    return { poleId, mode, ...collectIssues(poleId), ...movementMetrics(poleId, mode) };
   }
 
   // TOP COMM Auto Proposed is intentionally pole-first.  Midspan and

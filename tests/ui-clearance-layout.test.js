@@ -22,6 +22,10 @@ const window = {
 const modulePath = path.join(__dirname, "..", "js", "ui", "pole-renderer.js");
 const reviewRendererPath = path.join(__dirname, "..", "js", "ui", "excel-review-renderer.js");
 vm.runInNewContext(fs.readFileSync(reviewRendererPath, "utf8"), { window }, { filename: reviewRendererPath });
+const powerRendererPath = path.join(__dirname, "..", "js", "ui", "poles", "power-equipment-renderer.js");
+vm.runInNewContext(fs.readFileSync(powerRendererPath, "utf8"), { window }, { filename: powerRendererPath });
+const settingsRendererPath = path.join(__dirname, "..", "js", "ui", "settings-renderer.js");
+vm.runInNewContext(fs.readFileSync(settingsRendererPath, "utf8"), { window }, { filename: settingsRendererPath });
 vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), { window }, { filename: modulePath });
 
 const clearanceSettings = { innerHTML: "" };

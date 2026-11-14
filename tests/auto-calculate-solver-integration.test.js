@@ -81,7 +81,9 @@ const Calculations = {
 };
 const window = { AppStore, Calculations, HeightUtils: { parseHeight, formatHeight } };
 const sourcePath = path.join(__dirname, "..", "js", "rules", "auto-calculate-solver.js");
-vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window, console, Date, JSON, Math, Number, Object, Array, Set, Map, String, RegExp }, { filename: sourcePath });
+const analysisPath = path.join(__dirname, "..", "js", "rules", "auto-calculate", "candidate-analysis.js");
+const generationPath = path.join(__dirname, "..", "js", "rules", "auto-calculate", "candidate-generation.js");
+vm.runInNewContext(`${fs.readFileSync(analysisPath, "utf8")}\n${fs.readFileSync(generationPath, "utf8")}\n${fs.readFileSync(sourcePath, "utf8")}`, { window, console, Date, JSON, Math, Number, Object, Array, Set, Map, String, RegExp }, { filename: sourcePath });
 
 (async () => {
   const candidateProgress = [];

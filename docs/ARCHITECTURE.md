@@ -24,37 +24,43 @@ Every browser module is an IIFE that publishes a small API on `window`.
 8. `js/core/store-identity.js`
 9. `js/core/store.js`
 10. `js/domain/comm-movements.js`
-11. `js/domain/pole-inset-calculation.js`
-12. `js/domain/clearance-rules.js`
-13. `js/domain/midspan-engine.js`
-14. `js/rules/mr-logic.js`
-15. `js/rules/validations.js`
-16. `js/import/import-normalizers.js`
-17. `js/import/excel-import.js`
-18. `js/import/update-data-reconciler.js`
-19. `js/import/excel-review-wire-checks.js`
-20. `js/import/excel-review.js`
-21. `js/export/excel-export.js`
-22. `js/export/json-export.js`
-23. `js/export/compact-autoproposed.js`
-24. `js/rules/auto-calculate-solver.js`
-25. `js/ui/dialogs.js`
-26. `js/ui/theme.js`
-27. `js/ui/mobile-keyboard.js`
-28. `js/ui/floating-calculator.js`
-29. `js/ui/excel-review-renderer.js`
-30. `js/ui/pole-renderer.js`
-31. `js/ui/controls.js`
-32. `js/core/persistence.js`
-33. `js/core/history.js`
-34. `js/ui/pole-navigation.js`
-35. `js/ui/app.js`
-36. `js/ui/dom-contract.js`
-37. `js/ui/comm-table.js`
-38. `js/ui/span-colors.js`
-39. `js/ui/runtime.js`
+11. `js/domain/midspan-engine.js`
+12. `js/domain/pole-inset-calculation.js`
+13. `js/domain/clearance/power-clearance.js`
+14. `js/domain/clearance-rules.js`
+15. `js/rules/mr-logic.js`
+16. `js/rules/validations.js`
+17. `js/import/import-normalizers.js`
+18. `js/import/excel-import.js`
+19. `js/import/update-data-reconciler.js`
+20. `js/import/excel-review-wire-checks.js`
+21. `js/import/excel-review.js`
+22. `js/export/excel-export.js`
+23. `js/export/json-export.js`
+24. `js/export/compact-autoproposed.js`
+25. `js/rules/auto-calculate/candidate-analysis.js`
+26. `js/rules/auto-calculate/candidate-generation.js`
+27. `js/rules/auto-calculate-solver.js`
+28. `js/ui/dialogs.js`
+29. `js/ui/theme.js`
+30. `js/ui/mobile-keyboard.js`
+31. `js/ui/floating-calculator.js`
+32. `js/ui/excel-review-renderer.js`
+33. `js/ui/settings-renderer.js`
+34. `js/ui/poles/power-equipment-renderer.js`
+35. `js/ui/pole-renderer.js`
+36. `js/ui/controls.js`
+37. `js/core/persistence.js`
+38. `js/core/history.js`
+39. `js/ui/pole-navigation.js`
+40. `js/ui/comm-pairing-dialog.js`
+41. `js/ui/app.js`
+42. `js/ui/dom-contract.js`
+43. `js/ui/comm-table.js`
+44. `js/ui/span-colors.js`
+45. `js/ui/runtime.js`
 
-Changing this order can break global dependencies. Pole resolution, state compatibility, and identity helpers load before the store; movement and Pole Inset calculation modules register before clearance calculations inject their helpers; import normalizers load before ExcelImport; Excel Review wire rules load before the audit coordinator, and its result renderer loads before the app initializes it. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
+Changing this order can break global dependencies. Pole resolution, state compatibility, and identity helpers load before the store; movement, Midspan, Pole Inset, and Power Clearance modules register before clearance calculations inject their helpers; import normalizers load before ExcelImport; Excel Review wire rules load before the audit coordinator, and its result renderer loads before the app initializes it. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
 
 ## Module Responsibilities
 
@@ -73,10 +79,13 @@ Changing this order can break global dependencies. Pole resolution, state compat
 | `domain/comm-movements.js` | `CalculationAutoMovementModule` | Encapsulate Auto Calculate movement planning and apply routines using helpers injected by clearance calculations. |
 | `domain/pole-inset-calculation.js` | `PoleInsetCalculationModule` | Calculate Pole Inset span options, selected-span power ceilings, and End Drops. |
 | `domain/clearance-rules.js` | `Calculations` | Derive clearances, pole limits, comm midspans, Proposed results, End Drop, recalculation, and flagging. This remains the integrated calculation orchestrator. |
+| `domain/clearance/power-clearance.js` | `PowerClearanceModule` | Validate equipment actions and calculate equipment clearances and effective Low Power references. |
 | `domain/midspan-engine.js` | `MidspanEngine` (`MidspanLogic` compatibility alias) | Calculate comm Midspan from the imported baseline plus half of each endpoint movement; also provide span-oriented Midspan read/recalculation APIs. |
 | `domain/graph.js` | `PoleGraph` | Graph utilities for pole/span topology; not loaded by the browser runtime unless explicitly needed. |
 | `rules/mr-logic.js` | `MRLogic` | Generate ordered Make Ready text for each pole. |
 | `rules/auto-calculate-solver.js` | `AutoCalculateSolver` | Search TOP/LOW COMM arrangements, rank SAFE/BEST AVAILABLE/CRITICAL results, and install the public Auto Calculate entry point. |
+| `rules/auto-calculate/candidate-analysis.js` | `AutoCalculateCandidateAnalysis` | Collect violation and movement metrics, rank candidate results, and format result status/messages. |
+| `rules/auto-calculate/candidate-generation.js` | `AutoCalculateCandidateGeneration` | Generate Proposed height candidates and build stacked communication movement plans. |
 | `rules/validations.js` | `Validations` | Generate broad data-integrity warnings. Table flagging remains in `Calculations`. |
 | `import/import-normalizers.js` | `ImportNormalizers` | Normalize worksheet rows, headers, heights, identifiers, and common cell values. |
 | `import/excel-import.js` | `ExcelImport` | Convert Excel worksheets or saved data into normalized AppStore entities. |
@@ -88,6 +97,7 @@ Changing this order can break global dependencies. Pole resolution, state compat
 | `export/compact-autoproposed.js` | `CompactAutoProposed` | Produce compact Web-to-plugin data with UG/PCO safety and movement MR. |
 | `ui/app.js` | browser coordinator | Initialize UI modules and coordinate events, history, persistence, dialogs, and targeted refreshes. |
 | `ui/pole-renderer.js` | `PoleWorkspaceRenderer` | Render pole cards, communication and Proposed tables, review panels, and targeted pole refreshes. |
+| `ui/settings-renderer.js` | `PoleSettingsRenderer` | Render clearance/project settings and maintain Auto Proposed/export button state. |
 | `ui/controls.js` | `PoleActions` | Handle pole action controls, comm edits, and Proposed span actions. |
 | `ui/dialogs.js` | `AppDialogs` | Shared confirmation, prompt, and message dialogs. |
 | `ui/theme.js` | `ThemeControl` | Resolve and persist the active light/dark theme. |
@@ -95,6 +105,8 @@ Changing this order can break global dependencies. Pole resolution, state compat
 | `ui/floating-calculator.js` | `FloatingCalculator` | Evaluate feet/inches expressions and normalize quotes. |
 | `ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Render Excel Review results, badges, warning controls, and actions. |
 | `ui/pole-navigation.js` | `PoleNavigation` | Own pole-index drawer visibility, pole selection, and scroll navigation. |
+| `ui/comm-pairing-dialog.js` | `CommPairingDialogModule` | Render and manage cable-match dialog selections; return selected matches to the app coordinator without mutating project state. |
+| `ui/poles/power-equipment-renderer.js` | `PowerEquipmentRenderer` | Render imported power rows, equipment action controls, and their shared disclosure icon. |
 | `ui/dom-contract.js` | `UiDomContract` | Annotate rendered cards and tables with stable component, pole, span, and column identities. |
 | `ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA without deleting calculation data. |
 | `ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and synchronize each Midspan row. |

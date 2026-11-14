@@ -11,7 +11,7 @@ const window = {
 };
 const sandbox = { window, console, Date, Set, Map, Math, JSON, Object, Array, String, Number, Boolean, RegExp };
 
-for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store-identity.js", "core/store.js", "rules/mr-logic.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/pole-inset-calculation.js", "domain/clearance-rules.js", "ui/excel-review-renderer.js", "ui/pole-renderer.js"]) {
+for (const file of ["domain/height-math.js", "core/project-config.js", "domain/pole-resolution.js", "core/state-compat.js", "core/store-identity.js", "core/store.js", "rules/mr-logic.js", "domain/comm-movements.js", "domain/midspan-engine.js", "domain/pole-inset-calculation.js", "domain/clearance/power-clearance.js", "domain/clearance-rules.js", "ui/excel-review-renderer.js", "ui/poles/power-equipment-renderer.js", "ui/settings-renderer.js", "ui/pole-renderer.js"]) {
   const modulePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });
 }

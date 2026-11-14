@@ -256,6 +256,7 @@
       const circumferenceRaw = pick(row, ["Circumference", "Circumfer", "Circumference (\")", "Ground Circumference"], { contains: true });
       const diameterRaw = pick(row, ["Diameter", "Groundline Diameter"], { contains: true });
       const birthmarkRaw = pick(row, ["Birthmark", "Birth Mark", "Birthmark Photos", "Birth Mark Photos"], { contains: true });
+      const yearInstalledRaw = pick(row, ["Year Installed"], { contains: false });
       const state = S()?.getState?.();
 
       return recalculatePoleClassCheck({
@@ -265,6 +266,7 @@
         importedDiameter: parseNumber(diameterRaw) === null ? "" : String(parseNumber(diameterRaw)),
         manualDiameter: "",
         importedType,
+        yearInstalled: String(yearInstalledRaw ?? "").trim(),
         birthmark: birthmarkRaw,
         birthmarkExists: hasBirthmarkValue(birthmarkRaw),
         birthmarkActive: hasBirthmarkValue(birthmarkRaw),

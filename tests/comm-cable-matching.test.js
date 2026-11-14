@@ -22,7 +22,7 @@ for (const file of [
   "domain/comm-movements.js",
   "domain/midspan-engine.js",
   "domain/pole-inset-calculation.js",
-  "domain/clearance-rules.js"
+  "domain/clearance/power-clearance.js", "domain/clearance-rules.js"
 ]) {
   const modulePath = path.join(__dirname, "..", "js", file);
   vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), sandbox, { filename: modulePath });

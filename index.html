@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#eef4ff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Pole Span MR Calculator</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.260" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.264" />
 </head>
 <body>
   <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
@@ -39,7 +39,7 @@
     <header class="topbar">
       <div>
         <h1>Pole Span MR Calculator</h1>
-        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.260</p>
+        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.264</p>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
@@ -145,7 +145,7 @@
                 <svg class="excel-review-collapse-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h10M4 12h10M4 19h10M17 15l3-3 3 3M20 12v8" /></svg>
               </button>
               <button id="rerunExcelReviewBtn" class="btn btn-primary excel-review-icon-btn" type="button" title="Re-run Excel Review" aria-label="Re-run Excel Review">
-                <svg class="excel-review-rerun-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.7 6.7a7.5 7.5 0 1 0 10.6 0" /><path class="excel-review-rerun-arrowhead" d="m17.3 3.8 4 6.2-7.1-.7z" /></svg>
+                <svg class="excel-review-rerun-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
               </button>
             </div>
           </div>
@@ -221,40 +221,46 @@
   </section>
 
   <script src="libs/xlsx.full.min.js"></script>
-  <script src="js/core/deployment-version.js?v=1.8.260"></script>
-  <script src="js/core/performance-debug.js?v=1.8.260"></script>
+  <script src="js/core/deployment-version.js?v=1.8.264"></script>
+  <script src="js/core/performance-debug.js?v=1.8.264"></script>
   <script src="js/domain/height-math.js"></script>
-  <script src="js/core/project-config.js?v=1.8.260"></script>
+  <script src="js/core/project-config.js?v=1.8.264"></script>
   <script src="js/domain/pole-resolution.js"></script>
   <script src="js/core/state-compat.js"></script>
-  <script src="js/core/store-identity.js?v=1.8.260"></script>
-  <script src="js/core/store.js?v=1.8.260"></script>
-  <script src="js/domain/comm-movements.js?v=1.8.260"></script>
+  <script src="js/core/store-identity.js?v=1.8.264"></script>
+  <script src="js/core/store.js?v=1.8.264"></script>
+  <script src="js/domain/comm-movements.js?v=1.8.264"></script>
   <script src="js/domain/midspan-engine.js"></script>
-  <script src="js/domain/pole-inset-calculation.js?v=1.8.260"></script>
-  <script src="js/domain/clearance-rules.js?v=1.8.260"></script>
+  <script src="js/domain/pole-inset-calculation.js?v=1.8.264"></script>
+  <script src="js/domain/clearance/power-clearance.js?v=1.8.264"></script>
+  <script src="js/domain/clearance-rules.js?v=1.8.264"></script>
   <script src="js/rules/mr-logic.js"></script>
   <script src="js/rules/validations.js"></script>
   <script src="js/import/import-normalizers.js"></script>
-  <script src="js/import/excel-import.js?v=1.8.260"></script>
-  <script src="js/import/update-data-reconciler.js?v=1.8.260"></script>
-  <script src="js/import/excel-review-wire-checks.js?v=1.8.260"></script>
-  <script src="js/import/excel-review.js?v=1.8.260"></script>
-  <script src="js/export/excel-export.js?v=1.8.260"></script>
+  <script src="js/import/excel-import.js?v=1.8.264"></script>
+  <script src="js/import/update-data-reconciler.js?v=1.8.264"></script>
+  <script src="js/import/excel-review-wire-checks.js?v=1.8.264"></script>
+  <script src="js/import/excel-review.js?v=1.8.264"></script>
+  <script src="js/export/excel-export.js?v=1.8.264"></script>
   <script src="js/export/json-export.js"></script>
-  <script src="js/export/compact-autoproposed.js?v=1.8.260"></script>
-  <script src="js/rules/auto-calculate-solver.js"></script>
-  <script src="js/ui/dialogs.js?v=1.8.260"></script>
+  <script src="js/export/compact-autoproposed.js?v=1.8.264"></script>
+  <script src="js/rules/auto-calculate/candidate-analysis.js?v=1.8.264"></script>
+  <script src="js/rules/auto-calculate/candidate-generation.js?v=1.8.264"></script>
+  <script src="js/rules/auto-calculate-solver.js?v=1.8.264"></script>
+  <script src="js/ui/dialogs.js?v=1.8.264"></script>
   <script src="js/ui/theme.js"></script>
   <script src="js/ui/mobile-keyboard.js"></script>
-  <script src="js/ui/floating-calculator.js?v=1.8.260"></script>
-  <script src="js/ui/excel-review-renderer.js?v=1.8.260"></script>
-  <script src="js/ui/pole-renderer.js?v=1.8.260"></script>
-  <script src="js/ui/controls.js?v=1.8.260"></script>
+  <script src="js/ui/floating-calculator.js?v=1.8.264"></script>
+  <script src="js/ui/excel-review-renderer.js?v=1.8.264"></script>
+  <script src="js/ui/settings-renderer.js?v=1.8.264"></script>
+  <script src="js/ui/poles/power-equipment-renderer.js?v=1.8.264"></script>
+  <script src="js/ui/pole-renderer.js?v=1.8.264"></script>
+  <script src="js/ui/controls.js?v=1.8.264"></script>
   <script src="js/core/persistence.js"></script>
   <script src="js/core/history.js"></script>
-  <script src="js/ui/pole-navigation.js?v=1.8.260"></script>
-  <script src="js/ui/app.js?v=1.8.260"></script>
+  <script src="js/ui/pole-navigation.js?v=1.8.264"></script>
+  <script src="js/ui/comm-pairing-dialog.js?v=1.8.264"></script>
+  <script src="js/ui/app.js?v=1.8.264"></script>
   <script src="js/ui/dom-contract.js"></script>
   <script src="js/ui/comm-table.js"></script>
   <script src="js/ui/span-colors.js"></script>
