@@ -43,6 +43,7 @@
       btn.dataset.equipmentIndex
     )));
     root.querySelectorAll("[data-toggle-ug]").forEach(btn => btn.addEventListener("click", () => toggleUG(btn.dataset.pole)));
+    root.querySelectorAll("[data-toggle-ug-all]").forEach(btn => btn.addEventListener("click", () => toggleUGAll(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
@@ -141,15 +142,42 @@
     if (!pole) return;
     recordUndoSnapshot();
     const currentResolution = poleResolutionOf(pole);
-    const nextUGActive = currentResolution !== "UG";
+    const connectedSpans = S.getConnectedSpans(poleId);
+    const hasSpanUG = connectedSpans.some(span => span.ugActive === true);
+    const nextUGActive = currentResolution !== "UG" && !hasSpanUG;
+    if (!nextUGActive) {
+      connectedSpans.forEach(span => {
+        if (span.ugActive === true) S.updateSpanField(span.spanId, "ugActive", false);
+      });
+    }
     S.upsertPole({
       ...pole,
       ugActive: nextUGActive,
-      ugSpanId: pole.ugSpanId || "ALL",
+      ugSpanId: nextUGActive ? "ALL" : (pole.ugSpanId || "ALL"),
       pcoActive: nextUGActive ? false : pole.pcoActive
     });
     global.Calculations.recalculateSpansForPole(poleId);
-    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+    const affectedPoleIds = global.MRLogic.generateMRForUGChange?.(poleId)
+      || [poleId, ...connectedSpans.map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)];
+    renderAffectedPoles(affectedPoleIds);
+    markDirty();
+  }
+
+  function toggleUGAll(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole || poleResolutionOf(pole) === "PCO") return;
+    if (poleResolutionOf(pole) === "UG") return;
+    recordUndoSnapshot();
+    const connectedSpans = S.getConnectedSpans(poleId);
+    connectedSpans.forEach(span => {
+      if (span.ugActive === true) S.updateSpanField(span.spanId, "ugActive", false);
+    });
+    S.upsertPole({ ...pole, ugActive: true, pcoActive: false, ugSpanId: "ALL" });
+    global.Calculations.recalculateSpansForPole(poleId);
+    const affectedPoleIds = global.MRLogic.generateMRForUGChange?.(poleId)
+      || [poleId, ...connectedSpans.map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)];
+    renderAffectedPoles(affectedPoleIds);
+    markDirty();
   }
 
   function togglePCO(poleId) {
@@ -158,13 +186,22 @@
     recordUndoSnapshot();
     const currentResolution = poleResolutionOf(pole);
     const nextPCOActive = currentResolution !== "PCO";
+    const connectedSpans = S.getConnectedSpans(poleId);
+    if (nextPCOActive) {
+      connectedSpans.forEach(span => {
+        if (span.ugActive === true) S.updateSpanField(span.spanId, "ugActive", false);
+      });
+    }
     S.upsertPole({
       ...pole,
       pcoActive: nextPCOActive,
       ugActive: nextPCOActive ? false : pole.ugActive
     });
     global.Calculations.recalculateSpansForPole(poleId);
-    renderAffectedPoles([poleId, ...S.getConnectedSpans(poleId).map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)]);
+    const affectedPoleIds = global.MRLogic.generateMRForUGChange?.(poleId)
+      || [poleId, ...connectedSpans.map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)];
+    renderAffectedPoles(affectedPoleIds);
+    markDirty();
   }
 
   function toggleRiser(poleId) {
@@ -309,10 +346,13 @@
   function toggleSpanUG(poleId, spanId, enabled) {
     const pole = S.getPole(poleId);
     const span = S.getSpan(spanId);
-    if (!pole || !span || poleResolutionOf(pole) !== "AERIAL") return;
+    if (!pole || !span || poleResolutionOf(pole) === "PCO") return;
     const nextActive = typeof enabled === "boolean" ? enabled : span.ugActive !== true;
     if ((span.ugActive === true) === nextActive) return;
     recordUndoSnapshot();
+    if (nextActive && pole.ugActive === true) {
+      S.upsertPole({ ...pole, ugActive: false, ugSpanId: "ALL" });
+    }
     S.updateSpanField(spanId, "ugActive", nextActive);
     if (nextActive && !span.ugReason) S.updateSpanField(spanId, "ugReason", "CLEARANCE VIOLATION");
     global.Calculations.recalculateSpan(spanId);

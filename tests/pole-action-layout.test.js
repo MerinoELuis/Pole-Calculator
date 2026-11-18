@@ -32,6 +32,7 @@ const window = {
       { spanId: "SPAN-W", relation: "Backspan", direction: "W", otherPoleId: "P2", label: "Backspan W · P2" },
       { spanId: "SPAN-E", relation: "Forespan", direction: "E", otherPoleId: "P3", label: "Forespan E · P3" }
     ],
+    getEditableUGTemplate: () => "Unable to attach due to clearance violation.",
     getEffectiveANCDistance: () => "15'",
     getEffectiveANCDGHOA: () => "19'",
     getEffectiveANCDirection: () => "N",
@@ -57,6 +58,7 @@ const renderer = window.PoleWorkspaceRenderer.create({
   S: {
     getPole: () => pole,
     getState: () => state,
+    getConnectedSpans: () => [{ spanId: "SPAN-W", ugActive: true }, { spanId: "SPAN-E", ugActive: false }],
     getSpan: spanId => ({ "SPAN-W": { ugActive: true }, "SPAN-E": { ugActive: false } })[spanId] || null
   },
   H: { parseHeight: () => null, formatHeight: value => String(value) },
@@ -77,10 +79,14 @@ assert.match(markup, /data-field="dgHoa"[^]*?<\/label>\s*<div class="proposed-an
 assert.match(markup, /class="pole-action-section pole-inset-section"/, "Pole Inset should have a separated action block");
 assert.match(markup, /class="pole-action-section"><label class="pole-action-field riser-direction-field"/, "Riser should have a separated action block");
 assert.match(markup, /class="pole-action-section proposed-anc-section"/, "ANC should have a separated action block");
-assert.match(markup, /class="pole-action-section span-ug-transfer-section"[^]*?data-span="SPAN-W"[^]*?checked[^]*?data-span="SPAN-E"/,
-  "an aerial pole should expose independent UG controls for each connected physical span");
-assert.match(markup, /The pole stays aerial; ANC and Riser remain available\./,
-  "span-level UG should clearly state that normal aerial-pole actions remain available");
+assert.match(markup, /class="pole-action-section ug-action-section"[^]*?data-toggle-ug-all[^]*?data-span="SPAN-W"[^]*?checked[^]*?data-span="SPAN-E"/,
+  "span-level UG choices should live under the existing UG action and allow multiple connected spans");
+assert.match(markup, /Choose ALL for the whole pole, or select individual spans to keep this pole aerial\./,
+  "the UG scope control should distinguish whole-pole and span-only work");
+assert.match(markup, /data-toggle-anc data-pole="P1"(?! disabled)/,
+  "ANC should remain available when only a connected span is UG");
+assert.match(markup, /data-toggle-riser data-pole="P1"(?! disabled)/,
+  "Riser should remain available when only a connected span is UG");
 assert.ok((markup.match(/class="pole-action-section/g) || []).length >= 3,
   "simultaneously active Pole Inset, Riser, and ANC actions should each be separated");
 

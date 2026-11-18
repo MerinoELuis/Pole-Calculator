@@ -917,27 +917,19 @@
         const isIntec = projectProfile === "INTEC";
         const isMetronet = projectProfile === "METRONET";
         const isOlsson = projectProfile === "OLSSON_OPPD";
-        const spanLevelUGOptions = (isIntec || isMetronet) && resolution === "AERIAL"
-          ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
-          : [];
+        const connectedSpans = S.getConnectedSpans?.(poleId) || [];
+        const hasSpanLevelUG = connectedSpans.some(span => span.ugActive === true);
         const powerEquipment = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
         const riserEquipment = powerEquipment.filter(row => String(row.category || row.type || "").toUpperCase().includes("RISER"));
         const secondaryDripLoopActive = Boolean(pole?.secondaryDripLoopActive);
-        const showUGReason = resolution === "UG" && (isIntec || isMetronet || isOlsson);
+        const showUGReason = (resolution === "UG" || ((isIntec || isMetronet) && resolution === "AERIAL" && hasSpanLevelUG))
+          && (isIntec || isMetronet || isOlsson);
         const ugTemplate = showUGReason
           ? global.MRLogic.getEditableUGTemplate(pole)
           : "";
-        const ugSpanOptions = isIntec && resolution === "UG"
+        const ugSpanOptions = (isIntec || isMetronet) && showUGReason
           ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
           : [];
-        const savedUGSpanId = String(pole?.ugSpanId || "ALL").trim() || "ALL";
-        const selectedUGSpanId = savedUGSpanId.toUpperCase() === "ALL"
-          || ugSpanOptions.some(option => option.spanId === savedUGSpanId)
-          ? savedUGSpanId
-          : "ALL";
-        const ugSpanTemplate = isIntec && selectedUGSpanId.toUpperCase() !== "ALL"
-          ? (global.MRLogic.getEditableUGSpanTemplate?.(pole) || "")
-          : "";
         const showPCOEditor = resolution === "PCO";
         const pcoTemplate = showPCOEditor
           ? global.MRLogic.getEditablePCOTemplate(pole)
@@ -1010,7 +1002,7 @@
           </div>`;
         };
         return `<div class="pole-action-buttons">
-          <button class="mini-btn ${resolution === "UG" ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
+          <button class="mini-btn ${resolution === "UG" || hasSpanLevelUG ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
           <button class="mini-btn ${resolution === "PCO" ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
           ${!isMetronet && !isOlsson ? `<button class="mini-btn ${poleInsetEnabled ? "active-action" : ""}" type="button" data-toggle-pole-inset data-pole="${escapeHtml(poleId)}" ${resolution !== "AERIAL" ? "disabled" : ""} title="${resolution !== "AERIAL" ? "Pole Inset is disabled while this pole is UG or PCO" : "Add or remove the Pole Inset Make Ready"}">Pole Inset</button>` : ""}
           ${isOlsson ? `<button class="mini-btn ${pole?.redTagActive ? "active-action" : ""}" type="button" data-toggle-red-tag data-pole="${escapeHtml(poleId)}" title="Add or remove the Olsson OPPD Red Tag Make Ready">Red Tag</button>` : ""}
@@ -1020,22 +1012,6 @@
           ${(isIntec || isMetronet) ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? `Add or remove the ${isMetronet ? "MidAm" : "INTEC"} ANC Make Ready` : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
           ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
         </div>
-        ${spanLevelUGOptions.length ? `<div class="pole-action-section span-ug-transfer-section">
-          <div class="span-ug-transfer-heading">
-            <strong>UG by Span</strong>
-            <span>The pole stays aerial; ANC and Riser remain available.</span>
-          </div>
-          <div class="span-ug-transfer-options">
-            ${spanLevelUGOptions.map(option => {
-              const active = S.getSpan(option.spanId)?.ugActive === true;
-              const directionLabel = option.direction ? ` · ${option.direction}` : "";
-              return `<label class="span-ug-transfer-option">
-                <input type="checkbox" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(option.spanId)}" ${active ? "checked" : ""} aria-label="Mark ${escapeHtml(option.label)} as UG">
-                <span><strong>${escapeHtml(option.relation)}${escapeHtml(directionLabel)}</strong><small>to ${escapeHtml(option.otherPoleId)}</small></span>
-              </label>`;
-            }).join("")}
-          </div>
-        </div>` : ""}
         ${poleInsetEnabled ? `<div class="pole-action-section pole-inset-section"><div class="pole-action-fields action-detail-grid pole-inset-controls">
           <label class="pole-action-field">
             <span>Pole Inset Reason</span>
@@ -1064,23 +1040,29 @@
           <label class="pole-action-field"><span>Red Tag Minimum Class</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagClass" value="${escapeHtml(pole?.redTagClass || "")}"></label>
           <label class="pole-action-field"><span>Red Tag Reason</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagReason" value="${escapeHtml(pole?.redTagReason || "")}" placeholder="CLEARANCES / LOAD FAILURE"></label>
         </div></div>` : ""}
-        ${showUGReason ? `<div class="pole-action-section ug-action-section"><div class="pole-action-fields action-detail-grid ug-controls">
-          ${isIntec ? `<label class="pole-action-field">
-            <span>UG Span</span>
-            <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugSpanId">
-              <option value="ALL" ${selectedUGSpanId.toUpperCase() === "ALL" ? "selected" : ""}>ALL</option>
-              ${ugSpanOptions.map(option => `<option value="${escapeHtml(option.spanId)}" ${option.spanId === selectedUGSpanId ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
-            </select>
-          </label>
-          ` : ""}
-        </div>
-        ${isIntec && selectedUGSpanId.toUpperCase() !== "ALL" ? `<div class="pole-action-field ug-span-preview">
-          <span>UG Make Ready</span>
-          <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugSpanMRText">${escapeHtml(ugSpanTemplate)}</textarea>
-        </div>` : `<label class="pole-action-field">
+        ${showUGReason ? `<div class="pole-action-section ug-action-section">
+        ${(isIntec || isMetronet) ? `<div class="span-ug-transfer-section">
+          <div class="span-ug-transfer-heading">
+            <strong>UG Scope</strong>
+            <span>Choose ALL for the whole pole, or select individual spans to keep this pole aerial.</span>
+          </div>
+          <div class="span-ug-transfer-options">
+            <button class="mini-btn ${resolution === "UG" ? "active-action" : ""}" type="button" data-toggle-ug-all data-pole="${escapeHtml(poleId)}" aria-pressed="${resolution === "UG"}">ALL · Entire pole</button>
+            ${ugSpanOptions.map(option => {
+              const active = S.getSpan(option.spanId)?.ugActive === true;
+              const directionLabel = option.direction ? ` · ${option.direction}` : "";
+              return `<label class="span-ug-transfer-option">
+                <input type="checkbox" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(option.spanId)}" ${active ? "checked" : ""} aria-label="Mark ${escapeHtml(option.label)} as UG">
+                <span><strong>${escapeHtml(option.relation)}${escapeHtml(directionLabel)}</strong><small>to ${escapeHtml(option.otherPoleId)}</small></span>
+              </label>`;
+            }).join("")}
+          </div>
+          ${hasSpanLevelUG ? `<p class="muted span-ug-transfer-note">Selected spans go UG; this pole remains aerial, so ANC and Riser stay available.</p>` : ""}
+        </div>` : ""}
+        ${resolution === "UG" ? `<label class="pole-action-field">
           <span>UG Make Ready</span>
           <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
-        </label>`}</div>` : ""}
+        </label>` : ""}</div>` : ""}
         ${showPCOEditor ? `<div class="pole-action-section"><label class="pole-action-field">
           <span>PCO Make Ready</span>
           <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="pcoMRText">${escapeHtml(pcoTemplate)}</textarea>
