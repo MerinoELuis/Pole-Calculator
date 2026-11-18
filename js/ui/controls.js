@@ -47,7 +47,11 @@
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-secondary-drip-loop]").forEach(btn => btn.addEventListener("click", () => toggleSecondaryDripLoop(btn.dataset.pole)));
-    root.querySelectorAll("[data-toggle-span-ug]").forEach(btn => btn.addEventListener("click", () => toggleSpanUG(btn.dataset.pole, btn.dataset.span)));
+    root.querySelectorAll("[data-toggle-span-ug]").forEach(input => input.addEventListener("change", () => toggleSpanUG(
+      input.dataset.pole,
+      input.dataset.span,
+      input.checked
+    )));
     root.querySelectorAll("[data-toggle-anc]").forEach(btn => btn.addEventListener("click", () => toggleANC(btn.dataset.pole)));
     root.querySelectorAll("[data-add-proposed-anc]").forEach(btn => btn.addEventListener("click", () => addProposedANC(btn.dataset.pole)));
     root.querySelectorAll("[data-remove-proposed-anc]").forEach(btn => btn.addEventListener("click", () => removeProposedANC(
@@ -302,16 +306,19 @@
     });
   }
 
-  function toggleSpanUG(poleId, spanId) {
+  function toggleSpanUG(poleId, spanId, enabled) {
     const pole = S.getPole(poleId);
     const span = S.getSpan(spanId);
     if (!pole || !span || poleResolutionOf(pole) !== "AERIAL") return;
+    const nextActive = typeof enabled === "boolean" ? enabled : span.ugActive !== true;
+    if ((span.ugActive === true) === nextActive) return;
     recordUndoSnapshot();
-    const enabling = span.ugActive !== true;
-    S.updateSpanField(spanId, "ugActive", enabling);
-    if (enabling && !span.ugReason) S.updateSpanField(spanId, "ugReason", "CLEARANCE VIOLATION");
+    S.updateSpanField(spanId, "ugActive", nextActive);
+    if (nextActive && !span.ugReason) S.updateSpanField(spanId, "ugReason", "CLEARANCE VIOLATION");
     global.Calculations.recalculateSpan(spanId);
-    renderAffectedPoles([span.fromPole, span.toPole].filter(Boolean));
+    const affectedPoleIds = global.MRLogic.generateMRForUGChange?.(poleId)
+      || [span.fromPole, span.toPole].filter(Boolean);
+    renderAffectedPoles(affectedPoleIds);
     markDirty();
   }
 

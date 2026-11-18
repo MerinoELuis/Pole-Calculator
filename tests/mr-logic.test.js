@@ -559,9 +559,15 @@ state.spans.PROP.ugActive = true;
 state.spans.PROP.ugReason = "CLEARANCE VIOLATION";
 sandbox.window.MRLogic.generateMRForPole("P1");
 const caseTwoText = state.mr.find(item => item.poleId === "P1").text;
-assert.match(caseTwoText, /FORESPAN GOING UG DUE TO CLEARANCE VIOLATION\./, "Case 2 must use a span-owned Fore Span UG instruction");
+assert.match(caseTwoText, /FORESPAN GOING UG N DUE TO CLEARANCE VIOLATION\./, "Case 2 must use a direction-specific span-owned Fore Span UG instruction");
 assert.match(caseTwoText, /PL NEW RISER FOR UG TRANSFER N\./, "Case 2 must use the affected span direction for the transfer riser");
 assert.doesNotMatch(caseTwoText, /PL NEW .*ANC/i, "Case 2 must not auto-add ANC");
+state.spans.BACK_E = { spanId: "BACK_E", fromPole: "P1", toPole: "P2", type: "Back Span", rawType: "Back Span", direction: "E", ugActive: true, ugReason: "TDU REPLACE REQUIRED" };
+sandbox.window.MRLogic.generateMRForPole("P1");
+const multipleSpanUGText = state.mr.find(item => item.poleId === "P1").text;
+assert.match(multipleSpanUGText, /FORESPAN GOING UG N DUE TO CLEARANCE VIOLATION\./, "the first selected physical span must keep its own direction and reason");
+assert.match(multipleSpanUGText, /BACKSPAN GOING UG E DUE TO TDU REPLACE REQUIRED\./, "a second span in another direction must independently appear in Make Ready");
+delete state.spans.BACK_E;
 state.spans.PROP.ugActive = false;
 state.spans.PROP.ugReason = "";
 

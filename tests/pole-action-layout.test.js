@@ -28,6 +28,10 @@ const window = {
     isANCEnabled: () => true,
     isRiserAvailable: () => true,
     isRiserEnabled: () => true,
+    getUGSpanOptions: () => [
+      { spanId: "SPAN-W", relation: "Backspan", direction: "W", otherPoleId: "P2", label: "Backspan W · P2" },
+      { spanId: "SPAN-E", relation: "Forespan", direction: "E", otherPoleId: "P3", label: "Forespan E · P3" }
+    ],
     getEffectiveANCDistance: () => "15'",
     getEffectiveANCDGHOA: () => "19'",
     getEffectiveANCDirection: () => "N",
@@ -50,7 +54,11 @@ const rendererPath = path.join(__dirname, "..", "js", "ui", "pole-renderer.js");
 vm.runInNewContext(fs.readFileSync(rendererPath, "utf8"), sandbox, { filename: rendererPath });
 const escapeHtml = value => String(value ?? "").replace(/[&<>\"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[char]);
 const renderer = window.PoleWorkspaceRenderer.create({
-  S: { getPole: () => pole, getState: () => state },
+  S: {
+    getPole: () => pole,
+    getState: () => state,
+    getSpan: spanId => ({ "SPAN-W": { ugActive: true }, "SPAN-E": { ugActive: false } })[spanId] || null
+  },
   H: { parseHeight: () => null, formatHeight: value => String(value) },
   escapeHtml,
   ownerCanonicalOf: () => "",
@@ -69,6 +77,10 @@ assert.match(markup, /data-field="dgHoa"[^]*?<\/label>\s*<div class="proposed-an
 assert.match(markup, /class="pole-action-section pole-inset-section"/, "Pole Inset should have a separated action block");
 assert.match(markup, /class="pole-action-section"><label class="pole-action-field riser-direction-field"/, "Riser should have a separated action block");
 assert.match(markup, /class="pole-action-section proposed-anc-section"/, "ANC should have a separated action block");
+assert.match(markup, /class="pole-action-section span-ug-transfer-section"[^]*?data-span="SPAN-W"[^]*?checked[^]*?data-span="SPAN-E"/,
+  "an aerial pole should expose independent UG controls for each connected physical span");
+assert.match(markup, /The pole stays aerial; ANC and Riser remain available\./,
+  "span-level UG should clearly state that normal aerial-pole actions remain available");
 assert.ok((markup.match(/class="pole-action-section/g) || []).length >= 3,
   "simultaneously active Pole Inset, Riser, and ANC actions should each be separated");
 

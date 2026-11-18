@@ -917,6 +917,9 @@
         const isIntec = projectProfile === "INTEC";
         const isMetronet = projectProfile === "METRONET";
         const isOlsson = projectProfile === "OLSSON_OPPD";
+        const spanLevelUGOptions = (isIntec || isMetronet) && resolution === "AERIAL"
+          ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
+          : [];
         const powerEquipment = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
         const riserEquipment = powerEquipment.filter(row => String(row.category || row.type || "").toUpperCase().includes("RISER"));
         const secondaryDripLoopActive = Boolean(pole?.secondaryDripLoopActive);
@@ -1017,6 +1020,22 @@
           ${(isIntec || isMetronet) ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? `Add or remove the ${isMetronet ? "MidAm" : "INTEC"} ANC Make Ready` : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
           ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
         </div>
+        ${spanLevelUGOptions.length ? `<div class="pole-action-section span-ug-transfer-section">
+          <div class="span-ug-transfer-heading">
+            <strong>UG by Span</strong>
+            <span>The pole stays aerial; ANC and Riser remain available.</span>
+          </div>
+          <div class="span-ug-transfer-options">
+            ${spanLevelUGOptions.map(option => {
+              const active = S.getSpan(option.spanId)?.ugActive === true;
+              const directionLabel = option.direction ? ` · ${option.direction}` : "";
+              return `<label class="span-ug-transfer-option">
+                <input type="checkbox" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(option.spanId)}" ${active ? "checked" : ""} aria-label="Mark ${escapeHtml(option.label)} as UG">
+                <span><strong>${escapeHtml(option.relation)}${escapeHtml(directionLabel)}</strong><small>to ${escapeHtml(option.otherPoleId)}</small></span>
+              </label>`;
+            }).join("")}
+          </div>
+        </div>` : ""}
         ${poleInsetEnabled ? `<div class="pole-action-section pole-inset-section"><div class="pole-action-fields action-detail-grid pole-inset-controls">
           <label class="pole-action-field">
             <span>Pole Inset Reason</span>

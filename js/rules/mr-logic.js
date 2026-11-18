@@ -958,7 +958,7 @@
           : metronetUGRiserInstruction(transferDirection);
         return [
           item.isSpanUG
-            ? `${relation} going UG due to ${adjacentReason}.`
+            ? `${relation} going UG${direction} due to ${adjacentReason}.`
             : `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`,
           ...anchorLines,
           ...(riser ? [riser] : [])
@@ -969,7 +969,7 @@
         : ugReasonFromPole(S().getPole(item.otherPoleId));
       if (!adjacentReason) return [];
       return [item.isSpanUG
-        ? `${item.relation} to go UG due to ${adjacentReason}.`
+        ? `${item.relation} to go UG${direction} due to ${adjacentReason}.`
         : `${item.relation} to go UG${direction} due to on adj pole ${adjacentReason}.`];
     });
 

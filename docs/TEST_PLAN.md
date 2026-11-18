@@ -166,11 +166,12 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 3. Service Drop relocation text and compact movement payloads never include `with DG`/`DG`.
 4. Transfer without HOA Change uses Existing HOA; multiple heights are ordered and joined correctly.
 5. Adjacent UG relation reason/direction and riser precedence remain correct.
-6. Partial Update Data keeps omitted poles in Excel Review and Pole Type Check.
-7. Active INTEC UG replaces normal MR with the six-line editable template.
-8. MidAm Streetlight Ground remains mandatory and locked.
-9. Transformer Secure and Power Riser Raise update effective Low Power when limiting; Power Riser Secure generates a drip-loop instruction independently.
-10. Disabling optional equipment work restores imported baseline.
+6. Multiple span-level UG selections on one aerial pole retain their separate directions and reasons, refresh both connected Make Ready blocks, and leave ANC/Riser available.
+7. Partial Update Data keeps omitted poles in Excel Review and Pole Type Check.
+8. Active INTEC UG replaces normal MR with the six-line editable template.
+9. MidAm Streetlight Ground remains mandatory and locked.
+10. Transformer Secure and Power Riser Raise update effective Low Power when limiting; Power Riser Secure generates a drip-loop instruction independently.
+11. Disabling optional equipment work restores imported baseline.
 10. Update Data preserves equipment actions and refreshes baseline values.
 11. INTEC and Metronet MidAm Streetlight Raise accept at most 12 inches above Attachment Height and generate their profile-specific MR wording.
 

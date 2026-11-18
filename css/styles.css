@@ -1843,6 +1843,51 @@ html[data-theme="dark"] .ug-span-preview .pole-action-readout {
   border-top: 1px solid var(--line, #3b4656);
 }
 
+.span-ug-transfer-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 5px 0 8px;
+  font-size: .78rem;
+}
+
+.span-ug-transfer-heading span,
+.span-ug-transfer-option small {
+  color: var(--muted, #94a3b8);
+  font-size: .72rem;
+}
+
+.span-ug-transfer-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.span-ug-transfer-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 7px 10px;
+  border: 1px solid var(--line, #3b4656);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.span-ug-transfer-option input {
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--primary, #2563eb);
+}
+
+.span-ug-transfer-option span {
+  display: grid;
+  gap: 2px;
+  line-height: 1.2;
+}
+
 .proposed-anc-entry {
   min-width: 0;
 }
