@@ -10,6 +10,13 @@
     return String(value ?? "").trim();
   }
 
+  function comparePoleIds(left, right) {
+    const first = text(left);
+    const second = text(right);
+    return first.localeCompare(second, undefined, { numeric: true, sensitivity: "base" })
+      || first.localeCompare(second);
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -280,10 +287,8 @@
         manual: true
       });
     });
-    const poleOrder = Object.keys(state?.poles || {});
     return rows.sort((left, right) => {
-      const poleDiff = poleOrder.indexOf(left.poleId) - poleOrder.indexOf(right.poleId);
-      return poleDiff || left.poleId.localeCompare(right.poleId, undefined, { numeric: true })
+      return comparePoleIds(left.poleId, right.poleId)
         || left.componentIndex - right.componentIndex
         || left.direction.localeCompare(right.direction)
         || text(left.spanId).localeCompare(text(right.spanId));
@@ -458,7 +463,7 @@
       if (!draft.poleId || !state.poles?.[draft.poleId]) draft.poleId = Object.keys(state.poles || {})[0] || "";
       const newSpans = connectedPhysicalSpans(state, draft.poleId);
       if (!newSpans.some(span => text(span.spanId) === text(draft.spanId))) draft.spanId = text(newSpans[0]?.spanId);
-      const poleOptions = Object.keys(state.poles || {}).map(poleId =>
+      const poleOptions = Object.keys(state.poles || {}).sort(comparePoleIds).map(poleId =>
         `<option value="${escapeHtml(poleId)}" ${draft.poleId === poleId ? "selected" : ""}>${escapeHtml(poleId)}</option>`
       ).join("");
       const newSpanOptions = newSpans.map(span =>

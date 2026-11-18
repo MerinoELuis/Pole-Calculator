@@ -58,6 +58,24 @@ assert.equal(initialMst.installType, "OVERLASH");
 assert.equal(initial48.spanId, "", "a direction without a matching span remains unassigned for manual selection");
 assert.equal(initial48.installType, "NEW");
 
+const outOfOrderPolesState = {
+  settings: baseState.settings,
+  poles: { P1: {}, P10: {}, P2: {}, P3: {} },
+  spans: {},
+  makeReadyReferences: ["P1", "P10", "P2", "P3"].map((poleId, index) => ({
+    makeReadyId: `MR-${index + 1}`,
+    poleId,
+    attachmentSizeRaw: "24CT Fiber",
+    attachmentType: "New"
+  })),
+  fiberAssignments: []
+};
+assert.deepEqual(
+  Array.from(FiberTabRenderer.buildRows(outOfOrderPolesState), row => row.poleId),
+  ["P1", "P2", "P3", "P10"],
+  "fiber assignments use natural pole order even when imported pole keys put P10 before P2"
+);
+
 const editedState = {
   ...baseState,
   fiberAssignments: [{
@@ -117,5 +135,12 @@ assert.match(groupedRowsHtml, /class="fiber-pole-cell" rowspan="3"><strong>P1<\/
 assert.equal((groupedRowsHtml.match(/class="fiber-pole-cell"/g) || []).length, 1, "the repeated pole label is rendered once per pole group");
 assert.match(groupedRowsHtml, /class="fiber-actions-cell"/, "Actions remains a per-fiber row so manual fibers can be removed individually");
 assert.ok(groupedRowsHtml.indexOf("<th>INSTALL</th><th>DIRECTION</th><th>SPAN</th>") >= 0, "Direction follows Install and precedes Span");
+const orderedPoleOptions = renderFiberView(outOfOrderPolesState).match(/<label class="fiber-default-field"><span>Pole<\/span><select class="input" data-fiber-new="poleId">([^]*?)<\/select><\/label>/)?.[1] || "";
+assert.ok(
+  orderedPoleOptions.indexOf('value="P1"') < orderedPoleOptions.indexOf('value="P2"')
+    && orderedPoleOptions.indexOf('value="P2"') < orderedPoleOptions.indexOf('value="P3"')
+    && orderedPoleOptions.indexOf('value="P3"') < orderedPoleOptions.indexOf('value="P10"'),
+  "the add-fiber pole selector also uses natural numeric order"
+);
 
 console.log("fiber tab tests passed");

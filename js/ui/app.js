@@ -184,7 +184,7 @@
           }
         });
       }
-      if (input.classList.contains("pole-mr-editor")) {
+      if (input.classList.contains("pole-mr-editor") || input.classList.contains("ug-span-reason-editor")) {
         // Capture one undo point when a new editing session starts. The input
         // handler updates MR in place, so the textarea keeps focus while the
         // operator writes a multiline UG/PCO instruction.
@@ -501,6 +501,21 @@
   function handleEditableInput(event) {
     const el = event.currentTarget;
     if (!el) return;
+    if (el.classList.contains("ug-span-reason-editor")) {
+      if (!el.dataset.undoCaptured) {
+        recordUndoSnapshot();
+        el.dataset.undoCaptured = "true";
+      }
+      const poleId = el.dataset.pole || "";
+      global.Calculations.updateSpanField(el.dataset.span, "ugReason", el.value);
+      const affectedPoleIds = global.MRLogic.generateMRForUGChange?.(poleId) || [poleId];
+      affectedPoleIds.filter(id => id !== poleId).forEach(replacePoleCard);
+      const generated = S.getState().mr.find(item => item.poleId === poleId)?.text || "";
+      const output = el.closest("[data-pole-card]")?.querySelector(".mr-output");
+      if (output) output.textContent = generated;
+      markDirty();
+      return;
+    }
     if (el.classList.contains("pole-mr-editor")) {
       if (!el.dataset.undoCaptured) {
         recordUndoSnapshot();
@@ -577,7 +592,7 @@
     let value = el.type === "checkbox" ? el.checked : el.value;
     // Multiline UG/PCO editors persist on every input so the card is not
     // replaced while typing. Blur/change only closes that editing session.
-    if (el.classList.contains("pole-mr-editor")) {
+    if (el.classList.contains("pole-mr-editor") || el.classList.contains("ug-span-reason-editor")) {
       delete el.dataset.undoCaptured;
       return;
     }

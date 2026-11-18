@@ -1056,6 +1056,9 @@
             ${ugSpanSelectorValues.map((selectedSpanId, index) => {
               const isAddRow = selectedSpanId === "";
               const title = index === 0 ? "UG Span" : `Additional UG Span ${index + 1}`;
+              const selectedSpan = selectedSpanId && selectedSpanId.toUpperCase() !== "ALL"
+                ? S.getSpan(selectedSpanId)
+                : null;
               const options = ugSpanOptions.map(option => {
                 const selectedElsewhere = activeUGSpanIds.includes(option.spanId) && option.spanId !== selectedSpanId;
                 return `<option value="${escapeHtml(option.spanId)}" ${option.spanId === selectedSpanId ? "selected" : ""} ${selectedElsewhere ? "disabled" : ""}>${escapeHtml(option.label)}</option>`;
@@ -1067,7 +1070,10 @@
                   ${isAddRow ? '<option value="ALL">ALL · Entire pole</option>' : ""}
                   ${options}
                 </select>
-              </label>`;
+              </label>${selectedSpan ? `<label class="pole-action-field ug-span-reason-field">
+                <span>UG Reason</span>
+                <input class="input ug-span-reason-editor" data-scope="span" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(selectedSpanId)}" data-field="ugReason" value="${escapeHtml(selectedSpan.ugReason || "CLEARANCE VIOLATION")}" placeholder="CLEARANCE VIOLATION">
+              </label>` : ""}`;
             }).join("")}
           </div>
           ${hasSpanLevelUG ? `<p class="muted span-ug-transfer-note">Selected spans go UG; this pole remains aerial, so ANC and Riser stay available.</p>` : ""}
