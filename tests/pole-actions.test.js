@@ -16,9 +16,9 @@ let pole = { poleId: "P1", ugActive: false, pcoActive: false };
 let undoCount = 0;
 let recalculationCount = 0;
 const listeners = { toggle: {}, match: {} };
-const spanUGListeners = {};
-const toggleUGAllListeners = {};
+const ugScopeListeners = [];
 const span = { spanId: "S1", fromPole: "P1", toPole: "P2", ugActive: false, ugReason: "" };
+const span2 = { spanId: "S2", fromPole: "P1", toPole: "P3", ugActive: false, ugReason: "" };
 const button = {
   dataset: { pole: "P1" },
   addEventListener(eventName, callback) { listeners.toggle[eventName] = callback; }
@@ -27,14 +27,20 @@ const matchButton = {
   dataset: { pole: "P1" },
   addEventListener(eventName, callback) { listeners.match[eventName] = callback; }
 };
-const spanUGCheckbox = {
-  dataset: { pole: "P1", span: "S1" },
-  checked: true,
-  addEventListener(eventName, callback) { spanUGListeners[eventName] = callback; }
+const firstUGScope = {
+  dataset: { pole: "P1", currentSpan: "ALL" },
+  value: "S1",
+  addEventListener(eventName, callback) { ugScopeListeners[0] = callback; }
 };
-const toggleUGAllButton = {
-  dataset: { pole: "P1" },
-  addEventListener(eventName, callback) { toggleUGAllListeners[eventName] = callback; }
+const addUGScope = {
+  dataset: { pole: "P1", currentSpan: "" },
+  value: "S2",
+  addEventListener(eventName, callback) { ugScopeListeners[1] = callback; }
+};
+const allUGScope = {
+  dataset: { pole: "P1", currentSpan: "S1" },
+  value: "ALL",
+  addEventListener(eventName, callback) { ugScopeListeners[2] = callback; }
 };
 let matchPole = "";
 let dirtyCount = 0;
@@ -47,10 +53,9 @@ window.MRLogic.generateMRForUGChange = () => {
 const context = {
   S: {
     getPole: () => pole,
-    getSpan: () => span,
-    getConnectedSpans: () => [span],
+    getConnectedSpans: () => [span, span2],
     getOtherPoleId: () => "P2",
-    updateSpanField(spanId, field, value) { span[field] = value; },
+    updateSpanField(spanId, field, value) { ({ S1: span, S2: span2 })[spanId][field] = value; },
     upsertPole(nextPole) { pole = nextPole; }
   },
   poleResolutionOf: selectedPole => selectedPole?.ugActive ? "UG" : "AERIAL",
@@ -66,8 +71,7 @@ const actions = window.PoleActions.create(context);
 actions.bindLocalActions({
   querySelectorAll(selector) {
     if (selector === "[data-toggle-ug]") return [button];
-    if (selector === "[data-toggle-span-ug]") return [spanUGCheckbox];
-    if (selector === "[data-toggle-ug-all]") return [toggleUGAllButton];
+    if (selector === "[data-ug-span-select]") return [firstUGScope, addUGScope, allUGScope];
     if (selector === "[data-match-pole]") return [matchButton];
     return [];
   }
@@ -81,18 +85,22 @@ assert.equal(recalculationCount, 1, "the extracted action should recalculate aft
 assert.equal(typeof listeners.match.click, "function", "the pole-header Match icon should be bound");
 listeners.match.click();
 assert.equal(matchPole, "P1", "the Match icon should open cable matching for its pole");
-spanUGListeners.change();
-assert.equal(span.ugActive, true, "the span checkbox should independently activate a UG transfer");
+ugScopeListeners[0]();
+assert.equal(span.ugActive, true, "choosing a connected dropdown option should activate only that UG span");
 assert.equal(pole.ugActive, false, "selecting a specific span should keep the pole itself aerial");
 assert.equal(span.ugReason, "CLEARANCE VIOLATION", "a new span-level UG transfer should receive the default reason");
 assert.equal(spanMRRefreshCount, 2, "UG scope edits should regenerate connected Make Ready");
 assert.deepEqual(Array.from(renderedPoleIds), ["P1", "P2"], "the UG pole and its adjacent pole should refresh together");
 assert.equal(dirtyCount, 2, "UG scope edits should mark the job dirty");
-toggleUGAllListeners.click();
-assert.equal(pole.ugActive, true, "ALL should switch a span-only selection back to full-pole UG");
+ugScopeListeners[1]();
+assert.equal(span2.ugActive, true, "an additional dropdown should allow a second physical span to go UG");
+assert.equal(pole.ugActive, false, "multiple span selections should leave the pole aerial");
+ugScopeListeners[2]();
+assert.equal(pole.ugActive, true, "choosing ALL should switch span selections back to full-pole UG");
 assert.equal(pole.ugSpanId, "ALL", "the whole-pole mode should preserve the ALL scope");
-assert.equal(span.ugActive, false, "switching to ALL should clear span-only UG selections");
-assert.equal(spanMRRefreshCount, 3, "switching to ALL should refresh connected Make Ready");
-assert.equal(dirtyCount, 3, "switching to ALL should mark the job dirty");
+assert.equal(span.ugActive, false, "switching to ALL should clear the first span-only UG selection");
+assert.equal(span2.ugActive, false, "switching to ALL should clear every span-only UG selection");
+assert.equal(spanMRRefreshCount, 4, "switching to ALL should refresh connected Make Ready");
+assert.equal(dirtyCount, 4, "switching to ALL should mark the job dirty");
 
 console.log("pole action binding tests passed");

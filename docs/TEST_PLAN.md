@@ -166,7 +166,7 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 3. Service Drop relocation text and compact movement payloads never include `with DG`/`DG`.
 4. Transfer without HOA Change uses Existing HOA; multiple heights are ordered and joined correctly.
 5. Adjacent UG relation reason/direction and riser precedence remain correct.
-6. Multiple span-level UG selections are available beneath the UG action, retain their separate directions and reasons, refresh both connected Make Ready blocks, and leave the selected pole aerial with ANC/Riser available; `ALL` restores full-pole UG.
+6. Multiple span-level UG selections use dropdowns beneath the UG action, retain their separate directions and reasons, refresh connected Make Ready blocks, and leave the selected pole aerial with ANC/Riser available; `ALL` restores full-pole UG.
 7. Partial Update Data keeps omitted poles in Excel Review and Pole Type Check.
 8. Active INTEC UG replaces normal MR with the six-line editable template.
 9. MidAm Streetlight Ground remains mandatory and locked.

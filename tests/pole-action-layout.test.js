@@ -79,9 +79,9 @@ assert.match(markup, /data-field="dgHoa"[^]*?<\/label>\s*<div class="proposed-an
 assert.match(markup, /class="pole-action-section pole-inset-section"/, "Pole Inset should have a separated action block");
 assert.match(markup, /class="pole-action-section"><label class="pole-action-field riser-direction-field"/, "Riser should have a separated action block");
 assert.match(markup, /class="pole-action-section proposed-anc-section"/, "ANC should have a separated action block");
-assert.match(markup, /class="pole-action-section ug-action-section"[^]*?data-toggle-ug-all[^]*?data-span="SPAN-W"[^]*?checked[^]*?data-span="SPAN-E"/,
-  "span-level UG choices should live under the existing UG action and allow multiple connected spans");
-assert.match(markup, /Choose ALL for the whole pole, or select individual spans to keep this pole aerial\./,
+assert.match(markup, /class="pole-action-section ug-action-section"[^]*?data-ug-span-select[^]*?data-current-span="SPAN-W"[^]*?data-ug-span-select[^]*?data-current-span=""/,
+  "span-level UG choices should use connected dropdowns under the existing UG action and allow multiple spans");
+assert.match(markup, /Select ALL for the whole pole or choose individual spans to keep this pole aerial\./,
   "the UG scope control should distinguish whole-pole and span-only work");
 assert.match(markup, /data-toggle-anc data-pole="P1"(?! disabled)/,
   "ANC should remain available when only a connected span is UG");

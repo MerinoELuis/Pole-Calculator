@@ -930,6 +930,12 @@
         const ugSpanOptions = (isIntec || isMetronet) && showUGReason
           ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
           : [];
+        const activeUGSpanIds = ugSpanOptions
+          .filter(option => S.getSpan(option.spanId)?.ugActive === true)
+          .map(option => option.spanId);
+        const ugSpanSelectorValues = resolution === "UG"
+          ? ["ALL"]
+          : (activeUGSpanIds.length ? [...activeUGSpanIds, ""] : ["ALL"]);
         const showPCOEditor = resolution === "PCO";
         const pcoTemplate = showPCOEditor
           ? global.MRLogic.getEditablePCOTemplate(pole)
@@ -1043,17 +1049,24 @@
         ${showUGReason ? `<div class="pole-action-section ug-action-section">
         ${(isIntec || isMetronet) ? `<div class="span-ug-transfer-section">
           <div class="span-ug-transfer-heading">
-            <strong>UG Scope</strong>
-            <span>Choose ALL for the whole pole, or select individual spans to keep this pole aerial.</span>
+            <strong>UG Span</strong>
+            <span>Select ALL for the whole pole or choose individual spans to keep this pole aerial.</span>
           </div>
-          <div class="span-ug-transfer-options">
-            <button class="mini-btn ${resolution === "UG" ? "active-action" : ""}" type="button" data-toggle-ug-all data-pole="${escapeHtml(poleId)}" aria-pressed="${resolution === "UG"}">ALL · Entire pole</button>
-            ${ugSpanOptions.map(option => {
-              const active = S.getSpan(option.spanId)?.ugActive === true;
-              const directionLabel = option.direction ? ` · ${option.direction}` : "";
-              return `<label class="span-ug-transfer-option">
-                <input type="checkbox" data-toggle-span-ug data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(option.spanId)}" ${active ? "checked" : ""} aria-label="Mark ${escapeHtml(option.label)} as UG">
-                <span><strong>${escapeHtml(option.relation)}${escapeHtml(directionLabel)}</strong><small>to ${escapeHtml(option.otherPoleId)}</small></span>
+          <div class="pole-action-fields action-detail-grid ug-controls">
+            ${ugSpanSelectorValues.map((selectedSpanId, index) => {
+              const isAddRow = selectedSpanId === "";
+              const title = index === 0 ? "UG Span" : `Additional UG Span ${index + 1}`;
+              const options = ugSpanOptions.map(option => {
+                const selectedElsewhere = activeUGSpanIds.includes(option.spanId) && option.spanId !== selectedSpanId;
+                return `<option value="${escapeHtml(option.spanId)}" ${option.spanId === selectedSpanId ? "selected" : ""} ${selectedElsewhere ? "disabled" : ""}>${escapeHtml(option.label)}</option>`;
+              }).join("");
+              return `<label class="pole-action-field">
+                <span>${title}</span>
+                <select class="input" data-ug-span-select data-pole="${escapeHtml(poleId)}" data-current-span="${escapeHtml(selectedSpanId)}">
+                  ${isAddRow ? '<option value="" selected>Select another span</option>' : `<option value="ALL" ${selectedSpanId === "ALL" ? "selected" : ""}>ALL · Entire pole</option>`}
+                  ${isAddRow ? '<option value="ALL">ALL · Entire pole</option>' : ""}
+                  ${options}
+                </select>
               </label>`;
             }).join("")}
           </div>
