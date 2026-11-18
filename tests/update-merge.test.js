@@ -23,7 +23,7 @@ const sandbox = {
     AppStore: {
       canonicalPoleIdentity(value) {
         const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
-        while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
+        while (parts.length > 1 && /^(STEEL|RECOLLECT|T|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
         return parts.join(" ").toUpperCase();
       },
       getOwnerCanonical: row => row?.ownerCanonical || row?.ownerBase || row?.owner || "",
@@ -149,6 +149,15 @@ assert.ok(result.poleClassChecks.some(row => row.poleId === "P2"), "Pole Type Ch
 assert.equal(result.excelReviewIgnoredChecks["review-known-exception"], true, "Update Data must preserve ignored review findings");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
 
+const spanUGPrevious = JSON.parse(JSON.stringify(previous));
+spanUGPrevious.spans.S1.ugActive = true;
+spanUGPrevious.spans.S1.ugReason = "cutout clearance";
+spanUGPrevious.spans.S1.ugSourcePoleId = "P1";
+const spanUGResult = merge(spanUGPrevious, JSON.parse(JSON.stringify(imported)));
+assert.equal(spanUGResult.spans.S1.ugActive, true, "Update Data must preserve selected span-level UG work");
+assert.equal(spanUGResult.spans.S1.ugReason, "cutout clearance", "Update Data must preserve the reason from the shared UG text box");
+assert.equal(spanUGResult.spans.S1.ugSourcePoleId, "P1", "Update Data must preserve which pole owns the shared UG text box");
+
 const previousFiberUpdate = JSON.parse(JSON.stringify(previous));
 previousFiberUpdate.makeReadyReferences = Array.from({ length: 10 }, (_, index) => ({
   poleId: `P${index + 1}`,
@@ -252,6 +261,39 @@ const aliasResult = merge(aliasPrevious, aliasImported);
 assert.deepEqual(Object.keys(aliasResult.poles).sort(), ["P01-LX339927", "P02-X339926 STEEL"], "UG/STEEL aliases must not create a second pole");
 assert.equal(aliasResult.poles["P01-LX339927"].ugActive, true, "UG state must move to the Collection pole identity");
 assert.equal(aliasResult.spanSides["SA__P01-LX339927"].proposedHOA, "22'", "manual Proposed must follow the canonical pole identity");
+
+const revisionPrevious = {
+  poles: {
+    "P3-313602": { poleId: "P3-313602" },
+    "P4-313603": { poleId: "P4-313603" },
+    "P4-313603 RECOLLECT": { poleId: "P4-313603 RECOLLECT" }
+  },
+  spans: { S34: { spanId: "S34", fromPole: "P3-313602", toPole: "P4-313603 RECOLLECT" } },
+  spanSides: {},
+  spanComms: {
+    REVISION_BASELINE: { spanId: "S34", poleId: "P4-313603 RECOLLECT", owner: "Eagle West LLC", ownerCanonical: "Eagle West LLC", wireId: "WIRE-P34", existingHOA: "22'8\"", existingHOAChange: "", midspan: "21'9\"" },
+    OLD_ID_MOVED: { spanId: "S34", poleId: "P4-313603", owner: "Eagle West LLC", ownerCanonical: "Eagle West LLC", wireId: "WIRE-P34", existingHOA: "22'8\"", existingHOAChange: "22'", midspan: "" }
+  },
+  spanPower: {}, makeReadyReferences: [], poleClassChecks: [], settings: {}, ui: {},
+  excelReviewSource: {}
+};
+const revisionImported = {
+  poles: {
+    "P3-313602": { poleId: "P3-313602" },
+    "P4-313603 RECOLLECT": { poleId: "P4-313603 RECOLLECT" }
+  },
+  spans: { S34: { spanId: "S34", fromPole: "P3-313602", toPole: "P4-313603 RECOLLECT" } },
+  spanSides: {},
+  spanComms: {
+    NEW_IMPORT: { spanId: "S34", poleId: "P4-313603 RECOLLECT", owner: "Eagle West LLC", ownerCanonical: "Eagle West LLC", wireId: "WIRE-P34", existingHOA: "22'8\"", existingHOAChange: "", midspan: "21'9\"" }
+  },
+  spanPower: {}, makeReadyReferences: [], poleClassChecks: [], settings: {}, ui: {},
+  excelReviewSource: {}
+};
+const revisionResult = merge(revisionPrevious, revisionImported);
+assert.deepEqual(Object.keys(revisionResult.poles).sort(), ["P3-313602", "P4-313603 RECOLLECT"], "Update Data should merge old suffix variants into the latest Collection pole");
+assert.equal(Object.values(revisionResult.spanComms).filter(row => row.spanId === "S34" && row.poleId === "P4-313603 RECOLLECT").length, 1, "aliased duplicate endpoint cables must reconcile to one row");
+assert.equal(Object.values(revisionResult.spanComms).find(row => row.wireId === "WIRE-P34")?.existingHOAChange, "22'", "Update Data must retain movement from the old suffix variant when merging duplicate pole rows");
 
 const renamedPrevious = JSON.parse(JSON.stringify(previous));
 renamedPrevious.poleIdAliases = { P1: "P1-RENAMED" };

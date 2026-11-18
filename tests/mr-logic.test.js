@@ -39,6 +39,7 @@ const AppStore = {
   getSpanRelation: span => span?.spanRelation || span?.type || span?.importedRelation || span?.rawType || "",
   getPole: poleId => state.poles[poleId] || null,
   getSpan: spanId => state.spans[spanId] || null,
+  updateSpanField(spanId, field, value) { state.spans[spanId][field] = value; },
   getConnectedSpans: poleId => Object.values(state.spans).filter(span => span.fromPole === poleId || span.toPole === poleId),
   getOtherPoleId: (span, poleId) => span.fromPole === poleId ? span.toPole : span.fromPole,
   getSpanSidesForPole: poleId => Object.values(state.spanSides).filter(side => side.poleId === poleId),
@@ -381,6 +382,48 @@ state.poles.P1.ugSpanId = "ALL";
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.equal(state.mr.find(item => item.poleId === "P1").text.split("\n").length, 6, "INTEC UG All must retain the six-line replacement template");
 state.poles.P1.ugActive = false;
+
+state.spans.PROP.ugActive = true;
+state.spans.PROP.ugSourcePoleId = "P1";
+state.spans.PROP.ugReason = "";
+state.spans.BACK.ugActive = true;
+state.spans.BACK.ugSourcePoleId = "P1";
+state.spans.BACK.ugReason = "";
+const sharedSpanUGTemplate = sandbox.window.MRLogic.getUGSpanMRTemplate("P1", ["PROP", "BACK"]);
+assert.equal(sharedSpanUGTemplate, [
+  "Forespan to go UG N due to [insert reason].",
+  "Backspan to go UG SE due to [insert reason]."
+].join("\n"), "multiple selected spans should populate one shared text box with directed placeholder lines");
+const editedSharedSpanUGTemplate = [
+  "Forespan to go UG N due to cutout clearance.",
+  "Backspan to go UG SE due to equipment conflict."
+].join("\n");
+assert.deepEqual(
+  Array.from(sandbox.window.MRLogic.updateUGSpanReasonsFromMRText("P1", editedSharedSpanUGTemplate)),
+  ["BACK", "PROP"],
+  "editing the shared span Make Ready box should update every selected span reason"
+);
+assert.equal(state.spans.PROP.ugReason, "cutout clearance");
+assert.equal(state.spans.BACK.ugReason, "equipment conflict");
+state.poles.P1.ugSpanMRText = editedSharedSpanUGTemplate;
+sandbox.window.MRLogic.generateMRForPole("P1");
+assert.ok(
+  state.mr.find(item => item.poleId === "P1").text.includes(editedSharedSpanUGTemplate),
+  "the selecting pole should use its single editable Make Ready box for all selected spans"
+);
+sandbox.window.MRLogic.generateMRForPole("P3");
+assert.match(
+  state.mr.find(item => item.poleId === "P3").text,
+  /Backspan to go UG S due to cutout clearance\./,
+  "the far pole should receive the direction-reversed instruction using the edited shared reason"
+);
+state.poles.P1.ugSpanMRText = "";
+state.spans.PROP.ugActive = false;
+state.spans.PROP.ugSourcePoleId = "";
+state.spans.PROP.ugReason = "";
+state.spans.BACK.ugActive = false;
+state.spans.BACK.ugSourcePoleId = "";
+state.spans.BACK.ugReason = "";
 
 state.poles.P1.poleInsetActive = true;
 state.poles.P1.poleInsetReason = "OVERLOADED";

@@ -17,6 +17,9 @@ require("../js/import/excel-import.js");
 
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 STEEL UG"), "P01-LX339927");
 assert.equal(AppStore.canonicalPoleIdentity("P01-LX339927 PCO STEEL"), "P01-LX339927");
+assert.equal(AppStore.canonicalPoleIdentity("P4-313603 RECOLLECT"), "P4-313603");
+assert.equal(AppStore.canonicalPoleIdentity("P4-313603 T STEEL UG PCO"), "P4-313603");
+assert.equal(AppStore.canonicalPoleIdentity("P4-T313603"), "P4-T313603", "annotation matching must not strip descriptor-like text inside the ID");
 
 const workbook = {
   SheetNames: ["Collection", "Span", "Span.Wire", "Equipment", "Anchor", "Anchor.Guys", "Make Ready"],
@@ -101,12 +104,39 @@ const ambiguousCollectionWorkbook = {
   }
 };
 const ambiguousCollectionState = ExcelImport.importOriginalWorkbook(ambiguousCollectionWorkbook, "ambiguous-collection.xlsx");
+assert.deepEqual(Object.keys(ambiguousCollectionState.poles).filter(id => /^P0[12]$/.test(id)).sort(), ["P01", "P02"], "a reused collection ID must not merge different base pole IDs");
 assert.equal(
   ambiguousCollectionState.spans.S1.toPole,
   "Unknown-S1",
   "a repeated Collection ID without a linked pole must not resolve every span to the last collection row"
 );
 assert.ok(ambiguousCollectionState.poles["Unknown-S1"].isGenerated, "unresolved linked poles must remain generated Unknown poles");
+
+const revisedPoleWorkbook = {
+  SheetNames: ["Collection", "Span", "Span.Wire"],
+  Sheets: {
+    Collection: [
+      ["collectionId", "Id", "Sequence", "updatedAt", "Tip.display", "Lowest Power.display", "Type", "Status"],
+      ["C-P3", "P3-313602", "P3", "2026-11-15T10:00:00Z", "33'", "25'", "Douglas Fir > 3 > 40", "300 - HOA"],
+      ["C-P4", "P4-313603", "P4", "2026-11-15T10:00:00Z", "33'", "26'4\"", "Southern Pine > 1 > 40", "300 - HOA"],
+      ["C-P4", "P4-313603 RECOLLECT", "P4", "2026-11-16T10:00:00Z", "33'", "26'4\"", "Southern Pine > 1 > 40", "500 - Final QC"]
+    ],
+    Span: [
+      ["Id", "Span Id", "Type", "Linked Collection.Title", "Environment"],
+      ["P3-313602", "S-P34", "Fore Span", "P4-313603 RECOLLECT", "STREET"]
+    ],
+    "Span.Wire": [
+      ["Id", "Span Id", "Owner", "Size", "Attachment Height.display", "Mid Span Height.display", "Wire Id"],
+      ["P3-313602", "S-P34", "COMMUNICATION > Eagle West LLC", "Telco Bundle", "21'", "21'9\"", "WIRE-P34"],
+      ["P4-313603", "S-P34", "COMMUNICATION > Eagle West LLC", "Telco Bundle", "22'8\"", "", "WIRE-P34"]
+    ]
+  }
+};
+const revisedPoleState = ExcelImport.importOriginalWorkbook(revisedPoleWorkbook, "revised-pole.xlsx");
+assert.deepEqual(Object.keys(revisedPoleState.poles).sort(), ["P3-313602", "P4-313603 RECOLLECT"], "Collection revisions that only add/remove a status suffix must import as one pole");
+assert.equal(revisedPoleState.spans["S-P34"].toPole, "P4-313603 RECOLLECT", "span links to an older suffix variant must resolve to the latest Collection pole ID");
+assert.equal(revisedPoleState.poleClassChecks.filter(row => AppStore.canonicalPoleIdentity(row.poleId) === "P4-313603").length, 1, "pole type checks must not duplicate Collection revisions of one pole");
+assert.equal(AppStore.getSpanCommsForPole("P4-313603 RECOLLECT").find(row => row.wireId === "WIRE-P34")?.existingHOA, "22'8\"", "Span.Wire rows using an older suffix variant must attach to the one normalized pole");
 
 (async () => {
   const restored = await ExcelImport.importJsonFile({

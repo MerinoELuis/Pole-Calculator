@@ -1857,6 +1857,70 @@ html[data-theme="dark"] .ug-span-preview .pole-action-readout {
   font-size: .72rem;
 }
 
+.ug-span-selector-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ug-span-selector-row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ug-span-selector-row .pole-action-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.ug-span-remove-btn {
+  flex: 0 0 38px;
+  min-height: 38px;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.ug-span-mr-field {
+  margin-top: 10px;
+}
+
+.ug-span-mr-field .ug-span-mr-editor {
+  min-height: 158px;
+}
+
+.ug-span-add-controls {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ug-span-add-btn {
+  width: 38px;
+  height: 38px;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.ug-span-add-row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  width: 100%;
+}
+
+.ug-span-add-row[hidden] {
+  display: none;
+}
+
+.ug-span-add-row .pole-action-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+
 .span-ug-transfer-note {
   margin: 6px 0 0;
   font-size: .76rem;

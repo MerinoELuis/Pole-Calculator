@@ -706,6 +706,49 @@
       .sort((a, b) => `${a.relation} ${a.direction} ${a.otherPoleId}`.localeCompare(`${b.relation} ${b.direction} ${b.otherPoleId}`));
   }
 
+  function ugSpanInstruction(poleId, spanId) {
+    const option = ugSpanOptionsForPole(poleId).find(item => item.spanId === spanId);
+    if (!option) return "";
+    const reason = cleanUGReason(S().getSpan(spanId)?.ugReason) || "[insert reason]";
+    const verb = isMetronetMR() ? "going UG" : "to go UG";
+    return `${option.relation} ${verb}${option.direction ? ` ${option.direction}` : ""} due to ${reason}.`;
+  }
+
+  function getUGSpanMRTemplate(poleId, spanIds = []) {
+    return (Array.isArray(spanIds) ? spanIds : [spanIds])
+      .map(spanId => ugSpanInstruction(poleId, String(spanId || "").trim()))
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function updateUGSpanReasonsFromMRText(poleId, value) {
+    const pole = S().getPole(poleId);
+    if (!pole) return [];
+    const active = ugSpanOptionsForPole(poleId).filter(option => {
+      const span = S().getSpan(option.spanId);
+      const sourcePoleId = String(span?.ugSourcePoleId || span?.fromPole || "");
+      return span?.ugActive === true && sourcePoleId === poleId;
+    });
+    const lines = String(value || "").split(/\r?\n/);
+    const updated = [];
+    const consumedLines = new Set();
+    active.forEach(option => {
+      const verb = isMetronetMR() ? "going UG" : "to go UG";
+      const direction = option.direction ? `\\s+${option.direction}` : "";
+      const pattern = new RegExp(`^\\s*${option.relation}\\s+${verb}${direction}\\s+due\\s+to\\s+(.+?)\\s*\\.?\\s*$`, "i");
+      const lineIndex = lines.findIndex((candidate, index) => !consumedLines.has(index) && pattern.test(candidate));
+      if (lineIndex < 0) return;
+      consumedLines.add(lineIndex);
+      const line = lines[lineIndex];
+      const match = line?.match(pattern);
+      if (!match) return;
+      const reason = cleanUGReason(match[1]);
+      S().updateSpanField(option.spanId, "ugReason", reason);
+      updated.push(option.spanId);
+    });
+    return updated;
+  }
+
   function selectedIntecUGSpan(pole) {
     const spanId = String(pole?.ugSpanId || "ALL").trim();
     if (poleResolutionOf(pole) !== "UG" || !spanId || spanId.toUpperCase() === "ALL") return null;
@@ -779,6 +822,7 @@
         spanId: span.spanId,
         otherPoleId,
         isSpanUG: span.ugActive === true,
+        sourcePoleId: String(span.ugSourcePoleId || span.fromPole || ""),
         adjacentPoleUG: poleResolutionOf(otherPole) === "UG",
         reason: String(span.ugReason || "").trim()
       };
@@ -936,8 +980,21 @@
 
   function buildConnectedUGInstructions(poleId) {
     const items = connectedUGSpanItems(poleId);
+    const sourceSpanIds = items
+      .filter(item => item.isSpanUG && item.sourcePoleId === poleId)
+      .map(item => item.spanId);
+    const poleSpanText = String(S().getPole(poleId)?.ugSpanMRText || "").trim()
+      || getUGSpanMRTemplate(poleId, sourceSpanIds);
+    const sourceSpanLines = sourceSpanIds.length
+      ? poleSpanText.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+      : [];
 
     const lines = items.flatMap(item => {
+      // The selecting pole owns one shared editable box for all locally
+      // selected spans. Its lines are inserted once above; the reciprocal
+      // pole still receives the relation-specific instruction generated below.
+      const usesSharedSpanBox = item.isSpanUG && item.sourcePoleId === poleId;
+      if (usesSharedSpanBox && !isMetronetMR()) return [];
       const direction = item.direction ? ` ${item.direction}` : "";
       if (isMetronetMR()) {
         const relation = item.relation === "Otherspan" ? "Other Span" : item.relation;
@@ -957,15 +1014,15 @@
           ? ""
           : metronetUGRiserInstruction(transferDirection);
         return [
-          item.isSpanUG
+          ...(usesSharedSpanBox ? [] : [item.isSpanUG
             ? `${relation} going UG${direction} due to ${adjacentReason}.`
-            : `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`,
+            : `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`]),
           ...anchorLines,
           ...(riser ? [riser] : [])
         ];
       }
       const adjacentReason = item.isSpanUG
-        ? (cleanUGReason(item.reason) || "[insert other reason]")
+        ? (cleanUGReason(item.reason) || "[insert reason]")
         : ugReasonFromPole(S().getPole(item.otherPoleId));
       if (!adjacentReason) return [];
       return [item.isSpanUG
@@ -976,7 +1033,7 @@
     const hasMetronetUGTransferRiser = lines.some(line => /^pl\s+new\s+riser\s+for\s+ug\s+transfer\b/i.test(line));
     const riser = hasMetronetUGTransferRiser ? "" : generateRiserInstruction(poleId);
     if (riser) lines.push(riser);
-    return lines;
+    return [...sourceSpanLines, ...lines];
   }
 
   function generateMRForSpan(spanId) {
@@ -1262,6 +1319,8 @@
     getResolvedRiserDirection: resolvedRiserDirection,
     getDefaultRiserDirection: defaultRiserDirection,
     getUGSpanOptions: ugSpanOptionsForPole,
+    getUGSpanMRTemplate,
+    updateUGSpanReasonsFromMRText,
     getEditableUGSpanTemplate,
     getDefaultUGSpanTemplate: pole => defaultIntecUGSpanLines(pole).join("\n"),
     getSelectedIntecUGInstruction: selectedIntecUGInstruction,

@@ -248,7 +248,7 @@
   }
 
   function buildPoleClassChecks(collectionRows) {
-    return collectionRows.map(row => {
+    return latestCollectionRowsByPoleIdentity(collectionRows).map(row => {
       const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
       if (!poleId) return null;
       const importedType = String(pick(row, ["Type", "Pole Type"])).trim();
@@ -462,6 +462,30 @@
       : ((S().ENVIRONMENT_OPTIONS || []).find(item => item.value === environment)?.clearance || "");
   }
 
+  function latestCollectionRowsByPoleIdentity(collectionRows) {
+    const winners = new Map();
+    (collectionRows || []).forEach((row, index) => {
+      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
+      const canonical = S().canonicalPoleIdentity
+        ? S().canonicalPoleIdentity(poleId)
+        : poleId.replace(/\s+/g, " ").toUpperCase();
+      if (!canonical) return;
+      const timestampRaw = pick(row, ["updatedAt", "Updated At", "collectedAt", "Collected At"]);
+      const parsedTimestamp = Date.parse(String(timestampRaw || ""));
+      const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : 0;
+      const previous = winners.get(canonical);
+      // A Collection row is a revision when its pole ID differs only by
+      // removable suffix descriptors. Keep the latest fact row as the one
+      // normalized pole; the unmodified workbook rows stay in Excel Review.
+      if (!previous || timestamp >= previous.timestamp) winners.set(canonical, { index, timestamp });
+    });
+    const winningIndexes = new Set(Array.from(winners.values(), entry => entry.index));
+    return (collectionRows || []).filter((row, index) => {
+      const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
+      return !poleId || winningIndexes.has(index);
+    });
+  }
+
   function importAppStateSheet(workbook) {
     const sheet = findSheet(workbook, ["AppState"]);
     if (!sheet) return null;
@@ -645,7 +669,7 @@
     const byCanonicalPoleId = {};
     const collectionPoleCandidates = {};
 
-    collectionRows.forEach(row => {
+    latestCollectionRowsByPoleIdentity(collectionRows).forEach(row => {
       const collectionId = String(pick(row, ["collectionId", "Collection ID"])).trim();
       const poleId = String(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"])).trim();
       const sequence = String(pick(row, ["Sequence", "Seq"])).trim();
@@ -686,7 +710,7 @@
   }
 
   function importPolesFromCollection(collectionRows, collectionIndex) {
-    collectionRows.forEach(row => {
+    latestCollectionRowsByPoleIdentity(collectionRows).forEach(row => {
       const poleId = resolveCollectionPoleId(pick(row, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"]), collectionIndex);
       if (!poleId) return;
 

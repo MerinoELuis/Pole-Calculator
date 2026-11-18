@@ -18,6 +18,9 @@ S.resetState();
 S.upsertPole(S.createPole({ poleId: "P1", lowPower: "30'" }));
 S.upsertPole(S.createPole({ poleId: "P2", lowPower: "30'" }));
 S.upsertSpan(S.createSpan("S1", "P1", "P2", "E", "", { type: "Fore Span" }));
+S.updateSpanField("S1", "ugActive", true);
+S.updateSpanField("S1", "ugSourcePoleId", "P1");
+S.updatePoleField("P1", "ugSpanMRText", "Forespan to go UG E due to clearance.");
 S.upsertSpanSide({ spanId: "S1", poleId: "P1", proposedHOA: "20'" });
 S.upsertSpanComm({ spanId: "S1", poleId: "P1", owner: "CTL", ownerCanonical: "CTL", wireId: "W1", remotePoleId: "P2", existingHOA: "18'" });
 S.upsertSpanComm({ spanId: "S1", poleId: "P2", owner: "CTL", ownerCanonical: "CTL", wireId: "W1", remotePoleId: "P1", existingHOA: "18'" });
@@ -43,6 +46,8 @@ assert.deepEqual(JSON.parse(JSON.stringify(renamed)), {
 assert.equal(S.getPole("P1"), null, "the old pole ID should no longer exist in the graph");
 assert.equal(S.getPole("P1-RENAMED")?.poleId, "P1-RENAMED", "the pole map key and pole record should use the new ID");
 assert.equal(S.getSpan("S1").fromPole, "P1-RENAMED", "span endpoints should be remapped");
+assert.equal(S.getSpan("S1").ugSourcePoleId, "P1-RENAMED", "the owner of a shared UG Make Ready box should be remapped");
+assert.equal(S.getPole("P1-RENAMED")?.ugSpanMRText, "Forespan to go UG E due to clearance.", "the shared UG Make Ready text should follow the renamed pole");
 assert.equal(S.getSpanSide("S1", "P1-RENAMED")?.proposedHOA, "20'", "SpanSide keys and values should be remapped");
 assert.equal(S.getSpanComm("S1", "P1-RENAMED", "CTL", "W1")?.remotePoleId, "P2", "the renamed endpoint's comm row should remain addressable");
 assert.equal(S.getSpanComm("S1", "P2", "CTL", "W1")?.remotePoleId, "P1-RENAMED", "remote pole references should be remapped");

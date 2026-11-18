@@ -51,7 +51,7 @@ The application does not use ES modules. Public APIs are attached to `window` an
 | `createSpanComm(data)` | Normalize an existing comm/span row. |
 | `createSpanPower(data)` | Normalize a power/span row. |
 | `createMakeReadyReference(data)` | Normalize an imported attachment reference. |
-| `canonicalPoleIdentity(poleId)` | Build a stable matching key that ignores trailing STEEL/UG/PCO descriptors. |
+| `canonicalPoleIdentity(poleId)` | Build a stable matching key that ignores trailing STEEL/RECOLLECT/T/UG/PCO pole descriptors. |
 | `keyForSpanSide(spanId, poleId)` | Build a SpanSide map key. |
 | `keyForSpanComm(spanId, poleId, owner, wireId)` | Build a SpanComm map key. |
 

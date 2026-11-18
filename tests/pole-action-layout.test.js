@@ -32,6 +32,7 @@ const window = {
       { spanId: "SPAN-W", relation: "Backspan", direction: "W", otherPoleId: "P2", label: "Backspan W · P2" },
       { spanId: "SPAN-E", relation: "Forespan", direction: "E", otherPoleId: "P3", label: "Forespan E · P3" }
     ],
+    getUGSpanMRTemplate: () => "Backspan to go UG W due to [insert reason].",
     getEditableUGTemplate: () => "Unable to attach due to clearance violation.",
     getEffectiveANCDistance: () => "15'",
     getEffectiveANCDGHOA: () => "19'",
@@ -58,8 +59,14 @@ const renderer = window.PoleWorkspaceRenderer.create({
   S: {
     getPole: () => pole,
     getState: () => state,
-    getConnectedSpans: () => [{ spanId: "SPAN-W", ugActive: true }, { spanId: "SPAN-E", ugActive: false }],
-    getSpan: spanId => ({ "SPAN-W": { ugActive: true }, "SPAN-E": { ugActive: false } })[spanId] || null
+    getConnectedSpans: () => [
+      { spanId: "SPAN-W", fromPole: "P1", ugActive: true, ugSourcePoleId: "P1" },
+      { spanId: "SPAN-E", fromPole: "P1", ugActive: false }
+    ],
+    getSpan: spanId => ({
+      "SPAN-W": { spanId: "SPAN-W", fromPole: "P1", ugActive: true, ugSourcePoleId: "P1" },
+      "SPAN-E": { spanId: "SPAN-E", fromPole: "P1", ugActive: false }
+    })[spanId] || null
   },
   H: { parseHeight: () => null, formatHeight: value => String(value) },
   escapeHtml,
@@ -79,10 +86,9 @@ assert.match(markup, /data-field="dgHoa"[^]*?<\/label>\s*<div class="proposed-an
 assert.match(markup, /class="pole-action-section pole-inset-section"/, "Pole Inset should have a separated action block");
 assert.match(markup, /class="pole-action-section"><label class="pole-action-field riser-direction-field"/, "Riser should have a separated action block");
 assert.match(markup, /class="pole-action-section proposed-anc-section"/, "ANC should have a separated action block");
-assert.match(markup, /class="pole-action-section ug-action-section"[^]*?data-ug-span-select[^]*?data-current-span="SPAN-W"[^]*?data-ug-span-select[^]*?data-current-span=""/,
-  "span-level UG choices should use connected dropdowns under the existing UG action and allow multiple spans");
-assert.match(markup, /class="input ug-span-reason-editor"[^]*?data-field="ugReason"[^]*?value="CLEARANCE VIOLATION"/,
-  "each selected UG span should expose its editable reason, defaulting to Clearance Violation");
+assert.match(markup, /class="pole-action-section ug-action-section"[^]*?data-current-span="SPAN-W"[^]*?data-remove-ug-span[^]*?data-field="ugSpanMRText"[^]*?Backspan to go UG W due to \[insert reason\]\.[^]*?data-add-ug-span[^]*?data-current-span=""/,
+  "span-level UG should use one editable Make Ready box for selected spans and plus/minus span controls");
+assert.doesNotMatch(markup, /ug-span-reason-editor/, "selected UG spans should not render separate reason boxes");
 assert.match(markup, /Select ALL for the whole pole or choose individual spans to keep this pole aerial\./,
   "the UG scope control should distinguish whole-pole and span-only work");
 assert.match(markup, /data-toggle-anc data-pole="P1"(?! disabled)/,

@@ -89,7 +89,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `maxCommHeight` | derived | Lowest applicable Low Power and project-specific equipment ceiling. |
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |
 
-`canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `UG`, and `PCO` descriptors and compares case-insensitively. The imported Collection ID remains in the preserved Excel source snapshot; the normalized `poleId` is editable and is used by the current graph and exports.
+`canonicalPoleIdentity(poleId)` is used only for matching. It removes trailing `STEEL`, `RECOLLECT`, `T`, `UG`, and `PCO` descriptors (in any combination/order) and compares case-insensitively. Collection revisions that differ only by these descriptors resolve to one normalized pole; the newest Collection row supplies its visible ID and current imported facts. The original rows remain in the preserved Excel source snapshot, and the normalized `poleId` is used by the current graph and exports.
 
 An operator rename updates normalized pole, span endpoint, SpanSide, communication,
 Power, Make Ready, warning, movement, and pole-class references as one operation.
@@ -161,7 +161,8 @@ Generated poles use stable `Unknown-<spanId>`-style IDs and remain editable.
 | `midspanLowPower` | derived | Lowest valid power midspan on this span. |
 | `midspanMaxCommHeight` | derived | `midspanLowPower - Midspan Power-comm clearance`. |
 | `ugActive` | editable tri-state | Independent span-level UG decision. Multiple connected spans may be `true` while their pole remains aerial; each exports as geometry-only underground. `null` means no span-level decision. This is separate from pole-level `ugActive`; `ALL` on the pole takes precedence and clears span-only selections. |
-| `ugReason` | editable | Case 2 reason used in the relation-specific UG Make Ready line; defaults to `CLEARANCE VIOLATION`. |
+| `ugReason` | editable | Case 2 reason parsed from the shared span-level UG Make Ready box for this physical span. |
+| `ugSourcePoleId` | editable workflow | Pole where the operator selected this span for UG; controls which pole owns the shared editable Make Ready box. |
 | `sourceSpanId` | internal relationship | Physical span supplying geometry and power data to an additional Proposed row. |
 | `isManualProposed` | internal/editable workflow | Marks a user-created Proposed connection. |
 

@@ -402,7 +402,8 @@
     return {
       ...span,
       fromPole: remapPoleId(span.fromPole, aliases),
-      toPole: remapPoleId(span.toPole, aliases)
+      toPole: remapPoleId(span.toPole, aliases),
+      ugSourcePoleId: remapPoleId(span.ugSourcePoleId, aliases)
     };
   }
 
@@ -695,15 +696,20 @@
       normalizedCommOwner(identity.ownerCanonical),
       String(identity.wireId || "")
     ].join("__");
-    Object.values(previous.spanComms || {}).forEach(oldRowSource => {
-      const oldRow = {
+    const previousCommRows = Object.values(previous.spanComms || {}).map(oldRowSource => ({
         ...oldRowSource,
         poleId: remapPoleId(oldRowSource.poleId, poleAliases),
         remotePoleId: remapPoleId(oldRowSource.remotePoleId, poleAliases),
         manualRemoteMatch: oldRowSource.manualRemoteMatch
           ? { ...oldRowSource.manualRemoteMatch, poleId: remapPoleId(oldRowSource.manualRemoteMatch.poleId, poleAliases) }
           : null
-      };
+      }));
+    // Several old Collection revisions can leave duplicate endpoint rows
+    // under suffix variants of the same pole ID. After alias remapping those
+    // rows share one identity; let the row with operator work claim the new
+    // imported cable first so its HOA movement is not discarded as stale.
+    previousCommRows.sort((a, b) => Number(spanCommHasUserWork(b)) - Number(spanCommHasUserWork(a)));
+    previousCommRows.forEach(oldRow => {
       const key = S.keyForSpanComm(oldRow.spanId, oldRow.poleId, oldRow.owner, oldRow.wireId || "");
       const match = findImportedCommMatch(merged.spanComms || {}, key, oldRow, claimedImportedCommKeys);
       if (match.row) {
@@ -930,7 +936,7 @@
   function logExcelUpdateChanges(fileName, previous, finalState) {
     const specs = [
       ["Pole", "poles", ["poleHeight", "lowPower", "poleType", "standaloneProposedHOA", "ugActive", "ugSpanId", "ugSpanMRSpanId", "ugSpanMRText", "ugReason", "ugMRText", "pcoActive", "pcoMRText", "riserActive", "secondaryDripLoopActive", "secondaryDripLoopHoa", "ugRiserDirection", "ancActive", "ancSize", "ancDistance", "ancDistanceManual", "ancDirection", "ancDirectionManual", "dgHoa", "ohgActive", "ohgHoa", "ohgDirection", "redTagActive", "redTagMinHeight", "redTagClass", "redTagReason"]],
-      ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment"]],
+      ["Span", "spans", ["fromPole", "toPole", "type", "direction", "bearingDegrees", "lengthDisplay", "environment", "ugActive", "ugReason", "ugSourcePoleId"]],
       ["Proposed", "spanSides", ["proposedHOA", "proposedHOAChange", "isSlack", "endDrop", "ocalcMS", "msProposed", "finalMidspan", "clearanceMSStatus", "proposedFlaggingStatus"]],
       ["Comm", "spanComms", ["owner", "existingHOA", "existingHOAChange", "otherHOA", "otherHOAActive", "remoteHOA", "midspan", "calculatedMidspan", "finalMidspan", "flaggingStatus", "serviceDrop", "downGuy", "transferToNewPole", "resagServiceDrop", "isEndpointPlaceholder"]],
       ["Power", "spanPower", ["attachmentHeight", "attachmentHeightChange", "midspan", "calculatedMidspan", "owner", "size"]]

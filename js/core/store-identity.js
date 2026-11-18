@@ -5,7 +5,10 @@
 
   function canonicalPoleIdentity(value) {
     const parts = text(value).replace(/\s+/g, " ").split(" ").filter(Boolean);
-    while (parts.length > 1 && /^(STEEL|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
+    // These trailing tokens describe construction, status, or workflow—not a
+    // different physical pole. Collection revisions may add/remove/reorder
+    // them while keeping the same pole ID.
+    while (parts.length > 1 && /^(STEEL|RECOLLECT|T|UG|PCO)$/i.test(parts[parts.length - 1])) parts.pop();
     return parts.join(" ").toUpperCase();
   }
 

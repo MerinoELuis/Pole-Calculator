@@ -186,7 +186,7 @@ Only `ui/runtime.js` observes the pole workspace. Individual UI modules expose s
 
 Poles are graph nodes and spans are directed imported edges. Direction is useful for Fore/Back/Other semantics, but calculations compare unordered pole pairs when two records describe the same physical connection.
 
-Collection owns the visible Pole ID. Import and Update Data use `AppStore.canonicalPoleIdentity()` to resolve labels that differ only by trailing `STEEL`, `UG`, or `PCO` descriptors.
+Collection supplies the visible Pole ID. Import and Update Data use `AppStore.canonicalPoleIdentity()` to resolve labels that differ only by trailing `STEEL`, `RECOLLECT`, `T`, `UG`, or `PCO` descriptors. When Collection revisions differ only by those suffixes, import keeps one pole using the newest Collection row; all raw revisions remain available in Excel Review.
 
 Important identities:
 

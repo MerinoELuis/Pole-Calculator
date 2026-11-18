@@ -621,6 +621,7 @@
       // null means the operator has not selected Case 2 for this span.
       ugActive: extra.ugActive === true ? true : extra.ugActive === false ? false : null,
       ugReason: trim(extra.ugReason || ""),
+      ugSourcePoleId: trim(extra.ugSourcePoleId || ""),
       rawSpanIds: Array.isArray(extra.rawSpanIds) ? extra.rawSpanIds : (extra.rawSpanId ? [extra.rawSpanId] : []),
       rawType: trim(extra.importedRelation || extra.rawType || extra.spanRelation || extra.type || ""),
       linkedCollectionId: trim(extra.linkedCollectionId || ""),
@@ -922,6 +923,7 @@
     Object.values(state.spans || {}).forEach(span => {
       span.fromPole = remap(span.fromPole);
       span.toPole = remap(span.toPole);
+      span.ugSourcePoleId = remap(span.ugSourcePoleId);
     });
 
     const nextSides = {};
@@ -993,7 +995,7 @@
   function updateSpanField(spanId, field, value) {
     const span = state.spans[spanId];
     if (!span) return null;
-    if (!["environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "notes", "ugActive", "ugReason"].includes(field)) return span;
+    if (!["environment", "environmentClearance", "midspanLowPower", "midspanMaxCommHeight", "notes", "ugActive", "ugReason", "ugSourcePoleId"].includes(field)) return span;
     if (field === "ugActive") {
       span.ugActive = value === true ? true : value === false ? false : null;
     } else {

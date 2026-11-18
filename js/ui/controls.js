@@ -48,6 +48,13 @@
       select.dataset.currentSpan || "",
       select.value
     )));
+    root.querySelectorAll("[data-add-ug-span]").forEach(button => button.addEventListener("click", () => showUGSpanAddRow(button)));
+    root.querySelectorAll("[data-cancel-ug-span]").forEach(button => button.addEventListener("click", () => hideUGSpanAddRow(button)));
+    root.querySelectorAll("[data-remove-ug-span]").forEach(button => button.addEventListener("click", () => setUGSpanScope(
+      button.dataset.pole,
+      button.dataset.span,
+      ""
+    )));
     root.querySelectorAll("[data-toggle-pco]").forEach(btn => btn.addEventListener("click", () => togglePCO(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-pole-inset]").forEach(btn => btn.addEventListener("click", () => togglePoleInset(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-riser]").forEach(btn => btn.addEventListener("click", () => toggleRiser(btn.dataset.pole)));
@@ -142,17 +149,22 @@
     recordUndoSnapshot();
     const currentResolution = poleResolutionOf(pole);
     const connectedSpans = S.getConnectedSpans(poleId);
-    const hasSpanUG = connectedSpans.some(span => span.ugActive === true);
-    const nextUGActive = currentResolution !== "UG" && !hasSpanUG;
-    if (!nextUGActive) {
-      connectedSpans.forEach(span => {
-        if (span.ugActive === true) S.updateSpanField(span.spanId, "ugActive", false);
-      });
-    }
+    const localSpanUG = connectedSpans.filter(span => span.ugActive === true
+      && String(span.ugSourcePoleId || span.fromPole || "") === poleId);
+    const nextUGActive = currentResolution !== "UG" && !localSpanUG.length;
+    const spansToClear = nextUGActive || currentResolution === "UG"
+      ? connectedSpans.filter(span => span.ugActive === true)
+      : localSpanUG;
+    spansToClear.forEach(span => {
+      S.updateSpanField(span.spanId, "ugActive", false);
+      S.updateSpanField(span.spanId, "ugSourcePoleId", "");
+    });
     S.upsertPole({
       ...pole,
       ugActive: nextUGActive,
       ugSpanId: nextUGActive ? "ALL" : (pole.ugSpanId || "ALL"),
+      ugSpanMRText: spansToClear.length ? "" : pole.ugSpanMRText,
+      ugSpanMRSpanId: spansToClear.length ? "" : pole.ugSpanMRSpanId,
       pcoActive: nextUGActive ? false : pole.pcoActive
     });
     global.Calculations.recalculateSpansForPole(poleId);
@@ -338,24 +350,39 @@
 
     if (nextIsAll) {
       connectedSpans.forEach(span => {
-        if (span.ugActive === true) S.updateSpanField(span.spanId, "ugActive", false);
+        if (span.ugActive === true) {
+          S.updateSpanField(span.spanId, "ugActive", false);
+          S.updateSpanField(span.spanId, "ugSourcePoleId", "");
+        }
       });
-      S.upsertPole({ ...pole, ugActive: true, pcoActive: false, ugSpanId: "ALL" });
+      S.upsertPole({ ...pole, ugActive: true, pcoActive: false, ugSpanId: "ALL", ugSpanMRText: "", ugSpanMRSpanId: "" });
     } else {
       if (poleResolutionOf(pole) === "UG" || currentId.toUpperCase() === "ALL") {
         connectedSpans.forEach(span => {
-          if (span.ugActive === true) S.updateSpanField(span.spanId, "ugActive", false);
+          if (span.ugActive === true) {
+            S.updateSpanField(span.spanId, "ugActive", false);
+            S.updateSpanField(span.spanId, "ugSourcePoleId", "");
+          }
         });
       } else if (currentId) {
         const previousSpan = connectedSpans.find(span => span.spanId === currentId);
-        if (previousSpan?.ugActive === true) S.updateSpanField(currentId, "ugActive", false);
+        if (previousSpan?.ugActive === true) {
+          S.updateSpanField(currentId, "ugActive", false);
+          S.updateSpanField(currentId, "ugSourcePoleId", "");
+        }
       }
       S.upsertPole({ ...pole, ugActive: false, pcoActive: false, ugSpanId: "ALL" });
       if (nextId) {
-        const nextSpan = connectedSpans.find(span => span.spanId === nextId);
+        const nextSpan = S.getSpan(nextId) || connectedSpans.find(span => span.spanId === nextId);
         S.updateSpanField(nextId, "ugActive", true);
-        if (!nextSpan.ugReason) S.updateSpanField(nextId, "ugReason", "CLEARANCE VIOLATION");
+        S.updateSpanField(nextId, "ugSourcePoleId", poleId);
+        if (!nextSpan?.ugReason) S.updateSpanField(nextId, "ugReason", "");
       }
+      const selectedSpanIds = connectedSpans
+        .filter(span => span.ugActive === true && String(span.ugSourcePoleId || span.fromPole || "") === poleId)
+        .map(span => span.spanId);
+      S.updatePoleField(poleId, "ugSpanMRText", global.MRLogic.getUGSpanMRTemplate?.(poleId, selectedSpanIds) || "");
+      S.updatePoleField(poleId, "ugSpanMRSpanId", selectedSpanIds.length === 1 ? selectedSpanIds[0] : "MULTI");
     }
 
     global.Calculations.recalculateSpansForPole(poleId);
@@ -363,6 +390,23 @@
       || [poleId, ...connectedSpans.map(span => S.getOtherPoleId(span, poleId)).filter(Boolean)];
     renderAffectedPoles(affectedPoleIds);
     markDirty();
+  }
+
+  function showUGSpanAddRow(button) {
+    const section = button.closest(".span-ug-transfer-section");
+    const row = section?.querySelector("[data-ug-span-add-row]");
+    const select = row?.querySelector("[data-ug-span-select]");
+    if (!row || !select) return;
+    row.hidden = false;
+    select.focus();
+  }
+
+  function hideUGSpanAddRow(button) {
+    const row = button.closest("[data-ug-span-add-row]");
+    if (!row) return;
+    row.hidden = true;
+    const select = row.querySelector("[data-ug-span-select]");
+    if (select) select.value = "";
   }
 
   function toggleANC(poleId) {

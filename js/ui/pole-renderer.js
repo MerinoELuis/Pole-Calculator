@@ -918,7 +918,16 @@
         const isMetronet = projectProfile === "METRONET";
         const isOlsson = projectProfile === "OLSSON_OPPD";
         const connectedSpans = S.getConnectedSpans?.(poleId) || [];
-        const hasSpanLevelUG = connectedSpans.some(span => span.ugActive === true);
+        const allUGSpanOptions = (isIntec || isMetronet)
+          ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
+          : [];
+        const activeUGSpanIds = allUGSpanOptions
+          .filter(option => {
+            const span = S.getSpan(option.spanId);
+            return span?.ugActive === true && String(span.ugSourcePoleId || span.fromPole || "") === poleId;
+          })
+          .map(option => option.spanId);
+        const hasSpanLevelUG = activeUGSpanIds.length > 0;
         const powerEquipment = Array.isArray(pole?.metadata?.powerEquipment) ? pole.metadata.powerEquipment : [];
         const riserEquipment = powerEquipment.filter(row => String(row.category || row.type || "").toUpperCase().includes("RISER"));
         const secondaryDripLoopActive = Boolean(pole?.secondaryDripLoopActive);
@@ -927,15 +936,14 @@
         const ugTemplate = showUGReason
           ? global.MRLogic.getEditableUGTemplate(pole)
           : "";
-        const ugSpanOptions = (isIntec || isMetronet) && showUGReason
-          ? (global.MRLogic.getUGSpanOptions?.(poleId) || [])
-          : [];
-        const activeUGSpanIds = ugSpanOptions
-          .filter(option => S.getSpan(option.spanId)?.ugActive === true)
-          .map(option => option.spanId);
+        const ugSpanOptions = showUGReason ? allUGSpanOptions : [];
         const ugSpanSelectorValues = resolution === "UG"
           ? ["ALL"]
-          : (activeUGSpanIds.length ? [...activeUGSpanIds, ""] : ["ALL"]);
+          : activeUGSpanIds;
+        const availableUGSpanOptions = ugSpanOptions.filter(option => S.getSpan(option.spanId)?.ugActive !== true);
+        const ugSpanMRText = hasSpanLevelUG
+          ? String(pole?.ugSpanMRText || global.MRLogic.getUGSpanMRTemplate?.(poleId, activeUGSpanIds) || "")
+          : "";
         const showPCOEditor = resolution === "PCO";
         const pcoTemplate = showPCOEditor
           ? global.MRLogic.getEditablePCOTemplate(pole)
@@ -1052,30 +1060,43 @@
             <strong>UG Span</strong>
             <span>Select ALL for the whole pole or choose individual spans to keep this pole aerial.</span>
           </div>
-          <div class="pole-action-fields action-detail-grid ug-controls">
+          <div class="ug-span-selector-list">
             ${ugSpanSelectorValues.map((selectedSpanId, index) => {
-              const isAddRow = selectedSpanId === "";
-              const title = index === 0 ? "UG Span" : `Additional UG Span ${index + 1}`;
-              const selectedSpan = selectedSpanId && selectedSpanId.toUpperCase() !== "ALL"
-                ? S.getSpan(selectedSpanId)
-                : null;
+              const isPoleScope = selectedSpanId.toUpperCase() === "ALL";
               const options = ugSpanOptions.map(option => {
                 const selectedElsewhere = activeUGSpanIds.includes(option.spanId) && option.spanId !== selectedSpanId;
-                return `<option value="${escapeHtml(option.spanId)}" ${option.spanId === selectedSpanId ? "selected" : ""} ${selectedElsewhere ? "disabled" : ""}>${escapeHtml(option.label)}</option>`;
+                const activeElsewhere = S.getSpan(option.spanId)?.ugActive === true && option.spanId !== selectedSpanId;
+                return `<option value="${escapeHtml(option.spanId)}" ${option.spanId === selectedSpanId ? "selected" : ""} ${selectedElsewhere || activeElsewhere ? "disabled" : ""}>${escapeHtml(option.label)}</option>`;
               }).join("");
-              return `<label class="pole-action-field">
-                <span>${title}</span>
-                <select class="input" data-ug-span-select data-pole="${escapeHtml(poleId)}" data-current-span="${escapeHtml(selectedSpanId)}">
-                  ${isAddRow ? '<option value="" selected>Select another span</option>' : `<option value="ALL" ${selectedSpanId === "ALL" ? "selected" : ""}>ALL · Entire pole</option>`}
-                  ${isAddRow ? '<option value="ALL">ALL · Entire pole</option>' : ""}
-                  ${options}
-                </select>
-              </label>${selectedSpan ? `<label class="pole-action-field ug-span-reason-field">
-                <span>UG Reason</span>
-                <input class="input ug-span-reason-editor" data-scope="span" data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(selectedSpanId)}" data-field="ugReason" value="${escapeHtml(selectedSpan.ugReason || "CLEARANCE VIOLATION")}" placeholder="CLEARANCE VIOLATION">
-              </label>` : ""}`;
+              return `<div class="ug-span-selector-row">
+                <label class="pole-action-field">
+                  <span>${isPoleScope ? "Pole Scope" : `UG Span ${index + 1}`}</span>
+                  <select class="input" data-ug-span-select data-pole="${escapeHtml(poleId)}" data-current-span="${escapeHtml(selectedSpanId)}">
+                    <option value="ALL" ${isPoleScope ? "selected" : ""}>ALL · Entire pole</option>
+                    ${options}
+                  </select>
+                </label>
+                ${hasSpanLevelUG && !isPoleScope ? `<button class="mini-btn ug-span-remove-btn" type="button" data-remove-ug-span data-pole="${escapeHtml(poleId)}" data-span="${escapeHtml(selectedSpanId)}" title="Remove this UG span" aria-label="Remove UG span ${escapeHtml(selectedSpanId)}">−</button>` : ""}
+              </div>`;
             }).join("")}
           </div>
+          ${hasSpanLevelUG ? `<label class="pole-action-field ug-span-mr-field">
+            <span>Make Ready</span>
+            <textarea class="input pole-mr-editor ug-span-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugSpanMRText">${escapeHtml(ugSpanMRText)}</textarea>
+          </label>
+          <div class="ug-span-add-controls">
+            <button class="mini-btn ug-span-add-btn" type="button" data-add-ug-span title="Add another UG span" aria-label="Add another UG span" ${availableUGSpanOptions.length ? "" : "disabled"}>+</button>
+            <div class="ug-span-add-row" data-ug-span-add-row hidden>
+              <label class="pole-action-field">
+                <span>Additional UG Span</span>
+                <select class="input" data-ug-span-select data-pole="${escapeHtml(poleId)}" data-current-span="">
+                  <option value="" selected>Select span</option>
+                  ${availableUGSpanOptions.map(option => `<option value="${escapeHtml(option.spanId)}">${escapeHtml(option.label)}</option>`).join("")}
+                </select>
+              </label>
+              <button class="mini-btn ug-span-remove-btn" type="button" data-cancel-ug-span title="Cancel adding a span" aria-label="Cancel adding a span">−</button>
+            </div>
+          </div>` : ""}
           ${hasSpanLevelUG ? `<p class="muted span-ug-transfer-note">Selected spans go UG; this pole remains aerial, so ANC and Riser stay available.</p>` : ""}
         </div>` : ""}
         ${resolution === "UG" ? `<label class="pole-action-field">
