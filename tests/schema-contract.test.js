@@ -36,8 +36,8 @@ function validatePayload(payload, filename) {
   exactKeys(payload.sizes, ["messenger", "fiber"], `${filename}.sizes`);
   assert.ok(payload.sizes.messenger === null || (typeof payload.sizes.messenger === "number" && payload.sizes.messenger > 0));
   assert.equal(typeof payload.sizes.fiber, "object");
-  Object.entries(payload.sizes.fiber).forEach(([count, size]) => {
-    assert.match(count, /^\d+$/);
+  Object.entries(payload.sizes.fiber).forEach(([fiberType, size]) => {
+    assert.match(fiberType, /^(?:\d+|MST)$/);
     assert.ok(size === null || (typeof size === "number" && size > 0));
   });
 
@@ -84,15 +84,21 @@ function validatePayload(payload, filename) {
 
     (pole.spans || []).forEach((span, spanIndex) => {
       const spanContext = `${context}.spans[${spanIndex}]`;
-      exactKeys(span, ["to", "kind", "bearing", "length", "hoa", "fiber", "endDrop", "nextHoa", "slack", "ug"], spanContext);
+      exactKeys(span, ["to", "kind", "bearing", "length", "hoa", "fiber", "ports", "endDrop", "nextHoa", "slack", "ug", "overlash"], spanContext);
       assert.equal(typeof span.to, "string");
       assert.ok(["F", "B", "O"].includes(span.kind));
       if ("slack" in span) assert.equal(typeof span.slack, "boolean", `${spanContext}.slack must be a boolean`);
+      if ("overlash" in span) assert.equal(typeof span.overlash, "boolean", `${spanContext}.overlash must be a boolean`);
+      if ("fiber" in span) {
+        assert.ok(span.fiber === "MST" || Number.isInteger(span.fiber) && span.fiber > 0, `${spanContext}.fiber must be a CT count or MST`);
+        if (span.fiber === "MST") assert.ok([8, 16].includes(span.ports), `${spanContext}.ports must specify 8 or 16 for MST`);
+        else assert.equal("ports" in span, false, `${spanContext}: ports are only valid for MST`);
+      }
       ["length", "hoa", "endDrop", "nextHoa"].forEach(field => {
         if (field in span) assert.equal(Number.isInteger(span[field]), true, `${spanContext}.${field} must be integer inches`);
       });
       if (span.ug === true) {
-        ["hoa", "fiber", "endDrop", "nextHoa"].forEach(field => {
+        ["hoa", "fiber", "ports", "endDrop", "nextHoa"].forEach(field => {
           assert.equal(field in span, false, `${spanContext}: UG cannot contain ${field}`);
         });
       }
@@ -104,5 +110,15 @@ for (const filename of ["autoproposed-ug.json", "autoproposed-pco.json", "autopr
   validatePayload(JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", filename), "utf8")), filename);
 }
 validatePayload(JSON.parse(fs.readFileSync(path.join(__dirname, "expected", "compact-normal-output.json"), "utf8")), "compact-normal-output.json");
+validatePayload({
+  project: "INTEC",
+  sizes: { messenger: 0.242, fiber: { MST: 0.5 } },
+  owner: "Wecom",
+  poles: [{ id: "P1", spans: [{ to: "P2", kind: "F", hoa: 240, fiber: "MST", ports: 8, overlash: true }] }]
+}, "mst-autoproposed");
+
+assert.match(schema.$defs.sizes.properties.fiber.propertyNames.pattern, /MST/);
+assert.deepEqual(schema.$defs.span.properties.ports.enum, [8, 16]);
+assert.equal(schema.$defs.span.allOf.some(rule => rule.if?.properties?.fiber?.const === "MST" && rule.then?.required?.includes("ports")), true);
 
 console.log("AutoProposed schema and fixture contract tests passed");

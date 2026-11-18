@@ -62,9 +62,11 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/ui/mobile-keyboard.js` | `MobileKeyboardControl` | Mobile viewport and keyboard-related input behavior. |
 | `js/ui/floating-calculator.js` | `FloatingCalculator` | Feet/inches expression calculator and quote normalization. |
 | `js/ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Excel Review result rendering, warning controls, and per-pole actions. |
+| `js/ui/fiber-tab-renderer.js` | `FiberTabRenderer` | Fiber planning view: global per-type diameters, per-pole/per-span fiber type, MST ports, and New/Overlash assignments. |
 | `js/ui/pole-navigation.js` | `PoleNavigation` | Pole-index drawer, selection, visibility, and scroll navigation. |
 | `js/ui/comm-pairing-dialog.js` | `CommPairingDialogModule` | Cable matching dialog, selectable span/table rendering, and temporary match selections. |
 | `js/ui/poles/power-equipment-renderer.js` | `PowerEquipmentRenderer` | Render power wires, power equipment actions, and disclosure icon markup. |
+| `js/ui/poles/anchor-renderer.js` | `AnchorRenderer` | Render editable imported Anchor and associated Guys data in the pole workspace. |
 | `js/ui/dom-contract.js` | `UiDomContract` | Add stable component, pole, span, and column identities after render. |
 | `js/ui/comm-table.js` | `CommTableUI` | Hide visual Other Pole HOA while preserving calculation data. |
 | `js/ui/span-colors.js` | `SpanColorUI` | Restart visible span colors per pole and pair each Midspan with its span. |

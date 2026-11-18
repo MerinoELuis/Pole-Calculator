@@ -30,6 +30,20 @@
     return /\banc\b|anchor/i.test(`${spanSide.notes || ""}`);
   }
 
+  function hasAnchorGroundlineViolation(pole) {
+    return (Array.isArray(pole?.metadata?.anchors) ? pole.metadata.anchors : []).some(anchor => (
+      anchor?.groundlineViolation === true
+      || /^(?:yes|true|1)$/i.test(String(anchor?.groundlineViolation ?? "").trim())
+    ));
+  }
+
+  function generateAnchorGroundlineViolationMR(pole) {
+    if (poleResolutionOf(pole) === "UG") return "";
+    return hasAnchorGroundlineViolation(pole)
+      ? "APS replacing the anchor due to it being set improperly."
+      : "";
+  }
+
   function detectRiser(spanSide) {
     return /riser/i.test(`${spanSide.notes || ""}`);
   }
@@ -249,17 +263,32 @@
     return formattedMRHeight(manual || proposedHoaForAnchor(pole));
   }
 
-  function generateConfiguredAnchorInstruction(pole) {
+  function generateConfiguredAnchorInstruction(pole, additionalANC = null) {
     if (!isANCEnabled(pole?.poleId)) return "";
-    const direction = getEffectiveAnchorDirection(pole);
-    const distance = getEffectiveAnchorDistance(pole);
+    const direction = additionalANC
+      ? String(additionalANC.ancDirection || "").trim().toUpperCase()
+      : getEffectiveAnchorDirection(pole);
+    const distance = additionalANC
+      ? normalizeAnchorDistance(additionalANC.ancDistance || defaultAnchorDistance(pole) || getEffectiveAnchorDistance(pole))
+      : getEffectiveAnchorDistance(pole);
     const proposedHoa = proposedHoaForAnchor(pole);
-    const dgHoa = getEffectiveAnchorDGHOA(pole) || formattedMRHeight(proposedHoa);
+    const dgHoa = additionalANC
+      ? formattedMRHeight(additionalANC.dgHoa || proposedHoa)
+      : (getEffectiveAnchorDGHOA(pole) || formattedMRHeight(proposedHoa));
     if (!direction || !dgHoa) return "";
     if (isIntecMR()) {
       return `Pl new ANC ${distance} ${direction} and pl new DG at HOA ${dgHoa}.`;
     }
-    return `PL NEW ${normalizeAnchorSize(pole.ancSize)} ANC ${distance} ${direction} AND PL NEW DG AT HOA ${dgHoa}.`;
+    return `PL NEW ${normalizeAnchorSize(additionalANC?.ancSize || pole.ancSize)} ANC ${distance} ${direction} AND PL NEW DG AT HOA ${dgHoa}.`;
+  }
+
+  function generateConfiguredAnchorInstructions(pole) {
+    if (!isANCEnabled(pole?.poleId)) return [];
+    const additionalANCs = Array.isArray(pole?.metadata?.proposedANCs) ? pole.metadata.proposedANCs : [];
+    return [
+      generateConfiguredAnchorInstruction(pole),
+      ...additionalANCs.map(anchor => generateConfiguredAnchorInstruction(pole, anchor))
+    ].filter(Boolean);
   }
 
   function metronetConfiguredOHGMR(pole) {
@@ -867,11 +896,16 @@
         .find(Boolean);
       const side = S().getSpanSidesForPole(pole?.poleId)
         .find(item => item.proposedHOA) || null;
-      const anchor = generateConfiguredAnchorInstruction(pole) || metronetUGAnchorInstruction(pole?.poleId, {
-        spanId: side?.spanId || "",
-        direction: relationMatch?.[1] || resolvedRiserDirection(pole?.poleId)
-      });
-      lines.push(anchor || "PL NEW ANC/DG FOR DEADENDING LINES.");
+      const configuredAnchors = generateConfiguredAnchorInstructions(pole);
+      if (configuredAnchors.length) {
+        lines.push(...configuredAnchors);
+      } else {
+        const anchor = metronetUGAnchorInstruction(pole?.poleId, {
+          spanId: side?.spanId || "",
+          direction: relationMatch?.[1] || resolvedRiserDirection(pole?.poleId)
+        });
+        lines.push(anchor || "PL NEW ANC/DG FOR DEADENDING LINES.");
+      }
     }
     if (hasUGRelation && !lines.some(line => /\briser\b/i.test(line))) {
       const directionMatch = lines
@@ -910,9 +944,14 @@
         const adjacentReason = item.isSpanUG
           ? (cleanUGReason(item.reason) || metronetUGPlaceholderReason())
           : (metronetUGReasonFromPole(S().getPole(item.otherPoleId)) || metronetUGPlaceholderReason());
-        const anchor = item.isSpanUG ? "" : (isANCEnabled(poleId)
-          ? (generateConfiguredAnchorInstruction(S().getPole(poleId)) || metronetUGAnchorInstruction(poleId, item) || "Pl new ANC/DG for deadending lines.")
-          : "");
+        const configuredAnchors = item.isSpanUG || !isANCEnabled(poleId)
+          ? []
+          : generateConfiguredAnchorInstructions(S().getPole(poleId));
+        const anchorLines = item.isSpanUG || !isANCEnabled(poleId)
+          ? []
+          : (configuredAnchors.length
+            ? configuredAnchors
+            : [metronetUGAnchorInstruction(poleId, item) || "Pl new ANC/DG for deadending lines."]);
         const transferDirection = resolvedRiserDirection(poleId, item) || item.direction;
         const riser = S().getPole(poleId)?.riserActive === false
           ? ""
@@ -921,7 +960,7 @@
           item.isSpanUG
             ? `${relation} going UG due to ${adjacentReason}.`
             : `${relation} going UG${direction} due to on adj pole ${adjacentReason}.`,
-          ...(anchor ? [anchor] : []),
+          ...anchorLines,
           ...(riser ? [riser] : [])
         ];
       }
@@ -1051,6 +1090,7 @@
     const anc = [];
     const pole = S().getPole(poleId);
     const redTag = generateRedTagMR(pole);
+    const anchorGroundlineViolationMR = generateAnchorGroundlineViolationMR(pole);
     if (["UG", "PCO"].includes(poleResolutionOf(pole))) {
       const selectedUGLines = poleResolutionOf(pole) === "UG" && isIntecMR() ? selectedIntecUGLines(pole) : [];
       const lines = poleResolutionOf(pole) === "UG"
@@ -1058,7 +1098,7 @@
           ? selectedUGLines
           : (isMetronetMR() ? metronetUGReplacementMR(pole) : (isOlssonMR() ? defaultOlssonUGLines(pole) : ugReplacementMR(pole))))
         : pcoReplacementMR(pole);
-      const text = [redTag, ...lines].filter(Boolean).map(applyCase).join("\n");
+      const text = [anchorGroundlineViolationMR, redTag, ...lines].filter(Boolean).map(applyCase).join("\n");
       if (text) state.mr.push({ poleId, spanId: "", owner: "MR", text, imported: false });
       return state.mr.filter(item => item.poleId === poleId);
     }
@@ -1076,9 +1116,9 @@
     const olssonCommClearanceNote = generateOlssonCommClearanceNote(pole);
     if (olssonCommClearanceNote) poleActionNotes.push(olssonCommClearanceNote);
     if (isMetronetMR() || isIntecMR() || isOlssonMR()) {
-      const configuredAnchor = generateConfiguredAnchorInstruction(pole);
+      const configuredAnchors = generateConfiguredAnchorInstructions(pole);
       const configuredOHG = metronetConfiguredOHGMR(pole);
-      if ((isMetronetMR() || isIntecMR()) && configuredAnchor) anc.push(configuredAnchor);
+      if (isMetronetMR() || isIntecMR()) anc.push(...configuredAnchors);
       if (configuredOHG) anc.push(configuredOHG);
     }
     const secondaryDripLoop = generateSecondaryDripLoopMR(pole);
@@ -1169,7 +1209,7 @@
 
     // Ensure reminders belong after all existing communication movements but
     // before the new attachment/proposed work they protect.
-    const lines = [redTag, ...poleInset, ...ug, ...power, ...poleActionNotes, ...commMoves, ...dropMoves, ...ensure, attachmentLine, ...anc, ...proposed, ...risers].filter(Boolean).map(applyCase);
+    const lines = [anchorGroundlineViolationMR, redTag, ...poleInset, ...ug, ...power, ...poleActionNotes, ...commMoves, ...dropMoves, ...ensure, attachmentLine, ...anc, ...proposed, ...risers].filter(Boolean).map(applyCase);
     const seen = new Set();
     const unique = lines.map(line => line.trim()).filter(Boolean).filter(line => {
       const key = normalizeMRLine(line);

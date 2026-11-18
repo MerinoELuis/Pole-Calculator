@@ -41,6 +41,8 @@ function renderTable(spanRecords) {
   vm.runInNewContext(fs.readFileSync(reviewRendererPath, "utf8"), { window }, { filename: reviewRendererPath });
   const powerRendererPath = path.join(__dirname, "..", "js", "ui", "poles", "power-equipment-renderer.js");
   vm.runInNewContext(fs.readFileSync(powerRendererPath, "utf8"), { window }, { filename: powerRendererPath });
+  const anchorRendererPath = path.join(__dirname, "..", "js", "ui", "poles", "anchor-renderer.js");
+  vm.runInNewContext(fs.readFileSync(anchorRendererPath, "utf8"), { window }, { filename: anchorRendererPath });
   const settingsRendererPath = path.join(__dirname, "..", "js", "ui", "settings-renderer.js");
   vm.runInNewContext(fs.readFileSync(settingsRendererPath, "utf8"), { window }, { filename: settingsRendererPath });
   const sourcePath = path.join(__dirname, "..", "js", "ui", "pole-renderer.js");

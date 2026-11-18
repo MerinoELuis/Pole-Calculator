@@ -43,6 +43,7 @@ vm.runInNewContext(`${reconcilerSource}\n${dialogsSource}\n${commPairingDialogSo
 const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {
+  fiberAssignments: [{ id: "manual-fiber:save:1", manual: true, poleId: "P1", spanId: "S1", fiberType: "MST", mstPorts: "8", installType: "NEW" }],
   poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", riserActive: true, pcoActive: false, pcoMRText: "Replace pole due to overload.", metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
   spans: {
     S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "100'", environment: "STREET" },
@@ -84,6 +85,17 @@ const imported = {
   }
 };
 
+previous.poles.P1.metadata.anchors = [{
+  anchorId: "A1", anchorIndex: "1", owner: "UTILITY > APS", leadLength: "18'", bearing: "90°",
+  groundlineViolation: true, manualFields: ["groundlineViolation"],
+  guys: [{ guyId: "G1", guyIndex: "1", size: "EHS 5/16 DG", owner: "UTILITY > APS", attachmentHeight: "19'", manualFields: ["attachmentHeight"] }]
+}];
+imported.poles.P1.metadata.anchors = [{
+  anchorId: "A1", anchorIndex: "1", owner: "UTILITY > APS", leadLength: "19'", bearing: "180°",
+  groundlineViolation: false, manualFields: [],
+  guys: [{ guyId: "G1", guyIndex: "1", size: "EHS 3/8 DG", owner: "UTILITY > APS", attachmentHeight: "20'", manualFields: [] }]
+}];
+
 const result = merge(previous, imported);
 assert.equal(result.poles.P1.lowPower, "28'", "non-empty updated Low Power must become the new imported value");
 assert.equal(result.poles.P1.metadata.lowPowerBaseline, "28'", "new imported Low Power must become the equipment-action baseline");
@@ -91,6 +103,11 @@ assert.equal(result.poles.P1.metadata.powerEquipment[0].actionActive, true, "Upd
 assert.equal(result.poles.P1.metadata.powerEquipment[0].actionHeight, "31'", "Update Data must preserve the equipment target HOA");
 assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseActive, true, "Update Data must preserve the independent Streetlight Raise action");
 assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseHeight, "25'", "Update Data must preserve the Streetlight Raise target HOA");
+assert.equal(result.poles.P1.metadata.anchors[0].leadLength, "19'", "Update Data should refresh unedited imported anchor data");
+assert.equal(result.poles.P1.metadata.anchors[0].bearing, "180°", "Update Data should refresh an unedited anchor bearing");
+assert.equal(result.poles.P1.metadata.anchors[0].groundlineViolation, true, "Update Data must preserve the manually changed groundline violation toggle");
+assert.equal(result.poles.P1.metadata.anchors[0].guys[0].size, "EHS 3/8 DG", "Update Data should refresh unedited Guy size");
+assert.equal(result.poles.P1.metadata.anchors[0].guys[0].attachmentHeight, "19'", "Update Data must preserve a manually edited Guy attachment HOA");
 assert.equal(result.poles.P1.ugActive, true, "Update Data must preserve the UG resolution");
 assert.equal(result.poles.P1.ugReason, "proposed pole overloaded", "Update Data must preserve the editable UG reason");
 assert.equal(result.poles.P1.ugMRText, "Unable to attach due to red tag.\nRed tag", "Update Data must preserve the editable UG template");
@@ -114,10 +131,16 @@ assert.equal(result.spanPower.PW1.midspan, "29'", "blank power midspan must reta
 assert.equal(result.spanPower.PW1.attachmentHeightChange, "36'", "Update Data must retain a saved Power HOA Change when the refreshed sheet is blank");
 assert.equal(result.spanPower.PW1.calculatedMidspan, "29'6\"", "Update Data must preserve the derived Power Midspan until recalculation");
 assert.equal(result.spanPower.PW2.midspan, "27'", "power rows omitted by a partial Update Data must remain");
+assert.equal(result.fiberAssignments[0].fiberType, "MST", "Update Data must retain manually configured fiber rows");
+assert.equal(result.fiberAssignments[0].mstPorts, "8", "Update Data must retain the manually selected MST port count");
 const importedWithoutEquipment = JSON.parse(JSON.stringify(imported));
 importedWithoutEquipment.poles.P1.metadata = { powerEquipment: [] };
 const noEquipmentResult = merge(previous, importedWithoutEquipment);
 assert.equal(noEquipmentResult.poles.P1.metadata.powerEquipment.length, 2, "an update without an Equipment sheet must retain existing power rows");
+const importedWithoutAnchors = JSON.parse(JSON.stringify(imported));
+delete importedWithoutAnchors.poles.P1.metadata.anchors;
+const noAnchorSheetResult = merge(previous, importedWithoutAnchors);
+assert.equal(noAnchorSheetResult.poles.P1.metadata.anchors[0].leadLength, "18'", "an update without an Anchor sheet should retain the existing ANC data");
 assert.equal(result.excelReviewSource.collection.rows.find(row => row.Id === "P1")["Tip.display"], "36'", "updated Review rows must use the new workbook value");
 assert.ok(result.excelReviewSource.collection.rows.some(row => row.Id === "P2"), "partial Update Data must retain other poles in Excel Review");
 assert.ok(result.excelReviewSource.spans.rows.some(row => row["Span Id"] === "REVIEW-S2"), "partial Update Data must retain other poles' Review span rows");
@@ -125,6 +148,67 @@ assert.ok(result.poleClassChecks.some(row => row.poleId === "P1"), "Pole Type Ch
 assert.ok(result.poleClassChecks.some(row => row.poleId === "P2"), "Pole Type Check must retain poles omitted by a partial update");
 assert.equal(result.excelReviewIgnoredChecks["review-known-exception"], true, "Update Data must preserve ignored review findings");
 assert.ok(result.updateDiagnostics.blankValuesPreserved > 0);
+
+const previousFiberUpdate = JSON.parse(JSON.stringify(previous));
+previousFiberUpdate.makeReadyReferences = Array.from({ length: 10 }, (_, index) => ({
+  poleId: `P${index + 1}`,
+  makeReadyId: `MR-P${index + 1}`,
+  makeReadyIndex: String(index + 1),
+  attachmentFiber: "48CT Fiber",
+  attachmentSizeRaw: "6.6M 48CT Fiber (N)",
+  attachmentDirectionTokens: ["N"],
+  attachmentType: "New"
+}));
+for (let index = 2; index <= 10; index += 1) {
+  previousFiberUpdate.poles[`P${index}`] = {
+    poleId: `P${index}`,
+    metadata: { powerEquipment: [] }
+  };
+}
+const importedFiberUpdate = JSON.parse(JSON.stringify(imported));
+for (let index = 2; index <= 12; index += 1) {
+  importedFiberUpdate.poles[`P${index}`] = importedFiberUpdate.poles[`P${index}`] || {
+    poleId: `P${index}`,
+    metadata: { powerEquipment: [] }
+  };
+}
+importedFiberUpdate.makeReadyReferences = [11, 12].map(index => ({
+  poleId: `P${index}`,
+  makeReadyId: `MR-P${index}`,
+  makeReadyIndex: String(index),
+  attachmentFiber: "24CT Fiber",
+  attachmentSizeRaw: "6.6M 24CT Fiber (E)",
+  attachmentDirectionTokens: ["E"],
+  attachmentType: "New"
+}));
+const preservedFiberUpdate = merge(previousFiberUpdate, importedFiberUpdate);
+assert.equal(preservedFiberUpdate.makeReadyReferences.length, 12, "adding two poles in a partial Update Data must retain the ten existing fiber rows");
+assert.equal(preservedFiberUpdate.makeReadyReferences.filter(row => row.attachmentFiber === "48CT Fiber").length, 10);
+assert.equal(preservedFiberUpdate.updateDiagnostics.fiberMakeReadyReferencesPreserved, 10);
+
+const clearedFiberPrevious = JSON.parse(JSON.stringify(previous));
+clearedFiberPrevious.makeReadyReferences = [{
+  poleId: "P1", makeReadyId: "MR-P1", makeReadyIndex: "1",
+  attachmentFiber: "48CT Fiber", attachmentSizeRaw: "6.6M 48CT Fiber (N)",
+  attachmentDirectionTokens: ["N"], attachmentType: "New"
+}];
+const clearedFiberImport = JSON.parse(JSON.stringify(imported));
+clearedFiberImport.makeReadyReferences = [{
+  poleId: "P1", makeReadyId: "MR-P1", makeReadyIndex: "1",
+  attachmentFiber: "", attachmentSizeRaw: "", attachmentDirectionTokens: [], attachmentType: "New"
+}];
+const clearedFiberResult = merge(clearedFiberPrevious, clearedFiberImport);
+assert.equal(clearedFiberResult.makeReadyReferences[0].attachmentFiber, "", "a matching updated Excel row with no fiber explicitly clears the old fiber");
+assert.equal(clearedFiberResult.updateDiagnostics.fiberMakeReadyReferencesRemoved, 1);
+
+const unidentifiedFiberPrevious = JSON.parse(JSON.stringify(previous));
+unidentifiedFiberPrevious.makeReadyReferences = [{
+  poleId: "P1", attachmentFiber: "48CT Fiber", attachmentSizeRaw: "6.6M 48CT Fiber (N)", attachmentDirection: "N"
+}];
+const unidentifiedFiberImport = JSON.parse(JSON.stringify(imported));
+unidentifiedFiberImport.makeReadyReferences = [{ poleId: "P1", attachmentFiber: "", attachmentSizeRaw: "", attachmentDirection: "" }];
+const unidentifiedFiberResult = merge(unidentifiedFiberPrevious, unidentifiedFiberImport);
+assert.equal(unidentifiedFiberResult.makeReadyReferences[0].attachmentFiber, "48CT Fiber", "a blank row without stable MR identity is not enough evidence to delete a prior fiber");
 
 const manualAncPrevious = JSON.parse(JSON.stringify(previous));
 manualAncPrevious.poles.P1.ancActive = true;

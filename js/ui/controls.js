@@ -49,6 +49,11 @@
     root.querySelectorAll("[data-toggle-secondary-drip-loop]").forEach(btn => btn.addEventListener("click", () => toggleSecondaryDripLoop(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-span-ug]").forEach(btn => btn.addEventListener("click", () => toggleSpanUG(btn.dataset.pole, btn.dataset.span)));
     root.querySelectorAll("[data-toggle-anc]").forEach(btn => btn.addEventListener("click", () => toggleANC(btn.dataset.pole)));
+    root.querySelectorAll("[data-add-proposed-anc]").forEach(btn => btn.addEventListener("click", () => addProposedANC(btn.dataset.pole)));
+    root.querySelectorAll("[data-remove-proposed-anc]").forEach(btn => btn.addEventListener("click", () => removeProposedANC(
+      btn.dataset.pole,
+      Number(btn.dataset.proposedAncIndex)
+    )));
     root.querySelectorAll("[data-toggle-ohg]").forEach(btn => btn.addEventListener("click", () => toggleOHG(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-red-tag]").forEach(btn => btn.addEventListener("click", () => toggleRedTag(btn.dataset.pole)));
     root.querySelectorAll("[data-toggle-less-than-12-comm]").forEach(btn => btn.addEventListener("click", () => toggleLessThan12CommClearance(btn.dataset.pole)));
@@ -325,6 +330,30 @@
     });
     global.Calculations.recalculateSpansForPole(poleId);
     renderAffectedPoles([poleId]);
+  }
+
+  function addProposedANC(poleId) {
+    const pole = S.getPole(poleId);
+    if (!pole || !global.MRLogic.isANCEnabled?.(poleId)) return;
+    recordUndoSnapshot();
+    S.addProposedANC(poleId, {
+      ancSize: pole.ancSize || '8"',
+      ancDistance: global.MRLogic.getEffectiveANCDistance?.(poleId) || pole.ancDistance || "",
+      dgHoa: global.MRLogic.getEffectiveANCDGHOA?.(poleId) || pole.dgHoa || ""
+    });
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+    markDirty();
+  }
+
+  function removeProposedANC(poleId, proposedANCIndex) {
+    const pole = S.getPole(poleId);
+    if (!pole?.metadata?.proposedANCs?.[proposedANCIndex]) return;
+    recordUndoSnapshot();
+    S.removeProposedANC(poleId, proposedANCIndex);
+    global.Calculations.recalculateSpansForPole(poleId);
+    renderAffectedPoles([poleId]);
+    markDirty();
   }
 
   function toggleOHG(poleId) {

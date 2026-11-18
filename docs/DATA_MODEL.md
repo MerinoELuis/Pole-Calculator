@@ -17,6 +17,7 @@
 | `spanComms` | object map | Physical comm rows keyed by span, pole, owner, and Wire ID. |
 | `spanPower` | object map | Imported power wires and user HOA changes used to derive Midspan and maximum comm heights. |
 | `makeReadyReferences` | array | Imported Make Ready attachment references. |
+| `fiberAssignments` | array | Per-reference or manual fiber assignments for type, MST ports, New/Overlash mode, and selected physical span. Diameter stays global per fiber type in `settings.fiberSizes`. |
 | `excelReviewSource` | object | Original headers and rows from Collection, Span, Span.Wire, Equipment, Anchor, Anchor.Guys, Make Ready, and Make Ready.Comm Transfers. |
 | `excelReviewIgnoredChecks` | object map | Stable review finding keys explicitly ignored by the user for this job. |
 | `poleClassChecks` | array | Pole height/class comparison data. |
@@ -25,6 +26,10 @@
 | `updateDiagnostics` | object | Latest Update Data reconciliation summary when available. |
 
 `excelReviewSource` is separate from normalized graph entities because empty Collection IDs, duplicate Span rows, unused Span.Wire rows, and incomplete Anchor rows still matter during auditing. Its `anchors` and `anchorGuys` snapshots stay separate because Anchor completeness and guy/DG rules have different purposes. Review results and timestamps are regenerated from this source and current calculator work. Only the user's ignored-finding keys are saved so accepted exceptions remain inactive after Save, Load, Undo, and Update Data.
+
+Imported Anchor and Anchor.Guys rows are also normalized under each pole's `metadata.anchors`. Each anchor keeps its imported ID/index, owner, lead length, bearing, editable groundline-violation value, and associated Guy rows. Guy rows keep size, owner, and attachment HOA. `manualFields` records which visible fields were explicitly changed so Update Data can refresh the other imported values without overwriting operator edits. Type and pitch remain available in the raw Excel Review snapshot but are not displayed in the ANC panel.
+
+Additional operator-proposed anchors are stored separately under `metadata.proposedANCs`; each row has its own distance, direction, DG HOA, and (outside INTEC) ANC size. The first proposed ANC continues to use the legacy pole-level fields for compatibility. Each complete additional row contributes its own Make Ready instruction; the compact AutoProposed format still supports one ANC object per pole.
 
 ## Canonical accessors and compatibility fields
 
@@ -65,7 +70,8 @@ Important settings and defaults:
 | `showServiceDrop` | `true` | Whether the Service Drop control is displayed and used. |
 | `showResagServiceDrop` | profile default | Whether the active profile exposes the Re-sag Service Drop control; enabled for INTEC and Olsson OPPD. |
 | `attachmentMessengerSize` | blank | Messenger diameter exported to AutoProposed. Defaults to `0.25` for Cox 96CT and `0.242` for detected 144CT when empty. |
-| `fiberSizes` | `{}` | Fiber diameter by detected count. Cox 96CT defaults to `0.53`; detected 144CT defaults to `0.51`. User-entered values are preserved. |
+| `fiberSizes` | `{}` | Global fiber diameter by detected count or `MST`. Cox 96CT defaults to `0.53`; detected 144CT defaults to `0.51`. User-entered values are preserved. |
+| `fiberPlanDefaults` | `{ mstPorts: "" }` | Optional bulk-apply default for MST port count in the Fiber view. New/Overlash comes from the imported Excel row and is editable only on that fiber's row. |
 
 The hidden `COMED` work instruction uses the MetroNet calculation profile with its WI-specific clearance set: 48 inches pole Low Power-comm, 12 inches Comm-comm, 4 inches Bolt-bolt, 30 inches Midspan Power-comm, 4 inches Midspan Comm-comm, 4 inches below a low streetlight bracket, and 12 inches below a streetlight drip loop. ComEd does not use separate Primary-comm or Midspan Primary-comm clearances.
 

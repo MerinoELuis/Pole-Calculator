@@ -239,7 +239,22 @@
     return score;
   }
 
-  function mergeMakeReadyReferences(previousRows, importedRows, reconciliation) {
+  function makeReadyReferenceHasFiber(reference) {
+    return /\bMST\b|\b\d+\s*CT\b/i.test(
+      `${reference?.attachmentFiber || ""} ${reference?.attachmentSizeRaw || ""}`
+    );
+  }
+
+  function sameMakeReadyReferenceIdentity(first, second) {
+    const firstId = String(first?.makeReadyId || "").trim();
+    const secondId = String(second?.makeReadyId || "").trim();
+    if (firstId && secondId && firstId === secondId) return true;
+    const firstIndex = String(first?.makeReadyIndex || "").trim();
+    const secondIndex = String(second?.makeReadyIndex || "").trim();
+    return Boolean(firstIndex && secondIndex && firstIndex === secondIndex);
+  }
+
+  function mergeMakeReadyReferences(previousRows, importedRows, reconciliation, poles = {}) {
     const mergedRows = Array.isArray(importedRows) ? importedRows.map(row => ({ ...row })) : [];
     const claimed = new Set();
     (previousRows || []).forEach(oldRef => {
@@ -248,9 +263,35 @@
         .filter(item => item.score >= 0)
         .sort((a, b) => b.score - a.score);
       const selected = candidates.find(item => item.score > 0) || (candidates.length === 1 ? candidates[0] : null);
-      if (!selected) return;
-      claimed.add(selected.index);
-      mergedRows[selected.index] = preserveValuesMissingFromUpdate(selected.row, oldRef, reconciliation);
+      if (selected) {
+        claimed.add(selected.index);
+        const mergedReference = preserveValuesMissingFromUpdate(selected.row, oldRef, reconciliation);
+        if (makeReadyReferenceHasFiber(oldRef)
+          && !makeReadyReferenceHasFiber(selected.row)
+          && sameMakeReadyReferenceIdentity(oldRef, selected.row)) {
+          // A matched Excel row with no fiber is an explicit removal. The
+          // generic blank-cell preservation rule must not resurrect its old
+          // fiber fields, while other Make Ready data on the row is retained.
+          mergedReference.attachmentFiber = selected.row.attachmentFiber || "";
+          mergedReference.attachmentSizeRaw = selected.row.attachmentSizeRaw || "";
+          mergedReference.attachmentDirection = selected.row.attachmentDirection || "";
+          mergedReference.attachmentDirectionTokens = Array.isArray(selected.row.attachmentDirectionTokens)
+            ? [...selected.row.attachmentDirectionTokens]
+            : [];
+          reconciliation.fiberMakeReadyReferencesRemoved += 1;
+        }
+        mergedRows[selected.index] = mergedReference;
+        return;
+      }
+
+      // Update Data can be partial. An unmatched imported Make Ready list is
+      // not evidence that a previously imported fiber was removed. Preserve
+      // that fiber reference for poles still in the job; an explicit matching
+      // Excel row with an empty/non-fiber attachment replaces it above.
+      if (poles[oldRef.poleId] && makeReadyReferenceHasFiber(oldRef)) {
+        mergedRows.push({ ...oldRef });
+        reconciliation.fiberMakeReadyReferencesPreserved += 1;
+      }
     });
     return mergedRows;
   }
@@ -465,6 +506,76 @@
     return rows;
   }
 
+  function manualFieldsOf(row) {
+    return Array.isArray(row?.manualFields) ? row.manualFields.filter(field => typeof field === "string") : [];
+  }
+
+  function hasAnchorUserWork(anchor) {
+    return manualFieldsOf(anchor).length > 0
+      || (anchor?.guys || []).some(guy => manualFieldsOf(guy).length > 0);
+  }
+
+  function anchorRowMatch(importedRow, oldRow) {
+    const oldId = String(oldRow?.anchorId || "").trim().toLowerCase();
+    const importedId = String(importedRow?.anchorId || "").trim().toLowerCase();
+    if (oldId && importedId && oldId === importedId) return true;
+    const oldIndex = String(oldRow?.anchorIndex || "").trim();
+    return Boolean(oldIndex && String(importedRow?.anchorIndex || "").trim() === oldIndex);
+  }
+
+  function mergeAnchorGuysUserWork(importedGuys, oldGuys, reconciliation) {
+    const rows = Array.isArray(importedGuys) ? importedGuys.map(row => ({ ...row })) : [];
+    const claimed = new Set();
+    (oldGuys || []).filter(guy => manualFieldsOf(guy).length).forEach(oldGuy => {
+      const oldId = String(oldGuy.guyId || "").trim().toLowerCase();
+      let matchIndex = oldId
+        ? rows.findIndex((row, index) => !claimed.has(index) && String(row.guyId || "").trim().toLowerCase() === oldId)
+        : -1;
+      const oldIndex = String(oldGuy.guyIndex || "").trim();
+      if (matchIndex < 0 && oldIndex) {
+        matchIndex = rows.findIndex((row, index) => !claimed.has(index) && String(row.guyIndex || "").trim() === oldIndex);
+      }
+      if (matchIndex < 0) {
+        rows.push({ ...oldGuy });
+        reconciliation.anchorEditsPreserved += 1;
+        return;
+      }
+      claimed.add(matchIndex);
+      const row = { ...rows[matchIndex] };
+      manualFieldsOf(oldGuy).forEach(field => { row[field] = oldGuy[field]; });
+      row.manualFields = Array.from(new Set([...manualFieldsOf(row), ...manualFieldsOf(oldGuy)]));
+      rows[matchIndex] = row;
+      reconciliation.anchorEditsPreserved += 1;
+    });
+    return rows;
+  }
+
+  // Refresh imported Anchor/Guys facts, but preserve only fields the operator
+  // explicitly edited. Unmatched manually edited rows remain available.
+  function mergeAnchorUserWork(importedAnchors, oldAnchors, reconciliation) {
+    const rows = Array.isArray(importedAnchors) ? importedAnchors.map(anchor => ({
+      ...anchor,
+      guys: Array.isArray(anchor.guys) ? anchor.guys.map(guy => ({ ...guy })) : []
+    })) : [];
+    const claimed = new Set();
+    (oldAnchors || []).filter(hasAnchorUserWork).forEach(oldAnchor => {
+      const matchIndex = rows.findIndex((row, index) => !claimed.has(index) && anchorRowMatch(row, oldAnchor));
+      if (matchIndex < 0) {
+        rows.push({ ...oldAnchor, guys: (oldAnchor.guys || []).map(guy => ({ ...guy })) });
+        reconciliation.anchorEditsPreserved += 1;
+        return;
+      }
+      claimed.add(matchIndex);
+      const row = { ...rows[matchIndex] };
+      manualFieldsOf(oldAnchor).forEach(field => { row[field] = oldAnchor[field]; });
+      row.manualFields = Array.from(new Set([...manualFieldsOf(row), ...manualFieldsOf(oldAnchor)]));
+      row.guys = mergeAnchorGuysUserWork(row.guys, oldAnchor.guys, reconciliation);
+      rows[matchIndex] = row;
+      reconciliation.anchorEditsPreserved += 1;
+    });
+    return rows;
+  }
+
   // A deleted pole is job-level user intent. Apply its canonical tombstone to
   // the freshly imported graph so Update Data cannot restore it as a renamed
   // Collection row (for example, with STEEL newly appended).
@@ -524,6 +635,9 @@
       baselineCommRowsPreserved: 0,
       equipmentActionsPreserved: 0,
       missingEquipmentActionsPreserved: 0,
+      anchorEditsPreserved: 0,
+      fiberMakeReadyReferencesPreserved: 0,
+      fiberMakeReadyReferencesRemoved: 0,
       reviewRowsPreserved: 0,
       blankValuesPreserved: 0,
       missingRowsPreserved: 0,
@@ -669,6 +783,12 @@
       const importedEquipment = importedPole.metadata?.powerEquipment || [];
       const oldEquipment = mappedOldPole.metadata?.powerEquipment || [];
       const powerEquipment = mergePowerEquipmentUserWork(importedEquipment, oldEquipment, reconciliation);
+      const importedMetadata = importedPole.metadata || {};
+      const oldMetadata = mappedOldPole.metadata || {};
+      const hasImportedAnchors = Object.prototype.hasOwnProperty.call(importedMetadata, "anchors");
+      const anchors = hasImportedAnchors
+        ? mergeAnchorUserWork(importedMetadata.anchors, oldMetadata.anchors || [], reconciliation)
+        : (oldMetadata.anchors || importedMetadata.anchors);
       const lowPowerBaseline = importedPole.lowPower
         || mappedOldPole.metadata?.lowPowerBaseline
         || preservedPole.lowPower
@@ -698,7 +818,8 @@
         metadata: {
           ...(preservedPole.metadata || {}),
           lowPowerBaseline,
-          powerEquipment
+          powerEquipment,
+          ...(anchors ? { anchors } : {})
         }
       };
     });
@@ -706,7 +827,8 @@
     merged.makeReadyReferences = mergeMakeReadyReferences(
       (previous.makeReadyReferences || []).map(row => ({ ...row, poleId: remapPoleId(row.poleId, poleAliases) })),
       merged.makeReadyReferences || [],
-      reconciliation
+      reconciliation,
+      merged.poles
     );
 
     const importedPoleClassById = new Map((merged.poleClassChecks || []).map(row => [S.canonicalPoleIdentity(row.poleId), row]));
@@ -747,6 +869,13 @@
         ...(previous.settings?.fiberSizes || {})
       }
     };
+    // Fiber-tab row edits belong to the operator's job plan, not to an
+    // individual Excel snapshot. Keep them through Update Data and follow any
+    // pole-ID aliases applied above.
+    merged.fiberAssignments = (previous.fiberAssignments || []).map(row => ({
+      ...row,
+      poleId: remapPoleId(row.poleId, poleAliases)
+    })).filter(row => merged.poles?.[row.poleId]);
     // Review decisions belong to the job, not to one workbook snapshot.
     merged.excelReviewIgnoredChecks = { ...(previous.excelReviewIgnoredChecks || {}) };
     merged.deletedPoleIds = Array.from(new Set(previous.deletedPoleIds || []));

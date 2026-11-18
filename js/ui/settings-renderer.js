@@ -49,18 +49,6 @@
           : rawPosition === "OVERLASH" ? "OVERLASH" : "TOP_COMM";
         const proposedOwner = settings.proposedOwner || "Wecom";
         const metronetWI = String(settings.metronetWI || (String(proposedOwner).toUpperCase() === "MNT" ? "CSU" : String(proposedOwner).toUpperCase() === "POWER" ? "COMED" : "MIDAM")).toUpperCase();
-        const fiberSizes = settings.fiberSizes && typeof settings.fiberSizes === "object" ? settings.fiberSizes : {};
-        const detectedFibers = new Set(Object.keys(fiberSizes));
-        (S.getState().makeReadyReferences || []).forEach(ref => {
-          const source = `${ref.attachmentFiber || ""} ${ref.attachmentSizeRaw || ""}`;
-          const match = source.match(/\b(\d+)\s*CT\b/i);
-          if (match) detectedFibers.add(`${match[1]}CT Fiber`);
-        });
-        const fiberTypes = Array.from(detectedFibers).sort((a, b) => {
-          const aCount = Number((a.match(/\d+/) || [0])[0]);
-          const bCount = Number((b.match(/\d+/) || [0])[0]);
-          return aCount - bCount || a.localeCompare(b);
-        });
         const profileSettings = global.ProjectProfiles?.getProfileSettings?.(selectedProfile) || {};
         const proposedOwners = selectedProfile === "OLSSON_OPPD"
           ? ["Cox", "Verizon", "Uniti"]
@@ -120,19 +108,6 @@
               </label>`}
             </div>
           </div>
-          ${selectedProfile === "INTEC" && fiberTypes.length ? `<div class="settings-section settings-section-fiber">
-            <h3>Fiber</h3>
-            <div class="settings-grid fiber-grid">
-              <label class="clearance-row">
-                <span>Messenger Size</span>
-                <input class="input" data-scope="attachmentSettings" data-field="attachmentMessengerSize" value="${escapeHtml(settings.attachmentMessengerSize || "")}" />
-              </label>
-              ${fiberTypes.map(fiber => `<label class="clearance-row">
-                <span>${escapeHtml(fiber)} Size</span>
-                <input class="input" data-scope="attachmentSettings" data-field="fiberSize" data-fiber="${escapeHtml(fiber)}" value="${escapeHtml(fiberSizes[fiber] || "")}" />
-              </label>`).join("")}
-            </div>
-          </div>` : ""}
         `;
         wireEditableEvents(els.clearanceSettings);
       }
@@ -145,6 +120,7 @@
         const state = S.getState();
         const hasPoleData = Object.keys(state.poles || {}).length > 0;
         const hasProposedFiber = global.CompactAutoProposed?.hasProposedFiber?.(state) === true;
+        const hasOverlashFiberPlan = global.CompactAutoProposed?.hasOverlashFiberPlan?.(state) === true;
         const supportedExportProject = global.CompactAutoProposed?.isExportProjectSupported?.(state) === true;
         const allowsOverlashWithoutFiber = global.CompactAutoProposed?.allowsOverlashExportWithoutProposedFiber?.(state) === true;
         const position = String(state.settings?.position || "TOP_COMM").toUpperCase();
@@ -176,7 +152,9 @@
               : !hasProposedFiber
                 ? allowsOverlashWithoutFiber
                   ? "Export Olsson OPPD overlash data without a newly proposed fiber."
-                  : "Add at least one proposed fiber before exporting."
+                  : hasOverlashFiberPlan
+                    ? "Select the owner of the existing messenger as Proposed Owner so Overlash can use its current HOA."
+                    : "Add at least one proposed fiber before exporting."
                 : "Export the proposed fiber data.";
         }
         if (els.exportDebugJsonBtn) {

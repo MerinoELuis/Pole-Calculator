@@ -21,6 +21,8 @@
         getCalculations: () => global.Calculations
       });
       const { renderPowerTable, renderCollapseEyeIcon, renderEquipmentTable } = powerEquipmentRenderer;
+      const anchorRenderer = global.AnchorRenderer.create({ S, escapeHtml, renderCollapseEyeIcon });
+      const { renderAnchorSection } = anchorRenderer;
       const { renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState } = global.PoleSettingsRenderer.create(context);
 
       function spanLabel(span) {
@@ -431,6 +433,8 @@
         const powerSectionOpen = powerSection ? powerSection.open : false;
         const equipmentSection = oldCard.querySelector(".equipment-section");
         const equipmentSectionOpen = equipmentSection ? equipmentSection.open : false;
+        const anchorSection = oldCard.querySelector(".anchor-section");
+        const anchorSectionOpen = anchorSection ? anchorSection.open : false;
         const template = document.createElement("template");
         template.innerHTML = renderPoleWorkspace(poleId).trim();
         const nextCard = template.content.firstElementChild;
@@ -448,6 +452,8 @@
         if (nextPowerSection) nextPowerSection.open = powerSectionOpen;
         const nextEquipmentSection = nextCard.querySelector(".equipment-section");
         if (nextEquipmentSection) nextEquipmentSection.open = equipmentSectionOpen;
+        const nextAnchorSection = nextCard.querySelector(".anchor-section");
+        if (nextAnchorSection) nextAnchorSection.open = anchorSectionOpen;
         wireEditableEvents(nextCard);
         bindScrollLinks(nextCard);
         bindLocalActions(nextCard);
@@ -980,6 +986,26 @@
         const ohgDirectionOptions = ["", "N", "E", "S", "W"]
           .map(direction => `<option value="${direction}" ${direction === ohgDirection ? "selected" : ""}>${direction || "Select direction"}</option>`)
           .join("");
+        const additionalANCs = Array.isArray(pole?.metadata?.proposedANCs) ? pole.metadata.proposedANCs : [];
+        const renderAdditionalANC = (anchor, index) => {
+          const direction = String(anchor?.ancDirection || "").toUpperCase();
+          const directionOptions = compassDirections
+            .map(option => `<option value="${option}" ${option === direction ? "selected" : ""}>${option || "Select direction"}</option>`)
+            .join("");
+          const field = (label, fieldName, value, inputClass = "") => `<label class="pole-action-field"><span>${label}</span><input class="input ${inputClass}" data-scope="proposedANC" data-pole="${escapeHtml(poleId)}" data-proposed-anc-index="${index}" data-field="${fieldName}" value="${escapeHtml(value || "")}"></label>`;
+          const controls = `${index === additionalANCs.length - 1 ? `<button class="mini-btn proposed-anc-icon-btn" type="button" data-add-proposed-anc data-pole="${escapeHtml(poleId)}" title="Add another ANC" aria-label="Add another ANC">+</button>` : ""}<button class="mini-btn proposed-anc-icon-btn proposed-anc-remove-btn" type="button" data-remove-proposed-anc data-pole="${escapeHtml(poleId)}" data-proposed-anc-index="${index}" title="Remove ANC ${index + 2}" aria-label="Remove ANC ${index + 2}">−</button>`;
+          const dgField = `<label class="pole-action-field"><span>DG HOA</span><div class="proposed-anc-dg-row"><input class="input height-input" data-scope="proposedANC" data-pole="${escapeHtml(poleId)}" data-proposed-anc-index="${index}" data-field="dgHoa" value="${escapeHtml(anchor?.dgHoa || "")}">${isIntec ? "" : `<div class="proposed-anc-row-controls">${controls}</div>`}</div></label>`;
+          return `<div class="proposed-anc-entry additional-proposed-anc" aria-label="Additional ANC ${index + 2}">
+            <div class="proposed-anc-title">Additional ANC ${index + 2}</div>
+            <div class="pole-action-fields action-detail-grid">
+              ${isIntec ? "" : field("ANC Size", "ancSize", anchor?.ancSize || '8"')}
+              ${field("ANC Distance", "ancDistance", anchor?.ancDistance, "height-input")}
+              <label class="pole-action-field"><span>ANC Direction</span><select class="input" data-scope="proposedANC" data-pole="${escapeHtml(poleId)}" data-proposed-anc-index="${index}" data-field="ancDirection">${directionOptions}</select></label>
+              ${dgField}
+              ${isIntec ? `<div class="proposed-anc-row-controls">${controls}</div>` : ""}
+            </div>
+          </div>`;
+        };
         return `<div class="pole-action-buttons">
           <button class="mini-btn ${resolution === "UG" ? "active-action" : ""}" type="button" data-toggle-ug data-pole="${escapeHtml(poleId)}">UG</button>
           <button class="mini-btn ${resolution === "PCO" ? "active-action" : ""}" type="button" data-toggle-pco data-pole="${escapeHtml(poleId)}">PCO</button>
@@ -991,7 +1017,7 @@
           ${(isIntec || isMetronet) ? `<button class="mini-btn ${ancEnabled ? "active-action" : ""}" type="button" data-toggle-anc data-pole="${escapeHtml(poleId)}" ${ancAvailable ? "" : "disabled"} title="${ancAvailable ? `Add or remove the ${isMetronet ? "MidAm" : "INTEC"} ANC Make Ready` : "ANC is disabled while this pole is UG or PCO"}">ANC</button>` : ""}
           ${(isMetronet || isOlsson) ? `<button class="mini-btn ${ohgEnabled ? "active-action" : ""}" type="button" data-toggle-ohg data-pole="${escapeHtml(poleId)}" ${ohgAvailable ? "" : "disabled"} title="${ohgAvailable ? `Add or remove the ${isOlsson ? "Olsson OPPD" : "MidAm"} OHG Make Ready` : "OHG is disabled while this pole is UG or PCO"}">OHG</button>` : ""}
         </div>
-        ${poleInsetEnabled ? `<div class="pole-action-fields action-detail-grid pole-inset-controls">
+        ${poleInsetEnabled ? `<div class="pole-action-section pole-inset-section"><div class="pole-action-fields action-detail-grid pole-inset-controls">
           <label class="pole-action-field">
             <span>Pole Inset Reason</span>
             <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetReason">
@@ -1013,13 +1039,13 @@
           <label class="pole-action-field"><span>Pole Inset HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="poleInsetHeight" value="${escapeHtml(poleInsetDetails.selectedHeight || "")}" placeholder="Enter height"></label>
           <div class="pole-action-field pole-action-readout"><span>End Drop to Pole</span><strong>${escapeHtml(poleInsetDetails.endDropToPole || "—")}</strong></div>
           <div class="pole-action-field pole-action-readout"><span>End Drop to Next Pole</span><strong>${escapeHtml(poleInsetDetails.endDropToNextPole || "—")}</strong></div>
-        </div>` : ""}
-        ${isOlsson && pole?.redTagActive ? `<div class="pole-action-fields action-detail-grid red-tag-fields">
+        </div></div>` : ""}
+        ${isOlsson && pole?.redTagActive ? `<div class="pole-action-section"><div class="pole-action-fields action-detail-grid red-tag-fields">
           <label class="pole-action-field"><span>Red Tag Minimum Height</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagMinHeight" value="${escapeHtml(pole?.redTagMinHeight || "")}"></label>
           <label class="pole-action-field"><span>Red Tag Minimum Class</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagClass" value="${escapeHtml(pole?.redTagClass || "")}"></label>
           <label class="pole-action-field"><span>Red Tag Reason</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="redTagReason" value="${escapeHtml(pole?.redTagReason || "")}" placeholder="CLEARANCES / LOAD FAILURE"></label>
-        </div>` : ""}
-        ${showUGReason ? `<div class="pole-action-fields action-detail-grid ug-controls">
+        </div></div>` : ""}
+        ${showUGReason ? `<div class="pole-action-section ug-action-section"><div class="pole-action-fields action-detail-grid ug-controls">
           ${isIntec ? `<label class="pole-action-field">
             <span>UG Span</span>
             <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugSpanId">
@@ -1035,29 +1061,35 @@
         </div>` : `<label class="pole-action-field">
           <span>UG Make Ready</span>
           <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugMRText">${escapeHtml(ugTemplate)}</textarea>
-        </label>`}` : ""}
-        ${showPCOEditor ? `<label class="pole-action-field">
+        </label>`}</div>` : ""}
+        ${showPCOEditor ? `<div class="pole-action-section"><label class="pole-action-field">
           <span>PCO Make Ready</span>
           <textarea class="input pole-mr-editor" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="pcoMRText">${escapeHtml(pcoTemplate)}</textarea>
-        </label>` : ""}
-        ${showRiserDirection ? `<label class="pole-action-field riser-direction-field">
+        </label></div>` : ""}
+        ${showRiserDirection ? `<div class="pole-action-section"><label class="pole-action-field riser-direction-field">
           <span>Riser Direction</span>
           <select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ugRiserDirection">${directionOptions}</select>
-        </label>` : ""}
-        ${isOlsson && secondaryDripLoopActive ? `<label class="pole-action-field">
+        </label></div>` : ""}
+        ${isOlsson && secondaryDripLoopActive ? `<div class="pole-action-section"><label class="pole-action-field">
           <span>Secondary Drip Loop HOA</span>
           <input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="secondaryDripLoopHoa" value="${escapeHtml(pole?.secondaryDripLoopHoa || "")}" placeholder="25'8\"">
-        </label>` : ""}
-        ${ancEnabled ? `<div class="pole-action-fields action-detail-grid">
-          ${isIntec ? "" : `<label class="pole-action-field"><span>ANC Size</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancSize" value="${escapeHtml(pole?.ancSize || "8\"")}"></label>`}
-          <label class="pole-action-field"><span>ANC Distance</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDistance" value="${escapeHtml(ancDistance)}" title="Defaults to one-third of Proposed, rounded up to the next whole foot; edit to override"></label>
-          <label class="pole-action-field"><span>ANC Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDirection">${anchorDirectionOptions}</select></label>
-          <label class="pole-action-field"><span>DG HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="dgHoa" value="${escapeHtml(ancDGHOA)}" title="Defaults to Proposed when ANC is active; edit to override"></label>
-        </div>` : ""}
-        ${ohgEnabled ? `<div class="pole-action-fields action-detail-grid">
+        </label></div>` : ""}
+        ${ancEnabled ? `<div class="pole-action-section proposed-anc-section"><div class="proposed-anc-list">
+          <div class="proposed-anc-entry primary-proposed-anc">
+            <div class="pole-action-fields action-detail-grid">
+              ${isIntec ? "" : `<label class="pole-action-field"><span>ANC Size</span><input class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancSize" value="${escapeHtml(pole?.ancSize || "8\"")}"></label>`}
+              <label class="pole-action-field"><span>ANC Distance</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDistance" value="${escapeHtml(ancDistance)}" title="Defaults to one-third of Proposed, rounded up to the next whole foot; edit to override"></label>
+              <label class="pole-action-field"><span>ANC Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ancDirection">${anchorDirectionOptions}</select></label>
+              <label class="pole-action-field"><span>DG HOA</span><div class="proposed-anc-dg-row"><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="dgHoa" value="${escapeHtml(ancDGHOA)}" title="Defaults to Proposed when ANC is active; edit to override">${isIntec ? "" : `<div class="proposed-anc-row-controls"><button class="mini-btn proposed-anc-icon-btn" type="button" data-add-proposed-anc data-pole="${escapeHtml(poleId)}" title="Add another ANC" aria-label="Add another ANC">+</button></div>`}</div></label>
+              ${isIntec ? `<div class="proposed-anc-row-controls"><button class="mini-btn proposed-anc-icon-btn" type="button" data-add-proposed-anc data-pole="${escapeHtml(poleId)}" title="Add another ANC" aria-label="Add another ANC">+</button></div>` : ""}
+            </div>
+          </div>
+          ${additionalANCs.map(renderAdditionalANC).join("")}
+        </div></div>` : ""}
+        ${ohgEnabled ? `<div class="pole-action-section"><div class="pole-action-fields action-detail-grid">
           <label class="pole-action-field"><span>OHG Direction</span><select class="input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ohgDirection">${ohgDirectionOptions}</select></label>
           <label class="pole-action-field"><span>OHG HOA</span><input class="input height-input" data-scope="pole" data-pole="${escapeHtml(poleId)}" data-field="ohgHoa" value="${escapeHtml(pole?.ohgHoa || "")}"></label>
-        </div>` : ""}`;
+        </div></div>` : ""}`;
       }
 
       function renderPoleEditableHeader(poleId) {
@@ -1289,6 +1321,7 @@
               </summary>
               ${renderEquipmentTable(poleId)}
             </details>
+            ${renderAnchorSection(poleId)}
             <section class="subsection make-ready-section" id="warnings-${escapeHtml(poleId)}">
               <div class="subsection-title-row">
                 <h4>Make Ready</h4>
@@ -1343,7 +1376,7 @@
         }));
       }
 
-      return { spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, ...excelReviewRenderer, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace };
+      return { spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, ...excelReviewRenderer, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderAnchorSection, renderPoleWorkspace, renderAllPolesWorkspace };
     }
   };
 })(window);

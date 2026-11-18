@@ -27,6 +27,7 @@ function renderPoleTypeCheck(projectProfile, rows, additionalState = {}) {
   const files = [
     "js/ui/excel-review-renderer.js",
     "js/ui/poles/power-equipment-renderer.js",
+    "js/ui/poles/anchor-renderer.js",
     "js/ui/settings-renderer.js",
     "js/ui/pole-renderer.js"
   ];

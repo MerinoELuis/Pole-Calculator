@@ -8,6 +8,7 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 - Span lengths: whole inches.
 - Bearings: decimal degrees from `0` inclusive to `360` exclusive.
 - Messenger and fiber sizes: positive decimal values.
+- Fiber size entries are global per type: CT counts use numeric-string keys (for example, `24`); MST uses the `MST` key.
 
 ## Proposal context
 
@@ -37,7 +38,15 @@ The formal structural contract is `schemas/autoproposed.schema.json`. This docum
 ## Span rules
 
 - `ug: true`: do not include `hoa`, `fiber`, `endDrop` or `nextHoa`.
-- `hoa` plus `fiber`: explicit aerial proposal.
+- `hoa` plus `fiber`: explicit aerial proposal for New fiber. For Overlash,
+  `hoa` is the selected owner's existing messenger HOA at that pole, so no
+  separate Proposed HOA is required.
+- `fiber`: a positive CT count or the string `MST`. MST spans also require `ports` set to `8` or `16`; its diameter is read from the global `sizes.fiber.MST` value, not repeated per span.
+- `overlash: true`: reuse the selected owner's existing messenger and its
+  current on-pole HOA; do not require a separately proposed HOA or create a new
+  messenger. The Fiber plan takes New/Overlash from Excel or the operator's
+  per-row edit. If the selected owner has no unique existing messenger HOA on
+  that pole/span, the span is not exported as a fiber proposal.
 - Geometry without `ug`, `hoa` or `fiber`: reference only; create no proposed attachment.
 - `kind` is `F`, `B` or `O`.
 - Back Spans (`kind: "B"`) must not include `endDrop`, even if the calculator state contains one. `nextHoa` remains an independent optional field.

@@ -10,9 +10,11 @@ const state = {
   poles: { P1: {} }
 };
 let hasProposedFiber = true;
+let hasOverlashFiberPlan = false;
 const window = {
   CompactAutoProposed: {
     hasProposedFiber: () => hasProposedFiber,
+    hasOverlashFiberPlan: () => hasOverlashFiberPlan,
     allowsOverlashExportWithoutProposedFiber: currentState =>
       String(currentState.settings.projectProfile).toUpperCase() === "OLSSON_OPPD"
       && String(currentState.settings.position).toUpperCase() === "OVERLASH",
@@ -24,6 +26,8 @@ const reviewRendererPath = path.join(__dirname, "..", "js", "ui", "excel-review-
 vm.runInNewContext(fs.readFileSync(reviewRendererPath, "utf8"), { window }, { filename: reviewRendererPath });
 const powerRendererPath = path.join(__dirname, "..", "js", "ui", "poles", "power-equipment-renderer.js");
 vm.runInNewContext(fs.readFileSync(powerRendererPath, "utf8"), { window }, { filename: powerRendererPath });
+const anchorRendererPath = path.join(__dirname, "..", "js", "ui", "poles", "anchor-renderer.js");
+vm.runInNewContext(fs.readFileSync(anchorRendererPath, "utf8"), { window }, { filename: anchorRendererPath });
 const settingsRendererPath = path.join(__dirname, "..", "js", "ui", "settings-renderer.js");
 vm.runInNewContext(fs.readFileSync(settingsRendererPath, "utf8"), { window }, { filename: settingsRendererPath });
 vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), { window }, { filename: modulePath });
@@ -52,8 +56,12 @@ assert.equal(exportProposedJsonBtn.disabled, false, "INTEC may export when pole 
 assert.equal(exportProposedJsonBtn.title, "Export the proposed fiber data.");
 
 hasProposedFiber = false;
+hasOverlashFiberPlan = true;
+state.settings.projectProfile = "INTEC";
 renderer.updateAutoCalculateButtonState();
 assert.equal(exportProposedJsonBtn.disabled, true, "INTEC must still require a proposed fiber");
+assert.match(exportProposedJsonBtn.title, /owner of the existing messenger/i, "Overlash owner mismatch should explain how to enable export");
+hasOverlashFiberPlan = false;
 
 state.settings.projectProfile = "OLSSON_OPPD";
 state.settings.position = "TOP_COMM";

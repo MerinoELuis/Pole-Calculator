@@ -907,6 +907,62 @@
     });
   }
 
+  function importPoleAnchors(anchorRows, anchorGuyRows, anchorSheetProvided) {
+    if (!anchorSheetProvided) return;
+    const anchorsByPole = new Map(Object.keys(S().getState().poles || {}).map(poleId => [poleId, []]));
+    const normalizedKey = value => String(value || "").trim().toLowerCase();
+    (anchorRows || []).forEach((row, rowIndex) => {
+      const poleId = resolveImportedPoleId(pick(row, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
+      if (!poleId || !S().getPole(poleId)) return;
+      const anchorId = String(pick(row, ["Anchor Id", "Anchor ID"], { contains: false })).trim();
+      const anchorIndex = String(pick(row, ["Anchor Index"], { contains: false })).trim();
+      const parentId = normalizedKey(anchorId);
+      const parentIndex = normalizedKey(anchorIndex);
+      const guys = (anchorGuyRows || [])
+        .filter(guyRow => {
+          const guyPoleId = resolveImportedPoleId(pick(guyRow, ["Id", "Pole ID", "PoleId", "Pole", "Structure Number"]));
+          if (guyPoleId !== poleId) return false;
+          const guyAnchorId = normalizedKey(pick(guyRow, ["Anchor Id", "Anchor ID"], { contains: false }));
+          const guyAnchorIndex = normalizedKey(pick(guyRow, ["Anchor Index"], { contains: false }));
+          if (parentId && guyAnchorId) return parentId === guyAnchorId;
+          return Boolean(parentIndex && guyAnchorIndex && parentIndex === guyAnchorIndex);
+        })
+        .map((guyRow, guyRowIndex) => ({
+          guyId: String(pick(guyRow, ["Guys Id", "Guy Id", "Guys ID", "Guy ID"], { contains: false })).trim()
+            || `${anchorId || `anchor-${anchorIndex || rowIndex + 1}`}-guy-${guyRowIndex + 1}`,
+          guyIndex: String(pick(guyRow, ["Guys Index", "Guy Index"], { contains: false })).trim(),
+          size: String(pick(guyRow, ["Size", "Size.display"], { contains: false })).trim(),
+          owner: String(pick(guyRow, ["Owner", "owner"], { contains: false })).trim(),
+          attachmentHeight: heightFromRow(guyRow, ["Attachment Height.display", "Attachment Height Display"], ["Attachment Height", "Height"]),
+          manualFields: []
+        }));
+      const violation = pick(row, [
+        'Anchor Violation: <6" or >18" from GL',
+        "Anchor Violation",
+        "Groundline Violation"
+      ], { contains: false });
+      anchorsByPole.get(poleId).push({
+        anchorId: anchorId || `anchor-${anchorIndex || rowIndex + 1}`,
+        anchorIndex,
+        owner: String(pick(row, ["Owner", "owner"], { contains: false })).trim(),
+        leadLength: heightFromRow(row, ["Lead Length.display", "Lead Length Display"], ["Lead Length"]),
+        bearing: String(pick(row, ["Lead Length.bearing.display", "Lead Length Bearing.display", "Lead Length.bearing", "Lead Length Bearing"], { contains: false })).trim(),
+        groundlineViolation: truthyCell(violation),
+        manualFields: [],
+        guys
+      });
+    });
+
+    anchorsByPole.forEach((anchors, poleId) => {
+      const pole = S().getPole(poleId);
+      if (!pole) return;
+      S().upsertPole({
+        ...pole,
+        metadata: { ...(pole.metadata || {}), anchors }
+      });
+    });
+  }
+
   // Equipment is normalized for every project so it can be displayed and can
   // participate in Max Height on Pole without reading raw workbook rows. Only
   // Utility/Power equipment is included; communication risers are deliberately
@@ -1024,6 +1080,7 @@
     const anchorSheet = findSheet(workbook, ["Anchor"]);
     const anchorGuySheet = findSheet(workbook, ["Anchor.Guys", "Anchor Guys", "Anchor Guy", "Guys"]);
     const equipmentRows = rowsToObjects(equipmentSheet || []);
+    const anchorRows = rowsToObjects(anchorSheet || []);
     const anchorGuyRows = rowsToObjects(anchorGuySheet || []);
     const makeReadyRows = rowsToObjects(makeReadySheet || []);
 
@@ -1040,7 +1097,7 @@
     // formatted value such as 001 arrives as 1. MidAm/ComEd/CSU pole IDs and
     // sequences are three-digit identifiers; restore that padding before any
     // indexes, links, review snapshots, or state entities are built.
-    [collectionRows, spanRows, wireRows, equipmentRows, anchorGuyRows, makeReadyRows]
+    [collectionRows, spanRows, wireRows, equipmentRows, anchorRows, anchorGuyRows, makeReadyRows]
       .forEach(rows => normalizeNumericProjectIdentifiers(rows));
 
     state.excelReviewSource = {
@@ -1062,6 +1119,7 @@
     const spanRecords = buildSpanRecords(spanRows, collectionIndex);
     const rawSpanToSpanId = importSpans(spanRecords);
     importSpanWires(wireRows, rawSpanToSpanId);
+    importPoleAnchors(anchorRows, anchorGuyRows, Boolean(anchorSheet));
     importAnchorGuys(anchorGuyRows);
     state.makeReadyReferences = importMakeReadyReferences(makeReadyRows);
 

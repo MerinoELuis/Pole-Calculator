@@ -54,7 +54,7 @@
         "messenger": { "$ref": "#/$defs/positiveSize" },
         "fiber": {
           "type": "object",
-          "propertyNames": { "pattern": "^[0-9]+$" },
+          "propertyNames": { "pattern": "^(?:[0-9]+|MST)$" },
           "additionalProperties": { "$ref": "#/$defs/positiveSize" }
         }
       }
@@ -137,7 +137,13 @@
         "bearing": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
         "length": { "$ref": "#/$defs/integerInches" },
         "hoa": { "$ref": "#/$defs/integerInches" },
-        "fiber": { "type": "integer", "minimum": 1 },
+        "fiber": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "const": "MST" }
+          ]
+        },
+        "ports": { "enum": [8, 16] },
         "endDrop": { "$ref": "#/$defs/integerInches" },
         "nextHoa": { "$ref": "#/$defs/integerInches" },
         "overlash": {
@@ -161,11 +167,20 @@
               "anyOf": [
                 { "required": ["hoa"] },
                 { "required": ["fiber"] },
+                { "required": ["ports"] },
                 { "required": ["endDrop"] },
                 { "required": ["nextHoa"] }
               ]
             }
           }
+        },
+        {
+          "if": {
+            "properties": { "fiber": { "const": "MST" } },
+            "required": ["fiber"]
+          },
+          "then": { "required": ["ports"] },
+          "else": { "not": { "required": ["ports"] } }
         }
       ]
     },

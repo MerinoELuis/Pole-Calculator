@@ -541,6 +541,28 @@ const noteChecks = review.reviewPole("PNOTE").checks;
 assert.equal(noteChecks.some(item => item.code === "ADDITIONAL_MR_INSTRUCTION"), false, "duplicate and model-only MR instructions must not warn");
 assert.equal(noteChecks.some(item => ["MISSING_COMM_TRANSFER", "TRANSFER_HEIGHT_MISMATCH", "UNEXPECTED_COMM_TRANSFER"].includes(item.code)), false, "TELCO must match CenturyLink/CTL transfers");
 
+state.poles = { PANC: { poleId: "PANC", metadata: { anchors: [{ groundlineViolation: true }] } } };
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {};
+state.mr = [{ poleId: "PANC", text: "APS replacing the anchor due to it being set improperly.\nPl new ANC 8\" 15' E and pl new DG at HOA 20'." }];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "MRE Construction Type", "PLA STATUS"],
+    rows: [{ Id: "PANC", Sequence: "PANC", "Year Installed": 2010, "Low Power Attachment.display": "27'", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete" }]
+  },
+  spans: { headers: [], rows: [] },
+  spanWires: { headers: [], rows: [] },
+  makeReady: {
+    headers: ["Id", "Make Ready Notes"],
+    rows: [{ Id: "PANC", "Make Ready Notes": "Pl new ANC 8\" 15' E and pl new DG at HOA 20'." }]
+  },
+  commTransfers: { headers: [], rows: [] }
+};
+output = review.runReview();
+const anchorReplacementCheck = review.reviewPole("PANC").checks.find(item => item.code === "MISSING_MR_INSTRUCTION");
+assert.equal(anchorReplacementCheck?.expected, "APS replacing the anchor due to it being set improperly.", "a regular ANC-placement instruction must not mask the separate groundline replacement MR");
+
 state.poles = { PMISMATCH: { poleId: "PMISMATCH" } };
 state.spans = {};
 state.spanSides = {};
@@ -828,5 +850,64 @@ assert.equal(
   false,
   "Excel Review must continue matching workbook wire rows to the renamed pole"
 );
+
+// A Back Span at P5 can be reciprocated by an Other row at P2 when P2's only
+// Fore Span correctly points to a different pole. Do not demand a second
+// Fore Span at P2 just to describe that physical back connection.
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom" };
+state.poleIdAliases = {};
+state.poles = Object.fromEntries(["P2", "P3", "P5", "P6"].map(poleId => [poleId, { poleId }]));
+state.spans = {};
+state.spanSides = {};
+state.spanComms = {};
+state.mr = [];
+state.excelReviewSource = {
+  collection: {
+    headers: ["Id", "Sequence", "Year Installed", "Low Power Attachment.display", "Drivable Access in Mid Span", "MRE Construction Type", "PLA STATUS"],
+    rows: ["P2", "P3", "P5", "P6"].map((Id, index) => ({
+      Id, Sequence: index + 2, "Year Installed": 2010, "Low Power Attachment.display": "27'",
+      "Drivable Access in Mid Span": "yes", "MRE Construction Type": "Aerial", "PLA STATUS": "Complete"
+    }))
+  },
+  spans: {
+    headers: ["Id", "Span Id", "Span Index", "Type", "Linked Collection.Title", "Environment"],
+    rows: [
+      { Id: "P2", "Span Id": "P2-F", "Span Index": 1, Type: "Fore Span", "Linked Collection.Title": "P3", Environment: "STREET" },
+      { Id: "P2", "Span Id": "P2-O", "Span Index": 5, Type: "Other", "Linked Collection.Title": "P5", Environment: "STREET" },
+      { Id: "P3", "Span Id": "P3-B", "Span Index": 2, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET" },
+      { Id: "P5", "Span Id": "P5-B", "Span Index": 12, Type: "Back Span", "Linked Collection.Title": "P2", Environment: "STREET" },
+      { Id: "P5", "Span Id": "P5-F", "Span Index": 13, Type: "Fore Span", "Linked Collection.Title": "P6", Environment: "STREET" },
+      { Id: "P6", "Span Id": "P6-B", "Span Index": 14, Type: "Back Span", "Linked Collection.Title": "P5", Environment: "STREET" }
+    ]
+  },
+  spanWires: { headers: [], rows: [] },
+  equipment: { headers: [], rows: [] },
+  anchors: { headers: [], rows: [] },
+  anchorGuys: { headers: [], rows: [] },
+  makeReady: { headers: [], rows: [] },
+  commTransfers: { headers: [], rows: [] }
+};
+review.runReview();
+assert.equal(
+  review.reviewPole("P5").checks.some(item => item.code === "RECIPROCAL_SPAN_WARNING" && item.details?.some(detail => detail.spanId === "P5-B")),
+  false,
+  "a Back Span paired with exactly one reverse Other span must pass when the forward pole's Fore Span points elsewhere"
+);
+state.excelReviewSource.spans.rows = state.excelReviewSource.spans.rows.filter(row => row["Span Id"] !== "P2-O");
+review.runReview();
+assert.ok(
+  review.reviewPole("P5").checks.some(item => item.code === "RECIPROCAL_SPAN_WARNING" && item.details?.some(detail => detail.spanId === "P5-B")),
+  "a Back Span with no reverse Fore or Other span must still warn"
+);
+state.excelReviewSource.spans.rows.push(
+  { Id: "P2", "Span Id": "P2-O", "Span Index": 5, Type: "Other", "Linked Collection.Title": "P5", Environment: "STREET" },
+  { Id: "P2", "Span Id": "P2-O-2", "Span Index": 6, Type: "Other", "Linked Collection.Title": "P5", Environment: "STREET" }
+);
+review.runReview();
+const duplicateOtherReciprocal = review.reviewPole("P5").checks.find(item => (
+  item.code === "RECIPROCAL_SPAN_WARNING" && item.details?.some(detail => detail.spanId === "P5-B")
+));
+assert.ok(duplicateOtherReciprocal, "more than one reverse Other row must remain ambiguous and warn");
+assert.match(duplicateOtherReciprocal.message, /Found 2\./, "the duplicate reciprocal warning should report both compatible reverse rows");
 
 console.log("Excel Review tests passed.");

@@ -11,6 +11,7 @@
   let persistence = null;
   let mobileKeyboard = null;
   let themeControl = null;
+  let fiberTabRenderer = null;
 
   const poleResolutionOf = pole => S.getPoleResolution(pole);
   const ownerCanonicalOf = row => S.getOwnerCanonical(row);
@@ -636,6 +637,29 @@
       S.updatePowerEquipmentField(el.dataset.pole, Number(el.dataset.equipmentIndex), field, value);
     }
 
+    if (scope === "anchor") {
+      S.updateAnchorField(
+        el.dataset.pole,
+        Number(el.dataset.anchorIndex),
+        field,
+        value,
+        el.dataset.guyIndex === undefined ? null : Number(el.dataset.guyIndex)
+      );
+    }
+
+    if (scope === "proposedANC") {
+      S.updateProposedANCField(
+        el.dataset.pole,
+        Number(el.dataset.proposedAncIndex),
+        field,
+        value
+      );
+      global.Calculations.recalculateSpansForPole(el.dataset.pole);
+      renderAffectedPoles([el.dataset.pole]);
+      markDirty();
+      return;
+    }
+
     if (scope === "spanSide") {
       const previousProposed = field === "proposedHOA"
         ? H.parseHeight(S.getSpanSide(el.dataset.span, el.dataset.pole)?.proposedHOA || "")
@@ -729,6 +753,7 @@
     if (["lowPower", "standaloneProposedHOA", "poleInsetHeight", "ocalcMS", "proposedHOA", "proposedHOAChange", "existingHOA", "existingHOAChange", "otherHOA", "midspan", "attachmentHeightChange", "environmentClearance", "commClearance", "boltClearance", "midspanCommCommClearance", "midspanPowerCommClearance", "midspanPrimaryPowerCommClearance", "polePowerCommsClearance", "primaryPowerCommsClearance", "clearanceToPower", "streetlightBracketCommClearance", "streetlightGroundedBracketCommClearance", "streetlightDripLoopCommClearance", "powerGuyCommClearance", "projectProfile", "position", "proposedOwner"].includes(field)) {
       scheduleDelayedMidspanRender(scope === "settings" ? [] : affectedPoleIds);
     }
+    if (scope === "anchor") markDirty();
   }
 
   function scrollToPole(poleId) {
@@ -748,6 +773,7 @@
       renderClearanceSettings();
       renderPoleClassResults();
       renderExcelReviewResults();
+      fiberTabRenderer?.render();
       renderPoleLists();
       renderAllPolesWorkspace();
       renderActiveView();
@@ -826,7 +852,10 @@
     });
     els.exportDebugJsonBtn.addEventListener("click", () => {
       if (els.exportDebugJsonBtn.disabled) return;
-      global.ProjectExport.exportDebugJson();
+      global.ProjectExport.exportDebugJson(
+        persistence?.getSaveDiagnostics?.() || null,
+        persistence?.getLoadDiagnostics?.() || null
+      );
     });
     els.autoCalculateBtn.addEventListener("click", async () => {
       if (els.autoCalculateBtn.disabled || autoCalculateRunning) return;
@@ -1015,6 +1044,7 @@
       poleClassResults: qs("poleClassResults"),
       poleClassTabWarning: qs("poleClassTabWarning"),
       poleClassTabWarningCount: qs("poleClassTabWarningCount"),
+      fiberPlanResults: qs("fiberPlanResults"),
       excelReviewTabWarning: qs("excelReviewTabWarning"),
       excelReviewTabWarningCount: qs("excelReviewTabWarningCount"),
       excelReviewResults: qs("excelReviewResults"),
@@ -1047,7 +1077,12 @@
       els,
       render,
       recordUndoSnapshot,
-      toast
+      toast,
+      confirmFallback: (title, description, confirmLabel) => openAppDialog({
+        title,
+        description,
+        confirmLabel
+      }).then(Boolean)
     });
     history = global.AppHistory.create({
       S,
@@ -1093,6 +1128,7 @@
       updatePoleIndexToggleVisibility: updatePoleIndexToggleVisibility,
       wireEditableEvents: wireEditableEvents
     };
+    fiberTabRenderer = global.FiberTabRenderer?.create(rendererContext) || null;
     ({ spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, reviewStatusBadge, renderReviewCheck, renderExcelReviewTabWarning, updateExcelReviewWarningActions, renderExcelReviewResults, setAllExcelReviewWarningsIgnored, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace } = global.PoleWorkspaceRenderer.create(rendererContext));
     poleActionHandlers = global.PoleActions.create({
       S,

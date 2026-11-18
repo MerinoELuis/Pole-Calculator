@@ -395,7 +395,7 @@
   }
 
   /** Recalculates and downloads full state plus midspan diagnostic traces. */
-  function exportDebugJson() {
+  function exportDebugJson(saveDiagnostics = null, loadDiagnostics = null) {
     if (String(global.AppDeploymentVersion?.source || "development").toLowerCase() === "github-pages") return;
     global.Calculations.recalculateAll();
     const state = S().getState();
@@ -406,6 +406,8 @@
       exportType: "calculation-debug",
       exportedAt: new Date().toISOString(),
       sourceFile: state.importedFileName || "",
+      saveDiagnostics: saveDiagnostics ? JSON.parse(JSON.stringify(saveDiagnostics)) : null,
+      loadDiagnostics: loadDiagnostics ? JSON.parse(JSON.stringify(loadDiagnostics)) : null,
       summary: {
         poles: Object.keys(state.poles || {}).length,
         spans: Object.keys(state.spans || {}).length,

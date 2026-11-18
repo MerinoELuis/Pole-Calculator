@@ -46,6 +46,8 @@ Source notes are stored under pole metadata and do not replace user-owned notes.
 
 Bearing is normalized to one of eight cardinal directions. A missing linked pole creates an editable `Unknown-<spanId>` pole.
 
+Excel Review checks reciprocal Fore/Back connections by endpoint. A Back Span may be reciprocated by exactly one reverse `Other` row when the connected pole's single Fore Span continues to a different pole. This avoids requiring a second Fore Span; missing or duplicate reverse rows still warn.
+
 ## Span.Wire
 
 | Purpose | Accepted headers or matching rule |
@@ -72,7 +74,7 @@ Excel Review checks communication drop sizes against their owner category. Centu
 
 ## Anchor
 
-The `Anchor` worksheet is captured as an independent raw review source. Excel Review checks every existing row for Collection Id, Id, Anchor Index, Anchor Id, Type, Lead Length, Lead Length provider, bearing, pitch, Owner, and Guys. A populated display value may satisfy its corresponding raw Lead Length, bearing, or pitch field. `Anchor` rows do not set the comm `DG` control.
+The `Anchor` worksheet is captured as an independent raw review source and normalized under each pole's `metadata.anchors` for the collapsed, editable ANC / Guys panel below Equipment. That panel shows Owner, Lead Length, Bearing / Angle, the editable groundline-violation toggle, and associated Guys Size, Owner, and Attachment HOA; it intentionally omits Anchor Type, Pitch, and redundant row counts. Excel Review still checks every existing Anchor row for Collection Id, Id, Anchor Index, Anchor Id, Type, Lead Length, Lead Length provider, bearing, pitch, Owner, and Guys. A populated display value may satisfy its corresponding raw Lead Length, bearing, or pitch field. `Anchor` rows do not set the comm `DG` control.
 
 ## Anchor.Guys
 
@@ -139,15 +141,17 @@ Preserved user work includes matching:
 - HOA changes
 - Proposed values and Next Pole Proposed overrides
 - Manually overridden ANC Distance values (the manual value wins over a refreshed automatic/default distance)
+- Manually edited Anchor and Guy fields (only explicitly edited fields override refreshed Excel values)
 - Notes
 - Service Drop and DG edits
 - Transfer to New Pole and INTEC/Olsson OPPD Re-sag Service Drop edits
 - Manual/additional Proposed rows
+- Fiber-tab assignments and their New/Overlash, span, fiber-type, and MST-port edits
 - UG/PCO pole state
 - attachment diameter settings
 - ignored Excel Review findings
 
-Fresh non-empty imported geometry, owners, wires, power, Environment, and source references replace their previous imported equivalents. Empty replacement cells retain the prior known calculator value only after the old and new entities match. Rows omitted by the update are not recreated unless they contain manual user work. This prevents removed spans from generating empty endpoint comm rows. Logical duplicate comm rows are still reconciled to one physical row. Derived values are cleared and recalculated.
+Fresh non-empty imported geometry, owners, wires, power, Environment, and source references replace their previous imported equivalents. Empty replacement cells retain the prior known calculator value only after the old and new entities match. Rows omitted by the update are not recreated unless they contain manual user work. Fiber-bearing Make Ready references are an exception: an unmatched old fiber reference is retained for an existing pole because a partial update is not evidence of removal. A matching updated Make Ready ID or index with no fiber explicitly clears the old fiber fields. This prevents adding poles in an update from silently removing fibers on other poles while still honoring an explicit Excel removal. This also prevents removed spans from generating empty endpoint comm rows. Logical duplicate comm rows are still reconciled to one physical row. Derived values are cleared and recalculated.
 
 `excelReviewSource` is the exception: it always stores the newly selected workbook exactly as imported, including Collection, Span, Span.Wire, Equipment, Anchor, Anchor.Guys, Make Ready, and Make Ready.Comm Transfers. This lets Excel Review report a blank or missing value even when the calculator retains an older value to avoid destructive data loss.
 
@@ -211,7 +215,7 @@ Example:
 ### Sizes
 
 - `sizes.messenger`: positive decimal messenger diameter, or `null` when the payload has no aerial fiber requiring it.
-- `sizes.fiber`: map from fiber count to positive decimal diameter.
+- `sizes.fiber`: map from CT count or `MST` to positive decimal diameter. Diameter is global by fiber type and is not repeated on each span.
 - Only aerial spans that actually export a `fiber` count create a required size entry.
 
 ### Proposal context
@@ -245,11 +249,15 @@ from the effective ANC/DG value.
 - `kind`: `F`, `B`, or `O`.
 - `bearing`: degrees in `[0, 360)` when known.
 - `length`: whole inches when known.
-- `hoa` and `fiber`: explicit aerial proposal.
+- `hoa` and `fiber`: explicit aerial proposal. `fiber` is a positive CT count or `"MST"`; MST additionally exports its selected `ports` (`8` or `16`). Its diameter is read from `sizes.fiber.MST`.
+- `overlash: true`: the row is marked Overlash in Excel/Fiber planning and
+  reuses the selected owner's existing messenger instead of creating another.
+  Its `hoa` is taken from that messenger's existing on-pole HOA, so Overlash
+  does not need a separate Proposed HOA. If the selected owner has no unique
+  existing messenger HOA on that pole/span, the span is not exported as a fiber
+  proposal. New or blank classifications do not trigger the older fiber-only
+  heuristic.
 - `slack: true`: this physical span is marked Slack; the flag is exported from both endpoints so the AutoProposed plugin can apply the Slack instruction to the physical span.
-- `overlash: true`: the proposal is a fiber overlash and must reuse the
-  existing messenger for the exported job owner instead of creating another
-  messenger.
 - `endDrop` and `nextHoa`: optional endpoint proposal values. A Back Span must not export `endDrop`; `nextHoa` remains independent.
 - `ug: true`: geometry-only underground relation; it cannot include aerial proposal fields.
 - Geometry without `ug`, `hoa`, or `fiber` is a reference-only span and creates no proposed attachment.
@@ -284,6 +292,13 @@ EXCEL_Wecom-SUPRAZ1.1_2026-07-13.xlsx
 Export Debug is intentionally verbose and is available only in the local app
 copy (it is hidden and blocked on the public GitHub Pages build). It contains:
 
+- Latest Save attempt: status, timestamp, filename, save method, known location,
+  stage, failure reason, fallback reason, and any warning while remembering the
+  destination. A browser-selected file's full path is not exposed to the app;
+  browser-download completion and its final disk location cannot be confirmed.
+- Latest Load attempt: status, selected filename, picker method, failure reason,
+  compatibility fallback result, and any picker/handle warning. The browser
+  does not expose the full local path to the app.
 - Full current state
 - Entity counts
 - Multiple-wire groups for the same owner identity

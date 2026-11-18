@@ -379,6 +379,42 @@
     return referencesForPhysicalSpan(state, poleId, span)[0] || null;
   }
 
+  function fiberTokenForPlan(fiberType) {
+    if (/^\s*MST\s*$/i.test(String(fiberType || ""))) return "MST";
+    const count = fiberCount(fiberType);
+    return count ? Number(count) : null;
+  }
+
+  function fiberPlanRows(state) {
+    const buildRows = global.FiberTabRenderer?.buildRows;
+    if (typeof buildRows !== "function") return null;
+    return buildRows(state);
+  }
+
+  function fiberPlanForSpan(state, span, allRows = fiberPlanRows(state)) {
+    if (allRows === null) return null;
+    const rows = allRows.filter(row => {
+      const selectedSpan = state?.spans?.[row.spanId];
+      return Boolean(row.spanId && samePhysicalSpan(selectedSpan, span));
+    });
+    const unique = new Map();
+    rows.forEach(row => {
+      const fiber = fiberTokenForPlan(row.fiberType);
+      if (fiber === null) return;
+      const ports = fiber === "MST" ? String(row.mstPorts || "") : "";
+      const installType = text(row.installType).toUpperCase();
+      const key = JSON.stringify([fiber, ports, installType]);
+      if (!unique.has(key)) unique.set(key, { fiber, ports, installType, row });
+    });
+    const fibers = Array.from(unique.values()).sort((left, right) => {
+      const overlashDiff = Number(right.installType === "OVERLASH") - Number(left.installType === "OVERLASH");
+      if (overlashDiff) return overlashDiff;
+      const localDiff = Number(right.row.poleId === span.fromPole) - Number(left.row.poleId === span.fromPole);
+      return localDiff || text(left.row.id).localeCompare(text(right.row.id));
+    });
+    return { rows, fibers };
+  }
+
   function normalizedOwnerToken(value) {
     const normalized = text(value)
       .replace(/^COMMUNICATION\s*>\s*/i, "")
@@ -389,20 +425,33 @@
     return normalized;
   }
 
-  function hasExistingJobMessenger(state, span, owner) {
-    if (!span) return false;
+  function existingJobMessengerHoa(state, span, poleId, owner) {
+    if (!span || !poleId) return null;
     const targetOwner = normalizedOwnerToken(owner || state?.settings?.proposedOwner || "");
-    if (!targetOwner) return false;
-    const poles = new Set([span.fromPole, span.toPole].filter(Boolean));
-    return Object.values(state?.spanComms || {}).some(row => {
+    if (!targetOwner) return null;
+    const heights = new Set();
+    Object.values(state?.spanComms || {}).forEach(row => {
       const rowSpan = state?.spans?.[row.spanId];
-      if (!rowSpan) return false;
-      const rowPoles = new Set([rowSpan.fromPole, rowSpan.toPole].filter(Boolean));
-      if (rowPoles.size !== poles.size || Array.from(poles).some(id => !rowPoles.has(id))) return false;
+      if (!rowSpan || normalizedPhysicalPoleId(row.poleId) !== normalizedPhysicalPoleId(poleId)) return;
+      if (!samePhysicalSpan(rowSpan, span)) return;
       const wireSize = `${row.size || ""} ${row.construction || ""}`;
-      return normalizedOwnerToken(ownerImportedOf(row) || row.ownerDisplay || row.owner || "") === targetOwner
-        && /\bmsgr\b|messenger/i.test(wireSize);
+      if (normalizedOwnerToken(ownerImportedOf(row) || row.ownerDisplay || row.owner || "") !== targetOwner
+        || !/\bmsgr\b|messenger/i.test(wireSize)) return;
+      const hoa = inches(row.existingHOA);
+      if (hoa !== null && hoa > 0) heights.add(hoa);
     });
+    // Do not guess which messenger to reuse when the same owner has multiple
+    // different attachment heights on this pole/span.
+    return heights.size === 1 ? Array.from(heights)[0] : null;
+  }
+
+  function hasOverlashFiberPlan(state = S()?.getState?.()) {
+    if (!state) return false;
+    return fiberPlanRows(state)?.some(row =>
+      text(row.installType).toUpperCase() === "OVERLASH"
+      && fiberTokenForPlan(row.fiberType) !== null
+      && Boolean(state.spans?.[row.spanId])
+    ) === true;
   }
 
   function fiberForSpan(state, poleId, span) {
@@ -556,7 +605,7 @@
     });
   }
 
-  function compactSpan(state, poleId, span, primaryProposal) {
+  function compactSpan(state, poleId, span, primaryProposal, fiberRows) {
     const item = {
       to: text(span.toPole),
       kind: spanKind(span)
@@ -574,9 +623,13 @@
     const exactSide = sideForSpan(state, poleId, span.spanId);
     if (isSlackOnPhysicalSpan(state, span)) item.slack = true;
 
-    const reference = preferredReferenceForSpan(state, poleId, span);
-    const fiber = reference ? fiberCountForReference(reference, span, poleId) : "";
-    if (!fiber) return item;
+    const fiberPlan = fiberPlanForSpan(state, span, fiberRows);
+    const reference = fiberPlan === null ? preferredReferenceForSpan(state, poleId, span) : null;
+    const plannedFiber = fiberPlan?.fibers?.[0] || null;
+    const fiber = plannedFiber ? plannedFiber.fiber : reference ? Number(fiberCountForReference(reference, span, poleId)) : null;
+    // When the Fiber plan is loaded it owns cable-to-span matching. An
+    // unassigned row must not be guessed onto every direction of that pole.
+    if (fiber === null || fiber === 0 || fiberPlan && !plannedFiber) return item;
 
     const outgoingSpanCount = Object.values(state?.spans || {})
       .filter(candidate => candidate?.fromPole === poleId && hasSpanGeometry(candidate))
@@ -589,26 +642,27 @@
         // span and must not be exported as geometry-only.
         proposedHOA: findPole(state, poleId)?.standaloneProposedHOA || ""
       } : null);
-    const hoa = inches(proposal?.proposedHOA);
+    const isOverlash = fiberPlan === null
+      ? isDirectionalFiberOnlyOverlash(reference, span)
+      : plannedFiber?.installType === "OVERLASH";
+    const hoa = isOverlash
+      ? existingJobMessengerHoa(state, span, poleId, state.settings?.proposedOwner || "")
+      : inches(proposal?.proposedHOA);
     if (hoa === null) return item;
 
     item.hoa = hoa;
-    item.fiber = Number(fiber);
-    const isOverlash = isDirectionalFiberOnlyOverlash(reference, span);
-    if (isOverlash && !hasExistingJobMessenger(state, span, state.settings?.proposedOwner || "")) {
-      // Never turn an Excel Overlash into a new messenger when the expected
-      // job-owner messenger is absent from Span.Wire.
-      delete item.hoa;
-      delete item.fiber;
-      return item;
+    item.fiber = fiber;
+    if (fiber === "MST") {
+      const ports = Number(plannedFiber?.ports);
+      if (ports === 8 || ports === 16) item.ports = ports;
     }
     if (isOverlash) {
-      // The exported job owner identifies the existing messenger to reuse;
-      // Overlash must not create a second messenger.
+      // Overlash reuses the selected owner's existing messenger and its
+      // current on-pole HOA; it does not require a separately proposed HOA.
       item.overlash = true;
     }
 
-    if (proposal === exactSide) {
+    if (!isOverlash && proposal === exactSide) {
       const endDrop = inches(exactSide?.endDrop);
       const nextHoa = inches(exactSide?.proposedHOAChange);
       if (endDrop !== null && item.kind !== "B") item.endDrop = endDrop;
@@ -654,7 +708,7 @@
     const preferred = spanProposalScore(incoming) > spanProposalScore(existing) ? incoming : existing;
     const secondary = preferred === incoming ? existing : incoming;
     const result = { ...preferred };
-    ["bearing", "length", "hoa", "fiber", "endDrop", "nextHoa"].forEach(field => {
+    ["bearing", "length", "hoa", "fiber", "ports", "endDrop", "nextHoa"].forEach(field => {
       if (!(field in result) && field in secondary) result[field] = secondary[field];
     });
     if (preferred.slack || secondary.slack) result.slack = true;
@@ -663,13 +717,13 @@
     return result;
   }
 
-  function compactSpansForPole(state, poleId) {
+  function compactSpansForPole(state, poleId, fiberRows = fiberPlanRows(state)) {
     const primaryProposal = primaryProposalForPole(state, poleId);
     const byPhysicalSpan = new Map();
 
     Object.values(state?.spans || {})
       .filter(span => span.fromPole === poleId && hasSpanGeometry(span))
-      .map(span => compactSpan(state, poleId, span, primaryProposal))
+      .map(span => compactSpan(state, poleId, span, primaryProposal, fiberRows))
       .forEach(span => {
         const key = physicalSpanKey(span);
         byPhysicalSpan.set(key, mergeCompactSpans(byPhysicalSpan.get(key), span));
@@ -811,18 +865,21 @@
   }
 
   function isProposedFiberSpan(span) {
+    const fiber = span?.fiber;
+    const hasFiber = /^MST$/i.test(String(fiber || ""))
+      || Number.isFinite(Number(fiber)) && Number(fiber) > 0;
     return Boolean(span
       && !span.ug
-      && Number.isFinite(Number(span.fiber))
-      && Number(span.fiber) > 0
+      && hasFiber
       && Number.isFinite(Number(span.hoa))
       && Number(span.hoa) > 0);
   }
 
   function hasProposedFiber(state = S()?.getState?.()) {
     if (!state) return false;
+    const fiberRows = fiberPlanRows(state);
     return Object.keys(state.poles || {}).some(poleId =>
-      compactSpansForPole(state, poleId).some(isProposedFiberSpan)
+      compactSpansForPole(state, poleId, fiberRows).some(isProposedFiberSpan)
     );
   }
 
@@ -901,12 +958,13 @@
   function buildCompactPayload(state = S()?.getState?.()) {
     if (!state) return { project: "INTEC", sizes: { messenger: null, fiber: {} }, owner: "", poles: [] };
     applyAttachmentDefaults(state);
+    const fiberRows = fiberPlanRows(state);
 
     const poles = [];
     Object.keys(state.poles || {})
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .forEach(poleId => {
-        const spans = compactSpansForPole(state, poleId);
+        const spans = compactSpansForPole(state, poleId, fiberRows);
         const moves = compactMoves(state, poleId);
         const terminalHoa = isPoleFullyUg(state, poleId)
           ? null
@@ -921,7 +979,7 @@
         // standaloneProposedHOA into its outgoing fiber span, do not export
         // the same height twice as a terminal attachment.
         const terminalAlreadyOnSpan = terminalHoa !== null
-          && spans.some(span => span.hoa === terminalHoa && Number.isFinite(Number(span.fiber)));
+          && spans.some(span => span.hoa === terminalHoa && isProposedFiberSpan(span));
         if (terminalHoa !== null && !terminalAlreadyOnSpan) pole.terminalHoa = terminalHoa;
         if (spans.length) pole.spans = spans;
         if (moves.length) pole.moves = moves;
@@ -933,13 +991,17 @@
 
     const usedFibers = new Set();
     poles.forEach(pole => (pole.spans || []).forEach(span => {
-      if (!span.ug && Number.isFinite(Number(span.fiber))) usedFibers.add(String(Number(span.fiber)));
+      if (!span.ug && (String(span.fiber).toUpperCase() === "MST" || Number.isFinite(Number(span.fiber)) && Number(span.fiber) > 0)) {
+        usedFibers.add(String(span.fiber).toUpperCase() === "MST" ? "MST" : String(Number(span.fiber)));
+      }
     }));
 
     const fiberSizes = {};
-    usedFibers.forEach(count => {
-      const key = configuredFiberKey(state, count);
-      fiberSizes[count] = numericSize(state.settings?.fiberSizes?.[key]);
+    usedFibers.forEach(fiberType => {
+      const key = fiberType === "MST"
+        ? Object.keys(state.settings?.fiberSizes || {}).find(name => /^MST(?:\s|$)/i.test(name)) || "MST"
+        : configuredFiberKey(state, fiberType);
+      fiberSizes[fiberType] = numericSize(state.settings?.fiberSizes?.[key]);
     });
 
     return sanitizeBlockedLocalPayload({
@@ -956,7 +1018,9 @@
   function validationErrors(payload, state = null) {
     const usedFibers = new Set();
     (payload?.poles || []).forEach(pole => (pole.spans || []).forEach(span => {
-      if (!span.ug && Number.isFinite(Number(span.fiber))) usedFibers.add(String(Number(span.fiber)));
+      if (!span.ug && (String(span.fiber).toUpperCase() === "MST" || Number.isFinite(Number(span.fiber)) && Number(span.fiber) > 0)) {
+        usedFibers.add(String(span.fiber).toUpperCase() === "MST" ? "MST" : String(Number(span.fiber)));
+      }
     }));
     const errors = [];
     const payloadProject = text(payload?.project).toUpperCase().replace(/\s+/g, "_");
@@ -967,11 +1031,39 @@
     }
     if (usedFibers.size) {
       if (numericSize(payload?.sizes?.messenger) === null) errors.push("Missing Messenger Size");
-      Array.from(usedFibers).sort((a, b) => Number(a) - Number(b)).forEach(count => {
-        if (numericSize(payload?.sizes?.fiber?.[count]) === null) errors.push(`Missing ${count}CT Fiber Size`);
+      Array.from(usedFibers).sort((a, b) => a === "MST" ? 1 : b === "MST" ? -1 : Number(a) - Number(b)).forEach(fiberType => {
+        if (numericSize(payload?.sizes?.fiber?.[fiberType]) === null) {
+          errors.push(fiberType === "MST" ? "Missing MST Diameter" : `Missing ${fiberType}CT Fiber Size`);
+        }
       });
     }
+    if (state && typeof global.FiberTabRenderer?.buildRows === "function") {
+      const fiberRows = fiberPlanRows(state);
+      (payload?.poles || []).forEach(pole => (pole.spans || []).forEach(span => {
+        if (span.ug || !isProposedFiberSpan(span)) return;
+        const sourceSpan = Object.values(state.spans || {}).find(candidate =>
+          candidate.fromPole === pole.id
+          && normalizedPhysicalPoleId(candidate.toPole) === normalizedPhysicalPoleId(span.to)
+          && samePhysicalSpan(candidate, {
+            fromPole: pole.id,
+            toPole: span.to,
+            length: Number.isFinite(Number(span.length)) ? Number(span.length) / 12 : undefined,
+            bearingDegrees: span.bearing
+          })
+        );
+        if (!sourceSpan) return;
+        const plan = fiberPlanForSpan(state, sourceSpan, fiberRows);
+        if (plan?.rows.some(row => !["NEW", "OVERLASH"].includes(text(row.installType).toUpperCase()))) {
+          errors.push(`Select New or Overlash for the fiber on ${pole.id} to ${span.to}`);
+        }
+      }));
+    }
     (payload?.poles || []).forEach(pole => {
+      (pole.spans || []).forEach(span => {
+        if (String(span.fiber).toUpperCase() === "MST" && ![8, 16].includes(Number(span.ports))) {
+          errors.push(`Missing MST port count on ${pole.id} to ${span.to}`);
+        }
+      });
       const riser = pole?.riser;
       if (!riser) return;
       if (riser.action === "place" && !text(riser.direction)) {
@@ -1194,6 +1286,13 @@
       if (changed) markSaveDirty();
       const container = global.document.getElementById("clearanceSettings");
       if (!container) return;
+      // Fiber configuration now lives in its own view. Keep attachment
+      // defaults applied for export compatibility, but do not recreate the
+      // old duplicate controls inside Calculation Values.
+      if (global.document.querySelector('[data-view-tab="fiber"]')) {
+        container.querySelectorAll(".settings-section-fiber").forEach(section => section.remove());
+        return;
+      }
       const fibers = fiberEntries(state);
       const supported = SUPPORTED_PROFILES.has(profileName(state));
       let section = container.querySelector(".settings-section-fiber");
@@ -1277,6 +1376,7 @@
     fiberEntries,
     buildCompactPayload,
     hasProposedFiber,
+    hasOverlashFiberPlan,
     isExportProjectSupported,
     allowsOverlashExportWithoutProposedFiber,
     payloadHasProposedFiber,

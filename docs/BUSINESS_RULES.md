@@ -374,12 +374,13 @@ Generated Make Ready is one block per pole. Imported Make Ready is reference dat
 
 Normal ordering:
 
-1. Connected UG instruction.
-2. Power section when applicable.
-3. Regular comm movements, ordered from highest effective HOA to lowest.
-4. Service Drop relocations.
-5. Attach/proposed/anchor/riser instructions.
-6. Low-power midspan reminder.
+1. On a non-UG pole, if any imported Anchor has `Groundline Violation (<6" or >18")` set to Yes: `APS replacing the anchor due to it being set improperly.` This pole-level instruction appears once even when several Anchors are marked Yes, and precedes every other MR line. Do not add it to a UG pole's replacement block.
+2. Connected UG instruction.
+3. Power section when applicable.
+4. Regular comm movements, ordered from highest effective HOA to lowest.
+5. Service Drop relocations.
+6. Attach/proposed/anchor/riser instructions.
+7. Low-power midspan reminder.
 
 UG or PCO mode replaces the normal Make Ready block with the profile-specific replacement template. Both replacement blocks are editable and persist with Save/Load and Update Data. UG and PCO are mutually exclusive.
 

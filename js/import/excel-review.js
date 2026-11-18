@@ -710,27 +710,38 @@
   function addReciprocalChecks(result, poleSpans, allSpans) {
     poleSpans.filter(span => spanRelationOf(span) === "FORE" || spanRelationOf(span) === "BACK").forEach(span => {
       if (!span.hasConnectionData || !span.toPole) return;
-      const expectedType = spanRelationOf(span) === "FORE" ? "BACK" : "FORE";
-      const reverse = allSpans.filter(candidate => (
+      const relation = spanRelationOf(span);
+      const expectedType = relation === "FORE" ? "BACK" : "FORE";
+      const endpointReverse = allSpans.filter(candidate => (
         normalizedText(candidate.fromPole) === normalizedText(span.toPole)
         && normalizedText(candidate.toPole) === normalizedText(span.fromPole)
-        && spanRelationOf(candidate) === expectedType
+      ));
+      const targetForeSpans = relation === "BACK"
+        ? allSpans.filter(candidate => (
+          normalizedText(candidate.fromPole) === normalizedText(span.toPole)
+          && spanRelationOf(candidate) === "FORE"
+        ))
+        : [];
+      const targetForeContinuesElsewhere = targetForeSpans.length === 1
+        && normalizedText(targetForeSpans[0].toPole) !== normalizedText(span.fromPole);
+      // When this pole owns a Back Span, its reciprocal endpoint may be
+      // recorded as Other because that pole's single Fore Span continues to
+      // a different neighbor. A matching Other is therefore valid in that
+      // direction only; Fore Span reciprocals still require a Back Span.
+      const reverse = endpointReverse.filter(candidate => (
+        spanRelationOf(candidate) === expectedType
+        || (relation === "BACK" && targetForeContinuesElsewhere && spanRelationOf(candidate) === "OTHER")
       ));
       if (reverse.length === 1) return;
-      const wrongReverse = allSpans.filter(candidate => (
-        normalizedText(candidate.fromPole) === normalizedText(span.toPole)
-        && normalizedText(candidate.toPole) === normalizedText(span.fromPole)
-        && spanRelationOf(candidate) !== expectedType
-      ));
-      const expectedLabel = expectedType === "BACK" ? "Back Span" : "Fore Span";
-      const actual = wrongReverse.length
-        ? wrongReverse.map(candidate => candidate.typeRaw || spanRelationOf(candidate)).join(", ")
+      const expectedLabel = expectedType === "BACK" ? "Back Span" : "Fore Span or Other Span";
+      const actual = endpointReverse.length
+        ? endpointReverse.map(candidate => candidate.typeRaw || spanRelationOf(candidate)).join(", ")
         : "No reciprocal span";
       add(result, {
         phase: "HOA", section: "Span", code: "RECIPROCAL_SPAN_WARNING", status: "WARNING",
         title: "Fore / Back Relationship",
         message: `${spanDescription(span)} expects exactly one ${expectedLabel} from ${span.toPole} back to ${span.fromPole}. Found ${reverse.length}.`,
-        expected: expectedLabel, actual, details: [span.details, ...reverse.map(candidate => candidate.details), ...wrongReverse.map(candidate => candidate.details)]
+        expected: expectedLabel, actual, details: [span.details, ...endpointReverse.map(candidate => candidate.details)]
       });
     });
   }
@@ -1237,7 +1248,8 @@
   function instructionSignature(value, poleId) {
     const raw = text(value).replace(/[’‘]/g, "'").replace(/[“”]/g, "\"");
     const clean = normalizedText(raw).replace(/[^a-z0-9'\".\s/-]/g, " ").replace(/\s+/g, " ");
-    const action = /re[-\s]?sag/.test(clean) ? "resag"
+    const action = /aps\s+replacing\s+the\s+anchor\s+due\s+to\s+it\s+being\s+set\s+improperly/.test(clean) ? "anchor-replacement"
+      : /re[-\s]?sag/.test(clean) ? "resag"
       : /relocate/.test(clean) ? "relocate"
         : /transfer/.test(clean) ? "transfer"
           : /lower/.test(clean) ? "lower"

@@ -93,6 +93,8 @@ const window = {
 
 const sourcePath = path.join(__dirname, "..", "js", "export", "compact-autoproposed.js");
 vm.runInNewContext(fs.readFileSync(sourcePath, "utf8"), { window }, { filename: sourcePath });
+const fiberRendererPath = path.join(__dirname, "..", "js", "ui", "fiber-tab-renderer.js");
+vm.runInNewContext(fs.readFileSync(fiberRendererPath, "utf8"), { window }, { filename: fiberRendererPath });
 const api = window.CompactAutoProposed;
 
 state = baseState("INTEC");
@@ -173,10 +175,10 @@ state.spanSides = {
   P11_S: { spanId: "P11_TO_P10", poleId: "P11", proposedHOA: "20'10\"" }
 };
 state.makeReadyReferences = [
-  { poleId: "P1", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["E", "W", "S"] },
-  { poleId: "P10", attachmentSizeRaw: "144CT Fiber N/E", attachmentDirectionTokens: ["N", "E"] },
-  { poleId: "P11", attachmentSizeRaw: "144CT Fiber S/E", attachmentDirectionTokens: ["S", "E"] },
-  { poleId: "P6", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["SE"] }
+  { poleId: "P1", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["E", "W", "S"], attachmentType: "New" },
+  { poleId: "P10", attachmentSizeRaw: "144CT Fiber N/E", attachmentDirectionTokens: ["N", "E"], attachmentType: "New" },
+  { poleId: "P11", attachmentSizeRaw: "144CT Fiber S/E", attachmentDirectionTokens: ["S", "E"], attachmentType: "New" },
+  { poleId: "P6", attachmentFiber: "144CT Fiber", attachmentDirectionTokens: ["SE"], attachmentType: "New" }
 ];
 state.spanComms = {
   regularFore: { spanId: "S1", poleId: "P1", owner: "CenturyLink", ownerBase: "CenturyLink", wireId: "W1", existingHOA: "18'10\"", existingHOAChange: "20'" },
@@ -343,10 +345,12 @@ state.spanComms.overlashMessenger = {
   poleId: "P1",
   owner: "COMMUNICATION > Wecom Inc",
   rawOwner: "COMMUNICATION > Wecom Inc",
+  existingHOA: "18'",
   size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
 };
 const overlash = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P4");
 assert.equal(overlash.overlash, true, "an Overlash Make Ready row on the opposite endpoint must reuse the job-owner messenger");
+assert.equal(overlash.hoa, 216, "Overlash Make Ready uses the existing owner's current HOA");
 
 state.makeReadyReferences = [{
   poleId: "P1",
@@ -362,7 +366,7 @@ state.spanComms.overlashMessenger = {
   size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
 };
 const mixedAttachment = api.buildCompactPayload(state).poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P2");
-assert.equal(mixedAttachment.overlash, true, "a fiber-only directional component must export as Overlash even when the row type is New");
+assert.equal("overlash" in mixedAttachment, false, "an explicit New attachment type must override the old fiber-only Overlash heuristic");
 const northNotSelected = p1.spans.find(span => span.to === "P5");
 assert.equal("fiber" in northNotSelected, false, "a span outside Fiber E/W/S must stay geometry-only");
 assert.equal("hoa" in northNotSelected, false);
@@ -488,7 +492,7 @@ const p11 = payload.poles.find(pole => pole.id === "P11");
 assert.ok(p11.spans.every(span => span.ug === true), "a pole with the UG action active must export every outgoing span as UG");
 assert.ok(p11.spans.every(span => !("fiber" in span) && !("hoa" in span)));
 
-assert.equal(JSON.stringify(api.validationErrors(payload)), JSON.stringify([]));
+assert.equal(JSON.stringify(api.validationErrors(payload, state)), JSON.stringify([]));
 assert.equal(
   JSON.stringify(api.validationErrors({ sizes: { messenger: null, fiber: {} }, owner: "Wecom", poles: [{ id: "P-RISER", riser: { action: "raise", hoa: 318, fromHoa: 294 } }] })),
   JSON.stringify(["No proposed fiber to export", "Missing Riser Owner on P-RISER"])
@@ -502,6 +506,74 @@ assert.equal(JSON.stringify(api.validationErrors(missingFiber)), JSON.stringify(
 const onlyUg = { sizes: { messenger: null, fiber: {} }, owner: "Wecom", poles: [{ id: "P1", spans: [{ to: "P2 UG", kind: "F", ug: true }] }] };
 assert.equal(JSON.stringify(api.validationErrors(onlyUg)), JSON.stringify(["No proposed fiber to export"]));
 
+const mstState = baseState("INTEC");
+mstState.settings.proposedOwner = "CenturyLink";
+mstState.settings.attachmentMessengerSize = "0.242";
+mstState.settings.fiberSizes = { MST: "0.50" };
+mstState.settings.fiberPlanDefaults = { mstPorts: "16" };
+mstState.poles = { P1: { poleId: "P1" }, P2: { poleId: "P2" } };
+mstState.spans = {
+  MST_SPAN: { spanId: "MST_SPAN", fromPole: "P1", toPole: "P2", type: "Fore Span", direction: "E", bearingDegrees: 90, lengthDisplay: "100'" }
+};
+mstState.spanSides = {};
+mstState.fiberAssignments = [{
+  id: "manual-fiber:mst:1", manual: true, poleId: "P1", spanId: "MST_SPAN",
+  fiberType: "MST", mstPorts: "16", installType: "OVERLASH"
+}];
+mstState.spanComms.mstMessenger = {
+  spanId: "MST_SPAN", poleId: "P1", owner: "COMMUNICATION > Wecom Inc",
+  size: "Telco Bundles > 0.5\" Communication Bundle Msgr:0.242\""
+};
+mstState.spanComms.ctlMessenger = {
+  spanId: "MST_SPAN", poleId: "P1", owner: "Century Link", ownerBase: "Century Link",
+  existingHOA: "18'", size: "Telco Bundles > 1\" Communication Bundle Msgr:0.242\""
+};
+const mstPayload = api.buildCompactPayload(mstState);
+const mstSpan = mstPayload.poles.find(pole => pole.id === "P1").spans.find(span => span.to === "P2");
+assert.equal(mstSpan.hoa, 216, "Overlash uses the existing Century Link HOA when no proposed HOA exists");
+assert.equal(mstSpan.fiber, "MST", "MST is exported as its own fiber type rather than a CT count");
+assert.equal(mstSpan.ports, 16, "MST port count is exported on the selected span");
+assert.equal(mstSpan.overlash, true, "an explicit Fiber-tab Overlash reuses the selected owner's existing messenger");
+assert.equal(api.hasProposedFiber(mstState), true, "a valid all-Overlash job is exportable without a proposed HOA");
+assert.equal(mstPayload.sizes.fiber.MST, 0.5, "MST diameter comes from the global fiber-size map");
+assert.equal("fiberDiameter" in mstSpan, false, "fiber diameter is not duplicated on individual spans");
+assert.deepEqual(JSON.parse(JSON.stringify(api.validationErrors(mstPayload))), []);
+const mixedFiberState = structuredClone(mstState);
+mixedFiberState.settings.fiberSizes["24CT Fiber"] = "0.44";
+mixedFiberState.spans.MIXED_SPAN = {
+  spanId: "MIXED_SPAN", fromPole: "P1", toPole: "P3", type: "Fore Span",
+  direction: "N", bearingDegrees: 0, lengthDisplay: "120'"
+};
+mixedFiberState.poles.P3 = { poleId: "P3" };
+mixedFiberState.spanSides.MIXED_SPAN_P1 = { spanId: "MIXED_SPAN", poleId: "P1", proposedHOA: "20'" };
+mixedFiberState.fiberAssignments.push({
+  id: "manual-fiber:new:24ct", manual: true, poleId: "P1", spanId: "MIXED_SPAN",
+  fiberType: "24CT Fiber", installType: "NEW"
+});
+const mixedFiberSpans = api.buildCompactPayload(mixedFiberState).poles.find(pole => pole.id === "P1").spans;
+assert.equal(mixedFiberSpans.find(span => span.to === "P2").hoa, 216, "mixed work retains existing CTL HOA for Overlash");
+assert.equal(mixedFiberSpans.find(span => span.to === "P3").hoa, 240, "mixed work retains proposed HOA for New fiber");
+const missingMstPorts = structuredClone(mstPayload);
+delete missingMstPorts.poles.find(pole => pole.id === "P1").spans[0].ports;
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.validationErrors(missingMstPorts))),
+  ["Missing MST port count on P1 to P2"]
+);
+const missingMstSize = structuredClone(mstPayload);
+missingMstSize.sizes.fiber.MST = null;
+assert.deepEqual(JSON.parse(JSON.stringify(api.validationErrors(missingMstSize))), ["Missing MST Diameter"]);
+mstState.settings.proposedOwner = "Wecom";
+assert.equal(api.hasProposedFiber(mstState), false, "Overlash must not borrow the HOA from a different selected owner");
+assert.equal(api.hasOverlashFiberPlan(mstState), true, "the UI can explain the owner mismatch for an Overlash plan");
+
+const unclassifiedFiberState = structuredClone(state);
+unclassifiedFiberState.makeReadyReferences[0].attachmentType = "";
+const unclassifiedPayload = api.buildCompactPayload(unclassifiedFiberState);
+assert.ok(
+  api.validationErrors(unclassifiedPayload, unclassifiedFiberState).includes("Select New or Overlash for the fiber on P1 to P2"),
+  "an exported fiber with no Excel installation type must be classified before export"
+);
+
 state.mr = [];
 window.MRLogic.generateMRForPole("P1");
 const mr = state.mr.find(item => item.poleId === "P1").text;
@@ -511,7 +583,7 @@ assert.match(mr, /At HOA 18'10" raise CTL to HOA 20'\./, "regular fiber movement
 
 state.settings.attachmentMessengerSize = "";
 state.settings.fiberSizes = { "72CT Fiber": "0.40" };
-state.makeReadyReferences = [{ poleId: "P1", attachmentFiber: "72CT Fiber", attachmentDirectionTokens: ["E", "W", "S"] }];
+state.makeReadyReferences = [{ poleId: "P1", attachmentFiber: "72CT Fiber", attachmentDirectionTokens: ["E", "W", "S"], attachmentType: "New" }];
 download = null;
 assert.equal(api.exportCompactProposedJson(), false);
 assert.equal(download, null, "invalid export must not download a file");

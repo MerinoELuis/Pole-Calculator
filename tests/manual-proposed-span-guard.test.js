@@ -35,6 +35,7 @@ for (const file of [
   "core/store-identity.js",
   "core/store.js",
   "ui/poles/power-equipment-renderer.js",
+  "ui/poles/anchor-renderer.js",
   "ui/settings-renderer.js",
   "ui/pole-renderer.js",
   "ui/controls.js"

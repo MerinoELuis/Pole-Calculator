@@ -91,6 +91,21 @@ assert.match(state.mr.find(item => item.poleId === "P1").text, /Pl new ANC 15' N
 state.poles.P1.ancDirection = "NW";
 sandbox.window.MRLogic.generateMRForPole("P1");
 assert.match(state.mr.find(item => item.poleId === "P1").text, /Pl new ANC 15' NW and pl new DG at HOA 22'2"\./i, "INTEC ANC action must preserve a manually selected diagonal direction");
+state.poles.P1.metadata = {
+  proposedANCs: [
+    { ancSize: '10"', ancDistance: "18'", ancDirection: "E", dgHoa: "21'" },
+    { ancSize: '8"', ancDistance: "", ancDirection: "S", dgHoa: "" },
+    { ancSize: '8"', ancDistance: "", ancDirection: "", dgHoa: "" }
+  ]
+};
+sandbox.window.MRLogic.generateMRForPole("P1");
+const multipleANCText = state.mr.find(item => item.poleId === "P1").text;
+const configuredANCInstructions = multipleANCText.split(/\r?\n/).filter(line => /\bANC\b.*\bDG AT HOA\b/i.test(line));
+assert.equal(configuredANCInstructions.length, 3, "the original ANC and each complete additional ANC should produce a separate MR line");
+assert.match(multipleANCText, /Pl new ANC 18' E and pl new DG at HOA 21'\./i, "additional ANC values should be independent from the original ANC");
+assert.match(multipleANCText, /Pl new ANC 7' S and pl new DG at HOA 19'\./i, "blank additional ANC distance and DG HOA should use the same defaults as the original action");
+assert.doesNotMatch(multipleANCText, /Pl new ANC .*\s\s+and pl new DG/i, "an additional ANC without a direction should not create an incomplete MR line");
+state.poles.P1.metadata = {};
 state.poles.P1.ancActive = null;
 state.poles.P1.ancDirection = "";
 state.poles.P1.ancDirectionManual = false;
@@ -648,5 +663,47 @@ state.spanComms.E.transferToNewPole = true;
 sandbox.window.MRLogic.generateMRForPole("P1");
 const midAmTransferText = state.mr.find(item => item.poleId === "P1")?.text || "";
 assert.doesNotMatch(midAmTransferText, /Transfer CATV|Transfer CTL/i, "MidAm transfer rows must not generate Transfer MR");
+
+// One violated imported anchor is enough to add one universal pole-level MR,
+// regardless of how many Anchor rows exist; it must remain first in the block.
+state.settings = { projectProfile: "OLSSON_OPPD", mrTemplate: "OLSSON_OPPD", proposedOwner: "Wecom", mrCase: "LOWER" };
+state.poles.P4 = {
+  poleId: "P4",
+  redTagActive: true,
+  metadata: {
+    anchors: [
+      { groundlineViolation: false },
+      { groundlineViolation: true },
+      { groundlineViolation: true },
+      { groundlineViolation: false },
+      { groundlineViolation: false }
+    ]
+  }
+};
+sandbox.window.MRLogic.generateMRForPole("P4");
+const anchorViolationText = state.mr.find(item => item.poleId === "P4").text;
+assert.equal(anchorViolationText.split("\n")[0], "APS replacing the anchor due to it being set improperly.", "a Yes on any anchor must put the exact APS instruction first");
+assert.equal(anchorViolationText.split("\n").filter(line => /APS replacing the anchor/i.test(line)).length, 1, "multiple violated anchors must still produce only one pole-level instruction");
+assert.match(anchorViolationText.split("\n")[1], /^RED TAG PRESENT/, "the groundline anchor instruction must precede other pole MR");
+
+state.poles.P4.metadata.anchors.forEach(anchor => { anchor.groundlineViolation = false; });
+sandbox.window.MRLogic.generateMRForPole("P4");
+assert.doesNotMatch(state.mr.find(item => item.poleId === "P4").text, /APS replacing the anchor/i, "no Yes groundline toggles means no anchor replacement MR");
+
+state.poles.P5 = { poleId: "P5", pcoActive: true, metadata: { anchors: [{ groundlineViolation: "Yes" }] } };
+sandbox.window.MRLogic.generateMRForPole("P5");
+assert.match(state.mr.find(item => item.poleId === "P5").text, /^APS replacing the anchor due to it being set improperly\./, "the anchor instruction must also lead PCO pole MR");
+
+state.settings = { projectProfile: "INTEC", proposedOwner: "Wecom", mrCase: "LOWER" };
+state.poles.P6 = {
+  poleId: "P6",
+  ugActive: true,
+  ugMRText: "Unable to attach due to damaged pole.\nReplace pole as required.",
+  metadata: { anchors: [{ groundlineViolation: true }] }
+};
+sandbox.window.MRLogic.generateMRForPole("P6");
+const ugViolationText = state.mr.find(item => item.poleId === "P6").text;
+assert.doesNotMatch(ugViolationText, /APS replacing the anchor/i, "the groundline anchor replacement MR must be omitted for a UG pole");
+assert.match(ugViolationText, /^Unable to attach due to damaged pole\./, "UG replacement instructions should remain at the top when the anchor MR is excluded");
 
 console.log("Make Ready logic tests passed.");

@@ -44,12 +44,13 @@ const workbook = {
       ["P01-LX339927 STEEL", "E4", "Generic Equipment > Riser 90.0°", "COMMUNICATION > CATV", "W", "18'", "", ""]
     ],
     Anchor: [
-      ["collectionId", "Id", "Anchor Index", "Anchor Id", "Type", "Lead Length.display", "Lead Length.provider", "Lead Length.bearing.display", "Lead Length.pitch.display", "Owner", "Guys"],
-      ["C1", "P01-LX339927 STEEL", 1, "A1", "Single - 14\" - Soil Class 4", "20'", "manual", "90°", "-10°", "UTILITY > APS", 1]
+      ["collectionId", "Id", "Anchor Index", "Anchor Id", "Type", "Lead Length.display", "Lead Length.provider", "Lead Length.bearing.display", "Lead Length.pitch.display", "Owner", "Guys", 'Anchor Violation: <6" or >18" from GL'],
+      ["C1", "P01-LX339927 STEEL", 1, "A1", "Single - 14\" - Soil Class 4", "20'", "manual", "90°", "-10°", "UTILITY > APS", 1, "Yes"]
     ],
     "Anchor.Guys": [
       ["collectionId", "Id", "Anchor Index", "Anchor Id", "Guys Index", "Guys Id", "Size", "Owner", "Attachment Height.display"],
-      ["C2", "P02-X339926 STEEL", 1, "A2", 1, "G2", "Down > EHS 1/4 DG", "UTILITY > OPPD", "19'"]
+      ["C2", "P02-X339926 STEEL", 1, "A2", 1, "G2", "Down > EHS 1/4 DG", "UTILITY > OPPD", "19'"],
+      ["C1", "P01-LX339927 STEEL", 1, "A1", 1, "G1", "Down > EHS 5/16 DG", "UTILITY > APS", "23'8\""]
     ],
     "Make Ready": [
       ["Id", "Attachment Size", "Attachment Height.display"],
@@ -68,6 +69,10 @@ assert.deepEqual(
   "power Equipment must include transformers, streetlights and Utility risers but exclude communication risers"
 );
 assert.equal(state.excelReviewSource.anchors.rows.length, 1, "Anchor and Anchor.Guys must be preserved as separate review sheets");
+assert.equal(state.poles["P01-LX339927 STEEL"].metadata.anchors[0].leadLength, "20'", "anchor lead length should be normalized for the ANC editor");
+assert.equal(state.poles["P01-LX339927 STEEL"].metadata.anchors[0].bearing, "90°", "anchor bearing should be editable in the ANC panel");
+assert.equal(state.poles["P01-LX339927 STEEL"].metadata.anchors[0].groundlineViolation, true, "groundline violation should import as an editable yes/no value");
+assert.equal(state.poles["P01-LX339927 STEEL"].metadata.anchors[0].guys[0].attachmentHeight, "23'8\"", "guys should be associated with their Anchor Id");
 assert.equal(state.spans.S1.fromPole, "P01-LX339927 STEEL");
 assert.equal(state.spans.S1.toPole, "P02-X339926 STEEL");
 assert.equal(state.spans.S2.fromPole, "P02-X339926 STEEL");

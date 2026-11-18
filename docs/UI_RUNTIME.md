@@ -4,6 +4,8 @@
 
 Excel Review result markup and warning controls are owned by `ExcelReviewRenderer`. It is created by `PoleWorkspaceRenderer` with the state, selection, history, persistence, and escaping dependencies it needs. The renderer methods remain available through `PoleWorkspaceRenderer` so existing app wiring does not change.
 
+Fiber planning is owned by `FiberTabRenderer`. It reads normalized Make Ready fiber references and connected physical spans, allows manual fiber rows when the workbook has none, and writes operator assignments to `state.fiberAssignments` plus global fiber-size/MST-port defaults to `state.settings`. `CompactAutoProposed` consumes these resolved rows when assigning fiber types to exported spans. Diameter is global per fiber type; MST exports its global diameter and selected port count. New/Overlash is initialized from each imported Excel row and remains individually editable; it is not a global default. The view renders during the app's normal render pass; assignments and defaults are included in regular project Save/Load and preserved by Update Data.
+
 ## Refresh order
 
 `PoleCalculatorUI.runRefresh()` executes:

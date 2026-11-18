@@ -600,6 +600,81 @@ button:disabled { cursor: not-allowed; }
 }
 .adjustments-grid { grid-auto-columns: minmax(210px, 1fr); }
 .fiber-grid { grid-auto-columns: minmax(190px, 1fr); }
+.fiber-plan-content {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.fiber-plan-header { align-items: flex-start; }
+.fiber-plan-header h2 { margin-bottom: 4px; }
+.fiber-plan-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .85rem;
+}
+.fiber-plan-summary .warning { color: var(--warning); font-weight: 800; }
+.fiber-defaults-panel,
+.fiber-assignments-section,
+.fiber-add-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-2);
+}
+.fiber-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fiber-section-heading h3 { margin: 0; font-size: .95rem; }
+.fiber-section-heading > span { color: var(--muted); font-size: .8rem; }
+.fiber-defaults-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+.fiber-add-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+.fiber-default-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.fiber-default-field .input { width: 100%; }
+.fiber-apply-all-btn { align-self: end; min-height: 40px; }
+.fiber-plan-table-wrap { max-width: 100%; }
+.fiber-plan-table { min-width: 1100px; }
+.fiber-plan-table th,
+.fiber-plan-table td { vertical-align: middle; }
+.fiber-plan-table .fiber-pole-cell { min-width: 120px; vertical-align: middle; }
+.fiber-plan-table .fiber-type-cell { min-width: 132px; }
+.fiber-plan-table .fiber-diameter-cell,
+.fiber-plan-table .fiber-ports-cell,
+.fiber-plan-table .fiber-install-cell { min-width: 120px; }
+.fiber-plan-table .fiber-span-cell { min-width: 250px; }
+.fiber-plan-table .fiber-direction-cell { min-width: 90px; text-align: center; font-weight: 800; }
+.fiber-plan-table .fiber-source-column { min-width: 220px; }
+.fiber-source-cell { display: grid; gap: 4px; }
+.fiber-source-cell > span { color: var(--muted); font-size: .78rem; }
+.fiber-row-status { color: var(--success, #34d399); font-size: .73rem; font-weight: 800; }
+.fiber-row-status.needs-attention { color: var(--warning); }
+.fiber-not-applicable { display: block; text-align: center; color: var(--muted); }
+.fiber-remove-btn { min-width: 34px; min-height: 34px; padding: 4px 9px; color: var(--danger, #f87171); }
 .clearance-settings.compact .clearance-row {
   grid-template-columns: minmax(0, 1fr) minmax(72px, 96px);
   gap: 6px;
@@ -1399,18 +1474,67 @@ html[data-theme="dark"] .existing-violations-output {
   display: none;
 }
 .power-section[open] .subsection-collapse-summary,
-.equipment-section[open] .subsection-collapse-summary {
+.equipment-section[open] .subsection-collapse-summary,
+.anchor-section[open] .subsection-collapse-summary {
   margin-bottom: 8px;
 }
 .power-section[open] .subsection-collapse-summary::before,
-.equipment-section[open] .subsection-collapse-summary::before { content: "▾"; }
+.equipment-section[open] .subsection-collapse-summary::before,
+.anchor-section[open] .subsection-collapse-summary::before { content: "▾"; }
 .power-section[open] .collapse-show-icon,
-.equipment-section[open] .collapse-show-icon {
+.equipment-section[open] .collapse-show-icon,
+.anchor-section[open] .collapse-show-icon {
   display: none;
 }
 .power-section[open] .collapse-hint .collapse-hide-icon,
-.equipment-section[open] .collapse-hint .collapse-hide-icon {
+.equipment-section[open] .collapse-hint .collapse-hide-icon,
+.anchor-section[open] .collapse-hint .collapse-hide-icon {
   display: block;
+}
+
+.anchor-record-list {
+  display: grid;
+  gap: 12px;
+}
+.anchor-record {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.02));
+}
+.anchor-fields-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) repeat(2, minmax(125px, 0.8fr)) minmax(190px, 1.15fr);
+  gap: 10px;
+  align-items: end;
+}
+.anchor-fields-grid > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.anchor-violation-control {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+.anchor-violation-control input { accent-color: var(--primary); }
+.anchor-guys-wrap { margin-top: 12px; }
+.anchor-guys-table { width: 100%; table-layout: fixed; }
+.anchor-guys-table th,
+.anchor-guys-table td { text-align: center; }
+.anchor-no-guys { margin: 10px 0 0; }
+@media (max-width: 760px) {
+  .anchor-fields-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 460px) {
+  .anchor-fields-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 .manual-proposed-starter {
@@ -1706,6 +1830,77 @@ html[data-theme="dark"] .ug-span-preview .pole-action-readout {
 
 .action-detail-grid .pole-action-field {
   margin-top: 10px;
+}
+
+.proposed-anc-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pole-action-section {
+  margin-top: 8px;
+  padding-top: 2px;
+  border-top: 1px solid var(--line, #3b4656);
+}
+
+.proposed-anc-entry {
+  min-width: 0;
+}
+
+.additional-proposed-anc {
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #3b4656);
+}
+
+.proposed-anc-title {
+  margin-bottom: 2px;
+  color: var(--text-muted, #94a3b8);
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.proposed-anc-row-controls {
+  display: flex;
+  align-self: end;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 38px;
+  margin-top: 10px;
+}
+
+.proposed-anc-dg-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pole-action-field .proposed-anc-dg-row .input {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+}
+
+.proposed-anc-dg-row .proposed-anc-row-controls {
+  min-height: 0;
+  margin: 0;
+}
+
+.proposed-anc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 30px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.proposed-anc-remove-btn {
+  color: var(--danger, #ef4444);
 }
 
 .pole-inset-details .pole-action-readout strong {

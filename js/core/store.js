@@ -126,6 +126,7 @@
       calculateBackspanMidspan: false,
       attachmentMessengerSize: "",
       fiberSizes: {},
+      fiberPlanDefaults: { mstPorts: "" },
       borrowMidspanFromPhysicalSpan: false,
       proposeForeSpanWithoutMidspan: false,
       allowLowPowerMidspanAdjustment: true,
@@ -148,6 +149,7 @@
     spanComms: {},
     spanPower: {},
     makeReadyReferences: [],
+    fiberAssignments: [],
     // Raw review source is preserved separately from normalized calculator
     // entities. Empty IDs and duplicate source rows are meaningful to Excel
     // Review even though they cannot be graph keys.
@@ -944,7 +946,7 @@
     });
     state.spanPower = nextPower;
 
-    ["makeReadyReferences", "poleClassChecks", "movements", "mr", "warnings"].forEach(field => {
+    ["makeReadyReferences", "fiberAssignments", "poleClassChecks", "movements", "mr", "warnings"].forEach(field => {
       if (Array.isArray(state[field])) state[field] = state[field].map(remapRow);
     });
     state.selectedPoleId = remap(state.selectedPoleId);
@@ -1186,6 +1188,7 @@
     delete state.poles[id];
 
     state.makeReadyReferences = state.makeReadyReferences.filter(row => row.poleId !== id);
+    state.fiberAssignments = (state.fiberAssignments || []).filter(row => row.poleId !== id && !spanIds.has(row.spanId));
     state.poleClassChecks = state.poleClassChecks.filter(row => row.poleId !== id);
     state.movements = state.movements.filter(row => row.poleId !== id);
     state.mr = state.mr.filter(row => row.poleId !== id);
@@ -1245,6 +1248,94 @@
     return removed;
   }
 
+  function updateAnchorField(poleId, anchorIndex, field, value, guyIndex = null) {
+    const pole = state.poles[poleId];
+    const anchors = pole?.metadata?.anchors;
+    const anchorPosition = Number(anchorIndex);
+    const anchorFields = new Set(["owner", "leadLength", "bearing", "groundlineViolation"]);
+    const guyFields = new Set(["size", "owner", "attachmentHeight"]);
+    if (!pole || !Array.isArray(anchors) || !Number.isInteger(anchorPosition) || !anchors[anchorPosition]) return null;
+
+    const nextAnchors = anchors.map((anchor, index) => {
+      if (index !== anchorPosition) return anchor;
+      if (guyIndex !== null && guyIndex !== undefined && guyIndex !== "") {
+        const guyPosition = Number(guyIndex);
+        if (!Array.isArray(anchor.guys) || !Number.isInteger(guyPosition) || !anchor.guys[guyPosition] || !guyFields.has(field)) return anchor;
+        const guys = anchor.guys.map((guy, rowIndex) => {
+          if (rowIndex !== guyPosition) return guy;
+          const manualFields = Array.from(new Set([...(guy.manualFields || []), field]));
+          return {
+            ...guy,
+            [field]: field === "groundlineViolation" ? Boolean(value) : trim(value),
+            manualFields
+          };
+        });
+        return { ...anchor, guys };
+      }
+      if (!anchorFields.has(field)) return anchor;
+      const manualFields = Array.from(new Set([...(anchor.manualFields || []), field]));
+      return {
+        ...anchor,
+        [field]: field === "groundlineViolation" ? Boolean(value) : trim(value),
+        manualFields
+      };
+    });
+    pole.metadata = { ...(pole.metadata || {}), anchors: nextAnchors };
+    return guyIndex !== null && guyIndex !== undefined && guyIndex !== ""
+      ? nextAnchors[anchorPosition]?.guys?.[Number(guyIndex)] || null
+      : nextAnchors[anchorPosition];
+  }
+
+  function addProposedANC(poleId, values = {}) {
+    const pole = state.poles[poleId];
+    if (!pole) return null;
+    const proposedANCs = Array.isArray(pole.metadata?.proposedANCs)
+      ? pole.metadata.proposedANCs.slice()
+      : [];
+    const proposedANC = {
+      id: `proposed-anc-${Date.now()}-${proposedANCs.length}`,
+      ancSize: trim(values.ancSize || pole.ancSize || '8"'),
+      ancDistance: trim(values.ancDistance || ""),
+      ancDirection: trim(values.ancDirection || "").toUpperCase(),
+      dgHoa: trim(values.dgHoa || ""),
+      manualFields: []
+    };
+    proposedANCs.push(proposedANC);
+    pole.metadata = { ...(pole.metadata || {}), proposedANCs };
+    return proposedANC;
+  }
+
+  function updateProposedANCField(poleId, proposedANCIndex, field, value) {
+    const pole = state.poles[poleId];
+    const proposedANCs = pole?.metadata?.proposedANCs;
+    const index = Number(proposedANCIndex);
+    const fields = new Set(["ancSize", "ancDistance", "ancDirection", "dgHoa"]);
+    if (!pole || !Array.isArray(proposedANCs) || !Number.isInteger(index) || !proposedANCs[index] || !fields.has(field)) return null;
+    const next = proposedANCs.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
+      return {
+        ...row,
+        [field]: field === "ancDirection" ? trim(value).toUpperCase() : trim(value),
+        manualFields: Array.from(new Set([...(row.manualFields || []), field]))
+      };
+    });
+    pole.metadata = { ...(pole.metadata || {}), proposedANCs: next };
+    return next[index];
+  }
+
+  function removeProposedANC(poleId, proposedANCIndex) {
+    const pole = state.poles[poleId];
+    const proposedANCs = pole?.metadata?.proposedANCs;
+    const index = Number(proposedANCIndex);
+    if (!pole || !Array.isArray(proposedANCs) || !Number.isInteger(index) || index < 0 || index >= proposedANCs.length) return null;
+    const removed = proposedANCs[index];
+    pole.metadata = {
+      ...(pole.metadata || {}),
+      proposedANCs: proposedANCs.filter((_, rowIndex) => rowIndex !== index)
+    };
+    return removed;
+  }
+
   function getConnectedSpans(poleId) {
     return Object.values(state.spans).filter(span => span.fromPole === poleId || span.toPole === poleId);
   }
@@ -1287,11 +1378,15 @@
     const commChange = getSpanCommsForPole(poleId).some(sc => sc.existingHOAChange || sc.otherHOA || sc.notes || sc.mr);
     const equipmentChange = (state.poles[poleId]?.metadata?.powerEquipment || [])
       .some(row => Boolean(row.actionActive || trim(row.actionHeight || "") || row.raiseActive || row.secureActive || trim(row.raiseHeight || "")));
+    const anchorChange = (state.poles[poleId]?.metadata?.anchors || []).some(anchor =>
+      (anchor.manualFields || []).length > 0
+      || (anchor.guys || []).some(guy => (guy.manualFields || []).length > 0)
+    );
     const powerChange = getSpanPowerForPole(poleId).some(row => Boolean(row.attachmentHeightChange));
-    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.poleInsetHeight || state.poles[poleId]?.poleInsetSpanId || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.secondaryDripLoopActive || state.poles[poleId]?.secondaryDripLoopHoa || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive)
+    return Boolean(state.poles[poleId]?.standaloneProposedHOA || state.poles[poleId]?.poleInsetHeight || state.poles[poleId]?.poleInsetSpanId || state.poles[poleId]?.ugMRText || state.poles[poleId]?.ugRiserDirection || state.poles[poleId]?.secondaryDripLoopActive || state.poles[poleId]?.secondaryDripLoopHoa || state.poles[poleId]?.ancActive || state.poles[poleId]?.ohgActive || state.poles[poleId]?.metadata?.proposedANCs?.length)
       || state.poles[poleId]?.riserActive === true
       || state.poles[poleId]?.riserActive === false
-      || sideChange || commChange || equipmentChange || powerChange;
+      || sideChange || commChange || equipmentChange || anchorChange || powerChange;
   }
 
   function ensureUnknownPoles() {
@@ -1543,6 +1638,9 @@
     next.settings.fiberSizes = next.settings.fiberSizes && typeof next.settings.fiberSizes === "object"
       ? { ...next.settings.fiberSizes }
       : {};
+    next.settings.fiberPlanDefaults = next.settings.fiberPlanDefaults && typeof next.settings.fiberPlanDefaults === "object"
+      ? { mstPorts: next.settings.fiberPlanDefaults.mstPorts === "8" || next.settings.fiberPlanDefaults.mstPorts === "16" ? next.settings.fiberPlanDefaults.mstPorts : "" }
+      : { mstPorts: "" };
     next.poles = next.poles || {};
     next.spans = next.spans || {};
     next.spanSides = next.spanSides || {};
@@ -1550,6 +1648,9 @@
     next.spanPower = next.spanPower || {};
     next.makeReadyReferences = Array.isArray(next.makeReadyReferences)
       ? next.makeReadyReferences.map(createMakeReadyReference)
+      : [];
+    next.fiberAssignments = Array.isArray(next.fiberAssignments)
+      ? next.fiberAssignments.filter(row => row && typeof row === "object" && trim(row.id)).map(row => ({ ...row, id: trim(row.id), poleId: trim(row.poleId), spanId: trim(row.spanId) }))
       : [];
     next.excelReviewSource = normalizeExcelReviewSource(next.excelReviewSource);
     next.excelReviewIgnoredChecks = next.excelReviewIgnoredChecks && typeof next.excelReviewIgnoredChecks === "object"
@@ -1787,6 +1888,10 @@
     updateSpanPowerField,
     updatePowerEquipmentField,
     removePowerEquipment,
+    updateAnchorField,
+    addProposedANC,
+    updateProposedANCField,
+    removeProposedANC,
     upsertComm,
     upsertSpan,
     upsertSpanSide,
