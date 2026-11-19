@@ -115,6 +115,34 @@ const manualWithoutExcelType = FiberTabRenderer.buildRows({
 });
 assert.equal(manualWithoutExcelType[0].installType, "", "New/Overlash is not inherited from a global default for manual fibers");
 
+const staleFiberSettingsState = {
+  ...baseState,
+  settings: {
+    fiberSizes: {
+      "24CT Fiber": "0.44",
+      "48CT Fiber": "0.46",
+      "144CT Fiber": "0.51",
+      MST: "0.50"
+    }
+  },
+  makeReadyReferences: [{
+    makeReadyId: "MR-144",
+    poleId: "P1",
+    attachmentSizeRaw: "6M 144CT Fiber (N/S)",
+    attachmentType: "New"
+  }],
+  fiberAssignments: []
+};
+assert.deepEqual(
+  Array.from(FiberTabRenderer.collectFiberTypes(staleFiberSettingsState)),
+  ["144CT Fiber"],
+  "the Fiber view only exposes fiber types present in the imported Excel references"
+);
+const staleFiberSettingsHtml = renderFiberView(staleFiberSettingsState);
+assert.match(staleFiberSettingsHtml, /data-fiber-default="size:144CT Fiber"/);
+assert.doesNotMatch(staleFiberSettingsHtml, /data-fiber-default="size:(?:24CT Fiber|48CT Fiber|MST)"/);
+assert.doesNotMatch(staleFiberSettingsHtml, /<option value="(?:24CT Fiber|48CT Fiber|MST)"/);
+
 function renderFiberView(state) {
   const container = { innerHTML: "", addEventListener() {} };
   FiberTabRenderer.create({

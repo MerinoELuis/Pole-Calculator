@@ -157,17 +157,21 @@
   }
 
   function collectFiberTypes(state) {
-    const values = new Set(FIBER_TYPES);
-    Object.keys(state?.settings?.fiberSizes || {}).forEach(key => {
-      if (/\bMST\b/i.test(key)) values.add("MST");
-      const count = String(key).match(/\b(\d+)\s*CT\b/i)?.[1];
-      if (count) values.add(`${Number(count)}CT Fiber`);
-    });
+    // A saved project can retain diameter settings from a previous job. Those
+    // settings must not make unrelated fiber types appear in the current job.
+    // The Excel references are the source of truth for the types displayed in
+    // the plan. Keep explicitly assigned types as well so an operator's
+    // intentional row edit remains selectable after a re-render.
+    const values = new Set();
     (state?.makeReadyReferences || []).forEach(reference => {
       splitFiberComponents(reference?.attachmentSizeRaw || reference?.attachmentFiber || "")
         .map(parseFiberComponent)
         .filter(Boolean)
         .forEach(component => values.add(component.fiberType));
+    });
+    (state?.fiberAssignments || []).forEach(assignment => {
+      const fiberType = text(assignment?.fiberType);
+      if (fiberType === "MST" || /^(?:\d+)CT Fiber$/i.test(fiberType)) values.add(fiberType);
     });
     return Array.from(values).sort((left, right) => {
       if (left === "MST") return 1;
@@ -457,6 +461,8 @@
       const settings = state.settings || {};
       const defaults = settings.fiberPlanDefaults || {};
       const types = collectFiberTypes(state);
+      const addTypes = types.length ? types : FIBER_TYPES;
+      if (!addTypes.includes(draft.fiberType)) draft.fiberType = addTypes[0];
       const rows = buildRows(state);
       const unassignedCount = rows.filter(row => !row.spanId).length;
       const hasMst = rows.some(row => row.fiberType === "MST");
@@ -512,7 +518,7 @@
         </div></section>
         <section class="fiber-add-panel" aria-labelledby="fiberAddTitle"><div class="fiber-section-heading"><h3 id="fiberAddTitle">Add a fiber</h3><span>Use this when a fiber is not listed in the imported Make Ready data.</span></div><div class="fiber-add-grid">
           <label class="fiber-default-field"><span>Pole</span><select class="input" data-fiber-new="poleId"><option value="">Select pole</option>${poleOptions}</select></label>
-          <label class="fiber-default-field"><span>Fiber</span><select class="input" data-fiber-new="fiberType">${types.map(type => `<option value="${escapeHtml(type)}" ${draft.fiberType === type ? "selected" : ""}>${escapeHtml(type === "MST" ? "MST" : type.replace(/ Fiber$/, ""))}</option>`).join("")}</select></label>
+          <label class="fiber-default-field"><span>Fiber</span><select class="input" data-fiber-new="fiberType">${addTypes.map(type => `<option value="${escapeHtml(type)}" ${draft.fiberType === type ? "selected" : ""}>${escapeHtml(type === "MST" ? "MST" : type.replace(/ Fiber$/, ""))}</option>`).join("")}</select></label>
           <label class="fiber-default-field"><span>Span</span><select class="input" data-fiber-new="spanId" ${newSpans.length ? "" : "disabled"}><option value="">${newSpans.length ? "Select span" : "No connected span"}</option>${newSpanOptions}</select></label>
           <button class="btn btn-primary" type="button" data-fiber-action="add" ${!draft.poleId || !draft.spanId ? "disabled" : ""}>Add fiber</button>
         </div></section>
