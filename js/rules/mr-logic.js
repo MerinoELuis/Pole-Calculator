@@ -309,11 +309,22 @@
       : oppositeDirection(span.direction || "");
   }
 
+  function isReferenceResagRow(spanComm) {
+    if (global.Calculations?.isReferenceSpanComm) {
+      return global.Calculations.isReferenceSpanComm(spanComm);
+    }
+    const span = S().getSpan(spanComm?.spanId || "");
+    const relation = spanRelationOf(span);
+    if (!/back\s*span|backspan|other/i.test(relation)) return false;
+    return H().parseHeight(spanComm?.midspan || spanComm?.ocalcMS || "") === null;
+  }
+
   function generateResagServiceDropMR(spanComm) {
     const settings = S().getState().settings || {};
     if (!spanComm?.serviceDrop || !spanComm?.resagServiceDrop || settings.showResagServiceDrop === false || isMetronetMR()) return "";
-    const span = S().getSpan(spanComm.spanId || "");
-    if (/back\s*span|backspan/i.test(spanRelationOf(span))) return "";
+    // A Back Span with its own measured Midspan is a valid Re-sag target. Only
+    // reference rows without a local Midspan stay blocked, matching the UI.
+    if (isReferenceResagRow(spanComm)) return "";
     const originalMidspan = H().parseHeight(spanComm.calculatedMidspan || spanComm.midspan || spanComm.ocalcMS || "");
     const target = H().parseHeight("15'6\"");
     if (originalMidspan === null || target === null || originalMidspan >= target) return "";

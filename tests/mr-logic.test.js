@@ -665,6 +665,26 @@ assert.match(olssonText, /LESS THAN 12" COMM CLEARANCE REQUESTED\./i, "Olsson mu
 assert.match(olssonText, /AT HOA 18' LOWER COX TO HOA 17'\./i, "Olsson Service Drop must use the normal raise/lower MR wording");
 assert.doesNotMatch(olssonText, /Relocate Cox drop/i, "Olsson must not use the dedicated Relocate drop wording");
 assert.match(olssonText, /RE-SAG COX COMM DROP N, ENSURE 15'6\" AT MIDSPAN\./, "Olsson Service Drop Re-sag must generate the 15-foot-6 midspan MR");
+const backSpanResag = {
+  spanId: "BACK",
+  poleId: "P1",
+  owner: "Cox",
+  existingHOA: "18'",
+  midspan: "14'10\"",
+  serviceDrop: true,
+  resagServiceDrop: true,
+  transferToNewPole: false
+};
+assert.match(
+  sandbox.window.MRLogic.generateResagServiceDropMR(backSpanResag),
+  /Re-sag Cox comm drop SE, ensure 15'6\" at midspan\./,
+  "a Back Span with its own Midspan must remain eligible for Service Drop Re-sag"
+);
+assert.equal(
+  sandbox.window.MRLogic.generateResagServiceDropMR({ ...backSpanResag, midspan: "" }),
+  "",
+  "a Back Span reference row without its own Midspan must remain blocked for Service Drop Re-sag"
+);
 assert.match(olssonText, /^RED TAG PRESENT - POLE IS MARKED FOR OPPD REPLACEMENT - MIN 45'-4 DUE TO CLEARANCE VIOLATIONS\./, "Olsson Red Tag must be a separate first MR line");
 assert.match(olssonText, /PL NEW OHG W AT HOA 24' AND PL DG ON W POLE\./, "Olsson should reuse the configured OHG action");
 assert.doesNotMatch(olssonText, /POLE INSET/i, "Olsson must not generate Pole Inset MR");

@@ -2270,6 +2270,7 @@
     isPrimaryPowerRow,
     displayMidspanForComm,
     isCalculatedBackspanComm,
+    isReferenceSpanComm,
     getConnectedSpans,
     getBackspanForPole,
     recalculateSpan,
