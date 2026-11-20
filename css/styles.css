@@ -607,6 +607,14 @@ button:disabled { cursor: not-allowed; }
 }
 .fiber-plan-header { align-items: flex-start; }
 .fiber-plan-header h2 { margin-bottom: 4px; }
+.fiber-plan-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.fiber-plan-export-action { display: flex; justify-content: flex-end; }
 .fiber-plan-summary {
   display: flex;
   flex-wrap: wrap;

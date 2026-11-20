@@ -509,7 +509,7 @@
       </table></div>` : `<div class="detail-placeholder">No fiber rows yet. Add a fiber below, or import Make Ready fiber references to populate the plan automatically.</div>`;
 
       container.innerHTML = `<div class="fiber-plan-content">
-        <div class="panel-header split fiber-plan-header"><div><p class="eyebrow">Fiber planning</p><h2>Fiber by Pole and Span</h2><p class="muted">Fiber diameters are global by type. Edit each fiber's type, MST ports, installation type, and span. New / Overlash starts from Excel and can be changed per row.</p></div><div class="fiber-plan-summary"><span>${rows.length} fiber entries</span>${unassignedCount ? `<span class="warning">${unassignedCount} need a span</span>` : ""}</div></div>
+        <div class="panel-header split fiber-plan-header"><div><p class="eyebrow">Fiber planning</p><h2>Fiber by Pole and Span</h2><p class="muted">Fiber diameters are global by type. Edit each fiber's type, MST ports, installation type, and span. New / Overlash starts from Excel and can be changed per row.</p></div><div class="fiber-plan-header-actions"><div class="fiber-plan-summary"><span>${rows.length} fiber entries</span>${unassignedCount ? `<span class="warning">${unassignedCount} need a span</span>` : ""}</div><div class="fiber-plan-export-action"></div></div></div>
         <section class="fiber-defaults-panel" aria-labelledby="fiberDefaultsTitle"><div class="fiber-section-heading"><h3 id="fiberDefaultsTitle">Global defaults</h3><span>Diameter is shared by every span using that fiber type.</span></div><div class="fiber-defaults-grid">
           <label class="fiber-default-field"><span>Messenger Size</span><input class="input" type="number" min="0" step="0.001" data-fiber-default="messenger" value="${escapeHtml(settings.attachmentMessengerSize || "")}" /></label>
           ${sizeInputs}
@@ -524,6 +524,8 @@
         </div></section>
         <section class="fiber-assignments-section" aria-labelledby="fiberAssignmentsTitle"><div class="fiber-section-heading"><h3 id="fiberAssignmentsTitle">Pole-by-pole assignments</h3><span>Each row refers to one fiber component and one connected physical span.</span></div>${table}</section>
       </div>`;
+      const exportAction = container.querySelector?.(".fiber-plan-export-action");
+      if (exportAction && els.exportProposedJsonBtn) exportAction.append(els.exportProposedJsonBtn);
     }
 
     return { render, buildRows };
