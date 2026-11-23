@@ -825,6 +825,12 @@
           ...(preservedPole.metadata || {}),
           lowPowerBaseline,
           powerEquipment,
+          ...((oldMetadata.plaExisting || importedMetadata.plaExisting) ? {
+            plaExisting: {
+              ...(importedMetadata.plaExisting || {}),
+              ...(oldMetadata.plaExisting || {})
+            }
+          } : {}),
           ...(anchors ? { anchors } : {})
         }
       };

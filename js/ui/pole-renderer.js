@@ -574,33 +574,10 @@
         return `<span class="badge changed">OK</span>`;
       }
 
-      function poleClassSourceYears(state) {
-        const sourceRows = state.excelReviewSource?.collection?.rows || [];
-        const pick = global.ExcelImport?.pick;
-        if (typeof pick !== "function") return new Map();
-        const aliases = state.poleIdAliases || {};
-        const canonical = value => S.canonicalPoleIdentity?.(value)
-          || String(value || "").trim().toUpperCase().replace(/\s+(STEEL|UG|PCO)$/i, "");
-        const years = new Map();
-        sourceRows.forEach(sourceRow => {
-          const sourcePoleId = String(pick(sourceRow, ["Id", "Pole ID", "PoleId", "PoleName", "Structure Number", "Pole"], { contains: false }) || "").trim();
-          const year = String(pick(sourceRow, ["Year Installed"], { contains: false }) ?? "").trim();
-          const resolvedPoleId = aliases[sourcePoleId] || sourcePoleId;
-          if (resolvedPoleId && year && !years.has(canonical(resolvedPoleId))) {
-            years.set(canonical(resolvedPoleId), year);
-          }
-        });
-        return years;
-      }
-
       function renderPoleClassResults() {
         if (!els.poleClassResults) return;
         const state = S.getState();
         const rows = state.poleClassChecks || [];
-        const showYearInstalled = String(state.settings?.projectProfile || "").toUpperCase() === "INTEC";
-        const sourceYears = showYearInstalled ? poleClassSourceYears(state) : new Map();
-        const canonicalPoleId = value => S.canonicalPoleIdentity?.(value)
-          || String(value || "").trim().toUpperCase().replace(/\s+(STEEL|UG|PCO)$/i, "");
         renderPoleClassTabWarning();
         if (!rows.length) {
           els.poleClassResults.innerHTML = `<div class="detail-placeholder">Import an Excel file with Collection data to review Height / Class.</div>`;
@@ -617,7 +594,7 @@
           </div>
           <div class="table-wrap"><table class="pole-class-table">
             <thead><tr>
-              <th>Pole ID</th><th>Birthmark</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th>${showYearInstalled ? "<th>Year Installed</th>" : ""}<th>Status</th>
+              <th>Pole ID</th><th>Birthmark</th><th>Tip</th><th>Imported Circ.</th><th>Diameter</th><th>Circumference</th><th>Imported Type</th><th>Height</th><th>Class</th><th>Expected Type</th><th>Status</th>
             </tr></thead>
             <tbody>${rows.map((row, index) => {
               const severity = poleClassSeverity(row);
@@ -625,9 +602,6 @@
                 ? Boolean(row.birthmarkExists)
                 : Boolean(row.birthmarkActive);
               const birthmarkLabel = birthmarkActive ? "active" : "inactive";
-              const yearInstalled = String(row.yearInstalled || sourceYears.get(canonicalPoleId(row.poleId)) || "").trim();
-              const installedYear = Number(yearInstalled.match(/\b(\d{4})\b/)?.[1] || "");
-              const showLoadCaseWarning = showYearInstalled && Number.isFinite(installedYear) && installedYear >= 2018;
               return `
               <tr class="${poleClassRowClass(severity)}">
                 <td><strong>${poleLink(row.poleId)}</strong></td>
@@ -640,7 +614,6 @@
                 <td>${escapeHtml(row.calculatedHeight || "")}</td>
                 <td>${escapeHtml(row.calculatedClass || "")}</td>
                 <td>${escapeHtml(row.expectedType || "")}</td>
-                ${showYearInstalled ? `<td><span class="pole-class-year-value">${showLoadCaseWarning ? `<span class="pole-class-year-warning" role="img" aria-label="Warning: verify all 3 Load Cases for this INTEC pole" title="Verify all 3 Load Cases for INTEC poles installed in 2018 or later."><svg class="pole-class-year-warning-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4"/><path d="M12 16.5h.01"/></svg></span>` : ""}<span class="pole-class-year-text">${escapeHtml(yearInstalled || "—")}</span></span></td>` : ""}
                 <td>${renderPoleClassStatus(row, severity)}</td>
               </tr>
             `; }).join("")}</tbody>
@@ -722,13 +695,27 @@
       }
 
       function renderActiveView() {
-        const activeView = S.getState().ui.activeView || "calculator";
+        const state = S.getState();
+        const isIntec = String(state.settings?.projectProfile || "").toUpperCase() === "INTEC";
+        let activeView = state.ui.activeView || "calculator";
+        const intecOnlyViews = ["plaExisting", "fiber"];
+        if (intecOnlyViews.includes(activeView) && !isIntec) {
+          activeView = "calculator";
+          state.ui.activeView = activeView;
+        }
         const isPoleClassView = activeView === "poleClass";
         document.querySelectorAll("[data-view-tab]").forEach(btn => {
+          const projectRestricted = intecOnlyViews.includes(btn.dataset.viewTab);
+          if (projectRestricted) {
+            btn.classList.toggle("hidden", !isIntec);
+            btn.disabled = !isIntec;
+            btn.title = isIntec ? "Available for INTEC." : `${btn.textContent.trim()} is available only for INTEC.`;
+          }
           btn.classList.toggle("active", btn.dataset.viewTab === activeView);
         });
         document.querySelectorAll("[data-view-panel]").forEach(panel => {
-          panel.classList.toggle("hidden", panel.dataset.viewPanel !== activeView);
+          const projectRestricted = intecOnlyViews.includes(panel.dataset.viewPanel);
+          panel.classList.toggle("hidden", panel.dataset.viewPanel !== activeView || (projectRestricted && !isIntec));
         });
         document.body.classList.toggle("pole-class-view", isPoleClassView);
         document.body.classList.toggle("excel-review-view", activeView === "excelReview");

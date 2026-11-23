@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#eef4ff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Pole Span MR Calculator</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.266" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.268" />
 </head>
 <body>
   <button id="poleIndexToggle" class="pole-index-toggle" type="button" aria-controls="poleIndexDrawer" aria-expanded="false">Poles</button>
@@ -39,7 +39,7 @@
     <header class="topbar">
       <div>
         <h1>Pole Span MR Calculator</h1>
-        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.266</p>
+        <p id="deploymentVersion" class="app-version" aria-label="Application version">Version 1.8.268</p>
       </div>
       <div class="topbar-actions">
         <label class="btn btn-primary file-btn">
@@ -63,6 +63,7 @@
             <span>Pole Type Check</span>
             <span id="poleClassTabWarning" class="view-tab-warning hidden" title="Critical pole height issues" aria-label="Critical pole height issues">&#9888; <span id="poleClassTabWarningCount">0</span></span>
           </button>
+          <button class="view-tab" type="button" data-view-tab="plaExisting">PLA Existing</button>
           <button class="view-tab" type="button" data-view-tab="fiber">Fiber</button>
           <button class="view-tab" type="button" data-view-tab="excelReview">
             <span>Excel Review</span>
@@ -128,6 +129,21 @@
             </div>
           </div>
           <div id="poleClassResults"></div>
+        </section>
+
+        <section class="panel pla-existing-panel hidden" data-view-panel="plaExisting">
+          <div class="panel-header split pla-existing-header">
+            <div>
+              <p class="eyebrow">Existing pole loading</p>
+              <h2>PLA Existing</h2>
+              <p class="muted">Choose one principal loading for the job, then enter the wind speed for each pole installed in 2018 or later.</p>
+            </div>
+            <div class="pla-existing-header-actions">
+              <div id="plaExistingSummary" class="pla-existing-summary" aria-live="polite"></div>
+              <button id="exportAutoExistingBtn" class="btn btn-success" type="button" disabled title="Import INTEC pole data to prepare AutoExisting.">Export AutoExisting</button>
+            </div>
+          </div>
+          <div id="plaExistingResults"></div>
         </section>
 
         <section class="panel fiber-plan-panel hidden" data-view-panel="fiber">
@@ -227,48 +243,50 @@
   </section>
 
   <script src="libs/xlsx.full.min.js"></script>
-  <script src="js/core/deployment-version.js?v=1.8.266"></script>
-  <script src="js/core/performance-debug.js?v=1.8.266"></script>
+  <script src="js/core/deployment-version.js?v=1.8.268"></script>
+  <script src="js/core/performance-debug.js?v=1.8.268"></script>
   <script src="js/domain/height-math.js"></script>
-  <script src="js/core/project-config.js?v=1.8.266"></script>
+  <script src="js/core/project-config.js?v=1.8.268"></script>
   <script src="js/domain/pole-resolution.js"></script>
   <script src="js/core/state-compat.js"></script>
-  <script src="js/core/store-identity.js?v=1.8.266"></script>
-  <script src="js/core/store.js?v=1.8.266"></script>
-  <script src="js/domain/comm-movements.js?v=1.8.266"></script>
+  <script src="js/core/store-identity.js?v=1.8.268"></script>
+  <script src="js/core/store.js?v=1.8.268"></script>
+  <script src="js/domain/comm-movements.js?v=1.8.268"></script>
   <script src="js/domain/midspan-engine.js"></script>
-  <script src="js/domain/pole-inset-calculation.js?v=1.8.266"></script>
-  <script src="js/domain/clearance/power-clearance.js?v=1.8.266"></script>
-  <script src="js/domain/clearance-rules.js?v=1.8.266"></script>
+  <script src="js/domain/pole-inset-calculation.js?v=1.8.268"></script>
+  <script src="js/domain/clearance/power-clearance.js?v=1.8.268"></script>
+  <script src="js/domain/clearance-rules.js?v=1.8.268"></script>
   <script src="js/rules/mr-logic.js"></script>
   <script src="js/rules/validations.js"></script>
   <script src="js/import/import-normalizers.js"></script>
-  <script src="js/import/excel-import.js?v=1.8.266"></script>
-  <script src="js/import/update-data-reconciler.js?v=1.8.266"></script>
-  <script src="js/import/excel-review-wire-checks.js?v=1.8.266"></script>
-  <script src="js/import/excel-review.js?v=1.8.266"></script>
-  <script src="js/export/excel-export.js?v=1.8.266"></script>
+  <script src="js/import/excel-import.js?v=1.8.268"></script>
+  <script src="js/import/update-data-reconciler.js?v=1.8.268"></script>
+  <script src="js/import/excel-review-wire-checks.js?v=1.8.268"></script>
+  <script src="js/import/excel-review.js?v=1.8.268"></script>
+  <script src="js/export/excel-export.js?v=1.8.268"></script>
   <script src="js/export/json-export.js"></script>
-  <script src="js/export/compact-autoproposed.js?v=1.8.266"></script>
-  <script src="js/rules/auto-calculate/candidate-analysis.js?v=1.8.266"></script>
-  <script src="js/rules/auto-calculate/candidate-generation.js?v=1.8.266"></script>
-  <script src="js/rules/auto-calculate-solver.js?v=1.8.266"></script>
-  <script src="js/ui/dialogs.js?v=1.8.266"></script>
+  <script src="js/export/compact-autoproposed.js?v=1.8.268"></script>
+  <script src="js/export/autoexisting-export.js?v=1.8.268"></script>
+  <script src="js/rules/auto-calculate/candidate-analysis.js?v=1.8.268"></script>
+  <script src="js/rules/auto-calculate/candidate-generation.js?v=1.8.268"></script>
+  <script src="js/rules/auto-calculate-solver.js?v=1.8.268"></script>
+  <script src="js/ui/dialogs.js?v=1.8.268"></script>
   <script src="js/ui/theme.js"></script>
   <script src="js/ui/mobile-keyboard.js"></script>
-  <script src="js/ui/floating-calculator.js?v=1.8.266"></script>
-  <script src="js/ui/excel-review-renderer.js?v=1.8.266"></script>
-  <script src="js/ui/fiber-tab-renderer.js?v=1.8.266"></script>
-  <script src="js/ui/settings-renderer.js?v=1.8.266"></script>
-  <script src="js/ui/poles/power-equipment-renderer.js?v=1.8.266"></script>
-  <script src="js/ui/poles/anchor-renderer.js?v=1.8.266"></script>
-  <script src="js/ui/pole-renderer.js?v=1.8.266"></script>
-  <script src="js/ui/controls.js?v=1.8.266"></script>
+  <script src="js/ui/floating-calculator.js?v=1.8.268"></script>
+  <script src="js/ui/excel-review-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/fiber-tab-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/pla-existing-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/settings-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/poles/power-equipment-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/poles/anchor-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/pole-renderer.js?v=1.8.268"></script>
+  <script src="js/ui/controls.js?v=1.8.268"></script>
   <script src="js/core/persistence.js"></script>
   <script src="js/core/history.js"></script>
-  <script src="js/ui/pole-navigation.js?v=1.8.266"></script>
-  <script src="js/ui/comm-pairing-dialog.js?v=1.8.266"></script>
-  <script src="js/ui/app.js?v=1.8.266"></script>
+  <script src="js/ui/pole-navigation.js?v=1.8.268"></script>
+  <script src="js/ui/comm-pairing-dialog.js?v=1.8.268"></script>
+  <script src="js/ui/app.js?v=1.8.268"></script>
   <script src="js/ui/dom-contract.js"></script>
   <script src="js/ui/comm-table.js"></script>
   <script src="js/ui/span-colors.js"></script>

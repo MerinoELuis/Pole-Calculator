@@ -119,6 +119,7 @@
       midspanPrimaryPowerCommClearance: "33\"",
       midspanCommCommClearance: "4\"",
       projectProfile: "INTEC",
+      plaExistingLoadingProfile: "MEDIUM",
       metronetWI: "MIDAM",
       position: "TOP_COMM",
       mrCase: "LOWER",

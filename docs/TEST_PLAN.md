@@ -189,6 +189,20 @@ Exact input and expected-output data belong in `tests/fixtures/` and `tests/expe
 10. Normal fixture matches golden compact JSON exactly.
 11. Fixtures obey integer-inch schema constraints.
 
+## PLA Existing / AutoExisting Cases
+
+1. The tab is between Pole Type Check and Fiber and is disabled outside INTEC.
+2. PLA Existing and Fiber tabs and panels are hidden outside INTEC; leaving one open resets the view to Calculator.
+3. PLA Existing includes only Collection poles. Pole Type Check retains its prior columns; Year Installed and its warning appear only in PLA Existing.
+4. A 2018+ year has the existing warning icon without changing Pole Type Check status.
+5. A missing year selects no loading and can be entered per pole; export remains blocked while any Collection pole year is missing.
+6. Pre-2018 uses 250C Grade C at 90 mph.
+7. 2018+ uses one job-wide Loading Principal selector, default Medium, with Light applying to every 2018+ Collection pole.
+8. Medium adds the >100 mph 250C case and Grade C 250D at 30 mph / 0.25-inch ice; Light adds only the >100 mph case.
+9. A >100 mph case requires a pole-specific wind speed strictly above 100 mph.
+10. AutoExisting carries year and loading cases on each pole and downloads separately from AutoProposed.
+11. Update Data preserves the job-wide principal loading and manually entered per-pole year/wind speed.
+
 ## UI Runtime Cases
 
 1. Every pole card receives stable `data-pole-id` and `data-component`.

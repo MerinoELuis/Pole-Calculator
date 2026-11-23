@@ -52,6 +52,7 @@ Important settings and defaults:
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `projectProfile` | `INTEC` | Active project behavior. |
+| `plaExistingLoadingProfile` | `MEDIUM` | INTEC job-wide principal loading selector; applies Medium or Light to every 2018+ Collection pole. |
 | `position` | `TOP_COMM` | Proposed is placed above or below the comm stack. Auto Calculate supports both values. |
 | `polePowerCommsClearance` | `40"` | Low Power to comm clearance on the pole. |
 | `primaryPowerCommsClearance` | `43"` | Primary-to-communication clearance on the pole when a Primary row is present. |
@@ -85,6 +86,7 @@ Imported, editable, and derived values live together but have different ownershi
 | `collectionId` | imported | Collection identity used while linking Span rows. |
 | `poleHeight` | imported/editable | Pole height/type reference. |
 | `tipHeight` | imported | Above-ground tip measurement used by Pole Type Check. |
+| `metadata.plaExisting` | editable | Per-pole Year Installed override (only when Excel has no year) and >100 mph wind speed. Preserved by Save/Load and Update Data. |
 | `lowPower` | imported/editable/derived from equipment action | Effective lowest power attachment on the pole. |
 | `maxCommHeight` | derived | Lowest applicable Low Power and project-specific equipment ceiling. |
 | `topComm`, `lowComm` | derived | Highest and lowest effective comm HOA, excluding INTEC POF rows. |

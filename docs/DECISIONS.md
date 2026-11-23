@@ -87,3 +87,7 @@ Compact AutoProposed exports enabled ANC distance/direction and the effective DG
 ## DEC-017 — Preserve the Midspan compatibility alias
 
 `MidspanLogic` remains an alias of `MidspanEngine` because it is part of the documented browser-global compatibility surface. Internal helpers with matching names are not consolidated solely by name; extraction requires equivalent inputs, semantics, and regression coverage.
+
+## DEC-018 — INTEC AutoExisting
+
+Existing NESC load cases use a separate `AutoExisting.json` contract, with every case attached to the specific pole and installed year. The Medium/Light principal loading is selected once for the job, while Year Installed and wind speed remain per pole. Year Installed is displayed in the INTEC-only `PLA Existing` tab rather than Pole Type Check. A missing year is manually entered there and selects no case until filled; export waits for every year and required >100 mph wind speed. The 250D Ext Wind & Ice case is explicitly Grade C at 30 mph and 0.25-inch radial ice; the supplied Grade B/unconfigured preset is not interchangeable.

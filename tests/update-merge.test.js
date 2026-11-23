@@ -44,7 +44,7 @@ const merge = sandbox.window.__mergeImportedUpdate;
 
 const previous = {
   fiberAssignments: [{ id: "manual-fiber:save:1", manual: true, poleId: "P1", spanId: "S1", fiberType: "MST", mstPorts: "8", installType: "NEW" }],
-  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", riserActive: true, pcoActive: false, pcoMRText: "Replace pole due to overload.", metadata: { lowPowerBaseline: "29'", powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
+  poles: { P1: { poleId: "P1", lowPower: "30'", poleHeight: "40'", notes: "Saved note", ugActive: true, ugReason: "proposed pole overloaded", ugMRText: "Unable to attach due to red tag.\nRed tag", ugRiserDirection: "E", riserActive: true, pcoActive: false, pcoMRText: "Replace pole due to overload.", metadata: { lowPowerBaseline: "29'", plaExisting: { yearInstalled: "2016", windSpeedMph: "115" }, powerEquipment: [{ equipmentId: "EQ-1", category: "TRANSFORMER", dripLoopHeight: "29'", actionActive: true, actionHeight: "31'" }, { equipmentId: "EQ-2", category: "STREETLIGHT", attachmentHeight: "24'", actionActive: false, actionHeight: "", raiseActive: true, raiseHeight: "25'" }] } } },
   spans: {
     S1: { spanId: "S1", fromPole: "P1", toPole: "P2", lengthDisplay: "100'", environment: "STREET" },
     S2: { spanId: "S2", fromPole: "P1", toPole: "P3", lengthDisplay: "80'", environment: "ALLEY" }
@@ -60,7 +60,7 @@ const previous = {
   },
   makeReadyReferences: [],
   poleClassChecks: [{ poleId: "P2", measuredTip: "31'", expectedLength: 35 }],
-  settings: { projectProfile: "INTEC", fiberSizes: {} },
+  settings: { projectProfile: "INTEC", fiberSizes: {}, plaExistingLoadingProfile: "LIGHT" },
   ui: {},
   excelReviewIgnoredChecks: { "review-known-exception": true },
   excelReviewSource: {
@@ -103,6 +103,9 @@ assert.equal(result.poles.P1.metadata.powerEquipment[0].actionActive, true, "Upd
 assert.equal(result.poles.P1.metadata.powerEquipment[0].actionHeight, "31'", "Update Data must preserve the equipment target HOA");
 assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseActive, true, "Update Data must preserve the independent Streetlight Raise action");
 assert.equal(result.poles.P1.metadata.powerEquipment[1].raiseHeight, "25'", "Update Data must preserve the Streetlight Raise target HOA");
+assert.equal(result.poles.P1.metadata.plaExisting.yearInstalled, "2016", "Update Data must preserve a manually entered PLA Existing year");
+assert.equal(result.poles.P1.metadata.plaExisting.windSpeedMph, "115", "Update Data must preserve the per-pole wind input");
+assert.equal(result.settings.plaExistingLoadingProfile, "LIGHT", "Update Data must preserve the job-wide principal loading");
 assert.equal(result.poles.P1.metadata.anchors[0].leadLength, "19'", "Update Data should refresh unedited imported anchor data");
 assert.equal(result.poles.P1.metadata.anchors[0].bearing, "180°", "Update Data should refresh an unedited anchor bearing");
 assert.equal(result.poles.P1.metadata.anchors[0].groundlineViolation, true, "Update Data must preserve the manually changed groundline violation toggle");

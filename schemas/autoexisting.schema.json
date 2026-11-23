@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://merinoeluis.github.io/Pole-Calculator/schemas/autoexisting.schema.json",
+  "title": "Pole Calculator AutoExisting Export",
+  "description": "Existing-pole NESC load-case plan produced by the web calculator for the INTEC O-Calc plugin.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "project", "job", "loadingPrincipal", "poles"],
+  "properties": {
+    "format": { "const": "AutoExisting" },
+    "version": { "const": 1 },
+    "project": { "const": "INTEC" },
+    "job": { "type": "string" },
+    "loadingPrincipal": { "enum": ["MEDIUM", "LIGHT"] },
+    "poles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pole" }
+    }
+  },
+  "$defs": {
+    "pole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "yearInstalled", "loadingProfile", "status", "loadings"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "yearInstalled": { "type": ["integer", "null"], "minimum": 1800, "maximum": 2100 },
+        "loadingProfile": {
+          "type": ["string", "null"],
+          "enum": ["PRE_2018", "MEDIUM", "LIGHT", null]
+        },
+        "status": { "enum": ["READY", "YEAR_REQUIRED", "WIND_SPEED_REQUIRED"] },
+        "loadings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/loading" }
+        }
+      }
+    },
+    "loading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "name", "rule", "grade", "role"],
+      "properties": {
+        "caseId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "rule": { "enum": ["250B", "250C", "250D"] },
+        "grade": { "enum": ["B", "C"] },
+        "role": { "enum": ["BASE", "ADDITIONAL"] },
+        "windSpeedMph": { "type": "number", "exclusiveMinimum": 0 },
+        "windPressurePsf": { "type": "number", "exclusiveMinimum": 0 },
+        "radialIceInches": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

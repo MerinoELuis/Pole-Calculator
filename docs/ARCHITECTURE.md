@@ -38,29 +38,34 @@ Every browser module is an IIFE that publishes a small API on `window`.
 22. `js/export/excel-export.js`
 23. `js/export/json-export.js`
 24. `js/export/compact-autoproposed.js`
-25. `js/rules/auto-calculate/candidate-analysis.js`
-26. `js/rules/auto-calculate/candidate-generation.js`
-27. `js/rules/auto-calculate-solver.js`
-28. `js/ui/dialogs.js`
-29. `js/ui/theme.js`
-30. `js/ui/mobile-keyboard.js`
-31. `js/ui/floating-calculator.js`
-32. `js/ui/excel-review-renderer.js`
-33. `js/ui/settings-renderer.js`
-34. `js/ui/poles/power-equipment-renderer.js`
-35. `js/ui/pole-renderer.js`
-36. `js/ui/controls.js`
-37. `js/core/persistence.js`
-38. `js/core/history.js`
-39. `js/ui/pole-navigation.js`
-40. `js/ui/comm-pairing-dialog.js`
-41. `js/ui/app.js`
-42. `js/ui/dom-contract.js`
-43. `js/ui/comm-table.js`
-44. `js/ui/span-colors.js`
-45. `js/ui/runtime.js`
+25. `js/export/autoexisting-export.js`
+26. `js/rules/auto-calculate/candidate-analysis.js`
+27. `js/rules/auto-calculate/candidate-generation.js`
+28. `js/rules/auto-calculate-solver.js`
+29. `js/ui/dialogs.js`
+30. `js/ui/theme.js`
+31. `js/ui/mobile-keyboard.js`
+32. `js/ui/floating-calculator.js`
+33. `js/ui/excel-review-renderer.js`
+34. `js/ui/fiber-tab-renderer.js`
+35. `js/ui/pla-existing-renderer.js`
+36. `js/ui/settings-renderer.js`
+37. `js/ui/poles/power-equipment-renderer.js`
+38. `js/ui/pole-renderer.js`
+39. `js/ui/controls.js`
+40. `js/core/persistence.js`
+41. `js/core/history.js`
+42. `js/ui/pole-navigation.js`
+43. `js/ui/comm-pairing-dialog.js`
+44. `js/ui/app.js`
+45. `js/ui/dom-contract.js`
+46. `js/ui/comm-table.js`
+47. `js/ui/span-colors.js`
+48. `js/ui/runtime.js`
 
 Changing this order can break global dependencies. Pole resolution, state compatibility, and identity helpers load before the store; movement, Midspan, Pole Inset, and Power Clearance modules register before clearance calculations inject their helpers; import normalizers load before ExcelImport; Excel Review wire rules load before the audit coordinator, and its result renderer loads before the app initializes it. Update Data reconciliation loads after both the store and importer. The post-render runtime loads after the renderer because it annotates and normalizes generated DOM.
+
+`AutoExistingExport` loads after JSON export and before UI initialization. `PlaExistingRenderer` loads after the Fiber renderer and before the app coordinator.
 
 ## Module Responsibilities
 
@@ -95,6 +100,7 @@ Changing this order can break global dependencies. Pole resolution, state compat
 | `export/excel-export.js` | `ExcelExport` | Produce workbook downloads. |
 | `export/json-export.js` | `ProjectExport` | Produce general project and diagnostic JSON downloads. |
 | `export/compact-autoproposed.js` | `CompactAutoProposed` | Produce compact Web-to-plugin data with UG/PCO safety and movement MR. |
+| `export/autoexisting-export.js` | `AutoExistingExport` | Build the INTEC-only per-pole/year NESC load-case export. |
 | `ui/app.js` | browser coordinator | Initialize UI modules and coordinate events, history, persistence, dialogs, and targeted refreshes. |
 | `ui/pole-renderer.js` | `PoleWorkspaceRenderer` | Render pole cards, communication and Proposed tables, review panels, and targeted pole refreshes. |
 | `ui/settings-renderer.js` | `PoleSettingsRenderer` | Render clearance/project settings and maintain Auto Proposed/export button state. |
@@ -104,6 +110,8 @@ Changing this order can break global dependencies. Pole resolution, state compat
 | `ui/mobile-keyboard.js` | `MobileKeyboardControl` | Manage mobile viewport and keyboard-specific input behavior. |
 | `ui/floating-calculator.js` | `FloatingCalculator` | Evaluate feet/inches expressions and normalize quotes. |
 | `ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Render Excel Review results, badges, warning controls, and actions. |
+| `ui/fiber-tab-renderer.js` | `FiberTabRenderer` | Render the fiber planning view and its per-pole/span assignments. |
+| `ui/pla-existing-renderer.js` | `PlaExistingRenderer` | Render/edit INTEC pole years and existing NESC loadings. |
 | `ui/pole-navigation.js` | `PoleNavigation` | Own pole-index drawer visibility, pole selection, and scroll navigation. |
 | `ui/comm-pairing-dialog.js` | `CommPairingDialogModule` | Render and manage cable-match dialog selections; return selected matches to the app coordinator without mutating project state. |
 | `ui/poles/power-equipment-renderer.js` | `PowerEquipmentRenderer` | Render imported power rows, equipment action controls, and their shared disclosure icon. |
@@ -137,7 +145,7 @@ flowchart LR
     X --> G
     G --> H[User edit]
     H --> C
-    C --> I[Save / AutoProposed / Debug JSON]
+    C --> I[Save / AutoProposed / AutoExisting / Debug JSON]
 ```
 
 A normal edit follows this lifecycle:

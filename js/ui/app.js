@@ -12,6 +12,7 @@
   let mobileKeyboard = null;
   let themeControl = null;
   let fiberTabRenderer = null;
+  let plaExistingRenderer = null;
 
   const poleResolutionOf = pole => S.getPoleResolution(pole);
   const ownerCanonicalOf = row => S.getOwnerCanonical(row);
@@ -600,6 +601,28 @@
     }
     recordUndoSnapshot();
 
+    if (scope === "plaExistingGlobal") {
+      if (field !== "loadingPrincipal") return;
+      S.updateSetting("plaExistingLoadingProfile", String(value || "").toUpperCase() === "LIGHT" ? "LIGHT" : "MEDIUM");
+      render();
+      markDirty();
+      return;
+    }
+
+    if (scope === "plaExisting") {
+      const pole = S.getPole(el.dataset.pole || "");
+      if (!pole || !["yearInstalled", "windSpeedMph"].includes(field)) return;
+      const plaExisting = { ...(pole.metadata?.plaExisting || {}) };
+      plaExisting[field] = String(value || "").trim();
+      S.upsertPole({
+        ...pole,
+        metadata: { ...(pole.metadata || {}), plaExisting }
+      });
+      render();
+      markDirty();
+      return;
+    }
+
     if (scope === "pole") {
       const previousProposed = field === "standaloneProposedHOA"
         ? H.parseHeight(S.getPole(el.dataset.pole)?.standaloneProposedHOA || "")
@@ -789,6 +812,7 @@
       renderSummary();
       renderClearanceSettings();
       renderPoleClassResults();
+      plaExistingRenderer?.render();
       renderExcelReviewResults();
       fiberTabRenderer?.render();
       renderPoleLists();
@@ -856,6 +880,15 @@
     els.exportProposedJsonBtn.addEventListener("click", () => {
       if (els.exportProposedJsonBtn.disabled) return;
       global.ProjectExport.exportProposedJson();
+    });
+    els.exportAutoExistingBtn?.addEventListener("click", () => {
+      if (els.exportAutoExistingBtn.disabled) return;
+      const result = global.AutoExistingExport?.exportAutoExistingJson?.(S.getState());
+      if (!result?.ok) {
+        toast(result?.reason || "AutoExisting could not be exported.", "warning");
+        return;
+      }
+      toast("AutoExisting JSON exported.", "success");
     });
     els.followProposedBtn.addEventListener("click", () => {
       if (els.followProposedBtn.disabled) return;
@@ -985,6 +1018,7 @@
     window.addEventListener("resize", updatePoleIndexToggleVisibility);
     document.querySelectorAll("[data-view-tab]").forEach(btn => {
       btn.addEventListener("click", () => {
+        if (btn.disabled) return;
         S.getState().ui.activeView = btn.dataset.viewTab || "calculator";
         renderActiveView();
       });
@@ -1034,6 +1068,9 @@
       exportProposedJsonBtn: qs("exportProposedJsonBtn"),
       followProposedBtn: qs("followProposedBtn"),
       exportDebugJsonBtn: qs("exportDebugJsonBtn"),
+      exportAutoExistingBtn: qs("exportAutoExistingBtn"),
+      plaExistingSummary: qs("plaExistingSummary"),
+      plaExistingResults: qs("plaExistingResults"),
       autoCalculateBtn: qs("autoCalculateBtn"),
       mobileKeyboardToggleBtn: qs("toggleMobileKeyboardBtn"),
       autoCalculateOverlay: qs("autoCalculateOverlay"),
@@ -1146,6 +1183,7 @@
       wireEditableEvents: wireEditableEvents
     };
     fiberTabRenderer = global.FiberTabRenderer?.create(rendererContext) || null;
+    plaExistingRenderer = global.PlaExistingRenderer?.create(rendererContext) || null;
     ({ spanLabel, shortSpanLabel, spanLengthDisplay, poleLink, displayMidspan, displayDecimalFeetInput, connectedSpansSorted, spanColorClass, spanRowClasses, spanChip, spanColorDot, commOwnerLabel, normalizedHeightLabel, commGroupKey, spanHasRealMidspan, isSpanEligibleForProposed, proposedSpansForPole, groupedCommsForPole, commMidspanEntries, renderCommSpanRefs, renderCommServiceDropValues, renderCommDownGuyValues, renderCommTransferValues, renderCommResagValues, renderCommMidspanValues, renderCommMaxHeightAtMSValues, renderCommRemoteValues, renderCommFlagging, poleIdsForSpan, affectedPoleIdsForElement, bindScrollLinks, replacePoleCard, renderAffectedPoles, noteList, commMidspanNote, poleClearanceNote, spanSideClearanceNote, renderMidspanClearanceStatus, renderCombinedSpanFlagging, renderCommHoaChangeValues, renderCommOtherHoaValues, renderClearanceStatus, renderClearanceSettings, updateAutoCalculateButtonState, updateFollowProposedButtonState, renderPoleClassResults, poleClassSeverity, reviewStatusBadge, renderReviewCheck, renderExcelReviewTabWarning, updateExcelReviewWarningActions, renderExcelReviewResults, setAllExcelReviewWarningsIgnored, hasCriticalPoleHeightIssue, renderPoleClassTabWarning, poleClassRowClass, renderPoleClassStatus, renderAnsiReferenceTable, renderActiveView, renderEnvironmentOptions, poleSummary, isSelfSupportingComm, poleHasProposed, poleFlaggingSummary, renderSummary, filteredPoles, renderPoleListItem, renderPoleLists, renderMRText, formatExistingViolationsText, renderMidamPreMoveViolations, renderPoleActions, renderPoleEditableHeader, renderSpanProposedTable, renderManualProposedSpanStarter, renderCommMovementTable, renderPowerTable, renderEquipmentTable, renderPoleWorkspace, renderAllPolesWorkspace } = global.PoleWorkspaceRenderer.create(rendererContext));
     poleActionHandlers = global.PoleActions.create({
       S,

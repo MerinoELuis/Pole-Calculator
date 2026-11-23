@@ -287,6 +287,16 @@ EXCEL_Wecom-SUPRAZ1.1_2026-07-13.xlsx
 -> Wecom-SUPRAZ1.1_AutoProposed.json
 ```
 
+## AutoExisting JSON
+
+The INTEC-only `PLA Existing` tab downloads a separate `AutoExisting.json`; it does not add loading cases to AutoProposed. It lists only poles from Excel's Collection sheet. The contract is defined by `schemas/autoexisting.schema.json`. The job-wide principal profile is recorded once at the top level; each pole entry carries its own installed year, wind speed, status, and exact case list.
+
+- No case is selected for a pole whose year is unknown. The operator can enter the missing year in PLA Existing.
+- Export stays disabled until every pole has a year. For 2018+ poles it also requires a pole-specific wind speed greater than 100 mph.
+- A year before 2018 gets only the 250C Grade C case at 90 mph.
+- A year from 2018 gets the job-wide Medium or Light Grade C base. Medium adds 250C (>100 mph) and 250D Grade C (30 mph, 0.25-inch radial ice); Light adds only the 250C case.
+- The Grade C 250D definition is explicit in the export because the supplied PPLU/PPLE preset is Grade B or unconfigured and must not be substituted.
+
 ## Debug JSON
 
 Export Debug is intentionally verbose and is available only in the local app

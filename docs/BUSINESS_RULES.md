@@ -53,7 +53,17 @@ If no power midspan exists, `Max Height at MS` remains blank and the status repo
 
 An active Birthmark is authoritative for Pole Type Check in every project when the row has a valid Tip. It makes the row `OK` despite missing Circumference or a mismatching/missing imported type, class, or height. A missing or invalid Tip remains an issue even when Birthmark is active. Without an active Birthmark, pole height issues are critical when the imported row has a missing Tip, a calculated height without a reference-table row, or a calculated height that differs from the imported pole type. Class-only differences remain review warnings. Critical height issues appear on the `Pole Type Check` tab and beside the affected pole in the calculator index; they are also included by the `Flagged only` filter.
 
-INTEC Pole Type Check displays `Year Installed` between `Expected Type` and `Status`. For a year of 2018 or later, it shows a separate warning icon to remind the reviewer to verify all three Load Cases. This visual reminder does not affect Height/Class calculations, row status, severity, or their counts. Other projects do not display this column or warning.
+The `PLA Existing` and `Fiber` tabs are visible only for INTEC. `PLA Existing` appears immediately after `Pole Type Check` and before `Fiber`; it lists only poles present in the Excel `Collection` sheet. A warning icon appears next to years 2018 or later. This reminder does not affect Height/Class calculations, row status, severity, or their counts. If Excel has no year, the operator enters it in `PLA Existing`; no loading is selected until the year is known. Export is blocked until every listed pole has a year and each required wind speed is supplied.
+
+### INTEC PLA Existing Load Cases
+
+`AutoExisting` is a separate export from `AutoProposed`; each loading record is attached to a pole and its `Year Installed`.
+
+- Before 2018: use `NESC 23 Ext Wind (250C) Grade C (<= 100 mph)` at 90 mph.
+- 2018 or later: use the job-wide `Loading Principal` setting, which defaults to `NESC Medium (250B) Grade C` and may be switched once for the whole job to Light. Medium adds both the >100 mph 250C case and the 250D Ext Wind & Ice case; Light adds only the >100 mph 250C case.
+- The >100 mph 250C case requires a pole-specific user-entered wind speed strictly greater than 100 mph.
+- The 250D case is explicitly Grade C with 30 mph wind and 0.25-inch radial ice. Do not substitute the available Grade B preset.
+- The Medium/Light principal is global to the job; year and wind speed remain associated with each pole.
 
 ## Existing Comm Midspan
 

@@ -48,6 +48,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/export/excel-export.js` | `ExcelExport` | Produce workbook downloads. |
 | `js/export/json-export.js` | `ProjectExport` | Produce regular project and diagnostic JSON. |
 | `js/export/compact-autoproposed.js` | `CompactAutoProposed` | Produce compact plugin data and apply UG/PCO export safety. |
+| `js/export/autoexisting-export.js` | `AutoExistingExport` | Build separate INTEC per-pole/year NESC loading JSON. |
 
 ## UI
 
@@ -63,6 +64,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | `js/ui/floating-calculator.js` | `FloatingCalculator` | Feet/inches expression calculator and quote normalization. |
 | `js/ui/excel-review-renderer.js` | `ExcelReviewRenderer` | Excel Review result rendering, warning controls, and per-pole actions. |
 | `js/ui/fiber-tab-renderer.js` | `FiberTabRenderer` | Fiber planning view: global per-type diameters, per-pole/per-span fiber type, MST ports, and New/Overlash assignments. |
+| `js/ui/pla-existing-renderer.js` | `PlaExistingRenderer` | INTEC-only pole year, job-wide principal loading selector, and per-pole wind speeds/loadings table. |
 | `js/ui/pole-navigation.js` | `PoleNavigation` | Pole-index drawer, selection, visibility, and scroll navigation. |
 | `js/ui/comm-pairing-dialog.js` | `CommPairingDialogModule` | Cable matching dialog, selectable span/table rendering, and temporary match selections. |
 | `js/ui/poles/power-equipment-renderer.js` | `PowerEquipmentRenderer` | Render power wires, power equipment actions, and disclosure icon markup. |
@@ -77,6 +79,7 @@ This is the quick ownership map for code changes. Detailed behavior remains in t
 | Path | Responsibility |
 | --- | --- |
 | `schemas/autoproposed.schema.json` | Formal structural contract shared by Web and the O-Calc plugin. |
+| `schemas/autoexisting.schema.json` | Formal structural contract for the separate per-pole INTEC load-case export. |
 | `tests/run-all-tests.js` | Dependency-free syntax, JSON, and regression-test runner. |
 | `tests/fixtures/` | Reusable normalized states and exported payload examples. |
 | `tests/expected/` | Golden expected outputs. |
